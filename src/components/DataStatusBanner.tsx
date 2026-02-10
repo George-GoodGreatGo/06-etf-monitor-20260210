@@ -6,6 +6,7 @@ import { formatYmd, parseIsoToLocal } from '@/utils/format'
 export default function DataStatusBanner({
   loading,
   error,
+  notice,
   meta,
   incompleteCount,
   onRetry,
@@ -16,6 +17,7 @@ export default function DataStatusBanner({
 }: {
   loading: boolean
   error: string | null
+  notice?: { tone: 'info' | 'warn'; message: string } | null
   meta: Top100Meta | null
   incompleteCount: number
   onRetry: () => void
@@ -95,6 +97,41 @@ export default function DataStatusBanner({
           >
             <RefreshCw className="h-4 w-4" />
             重试
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (notice) {
+    return (
+      <div
+        className={cn(
+          'rounded-xl border bg-[#111B2E] px-4 py-3',
+          notice.tone === 'warn' ? 'border-[#F59E0B]/40' : 'border-white/10',
+        )}
+      >
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-start gap-2">
+            <Loader2 className="mt-0.5 h-4 w-4 animate-spin text-[#60A5FA]" />
+            <div>
+              <div className="text-sm font-medium">
+                {notice.tone === 'warn' ? '刷新可能仍在后台运行' : '后台刷新中'}
+              </div>
+              <div className="mt-0.5 text-xs text-[#A9B6CC]">{notice.message}</div>
+              <div className="mt-1 text-xs text-[#A9B6CC]">
+                交易日：{meta ? formatYmd(meta.dataDate) : '—'}；最近拉取：{meta ? parseIsoToLocal(meta.fetchedAt) : '—'}
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onRetry}
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 text-xs transition hover:border-white/20 hover:bg-white/10"
+          >
+            <RefreshCw className="h-4 w-4" />
+            刷新页面数据
           </button>
         </div>
       </div>

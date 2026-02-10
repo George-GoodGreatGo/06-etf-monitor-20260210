@@ -39,6 +39,8 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null)
   const [meta, setMeta] = useState<Top100Meta | null>(null)
   const [rows, setRows] = useState<EtfTopRow[]>([])
+  const [adminNotice, setAdminNotice] = useState<{ tone: 'info' | 'warn'; message: string } | null>(null)
+  const [adminRefreshing, setAdminRefreshing] = useState(false)
 
   const metaRef = useRef<Top100Meta | null>(null)
 
@@ -379,17 +381,17 @@ export default function Home() {
 
   const onRefetch = () => {
     if (isVercelBackend) {
+      if (adminRefreshing) return
       const startedAt = Date.now()
 
-      setLoading(true)
-      setLoadingMode('refetch')
+      setAdminRefreshing(true)
+      setAdminNotice({ tone: 'info', message: '已触发后台刷新任务（GitHub Actions），等待写入 Supabase 快照…' })
       setError(null)
-      setTreatAsRefetch(true)
-      setRefetchStartedAt(startedAt)
-      setRefetchProgressPct(0)
-      setBackendProgressText('已触发后台刷新任务（GitHub Actions），等待写入 Supabase 快照…')
 
       const prevFetchedAt = metaRef.current?.fetchedAt || null
+
+      const hardTimeoutMs = 20 * 60_000
+      const pollIntervalMs = 8_000
 
       void (async () => {
         try {
@@ -410,13 +412,20 @@ export default function Home() {
             throw new Error(msg)
           }
 
+          const started = Date.now()
           let attempts = 0
-          const maxAttempts = 90
-          const intervalMs = 5_000
+          while (mountedRef.current) {
+            const elapsed = Date.now() - started
+            if (elapsed > hardTimeoutMs) {
+              setAdminNotice({
+                tone: 'warn',
+                message: '刷新已触发，但快照写入可能仍在排队；你可以稍后再点一次“重新获取”，或等待页面下次拉取。',
+              })
+              break
+            }
 
-          while (attempts < maxAttempts && mountedRef.current) {
             attempts += 1
-            setBackendProgressText(`刷新任务运行中…（${attempts}/${maxAttempts}）`)
+            setAdminNotice({ tone: 'info', message: `刷新任务运行中…（已等待 ${Math.ceil(elapsed / 1000)}s）` })
 
             const ac = new AbortController()
             const timeoutId = window.setTimeout(() => ac.abort(), 60_000)
@@ -431,8 +440,13 @@ export default function Home() {
                 setMeta(out.meta)
                 setRows(out.data)
                 const nextFetchedAt = out.meta?.fetchedAt || null
-                if (prevFetchedAt && nextFetchedAt && nextFetchedAt !== prevFetchedAt) break
-                if (!prevFetchedAt && nextFetchedAt) break
+                const updated =
+                  (prevFetchedAt && nextFetchedAt && nextFetchedAt !== prevFetchedAt) ||
+                  (!prevFetchedAt && nextFetchedAt)
+                if (updated) {
+                  setAdminNotice(null)
+                  break
+                }
               }
             } catch {
               void 0
@@ -440,28 +454,15 @@ export default function Home() {
               window.clearTimeout(timeoutId)
             }
 
-            await new Promise((r) => window.setTimeout(r, intervalMs))
-          }
-
-          const finalFetchedAt = metaRef.current?.fetchedAt || null
-          if (mountedRef.current) {
-            const updated =
-              (prevFetchedAt && finalFetchedAt && finalFetchedAt !== prevFetchedAt) ||
-              (!prevFetchedAt && finalFetchedAt)
-            if (!updated) {
-              setError('刷新已触发，但等待快照更新超时；可稍后刷新页面或再试一次')
-            }
+            await new Promise((r) => window.setTimeout(r, pollIntervalMs))
+            if (attempts > 9999) break
           }
         } catch (e) {
           if (!mountedRef.current) return
           setError(e instanceof Error ? e.message : String(e))
         } finally {
           if (!mountedRef.current) return
-          setBackendProgressText(null)
-          setLoading(false)
-          setTreatAsRefetch(false)
-          setRefetchStartedAt(null)
-          setRefetchProgressPct(null)
+          setAdminRefreshing(false)
         }
       })()
 
@@ -486,7 +487,7 @@ export default function Home() {
             : undefined
         }
         onRefetch={onRefetch}
-        refetching={loading && (loadingMode === 'refetch' || treatAsRefetch)}
+        refetching={adminRefreshing || (loading && (loadingMode === 'refetch' || treatAsRefetch))}
       />
 
       <main className="mx-auto w-full max-w-[1200px] px-4 pb-10 pt-6">
@@ -508,6 +509,7 @@ export default function Home() {
         <DataStatusBanner
           loading={loading}
           error={error}
+          notice={adminNotice}
           meta={meta}
           incompleteCount={incompleteCount}
           loadingMode={
