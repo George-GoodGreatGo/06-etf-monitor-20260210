@@ -14,6 +14,7 @@ import {
 } from '@/utils/etfApi'
 import { parseIsoToLocal } from '@/utils/format'
 import { apiUrl } from '@/utils/apiBase'
+import { adminAuthHeaders, getAdminAccessToken, setAdminAccessToken } from '@/utils/adminAccess'
 
 const defaultSort: { key: Top100SortKey; dir: SortDir } = {
   key: 'turnover',
@@ -39,6 +40,8 @@ export default function Home() {
   const [meta, setMeta] = useState<Top100Meta | null>(null)
   const [rows, setRows] = useState<EtfTopRow[]>([])
 
+  const metaRef = useRef<Top100Meta | null>(null)
+
   const [progressToken, setProgressToken] = useState<string | null>(null)
   const [backendProgressText, setBackendProgressText] = useState<string | null>(null)
   const [treatAsRefetch, setTreatAsRefetch] = useState(false)
@@ -54,6 +57,7 @@ export default function Home() {
   const mountedRef = useRef(true)
 
   const bootIdRef = useRef<string | null>(null)
+  const [isVercelBackend, setIsVercelBackend] = useState<boolean | null>(null)
   const initialLoadDoneRef = useRef(false)
 
   useEffect(() => {
@@ -63,16 +67,23 @@ export default function Home() {
     }
   }, [])
 
+  useEffect(() => {
+    metaRef.current = meta
+  }, [meta])
+
 
   useEffect(() => {
     const run = async () => {
       try {
-        const res = await fetch(apiUrl('/api/health'))
+        const res = await fetch(apiUrl('/api/health'), { headers: { ...adminAuthHeaders() } })
         const j = (await res.json()) as unknown
         if (typeof j !== 'object' || j === null) return
         const bootId = (j as Record<string, unknown>).serverBootId
         if (typeof bootId !== 'string' || !bootId) return
         bootIdRef.current = bootId
+
+        const v = (j as Record<string, unknown>).isVercel
+        if (typeof v === 'boolean') setIsVercelBackend(v)
       } catch {
         return
       }
@@ -145,6 +156,18 @@ export default function Home() {
       if (!mountedRef.current || seq !== reqSeqRef.current) return
 
       if (res.success === false) {
+        if (res.error === 'unauthorized') {
+          const current = getAdminAccessToken()
+          const input = window.prompt('请输入管理员访问口令', current || '')
+          if (typeof input === 'string') {
+            const t = input.trim()
+            if (t) {
+              setAdminAccessToken(t)
+              void runFetch(seq, opts)
+              return
+            }
+          }
+        }
         setMeta(null)
         setRows([])
         setError(res.message ?? res.error)
@@ -196,7 +219,7 @@ export default function Home() {
       try {
         const res = await fetch(
           apiUrl(`/api/etf/progress?_p=${encodeURIComponent(progressToken)}&_t=${Date.now()}`),
-          { cache: 'no-store' },
+          { cache: 'no-store', headers: { ...adminAuthHeaders() } },
         )
         const j = (await res.json()) as unknown
         if (cancelled) return
@@ -355,6 +378,96 @@ export default function Home() {
   }
 
   const onRefetch = () => {
+    if (isVercelBackend) {
+      const startedAt = Date.now()
+
+      setLoading(true)
+      setLoadingMode('refetch')
+      setError(null)
+      setTreatAsRefetch(true)
+      setRefetchStartedAt(startedAt)
+      setRefetchProgressPct(0)
+      setBackendProgressText('已触发后台刷新任务（GitHub Actions），等待写入 Supabase 快照…')
+
+      const prevFetchedAt = metaRef.current?.fetchedAt || null
+
+      void (async () => {
+        try {
+          const res = await fetch(apiUrl('/api/admin/refresh'), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...adminAuthHeaders(),
+            },
+            body: JSON.stringify({ at: startedAt }),
+          })
+          const j = (await res.json().catch(() => null)) as unknown
+          if (!res.ok) {
+            const msg =
+              j && typeof j === 'object' && (j as Record<string, unknown>).message
+                ? String((j as Record<string, unknown>).message)
+                : `触发刷新失败（HTTP ${res.status}）`
+            throw new Error(msg)
+          }
+
+          let attempts = 0
+          const maxAttempts = 90
+          const intervalMs = 5_000
+
+          while (attempts < maxAttempts && mountedRef.current) {
+            attempts += 1
+            setBackendProgressText(`刷新任务运行中…（${attempts}/${maxAttempts}）`)
+
+            const ac = new AbortController()
+            const timeoutId = window.setTimeout(() => ac.abort(), 60_000)
+            try {
+              const out = await fetchEtfTop100(
+                {
+                  keyword: debouncedKeyword.trim() || undefined,
+                },
+                ac.signal,
+              )
+              if (out.success === true) {
+                setMeta(out.meta)
+                setRows(out.data)
+                const nextFetchedAt = out.meta?.fetchedAt || null
+                if (prevFetchedAt && nextFetchedAt && nextFetchedAt !== prevFetchedAt) break
+                if (!prevFetchedAt && nextFetchedAt) break
+              }
+            } catch {
+              void 0
+            } finally {
+              window.clearTimeout(timeoutId)
+            }
+
+            await new Promise((r) => window.setTimeout(r, intervalMs))
+          }
+
+          const finalFetchedAt = metaRef.current?.fetchedAt || null
+          if (mountedRef.current) {
+            const updated =
+              (prevFetchedAt && finalFetchedAt && finalFetchedAt !== prevFetchedAt) ||
+              (!prevFetchedAt && finalFetchedAt)
+            if (!updated) {
+              setError('刷新已触发，但等待快照更新超时；可稍后刷新页面或再试一次')
+            }
+          }
+        } catch (e) {
+          if (!mountedRef.current) return
+          setError(e instanceof Error ? e.message : String(e))
+        } finally {
+          if (!mountedRef.current) return
+          setBackendProgressText(null)
+          setLoading(false)
+          setTreatAsRefetch(false)
+          setRefetchStartedAt(null)
+          setRefetchProgressPct(null)
+        }
+      })()
+
+      return
+    }
+
     const seq = ++reqSeqRef.current
     const startedAt = Date.now()
     window.localStorage.setItem(activeRefetchTokenKey, String(startedAt))

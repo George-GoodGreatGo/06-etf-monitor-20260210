@@ -1,4 +1,5 @@
 import { apiUrl } from '@/utils/apiBase'
+import { adminAuthHeaders } from '@/utils/adminAccess'
 
 export type DataStatus = 'complete' | 'incomplete' | 'api_error'
 
@@ -85,6 +86,9 @@ export async function fetchEtfTop100(
     res = await fetch(url, {
       ...(signal ? { signal } : {}),
       ...(params.refreshToken ? { keepalive: true } : {}),
+      headers: {
+        ...adminAuthHeaders(),
+      },
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -107,7 +111,7 @@ export async function fetchEtfTop100(
     const msg = getMessage(json) ?? `HTTP ${res.status}`
     return {
       success: false,
-      error: 'api_error',
+      error: res.status === 401 ? 'unauthorized' : 'api_error',
       message: msg,
     }
   }
@@ -131,6 +135,9 @@ export async function fetchEtfDetail(
     res = await fetch(apiUrl(`/api/etf/detail/${encodeURIComponent(code)}`), {
       signal,
       keepalive: true,
+      headers: {
+        ...adminAuthHeaders(),
+      },
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -153,7 +160,7 @@ export async function fetchEtfDetail(
     const msg = getMessage(json) ?? `HTTP ${res.status}`
     return {
       success: false,
-      error: 'api_error',
+      error: res.status === 401 ? 'unauthorized' : 'api_error',
       message: msg,
     }
   }

@@ -11,7 +11,9 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import authRoutes from './routes/auth.js'
 import etfRoutes from './routes/etf.js'
+import adminRoutes from './routes/admin.js'
 import { serverBootId, serverStartedAt } from './lib/runtime.js'
+import { requireAdminAccess } from './lib/adminAuth.js'
 
 // load env
 dotenv.config()
@@ -26,7 +28,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }))
  * API Routes
  */
 app.use('/api/auth', authRoutes)
-app.use('/api/etf', etfRoutes)
+app.use('/api/etf', requireAdminAccess, etfRoutes)
+app.use('/api/admin', requireAdminAccess, adminRoutes)
 
 /**
  * health
@@ -39,6 +42,7 @@ app.use(
       message: 'ok',
       serverBootId,
       serverStartedAt,
+      isVercel: Boolean(process.env.VERCEL),
     })
   },
 )
