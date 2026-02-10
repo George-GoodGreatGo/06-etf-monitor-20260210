@@ -1,0 +1,20 @@
+{
+  "watch": ["api"],
+  "ext": "ts,mts,js,json",
+  "ignore": [
+    "api/dist/*",
+    "api/python/.cache/*",
+    "api/python/.cache/**",
+    "api\\python\\.cache\\*",
+    "api\\python\\.cache\\**",
+    "api/python/__pycache__/*",
+    "api/python/__pycache__/**",
+    "api\\python\\__pycache__\\*",
+    "api\\python\\__pycache__\\**"
+  ],
+  "exec": "tsx api/server.ts",
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "delay": 1000
+}
