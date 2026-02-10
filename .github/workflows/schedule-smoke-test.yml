@@ -1,9 +1,12 @@
 name: Schedule Smoke Test
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
   schedule:
-    - cron: '*/5 * * * 1-5'
+    - cron: '*/5 * * * *'
 
 permissions:
   contents: read
