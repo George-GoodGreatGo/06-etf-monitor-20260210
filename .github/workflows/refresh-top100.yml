@@ -3,7 +3,7 @@ name: Refresh Top100 Snapshot
 on:
   workflow_dispatch:
   schedule:
-    - cron: '30 9 * * 1-5'
+    - cron: '0 11 * * 1-5'
 
 permissions:
   contents: read
@@ -40,4 +40,3 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           TOP100_LIMIT: '200'
         run: npm run refresh:supabase:top100
-
