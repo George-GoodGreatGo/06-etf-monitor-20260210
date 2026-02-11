@@ -174,6 +174,9 @@ router.post('/top100/insight', async (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'text/plain; charset=utf-8')
   res.setHeader('X-Accel-Buffering', 'no')
 
+  const contentType = String(upstream.headers.get('content-type') || '').toLowerCase()
+  const isEventStream = contentType.includes('text/event-stream')
+
   const reader = upstream.body.getReader()
   const decoder = new TextDecoder('utf-8')
   let buffer = ''
@@ -199,27 +202,32 @@ router.post('/top100/insight', async (req: Request, res: Response) => {
       if (done) break
       const chunk = decoder.decode(value, { stream: true })
 
+      if (!isEventStream) {
+        if (chunk) res.write(chunk)
+        continue
+      }
+
       buffer += chunk
       const lines = buffer.split(/\r?\n/)
       buffer = lines.pop() || ''
 
       for (const line of lines) {
-        if (line.startsWith('data:')) {
-          const data = line.slice(5)
+        const trimmed = line.trimStart()
+        if (trimmed.startsWith('data:')) {
+          const data = trimmed.slice(5)
           const out = extractTextFromSseData(data)
           if (out) res.write(out)
           continue
         }
-
-        if (!line.startsWith(':') && line.trim()) {
-          res.write(line + '\n')
-        }
       }
     }
 
-    const tail = buffer.trim()
-    if (tail && !tail.startsWith('data:')) {
-      res.write(tail)
+    if (isEventStream) {
+      const tail = buffer.trimStart()
+      if (tail.startsWith('data:')) {
+        const out = extractTextFromSseData(tail.slice(5))
+        if (out) res.write(out)
+      }
     }
   } catch {
     void 0
