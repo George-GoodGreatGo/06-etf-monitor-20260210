@@ -240,11 +240,15 @@ router.post('/top100/insight', async (req: Request, res: Response) => {
   }
 
   res.status(200)
-  res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+  res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
   res.setHeader('X-Accel-Buffering', 'no')
 
   const contentType = String(upstream.headers.get('content-type') || '').toLowerCase()
   const isEventStream = contentType.includes('text/event-stream')
+
+  const writeLine = (obj: Record<string, unknown>) => {
+    res.write(JSON.stringify(obj) + '\n')
+  }
 
   const reader = upstream.body.getReader()
   const decoder = new TextDecoder('utf-8')
@@ -272,7 +276,7 @@ router.post('/top100/insight', async (req: Request, res: Response) => {
       const chunk = decoder.decode(value, { stream: true })
 
       if (!isEventStream) {
-        if (chunk) res.write(chunk)
+        if (chunk) writeLine({ type: 'content', content: chunk })
         continue
       }
 
@@ -284,14 +288,33 @@ router.post('/top100/insight', async (req: Request, res: Response) => {
         const trimmed = line.trimStart()
         if (trimmed.startsWith('data:')) {
           const data = trimmed.slice(5)
+          try {
+            const j = JSON.parse(data.trim()) as unknown
+            if (j && typeof j === 'object') {
+              const o = j as Record<string, unknown>
+              if (o.type === 'end') {
+                writeLine({ type: 'end', status: o.status || 'success' })
+                closed = true
+                break
+              }
+              if (o.type === 'content') {
+                const c = o.content
+                if (typeof c === 'string' && c) writeLine({ type: 'content', content: c })
+                continue
+              }
+            }
+          } catch {
+            void 0
+          }
+
           const out = extractTextFromSseData(data)
-          if (out) res.write(out)
+          if (out) writeLine({ type: 'content', content: out })
           continue
         }
 
         if (!trimmed.startsWith('event:') && (trimmed.startsWith('{') || trimmed.startsWith('['))) {
           const out = extractTextFromSseData(trimmed)
-          if (out) res.write(out)
+          if (out) writeLine({ type: 'content', content: out })
         }
       }
     }
@@ -299,12 +322,30 @@ router.post('/top100/insight', async (req: Request, res: Response) => {
     if (isEventStream) {
       const tail = buffer.trimStart()
       if (tail.startsWith('data:')) {
-        const out = extractTextFromSseData(tail.slice(5))
-        if (out) res.write(out)
+        const data = tail.slice(5)
+        try {
+          const j = JSON.parse(data.trim()) as unknown
+          if (j && typeof j === 'object') {
+            const o = j as Record<string, unknown>
+            if (o.type === 'end') {
+              writeLine({ type: 'end', status: o.status || 'success' })
+            } else if (o.type === 'content') {
+              const c = o.content
+              if (typeof c === 'string' && c) writeLine({ type: 'content', content: c })
+            }
+          }
+        } catch {
+          const out = extractTextFromSseData(data)
+          if (out) writeLine({ type: 'content', content: out })
+        }
       } else if (!tail.startsWith('event:') && (tail.startsWith('{') || tail.startsWith('['))) {
         const out = extractTextFromSseData(tail)
-        if (out) res.write(out)
+        if (out) writeLine({ type: 'content', content: out })
       }
+    }
+
+    if (!isEventStream) {
+      writeLine({ type: 'end', status: 'success' })
     }
   } catch {
     void 0

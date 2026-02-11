@@ -4,6 +4,75 @@ import { apiUrl } from '@/utils/apiBase'
 import { adminAuthHeaders } from '@/utils/adminAccess'
 import type { EtfTopRow, Top100Meta } from '@/utils/etfApi'
 
+type InsightSegment =
+  | { kind: 'text'; content: string }
+  | { kind: 'table'; headers: string[]; rows: string[][] }
+
+function parseTableRow(line: string): string[] {
+  const trimmed = line.trim()
+  const noEdge = trimmed.replace(/^\|\s*/, '').replace(/\s*\|$/, '')
+  return noEdge
+    .split('|')
+    .map((c) => c.trim())
+    .filter((c) => c.length > 0)
+}
+
+function isSeparatorLine(line: string): boolean {
+  const t = line.trim()
+  if (!t.includes('-') || !t.includes('|')) return false
+  return /^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?$/.test(t)
+}
+
+function parseMarkdownTables(source: string): InsightSegment[] {
+  const text = String(source || '')
+  if (!text.trim()) return []
+
+  const lines = text.replace(/\r\n/g, '\n').split('\n')
+  const out: InsightSegment[] = []
+  let buffer: string[] = []
+
+  const flushText = () => {
+    const content = buffer.join('\n').trimEnd()
+    buffer = []
+    if (content.trim()) out.push({ kind: 'text', content })
+  }
+
+  let i = 0
+  while (i < lines.length) {
+    const line = lines[i]
+    const next = i + 1 < lines.length ? lines[i + 1] : ''
+    const looksLikeHeader = line.includes('|')
+    if (looksLikeHeader && isSeparatorLine(next)) {
+      const headers = parseTableRow(line)
+      if (headers.length >= 2) {
+        flushText()
+        i += 2
+        const rows: string[][] = []
+        while (i < lines.length) {
+          const rowLine = lines[i]
+          if (!rowLine.trim()) break
+          if (!rowLine.includes('|')) break
+          if (isSeparatorLine(rowLine)) {
+            i += 1
+            continue
+          }
+          const row = parseTableRow(rowLine)
+          if (row.length > 0) rows.push(row)
+          i += 1
+        }
+        out.push({ kind: 'table', headers, rows })
+        continue
+      }
+    }
+
+    buffer.push(line)
+    i += 1
+  }
+
+  flushText()
+  return out
+}
+
 export default function Top100InsightPanel({
   meta,
   rows,
@@ -14,6 +83,7 @@ export default function Top100InsightPanel({
   const [text, setText] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
 
   const snapshotAt = meta ? meta.cachedAt || meta.fetchedAt : null
   const key = useMemo(() => {
@@ -37,6 +107,7 @@ export default function Top100InsightPanel({
     setLoading(true)
     setError(null)
     setText('')
+    setDone(false)
 
     try {
       const res = await fetch(apiUrl('/api/ai/top100/insight'), {
@@ -64,14 +135,54 @@ export default function Top100InsightPanel({
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder('utf-8')
+      let buffer = ''
       while (true) {
         const { value, done } = await reader.read()
         if (done) break
         const chunk = decoder.decode(value, { stream: true })
-        if (chunk) {
-          setText((prev) => prev + chunk)
+        if (!chunk) continue
+
+        buffer += chunk
+        const lines = buffer.split(/\r?\n/)
+        buffer = lines.pop() || ''
+        for (const line of lines) {
+          const t = line.trim()
+          if (!t) continue
+          try {
+            const j = JSON.parse(t) as unknown
+            if (!j || typeof j !== 'object') continue
+            const o = j as Record<string, unknown>
+            if (o.type === 'content' && typeof o.content === 'string') {
+              setText((prev) => prev + o.content)
+              continue
+            }
+            if (o.type === 'end') {
+              setDone(true)
+              continue
+            }
+          } catch {
+            setText((prev) => prev + line + '\n')
+          }
         }
       }
+
+      const tail = buffer.trim()
+      if (tail) {
+        try {
+          const j = JSON.parse(tail) as unknown
+          if (j && typeof j === 'object') {
+            const o = j as Record<string, unknown>
+            if (o.type === 'content' && typeof o.content === 'string') {
+              setText((prev) => prev + o.content)
+            }
+            if (o.type === 'end') setDone(true)
+          }
+        } catch {
+          setText((prev) => prev + tail)
+        }
+      }
+
+      setDone(true)
     } catch (e) {
       const name =
         typeof e === 'object' && e && 'name' in e
@@ -96,6 +207,7 @@ export default function Top100InsightPanel({
   }, [key])
 
   const ready = Boolean(meta && rows.length > 0)
+  const segments = useMemo(() => (done ? parseMarkdownTables(text) : []), [done, text])
 
   return (
     <section className="mt-4 rounded-xl border border-white/10 bg-[#111B2E] px-4 py-3" data-testid="top100-insight">
@@ -126,15 +238,66 @@ export default function Top100InsightPanel({
         </div>
       ) : null}
 
-      <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-[#E6EDF7]">
-        {!ready
-          ? '等待 Top100 数据加载完成后自动生成解读'
-          : text
-            ? text
-            : loading
-              ? '正在生成解读…（流式输出）'
-              : '暂无解读内容'}
-      </div>
+      {!ready ? (
+        <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-[#E6EDF7]">
+          等待 Top100 数据加载完成后自动生成解读
+        </div>
+      ) : segments.length > 0 ? (
+        <div className="mt-3 space-y-3 text-sm leading-relaxed text-[#E6EDF7]">
+          {segments.map((seg, idx) => {
+            if (seg.kind === 'text') {
+              return (
+                <div key={idx} className="whitespace-pre-wrap">
+                  {seg.content}
+                </div>
+              )
+            }
+
+            return (
+              <div key={idx} className="overflow-x-auto rounded-lg border border-white/10">
+                <table className="w-full min-w-[680px] text-left text-xs">
+                  <thead className="border-b border-white/10 bg-white/5 text-[#A9B6CC]">
+                    <tr>
+                      {seg.headers.map((h, hi) => (
+                        <th key={hi} className="px-3 py-2 font-medium">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/10">
+                    {seg.rows.length === 0 ? (
+                      <tr>
+                        <td className="px-3 py-3 text-[#A9B6CC]" colSpan={seg.headers.length}>
+                          表格内容加载中…
+                        </td>
+                      </tr>
+                    ) : (
+                      seg.rows.map((r, ri) => (
+                        <tr key={ri} className="hover:bg-white/5">
+                          {Array.from({ length: seg.headers.length }).map((_, ci) => (
+                            <td key={ci} className="px-3 py-2 align-top">
+                              {r[ci] ?? ''}
+                            </td>
+                          ))}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-[#E6EDF7]">
+          {loading
+            ? `正在生成解读…已接收 ${text.length} 字`
+            : done
+              ? '暂无解读内容'
+              : '等待生成完成…'}
+        </div>
+      )}
     </section>
   )
 }
