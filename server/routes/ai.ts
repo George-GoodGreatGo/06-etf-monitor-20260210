@@ -246,6 +246,14 @@ router.post('/top100/insight', async (req: Request, res: Response) => {
   res.setHeader('Connection', 'keep-alive')
   res.setHeader('X-Accel-Buffering', 'no')
 
+  try {
+    ;(res as any).flushHeaders?.()
+  } catch {
+    void 0
+  }
+
+  res.write(': stream-open\n\n')
+
   const contentType = String(upstream.headers.get('content-type') || '').toLowerCase()
   const isEventStream = contentType.includes('text/event-stream')
 
@@ -254,9 +262,19 @@ router.post('/top100/insight', async (req: Request, res: Response) => {
   let buffer = ''
   let closed = false
 
+  const pingInterval = setInterval(() => {
+    if (closed) return
+    try {
+      res.write(': ping\n\n')
+    } catch {
+      void 0
+    }
+  }, 10_000)
+
   const close = async () => {
     if (closed) return
     closed = true
+    clearInterval(pingInterval)
     try {
       await reader.cancel()
     } catch {

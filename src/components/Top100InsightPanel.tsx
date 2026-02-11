@@ -17,6 +17,7 @@ export default function Top100InsightPanel({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
+  const [progressText, setProgressText] = useState<string>('')
 
   const snapshotAt = meta ? meta.cachedAt || meta.fetchedAt : null
   const key = useMemo(() => {
@@ -41,6 +42,7 @@ export default function Top100InsightPanel({
     setError(null)
     setText('')
     setDone(false)
+    setProgressText('')
 
     try {
       const res = await fetch(apiUrl('/api/ai/top100/insight'), {
@@ -107,6 +109,33 @@ export default function Top100InsightPanel({
               continue
             }
 
+            if (type === 'tool_request') {
+              const c = o.content as unknown
+              const tr =
+                c && typeof c === 'object'
+                  ? ((c as Record<string, unknown>).tool_request as unknown)
+                  : null
+              const params =
+                tr && typeof tr === 'object'
+                  ? ((tr as Record<string, unknown>).parameters as unknown)
+                  : null
+              const q =
+                params && typeof params === 'object'
+                  ? (((params as Record<string, unknown>).search_etf_anomaly_reason as any)?.query as unknown)
+                  : null
+              if (typeof q === 'string' && q.trim()) {
+                setProgressText(`正在检索：${q.trim()}`)
+              } else {
+                setProgressText('正在检索异动原因…')
+              }
+              continue
+            }
+
+            if (type === 'tool_response') {
+              setProgressText('已获取资料，正在生成解读…')
+              continue
+            }
+
             if (type === 'end' || type === 'message_end') {
               setDone(true)
               continue
@@ -146,6 +175,10 @@ export default function Top100InsightPanel({
                       : ''
                   if (answer) setText((prev) => prev + answer)
                   if (Boolean(o.finish)) setDone(true)
+                } else if (type === 'tool_request') {
+                  setProgressText('正在检索异动原因…')
+                } else if (type === 'tool_response') {
+                  setProgressText('已获取资料，正在生成解读…')
                 }
 
                 if (type === 'end' || type === 'message_end') setDone(true)
@@ -292,7 +325,7 @@ export default function Top100InsightPanel({
           {text
             ? text
             : loading
-              ? '正在生成解读…（流式输出）'
+              ? progressText || '正在生成解读…（流式输出）'
               : done
                 ? '暂无解读内容'
                 : '等待生成完成…'}
