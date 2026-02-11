@@ -5,6 +5,7 @@ import DataStatusBanner from '@/components/DataStatusBanner'
 import { type SortDir } from '@/components/SortableTh'
 import Top100FilterBar from '@/components/Top100FilterBar'
 import Top100Table from '@/components/Top100Table'
+import Top100InsightPanel from '@/components/Top100InsightPanel'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import {
   type EtfTopRow,
@@ -527,6 +528,8 @@ export default function Home() {
             void runFetch(seq)
           }}
         />
+
+        <Top100InsightPanel meta={meta} rows={rows} />
 
         <Top100Table
           rows={rows}
