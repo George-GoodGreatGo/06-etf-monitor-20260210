@@ -1,18 +1,18 @@
 {
-  "watch": ["api"],
+  "watch": ["server"],
   "ext": "ts,mts,js,json",
   "ignore": [
-    "api/dist/*",
-    "api/python/.cache/*",
-    "api/python/.cache/**",
-    "api\\python\\.cache\\*",
-    "api\\python\\.cache\\**",
-    "api/python/__pycache__/*",
-    "api/python/__pycache__/**",
-    "api\\python\\__pycache__\\*",
-    "api\\python\\__pycache__\\**"
+    "server/dist/*",
+    "server/python/.cache/*",
+    "server/python/.cache/**",
+    "server\\python\\.cache\\*",
+    "server\\python\\.cache\\**",
+    "server/python/__pycache__/*",
+    "server/python/__pycache__/**",
+    "server\\python\\__pycache__\\*",
+    "server\\python\\__pycache__\\**"
   ],
-  "exec": "tsx api/server.ts",
+  "exec": "tsx server/server.ts",
   "env": {
     "NODE_ENV": "development"
   },

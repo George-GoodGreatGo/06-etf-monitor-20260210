@@ -16,7 +16,7 @@ async function main() {
   const supabaseUrl = mustEnv('SUPABASE_URL').replace(/\/+$/, '')
   const serviceKey = mustEnv('SUPABASE_SERVICE_ROLE_KEY')
 
-  const text = await readFile('api/python/.cache/top100_latest.json', 'utf-8')
+  const text = await readFile('server/python/.cache/top100_latest.json', 'utf-8')
   const j = JSON.parse(text) as CacheFile
   if (!j || typeof j !== 'object') throw new Error('bad cache json')
   if (!j.cachedAt || !j.dataDate || !Array.isArray(j.rows) || j.rows.length === 0) {
@@ -62,4 +62,3 @@ main().catch((e) => {
   process.stderr.write(msg)
   process.exit(1)
 })
-

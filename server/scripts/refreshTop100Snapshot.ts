@@ -39,7 +39,7 @@ function guessPythonBin(): string {
 
 async function computeTop100(limit: number): Promise<AkshareOk<unknown[]>> {
   const bin = guessPythonBin()
-  const script = path.resolve('api/python/akshare_service.py')
+  const script = path.resolve('server/python/akshare_service.py')
   const { stdout } = await execFileAsync(
     bin,
     [script, 'top100', '--limit', String(limit), '--refresh', '--ensure-latest'],
@@ -112,4 +112,3 @@ main().catch((e) => {
   process.stderr.write(msg)
   process.exit(1)
 })
-

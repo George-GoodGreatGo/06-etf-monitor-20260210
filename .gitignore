@@ -25,3 +25,6 @@ dist-ssr
 *.sln
 *.sw?
 .vite
+
+server/python/.cache/
+server/python/__pycache__/

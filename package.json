@@ -11,8 +11,8 @@
     "check": "tsc --noEmit",
     "server:dev": "nodemon",
     "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\"",
-    "publish:supabase:top100": "tsx api/scripts/publishTop100ToSupabase.ts",
-    "refresh:supabase:top100": "tsx api/scripts/refreshTop100Snapshot.ts"
+    "publish:supabase:top100": "tsx server/scripts/publishTop100ToSupabase.ts",
+    "refresh:supabase:top100": "tsx server/scripts/refreshTop100Snapshot.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",
