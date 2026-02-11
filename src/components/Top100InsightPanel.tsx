@@ -154,13 +154,37 @@ export default function Top100InsightPanel({
             const j = JSON.parse(data) as unknown
             if (!j || typeof j !== 'object') continue
             const o = j as Record<string, unknown>
-            if (o.type === 'content' && typeof o.content === 'string') {
+            const type = typeof o.type === 'string' ? o.type : ''
+
+            if (type === 'content' && typeof o.content === 'string') {
               setText((prev) => prev + o.content)
               continue
             }
-            if (o.type === 'end') {
+
+            if (type === 'answer') {
+              const c = o.content as unknown
+              const answer =
+                c && typeof c === 'object' && typeof (c as Record<string, unknown>).answer === 'string'
+                  ? String((c as Record<string, unknown>).answer)
+                  : ''
+              if (answer) setText((prev) => prev + answer)
+
+              const finish = Boolean(o.finish)
+              if (finish) setDone(true)
+              continue
+            }
+
+            if (type === 'end' || type === 'message_end') {
               setDone(true)
               continue
+            }
+
+            if (o.content && typeof o.content === 'object') {
+              const contentObj = o.content as Record<string, unknown>
+              if (contentObj.message_end) {
+                setDone(true)
+                continue
+              }
             }
           } catch {
             void 0
@@ -178,10 +202,24 @@ export default function Top100InsightPanel({
               const j = JSON.parse(data) as unknown
               if (j && typeof j === 'object') {
                 const o = j as Record<string, unknown>
-                if (o.type === 'content' && typeof o.content === 'string') {
+                const type = typeof o.type === 'string' ? o.type : ''
+                if (type === 'content' && typeof o.content === 'string') {
                   setText((prev) => prev + o.content)
+                } else if (type === 'answer') {
+                  const c = o.content as unknown
+                  const answer =
+                    c && typeof c === 'object' && typeof (c as Record<string, unknown>).answer === 'string'
+                      ? String((c as Record<string, unknown>).answer)
+                      : ''
+                  if (answer) setText((prev) => prev + answer)
+                  if (Boolean(o.finish)) setDone(true)
                 }
-                if (o.type === 'end') setDone(true)
+
+                if (type === 'end' || type === 'message_end') setDone(true)
+                if (o.content && typeof o.content === 'object') {
+                  const contentObj = o.content as Record<string, unknown>
+                  if (contentObj.message_end) setDone(true)
+                }
               }
             } catch {
               void 0
@@ -299,11 +337,13 @@ export default function Top100InsightPanel({
         </div>
       ) : (
         <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-[#E6EDF7]">
-          {loading
-            ? `正在生成解读…已接收 ${text.length} 字`
-            : done
-              ? '暂无解读内容'
-              : '等待生成完成…'}
+          {text
+            ? text
+            : loading
+              ? '正在生成解读…（流式输出）'
+              : done
+                ? '暂无解读内容'
+                : '等待生成完成…'}
         </div>
       )}
     </section>
