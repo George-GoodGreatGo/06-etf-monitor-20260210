@@ -241,15 +241,13 @@ router.post('/top100/insight', async (req: Request, res: Response) => {
   }
 
   res.status(200)
-  res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
+  res.setHeader('Cache-Control', 'no-store')
+  res.setHeader('Connection', 'keep-alive')
   res.setHeader('X-Accel-Buffering', 'no')
 
   const contentType = String(upstream.headers.get('content-type') || '').toLowerCase()
   const isEventStream = contentType.includes('text/event-stream')
-
-  const writeLine = (obj: Record<string, unknown>) => {
-    res.write(JSON.stringify(obj) + '\n')
-  }
 
   const reader = upstream.body.getReader()
   const decoder = new TextDecoder('utf-8')
@@ -276,74 +274,19 @@ router.post('/top100/insight', async (req: Request, res: Response) => {
       if (done) break
       const chunk = decoder.decode(value, { stream: true })
 
-      if (!isEventStream) {
-        if (chunk) writeLine({ type: 'content', content: chunk })
+      if (isEventStream) {
+        if (chunk) res.write(chunk)
         continue
       }
 
-      buffer += chunk
-      const lines = buffer.split(/\r?\n/)
-      buffer = lines.pop() || ''
-
-      for (const line of lines) {
-        const trimmed = line.trimStart()
-        if (trimmed.startsWith('data:')) {
-          const data = trimmed.slice(5)
-          try {
-            const j = JSON.parse(data.trim()) as unknown
-            if (j && typeof j === 'object') {
-              const o = j as Record<string, unknown>
-              if (o.type === 'end') {
-                writeLine({ type: 'end', status: o.status || 'success' })
-                closed = true
-                break
-              }
-              if (o.type === 'content') {
-                const c = o.content
-                if (typeof c === 'string' && c) writeLine({ type: 'content', content: c })
-                continue
-              }
-
-              const c = o.content
-              if (typeof c === 'string' && c) {
-                writeLine({ type: 'content', content: c })
-                continue
-              }
-            }
-          } catch {
-            void 0
-          }
-          continue
-        }
-      }
-    }
-
-    if (isEventStream) {
-      const tail = buffer.trimStart()
-      if (tail.startsWith('data:')) {
-        const data = tail.slice(5)
-        try {
-          const j = JSON.parse(data.trim()) as unknown
-          if (j && typeof j === 'object') {
-            const o = j as Record<string, unknown>
-            if (o.type === 'end') {
-              writeLine({ type: 'end', status: o.status || 'success' })
-            } else if (o.type === 'content') {
-              const c = o.content
-              if (typeof c === 'string' && c) writeLine({ type: 'content', content: c })
-            } else {
-              const c = o.content
-              if (typeof c === 'string' && c) writeLine({ type: 'content', content: c })
-            }
-          }
-        } catch {
-          void 0
-        }
+      if (chunk) {
+        const payload = JSON.stringify({ type: 'content', content: chunk })
+        res.write(`data: ${payload}\n\n`)
       }
     }
 
     if (!isEventStream) {
-      writeLine({ type: 'end', status: 'success' })
+      res.write(`data: ${JSON.stringify({ type: 'end', status: 'success' })}\n\n`)
     }
   } catch {
     void 0

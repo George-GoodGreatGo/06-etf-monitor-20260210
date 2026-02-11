@@ -146,10 +146,12 @@ export default function Top100InsightPanel({
         const lines = buffer.split(/\r?\n/)
         buffer = lines.pop() || ''
         for (const line of lines) {
-          const t = line.trim()
-          if (!t) continue
+          const trimmed = line.trimStart()
+          if (!trimmed.startsWith('data:')) continue
+          const data = trimmed.slice(5).trim()
+          if (!data || data === '[DONE]') continue
           try {
-            const j = JSON.parse(t) as unknown
+            const j = JSON.parse(data) as unknown
             if (!j || typeof j !== 'object') continue
             const o = j as Record<string, unknown>
             if (o.type === 'content' && typeof o.content === 'string') {
@@ -161,24 +163,30 @@ export default function Top100InsightPanel({
               continue
             }
           } catch {
-            setText((prev) => prev + line + '\n')
+            void 0
           }
         }
       }
 
       const tail = buffer.trim()
       if (tail) {
-        try {
-          const j = JSON.parse(tail) as unknown
-          if (j && typeof j === 'object') {
-            const o = j as Record<string, unknown>
-            if (o.type === 'content' && typeof o.content === 'string') {
-              setText((prev) => prev + o.content)
+        const trimmed = tail.trimStart()
+        if (trimmed.startsWith('data:')) {
+          const data = trimmed.slice(5).trim()
+          if (data && data !== '[DONE]') {
+            try {
+              const j = JSON.parse(data) as unknown
+              if (j && typeof j === 'object') {
+                const o = j as Record<string, unknown>
+                if (o.type === 'content' && typeof o.content === 'string') {
+                  setText((prev) => prev + o.content)
+                }
+                if (o.type === 'end') setDone(true)
+              }
+            } catch {
+              void 0
             }
-            if (o.type === 'end') setDone(true)
           }
-        } catch {
-          setText((prev) => prev + tail)
         }
       }
 
