@@ -69,6 +69,34 @@ function extractTextFromSseData(data: string): string {
   if (!t) return ''
   if (t === '[DONE]') return ''
 
+  const deepFind = (v: unknown, depth: number): string => {
+    if (depth > 6) return ''
+    if (typeof v === 'string') {
+      const s = v.trim()
+      if (!s) return ''
+      if (s === 'message' || s === 'event' || s === 'text') return ''
+      return s
+    }
+    if (!v || typeof v !== 'object') return ''
+
+    if (Array.isArray(v)) {
+      for (const item of v) {
+        const hit = deepFind(item, depth + 1)
+        if (hit) return hit
+      }
+      return ''
+    }
+
+    const o = v as Record<string, unknown>
+    const skipKeys = new Set(['event', 'type', 'role', 'id', 'session_id', 'project_id', 'created_at', 'timestamp'])
+    for (const [k, val] of Object.entries(o)) {
+      if (skipKeys.has(k)) continue
+      const hit = deepFind(val, depth + 1)
+      if (hit) return hit
+    }
+    return ''
+  }
+
   try {
     const j = JSON.parse(t) as unknown
     if (typeof j === 'string') return j
@@ -90,7 +118,9 @@ function extractTextFromSseData(data: string): string {
     for (const c of candidates) {
       if (typeof c === 'string' && c) return c
     }
-    return ''
+
+    const deep = deepFind(j, 0)
+    return deep
   } catch {
     return t
   }
@@ -219,6 +249,11 @@ router.post('/top100/insight', async (req: Request, res: Response) => {
           if (out) res.write(out)
           continue
         }
+
+        if (!trimmed.startsWith('event:') && (trimmed.startsWith('{') || trimmed.startsWith('['))) {
+          const out = extractTextFromSseData(trimmed)
+          if (out) res.write(out)
+        }
       }
     }
 
@@ -226,6 +261,9 @@ router.post('/top100/insight', async (req: Request, res: Response) => {
       const tail = buffer.trimStart()
       if (tail.startsWith('data:')) {
         const out = extractTextFromSseData(tail.slice(5))
+        if (out) res.write(out)
+      } else if (!tail.startsWith('event:') && (tail.startsWith('{') || tail.startsWith('['))) {
+        const out = extractTextFromSseData(tail)
         if (out) res.write(out)
       }
     }
