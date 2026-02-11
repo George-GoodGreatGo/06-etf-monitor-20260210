@@ -56,7 +56,7 @@ export default function EtfDetail() {
         rightMeta={
           meta
             ? {
-                fetchedAt: meta.fetchedAt,
+                fetchedAt: meta.cachedAt || meta.fetchedAt,
                 dataDate: meta.dataDate,
               }
             : undefined

@@ -481,7 +481,7 @@ export default function Home() {
         rightMeta={
           meta
             ? {
-                fetchedAt: meta.fetchedAt,
+                fetchedAt: meta.cachedAt || meta.fetchedAt,
                 dataDate: meta.dataDate,
               }
             : undefined
@@ -546,7 +546,7 @@ export default function Home() {
         </div>
 
         <div className="mt-2 text-xs text-[#A9B6CC]">
-          {meta?.fetchedAt ? `最近拉取：${parseIsoToLocal(meta.fetchedAt)}` : ''}
+          {meta ? `快照时间：${parseIsoToLocal(meta.cachedAt || meta.fetchedAt)}` : ''}
         </div>
       </main>
     </div>

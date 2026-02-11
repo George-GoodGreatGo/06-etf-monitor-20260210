@@ -26,6 +26,8 @@ export default function DataStatusBanner({
   loadingEtaSeconds?: number
   backendProgressText?: string | null
 }) {
+  const snapshotAt = meta?.cachedAt || meta?.fetchedAt || null
+
   if (loading) {
     const pct =
       typeof loadingProgressPct === 'number'
@@ -120,7 +122,7 @@ export default function DataStatusBanner({
               </div>
               <div className="mt-0.5 text-xs text-[#A9B6CC]">{notice.message}</div>
               <div className="mt-1 text-xs text-[#A9B6CC]">
-                交易日：{meta ? formatYmd(meta.dataDate) : '—'}；最近拉取：{meta ? parseIsoToLocal(meta.fetchedAt) : '—'}
+                交易日：{meta ? formatYmd(meta.dataDate) : '—'}；快照时间：{snapshotAt ? parseIsoToLocal(snapshotAt) : '—'}
               </div>
             </div>
           </div>
@@ -146,8 +148,8 @@ export default function DataStatusBanner({
           <div>
             <div className="text-sm font-medium">数据已就绪（仅完整交易日）</div>
             <div className="mt-0.5 text-xs text-[#A9B6CC]">
-              交易日：{meta ? formatYmd(meta.dataDate) : '—'}；最近拉取：
-              {meta ? parseIsoToLocal(meta.fetchedAt) : '—'}
+              交易日：{meta ? formatYmd(meta.dataDate) : '—'}；快照时间：
+              {snapshotAt ? parseIsoToLocal(snapshotAt) : '—'}
             </div>
           </div>
         </div>

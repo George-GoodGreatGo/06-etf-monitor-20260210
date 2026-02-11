@@ -59,7 +59,7 @@ export default function NavBar({
                   数据交易日： <span className="text-[#E6EDF7]">查询中</span>
                 </div>
                 <div>
-                  拉取时间： <span className="text-[#E6EDF7]">查询中</span>
+                  快照时间： <span className="text-[#E6EDF7]">查询中</span>
                 </div>
               </div>
             ) : rightMeta ? (
@@ -68,7 +68,7 @@ export default function NavBar({
                   数据交易日： <span className="text-[#E6EDF7]">{formatYmd(rightMeta.dataDate)}</span>
                 </div>
                 <div>
-                  拉取时间： <span className="text-[#E6EDF7]">{parseIsoToLocal(rightMeta.fetchedAt)}</span>
+                  快照时间： <span className="text-[#E6EDF7]">{parseIsoToLocal(rightMeta.fetchedAt)}</span>
                 </div>
               </div>
             ) : (
