@@ -3,75 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { apiUrl } from '@/utils/apiBase'
 import { adminAuthHeaders } from '@/utils/adminAccess'
 import type { EtfTopRow, Top100Meta } from '@/utils/etfApi'
-
-type InsightSegment =
-  | { kind: 'text'; content: string }
-  | { kind: 'table'; headers: string[]; rows: string[][] }
-
-function parseTableRow(line: string): string[] {
-  const trimmed = line.trim()
-  const noEdge = trimmed.replace(/^\|\s*/, '').replace(/\s*\|$/, '')
-  return noEdge
-    .split('|')
-    .map((c) => c.trim())
-    .filter((c) => c.length > 0)
-}
-
-function isSeparatorLine(line: string): boolean {
-  const t = line.trim()
-  if (!t.includes('-') || !t.includes('|')) return false
-  return /^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?$/.test(t)
-}
-
-function parseMarkdownTables(source: string): InsightSegment[] {
-  const text = String(source || '')
-  if (!text.trim()) return []
-
-  const lines = text.replace(/\r\n/g, '\n').split('\n')
-  const out: InsightSegment[] = []
-  let buffer: string[] = []
-
-  const flushText = () => {
-    const content = buffer.join('\n').trimEnd()
-    buffer = []
-    if (content.trim()) out.push({ kind: 'text', content })
-  }
-
-  let i = 0
-  while (i < lines.length) {
-    const line = lines[i]
-    const next = i + 1 < lines.length ? lines[i + 1] : ''
-    const looksLikeHeader = line.includes('|')
-    if (looksLikeHeader && isSeparatorLine(next)) {
-      const headers = parseTableRow(line)
-      if (headers.length >= 2) {
-        flushText()
-        i += 2
-        const rows: string[][] = []
-        while (i < lines.length) {
-          const rowLine = lines[i]
-          if (!rowLine.trim()) break
-          if (!rowLine.includes('|')) break
-          if (isSeparatorLine(rowLine)) {
-            i += 1
-            continue
-          }
-          const row = parseTableRow(rowLine)
-          if (row.length > 0) rows.push(row)
-          i += 1
-        }
-        out.push({ kind: 'table', headers, rows })
-        continue
-      }
-    }
-
-    buffer.push(line)
-    i += 1
-  }
-
-  flushText()
-  return out
-}
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 export default function Top100InsightPanel({
   meta,
@@ -253,7 +186,7 @@ export default function Top100InsightPanel({
   }, [key])
 
   const ready = Boolean(meta && rows.length > 0)
-  const segments = useMemo(() => (done ? parseMarkdownTables(text) : []), [done, text])
+  const markdown = useMemo(() => (done ? text : ''), [done, text])
 
   return (
     <section className="mt-4 rounded-xl border border-white/10 bg-[#111B2E] px-4 py-3" data-testid="top100-insight">
@@ -288,52 +221,71 @@ export default function Top100InsightPanel({
         <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-[#E6EDF7]">
           等待 Top100 数据加载完成后自动生成解读
         </div>
-      ) : segments.length > 0 ? (
-        <div className="mt-3 space-y-3 text-sm leading-relaxed text-[#E6EDF7]">
-          {segments.map((seg, idx) => {
-            if (seg.kind === 'text') {
-              return (
-                <div key={idx} className="whitespace-pre-wrap">
-                  {seg.content}
+      ) : markdown.trim() ? (
+        <div className="mt-3 text-sm leading-relaxed text-[#E6EDF7]">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              h1: (props) => <h2 {...props} className="mb-2 mt-3 text-base font-semibold" />,
+              h2: (props) => <h3 {...props} className="mb-2 mt-4 text-sm font-semibold text-[#E6EDF7]" />,
+              h3: (props) => <h4 {...props} className="mb-2 mt-3 text-sm font-semibold text-[#E6EDF7]" />,
+              p: (props) => <p {...props} className="my-2 leading-relaxed text-[#E6EDF7]" />,
+              ul: (props) => <ul {...props} className="my-2 list-disc space-y-1 pl-5" />,
+              ol: (props) => <ol {...props} className="my-2 list-decimal space-y-1 pl-5" />,
+              li: (props) => <li {...props} className="leading-relaxed" />,
+              strong: (props) => <strong {...props} className="font-semibold text-[#E6EDF7]" />,
+              em: (props) => <em {...props} className="text-[#E6EDF7]" />,
+              a: ({ href, children, ...rest }) => (
+                <a
+                  {...rest}
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="text-[#60A5FA] underline underline-offset-2 hover:text-[#93C5FD]"
+                >
+                  {children}
+                </a>
+              ),
+              hr: (props) => <hr {...props} className="my-4 border-white/10" />,
+              blockquote: (props) => (
+                <blockquote {...props} className="my-3 border-l-2 border-white/10 pl-3 text-[#A9B6CC]" />
+              ),
+              code: (props) => {
+                const { inline, className, children, ...rest } = props as any
+                if (inline) {
+                  return (
+                    <code
+                      {...rest}
+                      className="rounded bg-white/5 px-1 py-0.5 font-mono text-[12px] text-[#E6EDF7]"
+                    >
+                      {children}
+                    </code>
+                  )
+                }
+                return (
+                  <code {...rest} className={className}>
+                    {children}
+                  </code>
+                )
+              },
+              pre: (props) => (
+                <pre
+                  {...props}
+                  className="my-3 overflow-x-auto rounded-lg border border-white/10 bg-black/20 p-3 text-xs"
+                />
+              ),
+              table: (props) => (
+                <div className="my-3 overflow-x-auto rounded-lg border border-white/10">
+                  <table {...props} className="w-full min-w-[680px] text-left text-xs" />
                 </div>
-              )
-            }
-
-            return (
-              <div key={idx} className="overflow-x-auto rounded-lg border border-white/10">
-                <table className="w-full min-w-[680px] text-left text-xs">
-                  <thead className="border-b border-white/10 bg-white/5 text-[#A9B6CC]">
-                    <tr>
-                      {seg.headers.map((h, hi) => (
-                        <th key={hi} className="px-3 py-2 font-medium">
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/10">
-                    {seg.rows.length === 0 ? (
-                      <tr>
-                        <td className="px-3 py-3 text-[#A9B6CC]" colSpan={seg.headers.length}>
-                          表格内容加载中…
-                        </td>
-                      </tr>
-                    ) : (
-                      seg.rows.map((r, ri) => (
-                        <tr key={ri} className="hover:bg-white/5">
-                          {Array.from({ length: seg.headers.length }).map((_, ci) => (
-                            <td key={ci} className="px-3 py-2 align-top">
-                              {r[ci] ?? ''}
-                            </td>
-                          ))}
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )
-          })}
+              ),
+              thead: (props) => <thead {...props} className="border-b border-white/10 bg-white/5 text-[#A9B6CC]" />,
+              th: (props) => <th {...props} className="px-3 py-2 font-medium" />,
+              td: (props) => <td {...props} className="px-3 py-2 align-top" />,
+            }}
+          >
+            {markdown}
+          </ReactMarkdown>
         </div>
       ) : (
         <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-[#E6EDF7]">
