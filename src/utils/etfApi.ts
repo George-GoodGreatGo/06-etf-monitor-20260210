@@ -59,6 +59,7 @@ function getMessage(v: unknown): string | null {
 export async function fetchEtfTop100(
   params: {
     keyword?: string
+    limit?: number
     sort?: Top100SortKey
     dir?: 'asc' | 'desc'
     refreshToken?: string
@@ -69,6 +70,9 @@ export async function fetchEtfTop100(
 ): Promise<ApiOk<EtfTopRow[]> | ApiErr> {
   const qs = new URLSearchParams()
   if (params.keyword) qs.set('keyword', params.keyword)
+  if (typeof params.limit === 'number' && Number.isFinite(params.limit)) {
+    qs.set('limit', String(params.limit))
+  }
   if (params.sort) qs.set('sort', params.sort)
   if (params.dir) qs.set('dir', params.dir)
   if (params.ensureLatest) qs.set('ensureLatest', '1')

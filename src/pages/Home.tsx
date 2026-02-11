@@ -146,6 +146,7 @@ export default function Home() {
     try {
       const res = await fetchEtfTop100(
         {
+          limit: 200,
           keyword: debouncedKeyword.trim() || undefined,
           refreshToken: opts?.refreshToken,
           ensureLatest: opts?.ensureLatest || opts?.mode === 'cold',
@@ -433,6 +434,7 @@ export default function Home() {
             try {
               const out = await fetchEtfTop100(
                 {
+                  limit: 200,
                   keyword: debouncedKeyword.trim() || undefined,
                 },
                 ac.signal,
@@ -494,7 +496,7 @@ export default function Home() {
       <main className="mx-auto w-full max-w-[1200px] px-4 pb-10 pt-6">
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-lg font-semibold tracking-tight">Top100 ETF 异动监测</h1>
+            <h1 className="text-lg font-semibold tracking-tight">Top200 ETF 异动监测</h1>
             <div className="mt-1 text-xs text-[#A9B6CC]">
               仅展示最近一个完整交易日数据；缺失/失败会明确提示且不展示推测值
             </div>
@@ -542,7 +544,7 @@ export default function Home() {
         />
 
         <div className="mt-6 flex items-center justify-between text-xs text-[#A9B6CC]">
-          <div>展示口径：Top100 按成交额排序（默认），仅完整交易日</div>
+          <div>展示口径：Top200 按成交额排序（默认），仅完整交易日</div>
           <Link to="/methodology" className="hover:text-[#E6EDF7]">
             数据与方法说明 →
           </Link>

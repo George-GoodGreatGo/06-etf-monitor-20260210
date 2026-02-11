@@ -35,7 +35,7 @@ export default function NavBar({
               }
               end
             >
-              Top100
+              Top200
             </NavLink>
             <NavLink
               to="/methodology"
