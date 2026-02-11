@@ -95,10 +95,10 @@ export default function Top100InsightPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
 
-  if (!meta || rows.length === 0) return null
+  const ready = Boolean(meta && rows.length > 0)
 
   return (
-    <section className="mt-4 rounded-xl border border-white/10 bg-[#111B2E] px-4 py-3">
+    <section className="mt-4 rounded-xl border border-white/10 bg-[#111B2E] px-4 py-3" data-testid="top100-insight">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-[#60A5FA]" />
@@ -108,7 +108,7 @@ export default function Top100InsightPanel({
         <button
           type="button"
           onClick={run}
-          disabled={loading}
+          disabled={!ready || loading}
           className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 text-xs transition hover:border-white/20 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -127,13 +127,14 @@ export default function Top100InsightPanel({
       ) : null}
 
       <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-[#E6EDF7]">
-        {text
-          ? text
-          : loading
-            ? '正在生成解读…（流式输出）'
-            : '暂无解读内容'}
+        {!ready
+          ? '等待 Top100 数据加载完成后自动生成解读'
+          : text
+            ? text
+            : loading
+              ? '正在生成解读…（流式输出）'
+              : '暂无解读内容'}
       </div>
     </section>
   )
 }
-
