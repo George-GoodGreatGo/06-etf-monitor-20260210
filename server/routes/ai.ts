@@ -214,8 +214,9 @@ router.post('/top100/insight', async (req: Request, res: Response) => {
     type: 'query',
   }
 
+  body.session_id = sessionId
+
   if (projectIdRaw) {
-    body.session_id = sessionId
     body.project_id = Number.isFinite(Number(projectIdRaw)) ? Number(projectIdRaw) : projectIdRaw
   }
 
@@ -302,19 +303,17 @@ router.post('/top100/insight', async (req: Request, res: Response) => {
                 if (typeof c === 'string' && c) writeLine({ type: 'content', content: c })
                 continue
               }
+
+              const c = o.content
+              if (typeof c === 'string' && c) {
+                writeLine({ type: 'content', content: c })
+                continue
+              }
             }
           } catch {
             void 0
           }
-
-          const out = extractTextFromSseData(data)
-          if (out) writeLine({ type: 'content', content: out })
           continue
-        }
-
-        if (!trimmed.startsWith('event:') && (trimmed.startsWith('{') || trimmed.startsWith('['))) {
-          const out = extractTextFromSseData(trimmed)
-          if (out) writeLine({ type: 'content', content: out })
         }
       }
     }
@@ -332,15 +331,14 @@ router.post('/top100/insight', async (req: Request, res: Response) => {
             } else if (o.type === 'content') {
               const c = o.content
               if (typeof c === 'string' && c) writeLine({ type: 'content', content: c })
+            } else {
+              const c = o.content
+              if (typeof c === 'string' && c) writeLine({ type: 'content', content: c })
             }
           }
         } catch {
-          const out = extractTextFromSseData(data)
-          if (out) writeLine({ type: 'content', content: out })
+          void 0
         }
-      } else if (!tail.startsWith('event:') && (tail.startsWith('{') || tail.startsWith('['))) {
-        const out = extractTextFromSseData(tail)
-        if (out) writeLine({ type: 'content', content: out })
       }
     }
 
