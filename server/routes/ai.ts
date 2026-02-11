@@ -69,12 +69,16 @@ function extractTextFromSseData(data: string): string {
   if (!t) return ''
   if (t === '[DONE]') return ''
 
+  const isUuidLike = (s: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim())
+
   const deepFind = (v: unknown, depth: number): string => {
     if (depth > 6) return ''
     if (typeof v === 'string') {
       const s = v.trim()
       if (!s) return ''
       if (s === 'message' || s === 'event' || s === 'text') return ''
+      if (isUuidLike(s)) return ''
       return s
     }
     if (!v || typeof v !== 'object') return ''
@@ -99,29 +103,64 @@ function extractTextFromSseData(data: string): string {
 
   try {
     const j = JSON.parse(t) as unknown
-    if (typeof j === 'string') return j
+    if (typeof j === 'string') {
+      const s = j.trim()
+      if (!s) return ''
+      if (isUuidLike(s)) return ''
+      return s
+    }
     if (!j || typeof j !== 'object') return ''
     const o = j as Record<string, unknown>
+
+    if (o.type === 'end') return ''
+    if (o.type === 'content') {
+      const c = o.content
+      if (typeof c === 'string') {
+        const s = c.trim()
+        if (!s) return ''
+        if (isUuidLike(s)) return ''
+        return s
+      }
+      if (c && typeof c === 'object') {
+        const maybe = (c as Record<string, unknown>).text
+        if (typeof maybe === 'string') {
+          const s = maybe.trim()
+          if (!s) return ''
+          if (isUuidLike(s)) return ''
+          return s
+        }
+      }
+    }
 
     const candidates: unknown[] = [
       o.text,
       o.message,
       o.content,
+      (o.delta as any)?.text,
+      (o.delta as any)?.content,
       (o.content as any)?.text,
       (o.content as any)?.content,
       (o.data as any)?.text,
       (o.data as any)?.content,
+      (o.data as any)?.delta,
+      (o.data as any)?.answer,
       (o.output as any)?.text,
       (o.output as any)?.content,
     ]
 
     for (const c of candidates) {
-      if (typeof c === 'string' && c) return c
+      if (typeof c === 'string' && c) {
+        const s = c.trim()
+        if (!s) continue
+        if (isUuidLike(s)) continue
+        return s
+      }
     }
 
     const deep = deepFind(j, 0)
     return deep
   } catch {
+    if (isUuidLike(t)) return ''
     return t
   }
 }
