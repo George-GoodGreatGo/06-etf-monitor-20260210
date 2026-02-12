@@ -64,107 +64,6 @@ function buildPromptText(snap: {
   ].join('\n')
 }
 
-function extractTextFromSseData(data: string): string {
-  const t = data.trim()
-  if (!t) return ''
-  if (t === '[DONE]') return ''
-
-  const isUuidLike = (s: string) =>
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim())
-
-  const deepFind = (v: unknown, depth: number): string => {
-    if (depth > 6) return ''
-    if (typeof v === 'string') {
-      const s = v.trim()
-      if (!s) return ''
-      if (s === 'message' || s === 'event' || s === 'text') return ''
-      if (isUuidLike(s)) return ''
-      return s
-    }
-    if (!v || typeof v !== 'object') return ''
-
-    if (Array.isArray(v)) {
-      for (const item of v) {
-        const hit = deepFind(item, depth + 1)
-        if (hit) return hit
-      }
-      return ''
-    }
-
-    const o = v as Record<string, unknown>
-    const skipKeys = new Set(['event', 'type', 'role', 'id', 'session_id', 'project_id', 'created_at', 'timestamp'])
-    for (const [k, val] of Object.entries(o)) {
-      if (skipKeys.has(k)) continue
-      const hit = deepFind(val, depth + 1)
-      if (hit) return hit
-    }
-    return ''
-  }
-
-  try {
-    const j = JSON.parse(t) as unknown
-    if (typeof j === 'string') {
-      const s = j.trim()
-      if (!s) return ''
-      if (isUuidLike(s)) return ''
-      return s
-    }
-    if (!j || typeof j !== 'object') return ''
-    const o = j as Record<string, unknown>
-
-    if (o.type === 'end') return ''
-    if (o.type === 'content') {
-      const c = o.content
-      if (typeof c === 'string') {
-        const s = c.trim()
-        if (!s) return ''
-        if (isUuidLike(s)) return ''
-        return s
-      }
-      if (c && typeof c === 'object') {
-        const maybe = (c as Record<string, unknown>).text
-        if (typeof maybe === 'string') {
-          const s = maybe.trim()
-          if (!s) return ''
-          if (isUuidLike(s)) return ''
-          return s
-        }
-      }
-    }
-
-    const candidates: unknown[] = [
-      o.text,
-      o.message,
-      o.content,
-      (o.delta as any)?.text,
-      (o.delta as any)?.content,
-      (o.content as any)?.text,
-      (o.content as any)?.content,
-      (o.data as any)?.text,
-      (o.data as any)?.content,
-      (o.data as any)?.delta,
-      (o.data as any)?.answer,
-      (o.output as any)?.text,
-      (o.output as any)?.content,
-    ]
-
-    for (const c of candidates) {
-      if (typeof c === 'string' && c) {
-        const s = c.trim()
-        if (!s) continue
-        if (isUuidLike(s)) continue
-        return s
-      }
-    }
-
-    const deep = deepFind(j, 0)
-    return deep
-  } catch {
-    if (isUuidLike(t)) return ''
-    return t
-  }
-}
-
 router.post('/top100/insight', async (req: Request, res: Response) => {
   void req
 
@@ -259,7 +158,6 @@ router.post('/top100/insight', async (req: Request, res: Response) => {
 
   const reader = upstream.body.getReader()
   const decoder = new TextDecoder('utf-8')
-  let buffer = ''
   let closed = false
 
   const pingInterval = setInterval(() => {
