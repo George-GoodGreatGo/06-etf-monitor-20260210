@@ -1,4 +1,4 @@
-import { Loader2, Sparkles, RefreshCw, AlertTriangle } from 'lucide-react'
+import { Loader2, Sparkles, RefreshCw, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { apiUrl } from '@/utils/apiBase'
 import { adminAuthHeaders } from '@/utils/adminAccess'
@@ -9,15 +9,18 @@ import remarkGfm from 'remark-gfm'
 export default function Top100InsightPanel({
   meta,
   rows,
+  disableGenerate,
 }: {
   meta: Top100Meta | null
   rows: EtfTopRow[]
+  disableGenerate?: boolean
 }) {
   const [text, setText] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
   const [progressText, setProgressText] = useState<string>('')
+  const [expanded, setExpanded] = useState(false)
 
   const snapshotAt = meta ? meta.cachedAt || meta.fetchedAt : null
   const key = useMemo(() => {
@@ -28,11 +31,13 @@ export default function Top100InsightPanel({
   }, [meta?.dataDate, rows.length, snapshotAt])
 
   const ranKeyRef = useRef<string | null>(null)
+  const generatedKeyRef = useRef<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   const run = async () => {
     if (!meta || rows.length === 0) return
     if (loading) return
+    if (disableGenerate) return
 
     abortRef.current?.abort()
     const ac = new AbortController()
@@ -43,6 +48,7 @@ export default function Top100InsightPanel({
     setText('')
     setDone(false)
     setProgressText('')
+    setExpanded(true)
 
     try {
       const res = await fetch(apiUrl('/api/ai/top100/insight'), {
@@ -195,6 +201,7 @@ export default function Top100InsightPanel({
       }
 
       setDone(true)
+      generatedKeyRef.current = key
     } catch (e) {
       const name =
         typeof e === 'object' && e && 'name' in e
@@ -208,18 +215,24 @@ export default function Top100InsightPanel({
   }
 
   useEffect(() => {
-    if (!meta || rows.length === 0) return
-    if (ranKeyRef.current === key) return
-    ranKeyRef.current = key
-    void run()
     return () => {
       abortRef.current?.abort()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key])
+  }, [])
+
+  useEffect(() => {
+    if (disableGenerate) {
+      abortRef.current?.abort()
+      setLoading(false)
+      setProgressText('')
+    }
+  }, [disableGenerate])
 
   const ready = Boolean(meta && rows.length > 0)
   const markdown = useMemo(() => (done ? text : ''), [done, text])
+  const hasContent = Boolean(text.trim())
+  const stale = Boolean(generatedKeyRef.current && generatedKeyRef.current !== key)
+  const generateDisabled = Boolean(!ready || loading || disableGenerate)
 
   return (
     <section className="mt-4 rounded-xl border border-white/10 bg-[#111B2E] px-4 py-3" data-testid="top100-insight">
@@ -227,17 +240,34 @@ export default function Top100InsightPanel({
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-[#60A5FA]" />
           <div className="text-sm font-medium">大模型解读（基于快照）</div>
+          {stale ? (
+            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-[#A9B6CC]">
+              列表已更新，解读可能过期
+            </span>
+          ) : null}
         </div>
 
-        <button
-          type="button"
-          onClick={run}
-          disabled={!ready || loading}
-          className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 text-xs transition hover:border-white/20 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          重新生成
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 text-xs text-[#E6EDF7] transition hover:border-white/20 hover:bg-white/10"
+          >
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            {expanded ? '折叠' : '展开'}
+          </button>
+
+          <button
+            type="button"
+            onClick={run}
+            disabled={generateDisabled}
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 text-xs transition hover:border-white/20 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+            title={disableGenerate ? '数据重新获取中，暂不可生成解读' : undefined}
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            重新生成
+          </button>
+        </div>
       </div>
 
       {error ? (
@@ -250,9 +280,13 @@ export default function Top100InsightPanel({
         </div>
       ) : null}
 
-      {!ready ? (
+      {!expanded ? (
+        <div className="mt-3 text-xs text-[#A9B6CC]">
+          {hasContent ? `已生成解读（${text.length} 字），点击“展开”查看` : '未生成解读，点击“重新生成”获取'}
+        </div>
+      ) : !ready ? (
         <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-[#E6EDF7]">
-          等待 Top100 数据加载完成后自动生成解读
+          等待 Top200 数据加载完成后手动生成解读
         </div>
       ) : markdown.trim() ? (
         <div className="mt-3 text-sm leading-relaxed text-[#E6EDF7]">
@@ -328,7 +362,7 @@ export default function Top100InsightPanel({
               ? progressText || '正在生成解读…（流式输出）'
               : done
                 ? '暂无解读内容'
-                : '等待生成完成…'}
+                : '点击“重新生成”开始生成解读'}
         </div>
       )}
     </section>

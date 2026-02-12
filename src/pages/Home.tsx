@@ -531,7 +531,11 @@ export default function Home() {
           }}
         />
 
-        <Top100InsightPanel meta={meta} rows={rows} />
+        <Top100InsightPanel
+          meta={meta}
+          rows={rows}
+          disableGenerate={adminRefreshing || (loading && (loadingMode === 'refetch' || treatAsRefetch))}
+        />
 
         <Top100Table
           rows={rows}
