@@ -488,6 +488,7 @@ export default function Home() {
         onLogout={() => {
           void (async () => {
             try {
+              ;(window as any).google?.accounts?.id?.disableAutoSelect?.()
               await fetch(apiUrl('/api/auth/logout'), {
                 method: 'POST',
                 credentials: 'include',

@@ -12,6 +12,7 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null)
 
   const initializedRef = useRef(false)
+  const gsiBtnRef = useRef<HTMLDivElement | null>(null)
   const rememberRef = useRef(true)
 
   useEffect(() => {
@@ -76,6 +77,12 @@ export default function Login() {
           auto_select: false,
           cancel_on_tap_outside: true,
         })
+
+        const el = gsiBtnRef.current
+        if (el) {
+          el.innerHTML = ''
+          g.accounts.id.renderButton(el, { type: 'standard', theme: 'outline', size: 'large', width: 302 })
+        }
       }
 
       if ((window as any).google?.accounts?.id) {
@@ -100,21 +107,6 @@ export default function Login() {
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  const onLogin = () => {
-    if (loading) return
-    const g = (window as any).google
-    if (!g || !g.accounts || !g.accounts.id) {
-      setError('Google 登录组件尚未加载')
-      return
-    }
-    setError(null)
-    try {
-      g.accounts.id.prompt()
-    } catch {
-      setError('无法唤起 Google 登录')
-    }
-  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#050A0B] text-[#E6EDF7]">
@@ -190,20 +182,25 @@ export default function Login() {
               </div>
 
               <div className="mt-8 flex flex-col gap-6">
-                <button
-                  type="button"
-                  onClick={onLogin}
-                  disabled={loading}
-                  className="relative inline-flex h-14 w-full items-center justify-center gap-3 rounded-md bg-[#E65100] px-6 text-base font-bold text-white shadow-[0px_4px_6px_-4px_rgba(230,81,0,0.2),0px_10px_15px_-3px_rgba(230,81,0,0.2)] disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  <img
-                    src="/figma/login/login_google_icon.svg"
-                    alt=""
-                    className="h-5 w-5 select-none"
-                    aria-hidden="true"
+                <div className="relative">
+                  <button
+                    type="button"
+                    disabled={loading}
+                    className="relative inline-flex h-14 w-full items-center justify-center gap-3 rounded-md bg-[#E65100] px-6 text-base font-bold text-white shadow-[0px_4px_6px_-4px_rgba(230,81,0,0.2),0px_10px_15px_-3px_rgba(230,81,0,0.2)] disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    <img
+                      src="/figma/login/login_google_icon.svg"
+                      alt=""
+                      className="h-5 w-5 select-none"
+                      aria-hidden="true"
+                    />
+                    通过 Google 账号登录
+                  </button>
+                  <div
+                    ref={gsiBtnRef}
+                    className={loading ? 'pointer-events-none absolute inset-0 opacity-0' : 'absolute inset-0 opacity-0'}
                   />
-                  通过 Google 账号登录
-                </button>
+                </div>
 
                 <label className="flex items-center justify-center gap-2 text-[11px] leading-[1.5] text-[#64748B]">
                   <span className="relative inline-flex h-4 w-4 items-center justify-center rounded border border-[#E65100]">
