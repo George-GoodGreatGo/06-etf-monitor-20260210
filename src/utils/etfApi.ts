@@ -90,6 +90,7 @@ export async function fetchEtfTop100(
     res = await fetch(url, {
       ...(signal ? { signal } : {}),
       ...(params.refreshToken ? { keepalive: true } : {}),
+      credentials: 'include',
       headers: {
         ...adminAuthHeaders(),
       },
@@ -139,6 +140,7 @@ export async function fetchEtfDetail(
     res = await fetch(apiUrl(`/api/etf/detail/${encodeURIComponent(code)}`), {
       signal,
       keepalive: true,
+      credentials: 'include',
       headers: {
         ...adminAuthHeaders(),
       },

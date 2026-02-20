@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import NavBar from '@/components/NavBar'
 import DataStatusBanner from '@/components/DataStatusBanner'
 import { type SortDir } from '@/components/SortableTh'
@@ -15,7 +15,7 @@ import {
 } from '@/utils/etfApi'
 import { parseIsoToLocal } from '@/utils/format'
 import { apiUrl } from '@/utils/apiBase'
-import { adminAuthHeaders, getAdminAccessToken, setAdminAccessToken } from '@/utils/adminAccess'
+import { adminAuthHeaders } from '@/utils/adminAccess'
 
 const defaultSort: { key: Top100SortKey; dir: SortDir } = {
   key: 'turnover',
@@ -24,6 +24,7 @@ const defaultSort: { key: Top100SortKey; dir: SortDir } = {
 
 export default function Home() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const nav = useNavigate()
 
   const [keyword, setKeyword] = useState(searchParams.get('q') ?? '')
   const debouncedKeyword = useDebouncedValue(keyword, 250)
@@ -78,7 +79,7 @@ export default function Home() {
   useEffect(() => {
     const run = async () => {
       try {
-        const res = await fetch(apiUrl('/api/health'), { headers: { ...adminAuthHeaders() } })
+        const res = await fetch(apiUrl('/api/health'), { credentials: 'include', headers: { ...adminAuthHeaders() } })
         const j = (await res.json()) as unknown
         if (typeof j !== 'object' || j === null) return
         const bootId = (j as Record<string, unknown>).serverBootId
@@ -161,16 +162,8 @@ export default function Home() {
 
       if (res.success === false) {
         if (res.error === 'unauthorized') {
-          const current = getAdminAccessToken()
-          const input = window.prompt('请输入管理员访问口令', current || '')
-          if (typeof input === 'string') {
-            const t = input.trim()
-            if (t) {
-              setAdminAccessToken(t)
-              void runFetch(seq, opts)
-              return
-            }
-          }
+          nav(`/login?next=${encodeURIComponent('/' + window.location.search)}`, { replace: true })
+          return
         }
         setMeta(null)
         setRows([])
@@ -223,7 +216,7 @@ export default function Home() {
       try {
         const res = await fetch(
           apiUrl(`/api/etf/progress?_p=${encodeURIComponent(progressToken)}&_t=${Date.now()}`),
-          { cache: 'no-store', headers: { ...adminAuthHeaders() } },
+          { cache: 'no-store', credentials: 'include', headers: { ...adminAuthHeaders() } },
         )
         const j = (await res.json()) as unknown
         if (cancelled) return
@@ -399,6 +392,7 @@ export default function Home() {
         try {
           const res = await fetch(apiUrl('/api/admin/refresh'), {
             method: 'POST',
+            credentials: 'include',
             headers: {
               'Content-Type': 'application/json',
               ...adminAuthHeaders(),

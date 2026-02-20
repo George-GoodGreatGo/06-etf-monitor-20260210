@@ -1,7 +1,16 @@
 import type { NextFunction, Request, Response } from 'express'
+import { getCookie, verifySessionToken } from './session.js'
 
 export function requireAdminAccess(req: Request, res: Response, next: NextFunction) {
   const token = String(process.env.ADMIN_ACCESS_TOKEN || '').trim()
+  const secret = String(process.env.AUTH_SESSION_SECRET || process.env.ADMIN_ACCESS_TOKEN || '').trim()
+  const cookieToken = secret ? getCookie(req, 'etf_session') : null
+  const sessionOk = cookieToken && secret ? verifySessionToken(secret, cookieToken).ok : false
+  if (sessionOk) {
+    next()
+    return
+  }
+
   if (!token) {
     next()
     return
@@ -26,4 +35,3 @@ export function requireAdminAccess(req: Request, res: Response, next: NextFuncti
     message: '需要管理员口令才能访问',
   })
 }
-

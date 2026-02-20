@@ -53,6 +53,7 @@ export default function Top100InsightPanel({
     try {
       const res = await fetch(apiUrl('/api/ai/top100/insight'), {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           ...adminAuthHeaders(),
