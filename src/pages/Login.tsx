@@ -186,7 +186,7 @@ export default function Login() {
                   <button
                     type="button"
                     disabled={loading}
-                    className="relative inline-flex h-14 w-full items-center justify-center gap-3 rounded-md bg-[#E65100] px-6 text-base font-bold text-white shadow-[0px_4px_6px_-4px_rgba(230,81,0,0.2),0px_10px_15px_-3px_rgba(230,81,0,0.2)] disabled:cursor-not-allowed disabled:opacity-70"
+                    className="relative inline-flex h-14 w-full cursor-pointer items-center justify-center gap-3 rounded-md bg-[#E65100] px-6 text-base font-bold text-white shadow-[0px_4px_6px_-4px_rgba(230,81,0,0.2),0px_10px_15px_-3px_rgba(230,81,0,0.2)] transition hover:brightness-110 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     <img
                       src="/figma/login/login_google_icon.svg"
@@ -198,7 +198,8 @@ export default function Login() {
                   </button>
                   <div
                     ref={gsiBtnRef}
-                    className={loading ? 'pointer-events-none absolute inset-0 opacity-0' : 'absolute inset-0 opacity-0'}
+                    style={{ opacity: 0.01 }}
+                    className={loading ? 'pointer-events-none absolute inset-0 z-10 cursor-pointer' : 'absolute inset-0 z-10 cursor-pointer'}
                   />
                 </div>
 
