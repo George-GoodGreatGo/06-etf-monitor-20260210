@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Loader2, RefreshCw } from 'lucide-react'
+import { Loader2, RefreshCw, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatYmd, parseIsoToLocal } from '@/utils/format'
 
@@ -12,10 +12,12 @@ export default function NavBar({
   rightMeta,
   onRefetch,
   refetching,
+  onLogout,
 }: {
   rightMeta?: RightMeta
   onRefetch?: () => void
   refetching?: boolean
+  onLogout?: () => void
 }) {
   return (
     <header className="border-b border-white/10 bg-[#0B1220]/70 backdrop-blur">
@@ -89,6 +91,17 @@ export default function NavBar({
                 <RefreshCw className="h-4 w-4" />
               )}
               重新获取
+            </button>
+          ) : null}
+
+          {onLogout ? (
+            <button
+              type="button"
+              onClick={onLogout}
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 text-xs text-[#E6EDF7] transition hover:border-white/20 hover:bg-white/10"
+            >
+              <LogOut className="h-4 w-4" />
+              退出登录
             </button>
           ) : null}
         </div>

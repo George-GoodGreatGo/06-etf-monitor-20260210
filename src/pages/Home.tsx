@@ -485,6 +485,20 @@ export default function Home() {
         }
         onRefetch={onRefetch}
         refetching={adminRefreshing || (loading && (loadingMode === 'refetch' || treatAsRefetch))}
+        onLogout={() => {
+          void (async () => {
+            try {
+              await fetch(apiUrl('/api/auth/logout'), {
+                method: 'POST',
+                credentials: 'include',
+              })
+            } catch {
+              void 0
+            } finally {
+              nav(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`, { replace: true })
+            }
+          })()
+        }}
       />
 
       <main className="mx-auto w-full max-w-[1200px] px-4 pb-10 pt-6">
