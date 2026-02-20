@@ -202,25 +202,27 @@ export default function Login() {
                   />
                 </div>
 
-                <label className="flex items-center justify-center gap-2 text-[11px] leading-[1.5] text-[#64748B]">
-                  <span className="relative inline-flex h-4 w-4 items-center justify-center rounded border border-[#E65100]">
-                    <input
-                      type="checkbox"
-                      checked={remember}
-                      onChange={(e) => setRemember(e.target.checked)}
-                      className="absolute inset-0 cursor-pointer opacity-0"
-                    />
-                    {remember ? (
-                      <img
-                        src="/figma/login/login_check.svg"
-                        alt=""
-                        className="h-4 w-4 select-none"
-                        aria-hidden="true"
+                <div className="flex justify-center">
+                  <label className="inline-flex items-center gap-2 text-[11px] leading-[1.5] text-[#64748B]">
+                    <span className="relative inline-flex h-4 w-4 items-center justify-center rounded border border-[#E65100]">
+                      <input
+                        type="checkbox"
+                        checked={remember}
+                        onChange={(e) => setRemember(e.target.checked)}
+                        className="absolute inset-0 cursor-pointer opacity-0"
                       />
-                    ) : null}
-                  </span>
-                  保持 7 天内登录状态
-                </label>
+                      {remember ? (
+                        <img
+                          src="/figma/login/login_check.svg"
+                          alt=""
+                          className="h-4 w-4 select-none"
+                          aria-hidden="true"
+                        />
+                      ) : null}
+                    </span>
+                    保持 7 天内登录状态
+                  </label>
+                </div>
 
                 <div className="border-t border-[rgba(255,255,255,0.05)] pt-6 text-center text-[10px] uppercase tracking-[0.05em] text-[#475569]">
                   SECURE ACCESS · DATA ENCRYPTED
