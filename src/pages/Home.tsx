@@ -532,7 +532,7 @@ export default function Home() {
           <div className="relative overflow-hidden rounded-2xl border border-[rgba(230,81,0,0.12)] bg-[rgba(13,26,28,0.78)] p-4 shadow-[0_0_50px_-18px_rgba(230,81,0,0.18)] backdrop-blur-[24px] sm:p-6">
             <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-xl bg-[rgba(230,81,0,0.16)] blur-[80px]" />
 
-            <div className="relative mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative mb-4 space-y-3">
               <div>
                 <h1 className="text-lg font-semibold tracking-tight text-white">Top200 ETF 异动监测</h1>
                 <div className="mt-1 text-xs text-[#94A3B8]">
@@ -540,7 +540,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:justify-end">
+              <div className="flex justify-center">
                 <div
                   role="tablist"
                   aria-label="首页视图切换"
@@ -585,11 +585,9 @@ export default function Home() {
                     AI 解读
                   </button>
                 </div>
-
-                {tab === 'list' ? (
-                  <Top100FilterBar keyword={keyword} onChangeKeyword={setKeyword} onReset={onReset} />
-                ) : null}
               </div>
+
+              {tab === 'list' ? <Top100FilterBar keyword={keyword} onChangeKeyword={setKeyword} onReset={onReset} /> : null}
             </div>
 
             <div className="space-y-4">
