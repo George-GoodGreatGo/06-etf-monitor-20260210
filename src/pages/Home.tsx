@@ -7,6 +7,7 @@ import Top100FilterBar from '@/components/Top100FilterBar'
 import Top100Table from '@/components/Top100Table'
 import Top100InsightPanel from '@/components/Top100InsightPanel'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { cn } from '@/lib/utils'
 import {
   type EtfTopRow,
   type Top100Meta,
@@ -22,12 +23,17 @@ const defaultSort: { key: Top100SortKey; dir: SortDir } = {
   dir: 'desc',
 }
 
+type HomeTab = 'list' | 'insight'
+
 export default function Home() {
   const [searchParams, setSearchParams] = useSearchParams()
   const nav = useNavigate()
 
   const [keyword, setKeyword] = useState(searchParams.get('q') ?? '')
   const debouncedKeyword = useDebouncedValue(keyword, 250)
+
+  const rawTab = searchParams.get('tab')
+  const tab: HomeTab = rawTab === 'insight' || rawTab === 'list' ? rawTab : 'list'
 
   const [sortKey, setSortKey] = useState<Top100SortKey>(
     (searchParams.get('sort') as Top100SortKey) ?? defaultSort.key,
@@ -96,9 +102,17 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
+    if (rawTab === 'list' || rawTab === 'insight') return
+    const next = new URLSearchParams(searchParams)
+    next.set('tab', 'list')
+    setSearchParams(next, { replace: true })
+  }, [rawTab, searchParams, setSearchParams])
+
+  useEffect(() => {
     const next = new URLSearchParams(searchParams)
     if (keyword.trim()) next.set('q', keyword.trim())
     else next.delete('q')
+    next.set('tab', tab)
     next.set('sort', sortKey)
     next.set('dir', sortDir)
     setSearchParams(next, { replace: true })
@@ -148,7 +162,6 @@ export default function Home() {
       const res = await fetchEtfTop100(
         {
           limit: 200,
-          keyword: debouncedKeyword.trim() || undefined,
           refreshToken: opts?.refreshToken,
           ensureLatest: opts?.ensureLatest || opts?.mode === 'cold',
           progressToken: pToken || undefined,
@@ -350,7 +363,7 @@ export default function Home() {
 
     void runInitial()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedKeyword])
+  }, [])
 
   const incompleteCount = useMemo(
     () => rows.filter((r) => r.dataStatus !== 'complete').length,
@@ -429,7 +442,6 @@ export default function Home() {
               const out = await fetchEtfTop100(
                 {
                   limit: 200,
-                  keyword: debouncedKeyword.trim() || undefined,
                 },
                 ac.signal,
               )
@@ -520,7 +532,7 @@ export default function Home() {
           <div className="relative overflow-hidden rounded-2xl border border-[rgba(230,81,0,0.12)] bg-[rgba(13,26,28,0.78)] p-4 shadow-[0_0_50px_-18px_rgba(230,81,0,0.18)] backdrop-blur-[24px] sm:p-6">
             <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-xl bg-[rgba(230,81,0,0.16)] blur-[80px]" />
 
-            <div className="relative mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="relative mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h1 className="text-lg font-semibold tracking-tight text-white">Top200 ETF 异动监测</h1>
                 <div className="mt-1 text-xs text-[#94A3B8]">
@@ -528,7 +540,56 @@ export default function Home() {
                 </div>
               </div>
 
-              <Top100FilterBar keyword={keyword} onChangeKeyword={setKeyword} onReset={onReset} />
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:justify-end">
+                <div
+                  role="tablist"
+                  aria-label="首页视图切换"
+                  className="inline-flex items-center rounded-xl border border-[rgba(230,81,0,0.18)] bg-[rgba(230,81,0,0.08)] p-1"
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === 'list'}
+                    onClick={() => {
+                      if (tab === 'list') return
+                      const next = new URLSearchParams(searchParams)
+                      next.set('tab', 'list')
+                      setSearchParams(next, { replace: true })
+                    }}
+                    className={cn(
+                      'inline-flex h-9 items-center justify-center rounded-lg px-4 text-xs font-semibold transition',
+                      tab === 'list'
+                        ? 'bg-[rgba(230,81,0,0.18)] text-white shadow-[0_0_0_1px_rgba(230,81,0,0.25)]'
+                        : 'text-[#94A3B8] hover:bg-[rgba(230,81,0,0.10)] hover:text-white',
+                    )}
+                  >
+                    列表
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === 'insight'}
+                    onClick={() => {
+                      if (tab === 'insight') return
+                      const next = new URLSearchParams(searchParams)
+                      next.set('tab', 'insight')
+                      setSearchParams(next, { replace: true })
+                    }}
+                    className={cn(
+                      'inline-flex h-9 items-center justify-center rounded-lg px-4 text-xs font-semibold transition',
+                      tab === 'insight'
+                        ? 'bg-[rgba(230,81,0,0.18)] text-white shadow-[0_0_0_1px_rgba(230,81,0,0.25)]'
+                        : 'text-[#94A3B8] hover:bg-[rgba(230,81,0,0.10)] hover:text-white',
+                    )}
+                  >
+                    AI 解读
+                  </button>
+                </div>
+
+                {tab === 'list' ? (
+                  <Top100FilterBar keyword={keyword} onChangeKeyword={setKeyword} onReset={onReset} />
+                ) : null}
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -554,21 +615,23 @@ export default function Home() {
                 }}
               />
 
-              <Top100InsightPanel
-                meta={meta}
-                rows={rows}
-                disableGenerate={adminRefreshing || (loading && (loadingMode === 'refetch' || treatAsRefetch))}
-              />
-
-              <Top100Table
-                rows={rows}
-                loading={loading}
-                error={error}
-                keyword={debouncedKeyword}
-                sortKey={sortKey}
-                sortDir={sortDir}
-                onToggleSort={onToggleSort}
-              />
+              {tab === 'insight' ? (
+                <Top100InsightPanel
+                  meta={meta}
+                  rows={rows}
+                  disableGenerate={adminRefreshing || (loading && (loadingMode === 'refetch' || treatAsRefetch))}
+                />
+              ) : (
+                <Top100Table
+                  rows={rows}
+                  loading={loading}
+                  error={error}
+                  keyword={debouncedKeyword}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  onToggleSort={onToggleSort}
+                />
+              )}
             </div>
 
             <div className="relative mt-6 flex items-center justify-between text-xs text-[#94A3B8]">
