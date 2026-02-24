@@ -1,5 +1,5 @@
 import { Loader2, Sparkles, RefreshCw, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ComponentPropsWithoutRef } from 'react'
 import { apiUrl } from '@/utils/apiBase'
 import { adminAuthHeaders } from '@/utils/adminAccess'
 import type { EtfTopRow, Top100Meta } from '@/utils/etfApi'
@@ -30,7 +30,6 @@ export default function Top100InsightPanel({
     return `${d}|${s}|${n}`
   }, [meta?.dataDate, rows.length, snapshotAt])
 
-  const ranKeyRef = useRef<string | null>(null)
   const generatedKeyRef = useRef<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -126,10 +125,11 @@ export default function Top100InsightPanel({
                 tr && typeof tr === 'object'
                   ? ((tr as Record<string, unknown>).parameters as unknown)
                   : null
-              const q =
+              const search =
                 params && typeof params === 'object'
-                  ? (((params as Record<string, unknown>).search_etf_anomaly_reason as any)?.query as unknown)
+                  ? ((params as Record<string, unknown>).search_etf_anomaly_reason as unknown)
                   : null
+              const q = search && typeof search === 'object' ? ((search as Record<string, unknown>).query as unknown) : null
               if (typeof q === 'string' && q.trim()) {
                 setProgressText(`正在检索：${q.trim()}`)
               } else {
@@ -181,7 +181,7 @@ export default function Top100InsightPanel({
                       ? String((c as Record<string, unknown>).answer)
                       : ''
                   if (answer) setText((prev) => prev + answer)
-                  if (Boolean(o.finish)) setDone(true)
+                  if (o.finish) setDone(true)
                 } else if (type === 'tool_request') {
                   setProgressText('正在检索异动原因…')
                 } else if (type === 'tool_response') {
@@ -236,10 +236,10 @@ export default function Top100InsightPanel({
   const generateDisabled = Boolean(!ready || loading || disableGenerate)
 
   return (
-    <section className="mt-4 rounded-xl border border-white/10 bg-[#111B2E] px-4 py-3" data-testid="top100-insight">
+    <section className="mt-4 ui-glass-panel px-4 py-3" data-testid="top100-insight">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-[#60A5FA]" />
+          <Sparkles className="h-4 w-4 text-[#FF8A50]" />
           <div className="text-sm font-medium">大模型解读（基于快照）</div>
           {stale ? (
             <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-[#A9B6CC]">
@@ -252,7 +252,7 @@ export default function Top100InsightPanel({
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 text-xs text-[#E6EDF7] transition hover:border-white/20 hover:bg-white/10"
+            className="ui-btn ui-btn-outline h-9 px-3 text-xs"
           >
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             {expanded ? '折叠' : '展开'}
@@ -262,7 +262,7 @@ export default function Top100InsightPanel({
             type="button"
             onClick={run}
             disabled={generateDisabled}
-            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 text-xs transition hover:border-white/20 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+            className="ui-btn ui-btn-accent h-9 px-3 text-xs"
             title={disableGenerate ? '数据重新获取中，暂不可生成解读' : undefined}
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -318,8 +318,14 @@ export default function Top100InsightPanel({
               blockquote: (props) => (
                 <blockquote {...props} className="my-3 border-l-2 border-white/10 pl-3 text-[#A9B6CC]" />
               ),
-              code: (props) => {
-                const { inline, className, children, ...rest } = props as any
+              code: ({
+                inline,
+                className,
+                children,
+                node,
+                ...rest
+              }: ComponentPropsWithoutRef<'code'> & { inline?: boolean; node?: unknown }) => {
+                void node
                 if (inline) {
                   return (
                     <code

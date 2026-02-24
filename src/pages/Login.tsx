@@ -42,10 +42,26 @@ export default function Login() {
       initializedRef.current = true
 
       const init = () => {
-        const g = (window as any).google
-        if (!g || !g.accounts || !g.accounts.id) return
+        type Gsi = {
+          accounts?: {
+            id?: {
+              initialize: (opts: {
+                client_id: string
+                callback: (resp: { credential?: string }) => void
+                auto_select?: boolean
+                cancel_on_tap_outside?: boolean
+              }) => void
+              renderButton: (el: HTMLElement, options: Record<string, unknown>) => void
+              disableAutoSelect?: () => void
+            }
+          }
+        }
 
-        g.accounts.id.initialize({
+        const g = (window as unknown as { google?: Gsi }).google
+        const id = g?.accounts?.id
+        if (!id) return
+
+        id.initialize({
           client_id: clientId,
           callback: async (resp: { credential?: string }) => {
             const credential = typeof resp?.credential === 'string' ? resp.credential : ''
@@ -81,11 +97,11 @@ export default function Login() {
         const el = gsiBtnRef.current
         if (el) {
           el.innerHTML = ''
-          g.accounts.id.renderButton(el, { type: 'standard', theme: 'outline', size: 'large', width: 302 })
+          id.renderButton(el, { type: 'standard', theme: 'outline', size: 'large', width: 302 })
         }
       }
 
-      if ((window as any).google?.accounts?.id) {
+      if ((window as unknown as { google?: { accounts?: { id?: unknown } } }).google?.accounts?.id) {
         init()
         return
       }

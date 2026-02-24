@@ -53,7 +53,7 @@ export default function Top100Table({
   const data = sortRows(filtered, sortKey, sortDir)
 
   return (
-    <section className="mt-4 overflow-hidden rounded-xl border border-white/10 bg-[#111B2E]">
+    <section className="mt-4 ui-glass-panel">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[900px] text-left text-sm">
           <thead className="border-b border-white/10 text-xs uppercase tracking-wide text-[#A9B6CC]">
@@ -142,7 +142,7 @@ export default function Top100Table({
                     <div className="mt-2">
                       <Link
                         to="/methodology"
-                        className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs hover:border-white/20"
+                        className="ui-btn ui-btn-outline px-3 py-2 text-xs"
                       >
                         <ArrowUpDown className="h-4 w-4" />
                         查看数据与方法说明
@@ -217,7 +217,7 @@ export default function Top100Table({
                         href={`/etf/${encodeURIComponent(r.code)}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs transition hover:border-white/20 hover:bg-white/10"
+                        className="ui-btn ui-btn-outline px-3 py-2 text-xs"
                       >
                         查看
                         <ExternalLink className="h-4 w-4" />

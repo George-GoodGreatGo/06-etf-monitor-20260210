@@ -39,7 +39,7 @@ export default function DataStatusBanner({
       backendProgressText.includes('校验最新交易日')
     const showProgress = (loadingMode === 'refetch' || (loadingMode === 'cold' && !isEnsureLatestOnly)) && pct != null
     return (
-      <div className="rounded-xl border border-white/10 bg-[#111B2E] px-4 py-3">
+      <div className="ui-glass-panel px-4 py-3">
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2 text-xs text-[#A9B6CC]">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -59,7 +59,7 @@ export default function DataStatusBanner({
           {showProgress ? (
             <div className="h-2 w-full rounded-full bg-white/5">
               <div
-                className="h-2 rounded-full bg-[#60A5FA] transition-[width]"
+                className="h-2 rounded-full bg-[#E65100] transition-[width]"
                 style={{ width: `${pct}%` }}
               />
             </div>
@@ -81,7 +81,7 @@ export default function DataStatusBanner({
 
   if (error) {
     return (
-      <div className="rounded-xl border border-[#EF4444]/40 bg-[#111B2E] px-4 py-3">
+      <div className="ui-glass-panel border border-[#EF4444]/40 px-4 py-3">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div className="flex items-start gap-2">
             <AlertTriangle className="mt-0.5 h-4 w-4 text-[#EF4444]" />
@@ -95,7 +95,7 @@ export default function DataStatusBanner({
           <button
             type="button"
             onClick={onRetry}
-            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 text-xs transition hover:border-white/20 hover:bg-white/10"
+            className="ui-btn ui-btn-accent h-9 px-3 text-xs"
           >
             <RefreshCw className="h-4 w-4" />
             重试
@@ -109,13 +109,13 @@ export default function DataStatusBanner({
     return (
       <div
         className={cn(
-          'rounded-xl border bg-[#111B2E] px-4 py-3',
-          notice.tone === 'warn' ? 'border-[#F59E0B]/40' : 'border-white/10',
+          'ui-glass-panel px-4 py-3',
+          notice.tone === 'warn' ? 'border border-[#F59E0B]/40' : 'border border-[rgba(230,81,0,0.15)]',
         )}
       >
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div className="flex items-start gap-2">
-            <Loader2 className="mt-0.5 h-4 w-4 animate-spin text-[#60A5FA]" />
+            <Loader2 className="mt-0.5 h-4 w-4 animate-spin text-[#FF8A50]" />
             <div>
               <div className="text-sm font-medium">
                 {notice.tone === 'warn' ? '刷新可能仍在后台运行' : '后台刷新中'}
@@ -130,7 +130,7 @@ export default function DataStatusBanner({
           <button
             type="button"
             onClick={onRetry}
-            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 text-xs transition hover:border-white/20 hover:bg-white/10"
+            className="ui-btn ui-btn-outline h-9 px-3 text-xs"
           >
             <RefreshCw className="h-4 w-4" />
             刷新页面数据
@@ -141,7 +141,7 @@ export default function DataStatusBanner({
   }
 
   return (
-    <div className="rounded-xl border border-white/10 bg-[#111B2E] px-4 py-3">
+    <div className="ui-glass-panel px-4 py-3">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex items-start gap-2">
           <ShieldCheck className="mt-0.5 h-4 w-4 text-[#22C55E]" />

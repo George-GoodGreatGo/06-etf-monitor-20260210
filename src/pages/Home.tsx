@@ -183,7 +183,7 @@ export default function Home() {
           window.localStorage.removeItem(activeRefetchTokenKey)
         }
       }
-    } catch (e) {
+    } catch {
       window.clearTimeout(timeoutId)
       if (!mountedRef.current || seq !== reqSeqRef.current) return
       setMeta(null)
@@ -458,8 +458,7 @@ export default function Home() {
           if (!mountedRef.current) return
           setError(e instanceof Error ? e.message : String(e))
         } finally {
-          if (!mountedRef.current) return
-          setAdminRefreshing(false)
+          if (mountedRef.current) setAdminRefreshing(false)
         }
       })()
 
@@ -473,100 +472,118 @@ export default function Home() {
   }
 
   return (
-    <div>
-      <NavBar
-        rightMeta={
-          meta
-            ? {
-                fetchedAt: meta.cachedAt || meta.fetchedAt,
-                dataDate: meta.dataDate,
-              }
-            : undefined
-        }
-        onRefetch={onRefetch}
-        refetching={adminRefreshing || (loading && (loadingMode === 'refetch' || treatAsRefetch))}
-        onLogout={() => {
-          void (async () => {
-            try {
-              ;(window as any).google?.accounts?.id?.disableAutoSelect?.()
-              await fetch(apiUrl('/api/auth/logout'), {
-                method: 'POST',
-                credentials: 'include',
-              })
-            } catch {
-              void 0
-            } finally {
-              nav(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`, { replace: true })
-            }
-          })()
-        }}
+    <div className="relative min-h-screen overflow-hidden bg-[#050A0B] text-[#E6EDF7]">
+      <img
+        src="/figma/login/login_bg_mask.svg"
+        alt=""
+        className="pointer-events-none absolute inset-0 z-0 h-full w-full select-none object-cover"
+        aria-hidden="true"
+      />
+      <img
+        src="/figma/login/login_bg_bottom.svg"
+        alt=""
+        className="pointer-events-none absolute bottom-0 left-0 right-0 z-0 w-full select-none"
+        aria-hidden="true"
       />
 
-      <main className="mx-auto w-full max-w-[1200px] px-4 pb-10 pt-6">
-        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-lg font-semibold tracking-tight">Top200 ETF 异动监测</h1>
-            <div className="mt-1 text-xs text-[#A9B6CC]">
-              仅展示最近一个完整交易日数据；缺失/失败会明确提示且不展示推测值
-            </div>
-          </div>
-
-          <Top100FilterBar
-            keyword={keyword}
-            onChangeKeyword={setKeyword}
-            onReset={onReset}
-          />
-        </div>
-
-        <DataStatusBanner
-          loading={loading}
-          error={error}
-          notice={adminNotice}
-          meta={meta}
-          incompleteCount={incompleteCount}
-          loadingMode={
-            loading
-              ? treatAsRefetch
-                ? 'refetch'
-                : loadingMode
-              : 'fetch'
+      <div className="relative z-10">
+        <NavBar
+          rightMeta={
+            meta
+              ? {
+                  fetchedAt: meta.cachedAt || meta.fetchedAt,
+                  dataDate: meta.dataDate,
+                }
+              : undefined
           }
-          loadingProgressPct={treatAsRefetch || loadingMode === 'cold' ? refetchProgressPct : null}
-          loadingEtaSeconds={treatAsRefetch || loadingMode === 'cold' ? refetchEtaSeconds : undefined}
-          backendProgressText={backendProgressText}
-          onRetry={() => {
-            const seq = ++reqSeqRef.current
-            void runFetch(seq)
+          onRefetch={onRefetch}
+          refetching={adminRefreshing || (loading && (loadingMode === 'refetch' || treatAsRefetch))}
+          onLogout={() => {
+            void (async () => {
+              try {
+                ;(window as unknown as { google?: { accounts?: { id?: { disableAutoSelect?: () => void } } } })
+                  .google?.accounts?.id?.disableAutoSelect?.()
+                await fetch(apiUrl('/api/auth/logout'), {
+                  method: 'POST',
+                  credentials: 'include',
+                })
+              } catch {
+                void 0
+              } finally {
+                nav(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`, { replace: true })
+              }
+            })()
           }}
         />
 
-        <Top100InsightPanel
-          meta={meta}
-          rows={rows}
-          disableGenerate={adminRefreshing || (loading && (loadingMode === 'refetch' || treatAsRefetch))}
-        />
+        <main className="mx-auto w-full max-w-[1280px] px-4 pb-14 pt-6 sm:px-6 lg:px-8">
+          <div className="relative overflow-hidden rounded-2xl border border-[rgba(230,81,0,0.12)] bg-[rgba(13,26,28,0.78)] p-4 shadow-[0_0_50px_-18px_rgba(230,81,0,0.18)] backdrop-blur-[24px] sm:p-6">
+            <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-xl bg-[rgba(230,81,0,0.16)] blur-[80px]" />
 
-        <Top100Table
-          rows={rows}
-          loading={loading}
-          error={error}
-          keyword={debouncedKeyword}
-          sortKey={sortKey}
-          sortDir={sortDir}
-          onToggleSort={onToggleSort}
-        />
+            <div className="relative mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h1 className="text-lg font-semibold tracking-tight text-white">Top200 ETF 异动监测</h1>
+                <div className="mt-1 text-xs text-[#94A3B8]">
+                  仅展示最近一个完整交易日数据；缺失/失败会明确提示且不展示推测值
+                </div>
+              </div>
 
-        <div className="mt-6 flex items-center justify-between text-xs text-[#A9B6CC]">
-          <div>展示口径：Top200 按成交额排序（默认），仅完整交易日</div>
-          <Link to="/methodology" className="hover:text-[#E6EDF7]">
-            数据与方法说明 →
-          </Link>
-        </div>
+              <Top100FilterBar keyword={keyword} onChangeKeyword={setKeyword} onReset={onReset} />
+            </div>
 
-        <div className="mt-2 text-xs text-[#A9B6CC]">
-          {meta ? `快照时间：${parseIsoToLocal(meta.cachedAt || meta.fetchedAt)}` : ''}
-        </div>
-      </main>
+            <div className="space-y-4">
+              <DataStatusBanner
+                loading={loading}
+                error={error}
+                notice={adminNotice}
+                meta={meta}
+                incompleteCount={incompleteCount}
+                loadingMode={
+                  loading
+                    ? treatAsRefetch
+                      ? 'refetch'
+                      : loadingMode
+                    : 'fetch'
+                }
+                loadingProgressPct={treatAsRefetch || loadingMode === 'cold' ? refetchProgressPct : null}
+                loadingEtaSeconds={treatAsRefetch || loadingMode === 'cold' ? refetchEtaSeconds : undefined}
+                backendProgressText={backendProgressText}
+                onRetry={() => {
+                  const seq = ++reqSeqRef.current
+                  void runFetch(seq)
+                }}
+              />
+
+              <Top100InsightPanel
+                meta={meta}
+                rows={rows}
+                disableGenerate={adminRefreshing || (loading && (loadingMode === 'refetch' || treatAsRefetch))}
+              />
+
+              <Top100Table
+                rows={rows}
+                loading={loading}
+                error={error}
+                keyword={debouncedKeyword}
+                sortKey={sortKey}
+                sortDir={sortDir}
+                onToggleSort={onToggleSort}
+              />
+            </div>
+
+            <div className="relative mt-6 flex items-center justify-between text-xs text-[#94A3B8]">
+              <div>展示口径：Top200 按成交额排序（默认），仅完整交易日</div>
+              <Link to="/methodology" className="text-[#E65100] hover:brightness-110">
+                数据与方法说明 →
+              </Link>
+            </div>
+
+            <div className="relative mt-2 text-xs text-[#94A3B8]">
+              {meta ? `快照时间：${parseIsoToLocal(meta.cachedAt || meta.fetchedAt)}` : ''}
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   )
 }

@@ -17,13 +17,13 @@ export default function Top100FilterBar({
           value={keyword}
           onChange={(e) => onChangeKeyword(e.target.value)}
           placeholder="代码/名称"
-          className="h-10 w-full rounded-lg border border-white/10 bg-[#111B2E] pl-9 pr-3 text-sm outline-none transition focus:border-white/20"
+          className="ui-input h-10 w-full pl-9 pr-3 text-sm"
         />
       </div>
       <button
         type="button"
         onClick={onReset}
-        className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/10 bg-[#111B2E] px-3 text-sm text-[#E6EDF7] transition hover:border-white/20 hover:bg-white/5"
+        className="ui-btn ui-btn-outline h-10 px-3 text-sm"
       >
         <RotateCcw className="h-4 w-4" />
         重置
@@ -31,4 +31,3 @@ export default function Top100FilterBar({
     </div>
   )
 }
-

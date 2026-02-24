@@ -146,7 +146,7 @@ router.post('/top100/insight', async (req: Request, res: Response) => {
   res.setHeader('X-Accel-Buffering', 'no')
 
   try {
-    ;(res as any).flushHeaders?.()
+    ;(res as Response & { flushHeaders?: () => void }).flushHeaders?.()
   } catch {
     void 0
   }
