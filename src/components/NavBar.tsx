@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Loader2, RefreshCw, LogOut } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatYmd, parseIsoToLocal } from '@/utils/format'
 
@@ -91,7 +91,7 @@ export default function NavBar({
               {refetching ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <RefreshCw className="h-4 w-4" />
+                <img src="/figma/list/refetch_icon.svg" alt="" className="h-4 w-4 select-none" aria-hidden="true" />
               )}
               重新获取
             </button>
@@ -103,7 +103,7 @@ export default function NavBar({
               onClick={onLogout}
               className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[rgba(230,81,0,0.35)] bg-transparent px-3 text-xs font-semibold text-[#FF8A50] transition hover:bg-[rgba(230,81,0,0.10)] hover:text-[#FFE6DA]"
             >
-              <LogOut className="h-4 w-4" />
+              <img src="/figma/list/logout_icon.svg" alt="" className="h-4 w-4 select-none" aria-hidden="true" />
               退出登录
             </button>
           ) : null}

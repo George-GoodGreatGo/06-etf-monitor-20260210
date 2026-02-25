@@ -563,6 +563,12 @@ export default function Home() {
                         : 'text-[#94A3B8] hover:bg-[rgba(255,255,255,0.06)] hover:text-white',
                     )}
                   >
+                    <img
+                      src={tab === 'list' ? '/figma/list/list_tab_icon.svg' : '/figma/list/list_tab_icon_muted.svg'}
+                      alt=""
+                      className="h-4 w-auto select-none"
+                      aria-hidden="true"
+                    />
                     TOP200 列表
                   </button>
                   <button
@@ -582,6 +588,16 @@ export default function Home() {
                         : 'text-[#94A3B8] hover:bg-[rgba(255,255,255,0.06)] hover:text-white',
                     )}
                   >
+                    <img
+                      src={
+                        tab === 'insight'
+                          ? '/figma/list/insight_tab_icon_active.svg'
+                          : '/figma/list/insight_tab_icon.svg'
+                      }
+                      alt=""
+                      className="h-4 w-auto select-none"
+                      aria-hidden="true"
+                    />
                     AI 解读
                   </button>
                 </div>

@@ -163,7 +163,7 @@ export default function Top100Table({
                     )}
                   >
                     <td className="px-4 py-3 text-xs text-[#94A3B8]">{idx + 1}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{r.code}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-[#FF8A50]">{r.code}</td>
                     <td className="px-4 py-3">
                       <div className="font-medium">{r.name}</div>
                       <div className="mt-0.5 text-xs text-[#94A3B8]">
