@@ -5,6 +5,7 @@ import {
   LineStyle,
   HistogramSeries,
   LineSeries,
+  BaselineSeries,
   createChart,
   type HistogramData,
   type IChartApi,
@@ -138,6 +139,8 @@ export default function EtfWeeklyChart({ series }: Props) {
     ema8: ISeriesApi<'Line', Time> | null
     sma200: ISeriesApi<'Line', Time> | null
     volume: ISeriesApi<'Histogram', Time> | null
+    rsiOverbought: ISeriesApi<'Baseline', Time> | null
+    rsiOversold: ISeriesApi<'Baseline', Time> | null
     rsi14: ISeriesApi<'Line', Time> | null
     macd: ISeriesApi<'Line', Time> | null
     signal: ISeriesApi<'Line', Time> | null
@@ -147,6 +150,8 @@ export default function EtfWeeklyChart({ series }: Props) {
     ema8: null,
     sma200: null,
     volume: null,
+    rsiOverbought: null,
+    rsiOversold: null,
     rsi14: null,
     macd: null,
     signal: null,
@@ -312,6 +317,30 @@ export default function EtfWeeklyChart({ series }: Props) {
       timeScale: { borderColor: 'rgba(255,255,255,0.10)', visible: false },
       crosshair: { mode: CrosshairMode.Normal },
     })
+    const overboughtBand = chart.addSeries(BaselineSeries, {
+      baseValue: { type: 'price', price: 70 },
+      topFillColor1: 'rgba(239,68,68,0.14)',
+      topFillColor2: 'rgba(239,68,68,0.06)',
+      topLineColor: 'rgba(0,0,0,0)',
+      bottomFillColor1: 'rgba(0,0,0,0)',
+      bottomFillColor2: 'rgba(0,0,0,0)',
+      bottomLineColor: 'rgba(0,0,0,0)',
+      lineWidth: 1,
+      priceLineVisible: false,
+      lastValueVisible: false,
+    })
+    const oversoldBand = chart.addSeries(BaselineSeries, {
+      baseValue: { type: 'price', price: 30 },
+      topFillColor1: 'rgba(0,0,0,0)',
+      topFillColor2: 'rgba(0,0,0,0)',
+      topLineColor: 'rgba(0,0,0,0)',
+      bottomFillColor1: 'rgba(16,185,129,0.12)',
+      bottomFillColor2: 'rgba(16,185,129,0.05)',
+      bottomLineColor: 'rgba(0,0,0,0)',
+      lineWidth: 1,
+      priceLineVisible: false,
+      lastValueVisible: false,
+    })
     const rsiSeries = chart.addSeries(LineSeries, {
       color: '#34D399',
       lineWidth: 2,
@@ -336,11 +365,14 @@ export default function EtfWeeklyChart({ series }: Props) {
       title: '70',
     })
     charts.rsi = chart
+    seriesApi.rsiOverbought = overboughtBand
+    seriesApi.rsiOversold = oversoldBand
     seriesApi.rsi14 = rsiSeries
     return () => {
       chart.remove()
       if (charts.rsi === chart) charts.rsi = null
-      if (charts.rsi === chart) charts.rsi = null
+      seriesApi.rsiOverbought = null
+      seriesApi.rsiOversold = null
       seriesApi.rsi14 = null
     }
   }, [])
@@ -422,6 +454,8 @@ export default function EtfWeeklyChart({ series }: Props) {
     seriesRef.current.ema8?.setData(data.ema8)
     seriesRef.current.sma200?.setData(data.sma200)
     seriesRef.current.volume?.setData(data.volume)
+    seriesRef.current.rsiOverbought?.setData(data.rsi14)
+    seriesRef.current.rsiOversold?.setData(data.rsi14)
     seriesRef.current.rsi14?.setData(data.rsi14)
     seriesRef.current.macd?.setData(data.macdLine)
     seriesRef.current.signal?.setData(data.signalLine)
