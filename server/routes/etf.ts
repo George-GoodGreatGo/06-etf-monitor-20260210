@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readTop100LatestSnapshot } from '../lib/supabaseRest.js'
+import { ensureTop100Insight } from '../lib/top100Insight.js'
 
 const router = express.Router()
 
@@ -398,6 +399,16 @@ router.get('/top100', (req: Request, res: Response) => {
       const notes: string[] = Array.isArray(snap.notes) ? (snap.notes as unknown[]).filter((x) => typeof x === 'string') as string[] : []
       if (refresh || ensureLatest) {
         notes.unshift('当前部署环境不支持实时重算；refresh/ensureLatest 会退化为读取 Supabase 最新快照。')
+        const snapshotAt = (snap.cached_at || snap.fetched_at || null) as string | null
+        void ensureTop100Insight(
+          String(snap.data_date || ''),
+          snapshotAt,
+          (snap.source || 'supabase:snapshot') as string,
+          snap.rows as unknown[],
+        ).catch((e) => {
+          console.warn('ensureTop100Insight failed', e instanceof Error ? e.message : String(e))
+          return null
+        })
       }
 
       res.status(200).json({
@@ -475,6 +486,21 @@ router.get('/top100', (req: Request, res: Response) => {
     .then((out) => {
       if (out.success === true) {
         res.status(200).json(out)
+        if (refresh || ensureLatest) {
+          const meta = (out.meta || {}) as Record<string, unknown>
+          const dataDate = typeof meta.dataDate === 'string' ? meta.dataDate : ''
+          const fetchedAt = typeof meta.fetchedAt === 'string' ? meta.fetchedAt : null
+          const cachedAt = typeof meta.cachedAt === 'string' ? meta.cachedAt : null
+          const source = typeof meta.source === 'string' ? meta.source : null
+          const snapshotAt = cachedAt || fetchedAt
+          const rows = Array.isArray(out.data) ? (out.data as unknown[]) : []
+          if (dataDate && rows.length > 0) {
+            void ensureTop100Insight(dataDate, snapshotAt, source, rows).catch((e) => {
+              console.warn('ensureTop100Insight failed', e instanceof Error ? e.message : String(e))
+              return null
+            })
+          }
+        }
         if (progressFile) void fs.unlink(progressFile).catch(() => null)
         return
       }

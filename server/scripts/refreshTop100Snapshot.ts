@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import path from 'node:path'
+import { ensureTop100Insight } from '../lib/top100Insight.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -104,6 +105,10 @@ async function main() {
   const limit = Number.parseInt(String(process.env.TOP100_LIMIT || '200'), 10) || 200
   const ok = await computeTop100(Math.max(1, Math.min(200, limit)))
   const written = await upsertToSupabase(ok)
+  await ensureTop100Insight(ok.meta.dataDate, ok.meta.fetchedAt, ok.meta.source || 'akshare:sina', ok.data).catch((e) => {
+    process.stderr.write(`ensureTop100Insight failed: ${e instanceof Error ? e.message : String(e)}`)
+    return null
+  })
   process.stdout.write(JSON.stringify({ success: true, meta: ok.meta, written }, null, 2))
 }
 

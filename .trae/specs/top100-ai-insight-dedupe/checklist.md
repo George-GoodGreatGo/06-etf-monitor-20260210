@@ -1,0 +1,8 @@
+- [x] Supabase 新表 `top100_insight` 已创建且 `data_date` 唯一约束生效（承载 Top200 解读）
+- [x] 读取接口可用：`GET /api/ai/top100/insight?dataDate=...` 能返回已落库解读
+- [x] 同交易日重复访问不调用 Coze（仅返回数据库内容）
+- [x] “重新获取”得到新交易日时自动触发生成并落库
+- [x] 定时任务写入新交易日快照后自动触发生成并落库
+- [x] 前端 AI 解读面板不再提供手动生成/重试入口
+- [x] 并发保护生效：同一 `dataDate` 不重复写入、不会多次调用 Coze
+- [x] `npm run check`、`npm run build` 通过
