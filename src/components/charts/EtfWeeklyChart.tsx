@@ -319,10 +319,27 @@ export default function EtfWeeklyChart({ series }: Props) {
       lastValueVisible: true,
       priceFormat: { type: 'custom', formatter: (v) => trimFixed(v, 2) },
     })
+    rsiSeries.createPriceLine({
+      price: 30,
+      color: 'rgba(255,255,255,0.28)',
+      lineWidth: 1,
+      lineStyle: LineStyle.Dotted,
+      axisLabelVisible: true,
+      title: '30',
+    })
+    rsiSeries.createPriceLine({
+      price: 70,
+      color: 'rgba(255,255,255,0.28)',
+      lineWidth: 1,
+      lineStyle: LineStyle.Dotted,
+      axisLabelVisible: true,
+      title: '70',
+    })
     charts.rsi = chart
     seriesApi.rsi14 = rsiSeries
     return () => {
       chart.remove()
+      if (charts.rsi === chart) charts.rsi = null
       if (charts.rsi === chart) charts.rsi = null
       seriesApi.rsi14 = null
     }
