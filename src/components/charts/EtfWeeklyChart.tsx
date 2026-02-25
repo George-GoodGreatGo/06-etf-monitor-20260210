@@ -18,6 +18,8 @@ import { cn } from '@/lib/utils'
 import type { EtfWeeklyChartSeries } from '@/utils/etfApi'
 import { formatCompactNumber } from '@/utils/format'
 
+const PANE_SCALE_MIN_WIDTH = 92
+
 type Props = {
   series: EtfWeeklyChartSeries
 }
@@ -62,6 +64,12 @@ function fmt(v: number | undefined, digits = 2): string {
   if (typeof v !== 'number' || !Number.isFinite(v)) return '—'
   const s = v.toFixed(digits)
   return s.replace(/\.00$/, '')
+}
+
+function trimFixed(v: number, digits: number): string {
+  if (!Number.isFinite(v)) return '—'
+  const s = v.toFixed(digits)
+  return s.replace(/\.0+$/, '').replace(/\.$/, '')
 }
 
 export default function EtfWeeklyChart({ series }: Props) {
@@ -159,7 +167,7 @@ export default function EtfWeeklyChart({ series }: Props) {
         vertLines: { color: 'rgba(255,255,255,0.06)' },
         horzLines: { color: 'rgba(255,255,255,0.06)' },
       },
-      rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)' },
+      rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)', minimumWidth: PANE_SCALE_MIN_WIDTH },
       timeScale: { borderColor: 'rgba(255,255,255,0.10)', visible: false },
       crosshair: { mode: CrosshairMode.Normal },
     })
@@ -169,6 +177,7 @@ export default function EtfWeeklyChart({ series }: Props) {
       lineWidth: 2,
       priceLineVisible: false,
       lastValueVisible: true,
+      priceFormat: { type: 'custom', formatter: (v) => trimFixed(v, 3) },
     })
     const ema8Series = chart.addSeries(LineSeries, {
       color: '#F59E0B',
@@ -176,6 +185,7 @@ export default function EtfWeeklyChart({ series }: Props) {
       lineStyle: LineStyle.Solid,
       priceLineVisible: false,
       lastValueVisible: false,
+      priceFormat: { type: 'custom', formatter: (v) => trimFixed(v, 3) },
     })
     const sma200Series = chart.addSeries(LineSeries, {
       color: '#A78BFA',
@@ -183,6 +193,7 @@ export default function EtfWeeklyChart({ series }: Props) {
       lineStyle: LineStyle.Dotted,
       priceLineVisible: false,
       lastValueVisible: false,
+      priceFormat: { type: 'custom', formatter: (v) => trimFixed(v, 3) },
     })
 
     charts.price = chart
@@ -215,7 +226,7 @@ export default function EtfWeeklyChart({ series }: Props) {
         vertLines: { color: 'rgba(255,255,255,0.06)' },
         horzLines: { color: 'rgba(255,255,255,0.06)' },
       },
-      rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)' },
+      rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)', minimumWidth: PANE_SCALE_MIN_WIDTH },
       timeScale: { borderColor: 'rgba(255,255,255,0.10)', visible: false },
       crosshair: { mode: CrosshairMode.Normal },
     })
@@ -223,6 +234,7 @@ export default function EtfWeeklyChart({ series }: Props) {
       color: '#A9B6CC',
       priceLineVisible: false,
       lastValueVisible: true,
+      priceFormat: { type: 'custom', formatter: (v) => formatCompactNumber(v) },
     })
     charts.volume = chart
     seriesApi.volume = volumeSeries
@@ -249,7 +261,7 @@ export default function EtfWeeklyChart({ series }: Props) {
         vertLines: { color: 'rgba(255,255,255,0.06)' },
         horzLines: { color: 'rgba(255,255,255,0.06)' },
       },
-      rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)' },
+      rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)', minimumWidth: PANE_SCALE_MIN_WIDTH },
       timeScale: { borderColor: 'rgba(255,255,255,0.10)', visible: false },
       crosshair: { mode: CrosshairMode.Normal },
     })
@@ -258,6 +270,7 @@ export default function EtfWeeklyChart({ series }: Props) {
       lineWidth: 2,
       priceLineVisible: false,
       lastValueVisible: true,
+      priceFormat: { type: 'custom', formatter: (v) => trimFixed(v, 2) },
     })
     charts.rsi = chart
     seriesApi.rsi14 = rsiSeries
@@ -284,7 +297,7 @@ export default function EtfWeeklyChart({ series }: Props) {
         vertLines: { color: 'rgba(255,255,255,0.06)' },
         horzLines: { color: 'rgba(255,255,255,0.06)' },
       },
-      rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)' },
+      rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)', minimumWidth: PANE_SCALE_MIN_WIDTH },
       timeScale: { borderColor: 'rgba(255,255,255,0.10)', visible: false },
       crosshair: { mode: CrosshairMode.Normal },
     })
@@ -292,18 +305,21 @@ export default function EtfWeeklyChart({ series }: Props) {
       color: '#A9B6CC',
       priceLineVisible: false,
       lastValueVisible: true,
+      priceFormat: { type: 'custom', formatter: (v) => trimFixed(v, 3) },
     })
     const macdSeries = chart.addSeries(LineSeries, {
       color: '#60A5FA',
       lineWidth: 2,
       priceLineVisible: false,
       lastValueVisible: false,
+      priceFormat: { type: 'custom', formatter: (v) => trimFixed(v, 3) },
     })
     const signalSeries = chart.addSeries(LineSeries, {
       color: '#F472B6',
       lineWidth: 2,
       priceLineVisible: false,
       lastValueVisible: false,
+      priceFormat: { type: 'custom', formatter: (v) => trimFixed(v, 3) },
     })
     charts.macd = chart
     seriesApi.hist = histSeries
