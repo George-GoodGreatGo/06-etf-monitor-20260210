@@ -11,6 +11,323 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const pythonCacheDir = path.join(__dirname, '..', 'python', '.cache')
 
+type WeeklySeriesPoint = { time: number; value: number; color?: string }
+type WeeklyChartSeries = {
+  price: WeeklySeriesPoint[]
+  ema8: WeeklySeriesPoint[]
+  sma200: WeeklySeriesPoint[]
+  volume: WeeklySeriesPoint[]
+  rsi14: WeeklySeriesPoint[]
+  macd: {
+    macd: WeeklySeriesPoint[]
+    signal: WeeklySeriesPoint[]
+    hist: WeeklySeriesPoint[]
+  }
+}
+
+type WeeklyChartOut =
+  | { success: true; meta: Record<string, unknown>; data: { series: WeeklyChartSeries } }
+  | { success: false; error: string; message: string }
+
+const vercelWeeklyCache = new Map<string, { expiresAt: number; value: WeeklyChartOut }>()
+const vercelWeeklyInflight = new Map<string, Promise<WeeklyChartOut>>()
+
+function isoNow(): string {
+  return new Date().toISOString()
+}
+
+function ymdToUtcMs(ymd: string): number {
+  return Date.parse(`${ymd}T00:00:00Z`)
+}
+
+function ymdToShanghaiDate(ymd: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null
+  const ms = Date.parse(`${ymd}T00:00:00+08:00`)
+  if (Number.isNaN(ms)) return null
+  return new Date(ms)
+}
+
+function addDays(d: Date, days: number): Date {
+  return new Date(d.getTime() + days * 86400_000)
+}
+
+function formatYmdUtc(d: Date): string {
+  const y = d.getUTCFullYear()
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(d.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
+}
+
+function calcEma(values: number[], span: number): number[] {
+  const k = 2 / (span + 1)
+  const out: number[] = new Array(values.length)
+  let prev = values[0] ?? 0
+  out[0] = prev
+  for (let i = 1; i < values.length; i++) {
+    const v = values[i] ?? prev
+    prev = prev + k * (v - prev)
+    out[i] = prev
+  }
+  return out
+}
+
+function calcSma(values: number[], window: number): Array<number | null> {
+  const out: Array<number | null> = new Array(values.length).fill(null)
+  let sum = 0
+  for (let i = 0; i < values.length; i++) {
+    sum += values[i]
+    if (i >= window) sum -= values[i - window]
+    if (i >= window - 1) out[i] = sum / window
+  }
+  return out
+}
+
+function calcRsi14(values: number[], period = 14): Array<number | null> {
+  const out: Array<number | null> = new Array(values.length).fill(null)
+  if (values.length < 2) return out
+
+  const gains: number[] = new Array(values.length).fill(0)
+  const losses: number[] = new Array(values.length).fill(0)
+  for (let i = 1; i < values.length; i++) {
+    const diff = values[i] - values[i - 1]
+    gains[i] = diff > 0 ? diff : 0
+    losses[i] = diff < 0 ? -diff : 0
+  }
+
+  if (values.length <= period) return out
+
+  let avgGain = 0
+  let avgLoss = 0
+  for (let i = 1; i <= period; i++) {
+    avgGain += gains[i]
+    avgLoss += losses[i]
+  }
+  avgGain /= period
+  avgLoss /= period
+
+  const rs0 = avgLoss === 0 ? Infinity : avgGain / avgLoss
+  out[period] = avgLoss === 0 && avgGain === 0 ? 50 : 100 - 100 / (1 + rs0)
+
+  for (let i = period + 1; i < values.length; i++) {
+    avgGain = (avgGain * (period - 1) + gains[i]) / period
+    avgLoss = (avgLoss * (period - 1) + losses[i]) / period
+    const rs = avgLoss === 0 ? Infinity : avgGain / avgLoss
+    out[i] = avgLoss === 0 && avgGain === 0 ? 50 : 100 - 100 / (1 + rs)
+  }
+  return out
+}
+
+async function fetchEastmoneyDaily(
+  code: string,
+  fqt: number,
+  beg: string,
+  end: string,
+): Promise<Array<{ ymd: string; open: number; close: number; volume: number }>> {
+  const url = 'https://push2his.eastmoney.com/api/qt/stock/kline/get'
+  const baseParams = new URLSearchParams({
+    fields1: 'f1,f2,f3,f4,f5,f6',
+    fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f116',
+    ut: '7eea3edcaed734bea9cbfc24409ed989',
+    klt: '101',
+    fqt: String(fqt),
+    beg,
+    end,
+  })
+
+  async function fetchForSecid(secid: string) {
+    const u = new URL(url)
+    const p = new URLSearchParams(baseParams)
+    p.set('secid', secid)
+    u.search = p.toString()
+    const r = await fetch(u.toString(), {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        Accept: 'application/json,text/plain,*/*',
+        Referer: 'https://quote.eastmoney.com/',
+      },
+    })
+    if (!r.ok) throw new Error(`eastmoney_http_${r.status}`)
+    const j = (await r.json()) as unknown
+    return j as { data?: { klines?: string[] } }
+  }
+
+  let klines: string[] | undefined
+  for (const marketId of ['1', '0']) {
+    try {
+      const j = await fetchForSecid(`${marketId}.${code}`)
+      klines = j?.data?.klines
+      if (Array.isArray(klines) && klines.length > 0) break
+    } catch {
+      void 0
+    }
+  }
+
+  if (!Array.isArray(klines) || klines.length === 0) return []
+
+  const out: Array<{ ymd: string; open: number; close: number; volume: number }> = []
+  for (const row of klines) {
+    const parts = String(row || '').split(',')
+    if (parts.length < 7) continue
+    const ymd = parts[0]
+    const open = Number(parts[1])
+    const close = Number(parts[2])
+    const volume = Number(parts[5])
+    if (!ymd || !Number.isFinite(open) || !Number.isFinite(close) || !Number.isFinite(volume)) continue
+    out.push({ ymd, open, close, volume })
+  }
+  return out
+}
+
+function aggregateWeeklyFromDaily(
+  daily: Array<{ ymd: string; open: number; close: number; volume: number }>,
+): Array<{ ymd: string; open: number; close: number; volume: number }> {
+  const map = new Map<number, { ymd: string; open: number; close: number; volume: number; lastMs: number }>()
+  for (const d of daily) {
+    const dt = ymdToShanghaiDate(d.ymd)
+    if (!dt) continue
+    const dow = dt.getDay()
+    const delta = (5 - dow + 7) % 7
+    const weekEnd = addDays(dt, delta)
+    const key = weekEnd.getTime()
+    const existing = map.get(key)
+    if (!existing) {
+      map.set(key, { ymd: formatYmdUtc(weekEnd), open: d.open, close: d.close, volume: d.volume, lastMs: dt.getTime() })
+      continue
+    }
+    existing.volume += d.volume
+    if (dt.getTime() > existing.lastMs) {
+      existing.lastMs = dt.getTime()
+      existing.close = d.close
+    }
+  }
+  const keys = Array.from(map.keys()).sort((a, b) => a - b)
+  return keys.map((k) => {
+    const v = map.get(k)!
+    return { ymd: v.ymd, open: v.open, close: v.close, volume: v.volume }
+  })
+}
+
+async function buildWeeklyChartVercel(code: string, adjust: string): Promise<WeeklyChartOut> {
+  const cacheKey = `weekly-chart:v2:${code}:${adjust}`
+  const now = Date.now()
+  const cached = vercelWeeklyCache.get(cacheKey)
+  if (cached && cached.expiresAt > now) return cached.value
+
+  const inflight = vercelWeeklyInflight.get(cacheKey)
+  if (inflight) return inflight
+
+  const p = (async () => {
+    try {
+      const fqt = adjust === 'qfq' ? 1 : adjust === 'hfq' ? 2 : 0
+      const end = new Date()
+      const endYmd = `${end.getFullYear()}${String(end.getMonth() + 1).padStart(2, '0')}${String(end.getDate()).padStart(2, '0')}`
+      const daily = await fetchEastmoneyDaily(code, fqt, '20100101', endYmd)
+      if (!daily.length) {
+        const out: WeeklyChartOut = { success: false, error: 'akshare_error', message: '无法获取历史日线数据' }
+        vercelWeeklyCache.set(cacheKey, { expiresAt: now + 30_000, value: out })
+        return out
+      }
+
+      const weekly = aggregateWeeklyFromDaily(daily)
+      const closes = weekly.map((x) => x.close)
+      if (!closes.length) {
+        const out: WeeklyChartOut = { success: false, error: 'akshare_error', message: '周线聚合结果为空' }
+        vercelWeeklyCache.set(cacheKey, { expiresAt: now + 30_000, value: out })
+        return out
+      }
+
+      const ema8 = calcEma(closes, 8)
+      const sma200 = calcSma(closes, 200)
+      const rsi14 = calcRsi14(closes, 14)
+      const ema12 = calcEma(closes, 12)
+      const ema26 = calcEma(closes, 26)
+      const macdLine = closes.map((_, i) => ema12[i] - ema26[i])
+      const signal = calcEma(macdLine, 9)
+      const hist = macdLine.map((v, i) => v - signal[i])
+
+      const fetchedAt = isoNow()
+      const dataDate = daily[daily.length - 1]?.ymd
+      const lastDailyDt = ymdToShanghaiDate(dataDate) ?? new Date()
+      const isPartialWeek = lastDailyDt.getDay() !== 5
+
+      const priceSeries: WeeklySeriesPoint[] = []
+      const ema8Series: WeeklySeriesPoint[] = []
+      const sma200Series: WeeklySeriesPoint[] = []
+      const volumeSeries: WeeklySeriesPoint[] = []
+      const rsiSeries: WeeklySeriesPoint[] = []
+      const macdSeries: WeeklySeriesPoint[] = []
+      const signalSeries: WeeklySeriesPoint[] = []
+      const histSeries: WeeklySeriesPoint[] = []
+
+      let prevClose: number | null = null
+      for (let i = 0; i < weekly.length; i++) {
+        const t = ymdToUtcMs(weekly[i].ymd)
+        const cVal = closes[i]
+
+        priceSeries.push({ time: t, value: cVal })
+        ema8Series.push({ time: t, value: ema8[i] })
+        const s200 = sma200[i]
+        if (s200 != null) sma200Series.push({ time: t, value: s200 })
+
+        let vColor = '#A9B6CC'
+        if (prevClose != null) {
+          if (cVal > prevClose) vColor = '#EF4444'
+          else if (cVal < prevClose) vColor = '#10B981'
+        }
+        volumeSeries.push({ time: t, value: Math.round(weekly[i].volume), color: vColor })
+
+        const r = rsi14[i]
+        if (r != null) rsiSeries.push({ time: t, value: r })
+
+        macdSeries.push({ time: t, value: macdLine[i] })
+        signalSeries.push({ time: t, value: signal[i] })
+        const h = hist[i]
+        histSeries.push({ time: t, value: h, color: h > 0 ? '#EF4444' : h < 0 ? '#10B981' : '#A9B6CC' })
+
+        prevClose = cVal
+      }
+
+      const series: WeeklyChartSeries = {
+        price: priceSeries,
+        ema8: ema8Series,
+        sma200: sma200Series,
+        volume: volumeSeries,
+        rsi14: rsiSeries,
+        macd: { macd: macdSeries, signal: signalSeries, hist: histSeries },
+      }
+
+      const out: WeeklyChartOut = {
+        success: true,
+        meta: {
+          fetchedAt,
+          snapshotAt: fetchedAt,
+          dataDate,
+          code,
+          adjust,
+          freq: 'W',
+          isPartialWeek,
+          source: 'eastmoney:kline',
+        },
+        data: { series },
+      }
+
+      vercelWeeklyCache.set(cacheKey, { expiresAt: now + 600_000, value: out })
+      return out
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      const out: WeeklyChartOut = { success: false, error: 'akshare_error', message: msg || '数据源调用失败' }
+      vercelWeeklyCache.set(cacheKey, { expiresAt: now + 30_000, value: out })
+      return out
+    } finally {
+      vercelWeeklyInflight.delete(cacheKey)
+    }
+  })()
+
+  vercelWeeklyInflight.set(cacheKey, p)
+  return p
+}
+
 function sanitizeProgressToken(v: unknown): string | null {
   if (typeof v !== 'string') return null
   const t = v.trim()
@@ -271,11 +588,18 @@ router.get('/:code/weekly-chart', (req: Request, res: Response) => {
   }
 
   if (process.env.VERCEL) {
-    res.status(501).json({
-      success: false,
-      error: 'not_supported',
-      message: 'Vercel 环境不支持该接口（需要本机 Python/AkShare 子进程）。',
-    })
+    void (async () => {
+      const out = await buildWeeklyChartVercel(code, adjust)
+      if (out.success === true) {
+        res.status(200).json(out)
+        return
+      }
+      if (out.error === 'bad_request') {
+        res.status(400).json(out)
+        return
+      }
+      res.status(502).json(out)
+    })()
     return
   }
 
