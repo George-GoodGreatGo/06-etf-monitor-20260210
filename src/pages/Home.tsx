@@ -544,7 +544,7 @@ export default function Home() {
                 <div
                   role="tablist"
                   aria-label="首页视图切换"
-                  className="inline-flex items-center rounded-xl border border-[rgba(230,81,0,0.18)] bg-[rgba(230,81,0,0.08)] p-1"
+                  className="inline-flex items-center gap-2 rounded-lg border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-1"
                 >
                   <button
                     type="button"
@@ -557,13 +557,13 @@ export default function Home() {
                       setSearchParams(next, { replace: true })
                     }}
                     className={cn(
-                      'inline-flex h-9 items-center justify-center rounded-lg px-4 text-xs font-semibold transition',
+                      'inline-flex h-9 items-center justify-center rounded-md px-4 text-xs font-semibold transition',
                       tab === 'list'
                         ? 'bg-[rgba(230,81,0,0.18)] text-white shadow-[0_0_0_1px_rgba(230,81,0,0.25)]'
-                        : 'text-[#94A3B8] hover:bg-[rgba(230,81,0,0.10)] hover:text-white',
+                        : 'text-[#94A3B8] hover:bg-[rgba(255,255,255,0.06)] hover:text-white',
                     )}
                   >
-                    列表
+                    TOP200 列表
                   </button>
                   <button
                     type="button"
@@ -576,10 +576,10 @@ export default function Home() {
                       setSearchParams(next, { replace: true })
                     }}
                     className={cn(
-                      'inline-flex h-9 items-center justify-center rounded-lg px-4 text-xs font-semibold transition',
+                      'inline-flex h-9 items-center justify-center rounded-md px-4 text-xs font-semibold transition',
                       tab === 'insight'
                         ? 'bg-[rgba(230,81,0,0.18)] text-white shadow-[0_0_0_1px_rgba(230,81,0,0.25)]'
-                        : 'text-[#94A3B8] hover:bg-[rgba(230,81,0,0.10)] hover:text-white',
+                        : 'text-[#94A3B8] hover:bg-[rgba(255,255,255,0.06)] hover:text-white',
                     )}
                   >
                     AI 解读

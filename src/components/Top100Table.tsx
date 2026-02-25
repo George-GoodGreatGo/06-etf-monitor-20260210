@@ -53,10 +53,10 @@ export default function Top100Table({
   const data = sortRows(filtered, sortKey, sortDir)
 
   return (
-    <section className="mt-4 ui-glass-panel">
+    <section className="mt-4 ui-glass-panel overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[900px] text-left text-sm">
-          <thead className="border-b border-white/10 text-xs uppercase tracking-wide text-[#A9B6CC]">
+          <thead className="border-b border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.02)] text-xs uppercase tracking-wide text-[#94A3B8]">
             <tr>
               <th className="px-4 py-3">#</th>
               <SortableTh
@@ -118,11 +118,11 @@ export default function Top100Table({
               <th className="px-4 py-3 text-right">异动详情</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/10">
+          <tbody className="divide-y divide-[rgba(255,255,255,0.06)]">
             {loading ? (
               Array.from({ length: 8 }).map((_, idx) => (
                 <tr key={idx} className="animate-pulse">
-                  <td className="px-4 py-3 text-[#A9B6CC]">{idx + 1}</td>
+                  <td className="px-4 py-3 text-[#94A3B8]">{idx + 1}</td>
                   <td className="px-4 py-3" colSpan={7}>
                     <div className="h-4 w-full rounded bg-white/10" />
                   </td>
@@ -157,13 +157,16 @@ export default function Top100Table({
                 return (
                   <tr
                     key={r.code}
-                    className={cn('transition hover:bg-white/5', muted && 'opacity-80')}
+                    className={cn(
+                      'transition hover:bg-[rgba(230,81,0,0.06)]',
+                      muted && 'opacity-80',
+                    )}
                   >
-                    <td className="px-4 py-3 text-xs text-[#A9B6CC]">{idx + 1}</td>
+                    <td className="px-4 py-3 text-xs text-[#94A3B8]">{idx + 1}</td>
                     <td className="px-4 py-3 font-mono text-xs">{r.code}</td>
                     <td className="px-4 py-3">
                       <div className="font-medium">{r.name}</div>
-                      <div className="mt-0.5 text-xs text-[#A9B6CC]">
+                      <div className="mt-0.5 text-xs text-[#94A3B8]">
                         交易日：{formatYmd(r.latestTradingDate)}
                       </div>
                     </td>
@@ -183,7 +186,7 @@ export default function Top100Table({
                               ? 'text-[#EF4444]'
                               : r.turnoverChangePct1d < 0
                                 ? 'text-[#22C55E]'
-                                : 'text-[#A9B6CC]',
+                                : 'text-[#94A3B8]',
                           )}
                         >
                           {formatPct(r.turnoverChangePct1d)}
@@ -200,7 +203,7 @@ export default function Top100Table({
                               ? 'text-[#EF4444]'
                               : r.turnoverChangePct7dAvg < 0
                                 ? 'text-[#22C55E]'
-                                : 'text-[#A9B6CC]',
+                                : 'text-[#94A3B8]',
                           )}
                         >
                           {formatPct(r.turnoverChangePct7dAvg)}

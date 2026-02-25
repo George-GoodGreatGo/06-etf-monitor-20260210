@@ -38,13 +38,13 @@ export default function SortableTh({
         type="button"
         onClick={onClick}
         className={cn(
-          'inline-flex items-center gap-2 rounded-md px-2 py-1 transition hover:bg-white/5',
+          'inline-flex items-center gap-2 rounded-md px-2 py-1 transition hover:bg-[rgba(255,255,255,0.06)]',
           align === 'right' && 'ml-auto',
           active && 'text-[#E6EDF7]',
         )}
       >
         {children}
-        <span className={cn('text-[#A9B6CC]', active && 'text-[#E6EDF7]')}>
+        <span className={cn('text-[#94A3B8]', active && 'text-[#E6EDF7]')}>
           {icon}
         </span>
       </button>
