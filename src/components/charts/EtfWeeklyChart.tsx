@@ -10,6 +10,7 @@ import {
   type IChartApi,
   type ISeriesApi,
   type LineData,
+  type LogicalRange,
   type Time,
   type UTCTimestamp,
 } from 'lightweight-charts'
@@ -284,7 +285,7 @@ export default function EtfWeeklyChart({ series }: Props) {
         horzLines: { color: 'rgba(255,255,255,0.06)' },
       },
       rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)' },
-      timeScale: { borderColor: 'rgba(255,255,255,0.10)', visible: true },
+      timeScale: { borderColor: 'rgba(255,255,255,0.10)', visible: false },
       crosshair: { mode: CrosshairMode.Normal },
     })
     const histSeries = chart.addSeries(HistogramSeries, {
@@ -316,6 +317,25 @@ export default function EtfWeeklyChart({ series }: Props) {
       seriesApi.signal = null
     }
   }, [])
+
+  useEffect(() => {
+    const price = chartsRef.current.price
+    const volume = chartsRef.current.volume
+    const rsi = chartsRef.current.rsi
+    const macd = chartsRef.current.macd
+    if (!price) return
+
+    const axisChart = showMacd ? macd : showRsi ? rsi : showVolume ? volume : price
+    const charts: IChartApi[] = [price, volume, rsi, macd].filter(Boolean) as IChartApi[]
+    for (const c of charts) {
+      c.applyOptions({
+        timeScale: {
+          borderColor: 'rgba(255,255,255,0.10)',
+          visible: axisChart != null && c === axisChart,
+        },
+      })
+    }
+  }, [showMacd, showRsi, showVolume])
 
   useEffect(() => {
     seriesRef.current.price?.setData(data.price)
@@ -350,13 +370,13 @@ export default function EtfWeeklyChart({ series }: Props) {
 
     if (charts.length === 0) return
 
-    const onVisibleRange = (src: IChartApi) => (range: { from: Time; to: Time } | null) => {
+    const onVisibleLogicalRange = (src: IChartApi) => (range: LogicalRange | null) => {
       if (syncingRef.current) return
       if (!range) return
       syncingRef.current = true
       for (const c of charts) {
         if (c === src) continue
-        c.timeScale().setVisibleRange(range)
+        c.timeScale().setVisibleLogicalRange(range)
       }
       syncingRef.current = false
     }
@@ -411,9 +431,12 @@ export default function EtfWeeklyChart({ series }: Props) {
       syncingRef.current = false
     }
 
-    const rangeHandlers = charts.map((c) => ({ chart: c, fn: onVisibleRange(c) }))
+    const rangeHandlers: Array<{ chart: IChartApi; fn: (range: LogicalRange | null) => void }> = charts.map((c) => ({
+      chart: c,
+      fn: onVisibleLogicalRange(c),
+    }))
     for (const { chart, fn } of rangeHandlers) {
-      chart.timeScale().subscribeVisibleTimeRangeChange(fn)
+      chart.timeScale().subscribeVisibleLogicalRangeChange(fn)
     }
 
     const crossHandlers = charts.map((c) => ({ chart: c, fn: onCrosshair(c) }))
@@ -423,7 +446,7 @@ export default function EtfWeeklyChart({ series }: Props) {
 
     return () => {
       for (const { chart, fn } of rangeHandlers) {
-        chart.timeScale().unsubscribeVisibleTimeRangeChange(fn)
+        chart.timeScale().unsubscribeVisibleLogicalRangeChange(fn)
       }
       for (const { chart, fn } of crossHandlers) {
         chart.unsubscribeCrosshairMove(fn)
