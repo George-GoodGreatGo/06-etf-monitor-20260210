@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils'
 import type { EtfWeeklyChartSeries } from '@/utils/etfApi'
 import { formatCompactNumber } from '@/utils/format'
 
-const PANE_SCALE_MIN_WIDTH = 92
+const PANE_SCALE_MIN_WIDTH = 110
 
 type Props = {
   series: EtfWeeklyChartSeries
@@ -72,6 +72,44 @@ function trimFixed(v: number, digits: number): string {
   return s.replace(/\.0+$/, '').replace(/\.$/, '')
 }
 
+function alignLine(
+  times: UTCTimestamp[],
+  raw: LineData<Time>[],
+  fallback: number,
+): LineData<Time>[] {
+  const map = new Map<UTCTimestamp, number>()
+  for (const p of raw) map.set(p.time as UTCTimestamp, p.value)
+  const out: LineData<Time>[] = []
+  let last = fallback
+  for (const t of times) {
+    const v = map.get(t)
+    if (typeof v === 'number' && Number.isFinite(v)) last = v
+    out.push({ time: t, value: last })
+  }
+  return out
+}
+
+function alignHist(
+  times: UTCTimestamp[],
+  raw: HistogramData<Time>[],
+  fallback: number,
+): HistogramData<Time>[] {
+  const map = new Map<UTCTimestamp, HistogramData<Time>>()
+  for (const p of raw) map.set(p.time as UTCTimestamp, p)
+  const out: HistogramData<Time>[] = []
+  let last = fallback
+  for (const t of times) {
+    const hit = map.get(t)
+    if (hit && typeof hit.value === 'number' && Number.isFinite(hit.value)) {
+      last = hit.value
+      out.push(hit)
+    } else {
+      out.push({ time: t, value: last, color: 'rgba(255,255,255,0.0)' })
+    }
+  }
+  return out
+}
+
 export default function EtfWeeklyChart({ series }: Props) {
   const [showEma8, setShowEma8] = useState(true)
   const [showSma200, setShowSma200] = useState(true)
@@ -116,22 +154,31 @@ export default function EtfWeeklyChart({ series }: Props) {
   })
 
   const data = useMemo(() => {
-    const price: LineData<Time>[] = series.price.map((p) => ({ time: toUnixSeconds(p.time), value: p.value }))
-    const ema8: LineData<Time>[] = series.ema8.map((p) => ({ time: toUnixSeconds(p.time), value: p.value }))
+    const priceRaw: LineData<Time>[] = series.price.map((p) => ({ time: toUnixSeconds(p.time), value: p.value }))
+    const ema8Raw: LineData<Time>[] = series.ema8.map((p) => ({ time: toUnixSeconds(p.time), value: p.value }))
     const sma200: LineData<Time>[] = series.sma200.map((p) => ({ time: toUnixSeconds(p.time), value: p.value }))
-    const volume: HistogramData<Time>[] = series.volume.map((p) => ({
+    const volumeRaw: HistogramData<Time>[] = series.volume.map((p) => ({
       time: toUnixSeconds(p.time),
       value: p.value,
       ...(p.color ? { color: p.color } : {}),
     }))
-    const rsi14: LineData<Time>[] = series.rsi14.map((p) => ({ time: toUnixSeconds(p.time), value: p.value }))
-    const macdLine: LineData<Time>[] = series.macd.macd.map((p) => ({ time: toUnixSeconds(p.time), value: p.value }))
-    const signalLine: LineData<Time>[] = series.macd.signal.map((p) => ({ time: toUnixSeconds(p.time), value: p.value }))
-    const hist: HistogramData<Time>[] = series.macd.hist.map((p) => ({
+    const rsi14Raw: LineData<Time>[] = series.rsi14.map((p) => ({ time: toUnixSeconds(p.time), value: p.value }))
+    const macdLineRaw: LineData<Time>[] = series.macd.macd.map((p) => ({ time: toUnixSeconds(p.time), value: p.value }))
+    const signalLineRaw: LineData<Time>[] = series.macd.signal.map((p) => ({ time: toUnixSeconds(p.time), value: p.value }))
+    const histRaw: HistogramData<Time>[] = series.macd.hist.map((p) => ({
       time: toUnixSeconds(p.time),
       value: p.value,
       ...(p.color ? { color: p.color } : {}),
     }))
+
+    const times = priceRaw.map((p) => p.time as UTCTimestamp)
+    const price = priceRaw
+    const ema8 = alignLine(times, ema8Raw, priceRaw[0]?.value ?? 0)
+    const volume = alignHist(times, volumeRaw, 0)
+    const rsi14 = alignLine(times, rsi14Raw, 50)
+    const macdLine = alignLine(times, macdLineRaw, 0)
+    const signalLine = alignLine(times, signalLineRaw, 0)
+    const hist = alignHist(times, histRaw, 0)
 
     const map = new Map<UTCTimestamp, HoverState>()
     const put = (t: UTCTimestamp, patch: Partial<HoverState>) => {
@@ -555,37 +602,49 @@ export default function EtfWeeklyChart({ series }: Props) {
       ) : null}
 
       <div className="mt-3 space-y-2">
-        <div className="rounded-lg border border-white/10 bg-[#111B2E]">
+        <div className="relative rounded-lg border border-white/10 bg-[#111B2E]">
+          <div className="pointer-events-none absolute left-3 top-2 text-[11px] font-semibold text-[#94A3B8]">
+            价格（前复权）+ EMA8 + SMA200
+          </div>
           <div ref={priceElRef} className="h-[280px] w-full" />
         </div>
 
         <div
           className={cn(
-            'rounded-lg border border-white/10 bg-[#111B2E] transition-[height,opacity]',
+            'relative rounded-lg border border-white/10 bg-[#111B2E] transition-[height,opacity]',
             showVolume ? 'opacity-100' : 'pointer-events-none opacity-0',
           )}
           style={{ height: showVolume ? 110 : 1 }}
         >
+          <div className="pointer-events-none absolute left-3 top-2 text-[11px] font-semibold text-[#94A3B8]">
+            成交量（周）
+          </div>
           <div ref={volElRef} className="h-full w-full" />
         </div>
 
         <div
           className={cn(
-            'rounded-lg border border-white/10 bg-[#111B2E] transition-[height,opacity]',
+            'relative rounded-lg border border-white/10 bg-[#111B2E] transition-[height,opacity]',
             showRsi ? 'opacity-100' : 'pointer-events-none opacity-0',
           )}
           style={{ height: showRsi ? 110 : 1 }}
         >
+          <div className="pointer-events-none absolute left-3 top-2 text-[11px] font-semibold text-[#94A3B8]">
+            RSI（14，周）
+          </div>
           <div ref={rsiElRef} className="h-full w-full" />
         </div>
 
         <div
           className={cn(
-            'rounded-lg border border-white/10 bg-[#111B2E] transition-[height,opacity]',
+            'relative rounded-lg border border-white/10 bg-[#111B2E] transition-[height,opacity]',
             showMacd ? 'opacity-100' : 'pointer-events-none opacity-0',
           )}
           style={{ height: showMacd ? 140 : 1 }}
         >
+          <div className="pointer-events-none absolute left-3 top-2 text-[11px] font-semibold text-[#94A3B8]">
+            MACD（12,26,9，周）
+          </div>
           <div ref={macdElRef} className="h-full w-full" />
         </div>
       </div>
