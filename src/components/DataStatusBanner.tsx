@@ -39,7 +39,7 @@ export default function DataStatusBanner({
       backendProgressText.includes('校验最新交易日')
     const showProgress = (loadingMode === 'refetch' || (loadingMode === 'cold' && !isEnsureLatestOnly)) && pct != null
     return (
-      <div className="ui-glass-panel rounded-md px-4 py-3">
+      <div className="ui-glass-panel rounded px-4 py-3">
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2 text-xs text-[#A9B6CC]">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -81,7 +81,7 @@ export default function DataStatusBanner({
 
   if (error) {
     return (
-      <div className="ui-glass-panel rounded-md border border-[#EF4444]/40 px-4 py-3">
+      <div className="ui-glass-panel rounded border border-[#EF4444]/40 px-4 py-3">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div className="flex items-start gap-2">
             <AlertTriangle className="mt-0.5 h-4 w-4 text-[#EF4444]" />
@@ -109,7 +109,7 @@ export default function DataStatusBanner({
     return (
       <div
         className={cn(
-          'ui-glass-panel rounded-md px-4 py-3',
+          'ui-glass-panel rounded px-4 py-3',
           notice.tone === 'warn' ? 'border border-[#F59E0B]/40' : 'border border-[rgba(230,81,0,0.15)]',
         )}
       >
@@ -141,7 +141,7 @@ export default function DataStatusBanner({
   }
 
   return (
-    <div className="ui-glass-panel rounded-md px-4 py-3">
+    <div className="ui-glass-panel rounded px-4 py-3">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex items-start gap-2">
           <ShieldCheck className="mt-0.5 h-4 w-4 text-[#22C55E]" />

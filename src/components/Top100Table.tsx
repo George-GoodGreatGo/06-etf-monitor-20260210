@@ -53,7 +53,7 @@ export default function Top100Table({
   const data = sortRows(filtered, sortKey, sortDir)
 
   return (
-    <section className="mt-4 ui-glass-panel overflow-hidden">
+    <section className="mt-4 ui-glass-panel overflow-hidden rounded-lg shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.35),0px_10px_15px_-3px_rgba(0,0,0,0.35)]">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[900px] text-left text-sm">
           <thead className="border-b border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.02)] text-xs uppercase tracking-wide text-[#94A3B8]">

@@ -540,11 +540,12 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="flex justify-center">
+              <div className="border-b border-[rgba(255,255,255,0.06)] pb-3">
+                <div className="flex justify-center">
                 <div
                   role="tablist"
                   aria-label="首页视图切换"
-                  className="inline-flex items-center gap-2 rounded-lg border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] p-1"
+                  className="inline-flex items-center gap-3"
                 >
                   <button
                     type="button"
@@ -557,10 +558,10 @@ export default function Home() {
                       setSearchParams(next, { replace: true })
                     }}
                     className={cn(
-                      'inline-flex h-9 items-center justify-center rounded-md px-4 text-xs font-semibold transition',
+                      'inline-flex h-9 items-center justify-center gap-2 rounded-md border px-4 text-xs font-semibold transition',
                       tab === 'list'
-                        ? 'bg-[rgba(230,81,0,0.18)] text-white shadow-[0_0_0_1px_rgba(230,81,0,0.25)]'
-                        : 'text-[#94A3B8] hover:bg-[rgba(255,255,255,0.06)] hover:text-white',
+                        ? 'border-[#FF5722] text-[#FF5722] hover:bg-[rgba(255,255,255,0.04)]'
+                        : 'border-[rgba(255,255,255,0.12)] text-[#94A3B8] hover:border-[rgba(255,255,255,0.2)] hover:bg-[rgba(255,255,255,0.03)]',
                     )}
                   >
                     <img
@@ -582,10 +583,10 @@ export default function Home() {
                       setSearchParams(next, { replace: true })
                     }}
                     className={cn(
-                      'inline-flex h-9 items-center justify-center rounded-md px-4 text-xs font-semibold transition',
+                      'inline-flex h-9 items-center justify-center gap-2 rounded-md border px-4 text-xs font-semibold transition',
                       tab === 'insight'
-                        ? 'bg-[rgba(230,81,0,0.18)] text-white shadow-[0_0_0_1px_rgba(230,81,0,0.25)]'
-                        : 'text-[#94A3B8] hover:bg-[rgba(255,255,255,0.06)] hover:text-white',
+                        ? 'border-[#FF5722] text-[#FF5722] hover:bg-[rgba(255,255,255,0.04)]'
+                        : 'border-[rgba(255,255,255,0.12)] text-[#94A3B8] hover:border-[rgba(255,255,255,0.2)] hover:bg-[rgba(255,255,255,0.03)]',
                     )}
                   >
                     <img
@@ -601,6 +602,7 @@ export default function Home() {
                     AI 解读
                   </button>
                 </div>
+              </div>
               </div>
 
               {tab === 'list' ? <Top100FilterBar keyword={keyword} onChangeKeyword={setKeyword} onReset={onReset} /> : null}
