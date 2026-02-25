@@ -5,7 +5,6 @@ import {
   LineStyle,
   HistogramSeries,
   LineSeries,
-  BaselineSeries,
   createChart,
   type HistogramData,
   type IChartApi,
@@ -124,8 +123,32 @@ export default function EtfWeeklyChart({ series }: Props) {
   const volElRef = useRef<HTMLDivElement | null>(null)
   const rsiElRef = useRef<HTMLDivElement | null>(null)
   const macdElRef = useRef<HTMLDivElement | null>(null)
+  const rsiOverboughtBgRef = useRef<HTMLDivElement | null>(null)
+  const rsiOversoldBgRef = useRef<HTMLDivElement | null>(null)
 
   const syncingRef = useRef(false)
+
+  const updateRsiZoneBg = () => {
+    const el = rsiElRef.current
+    const overEl = rsiOverboughtBgRef.current
+    const underEl = rsiOversoldBgRef.current
+    const s = seriesRef.current.rsi14
+    if (!el || !overEl || !underEl || !s) return
+
+    const h = el.clientHeight
+    const y70 = s.priceToCoordinate(70)
+    const y30 = s.priceToCoordinate(30)
+    if (y70 == null || y30 == null) return
+
+    const topY = Math.max(0, Math.min(h, y70))
+    const bottomY = Math.max(0, Math.min(h, y30))
+
+    overEl.style.top = '0px'
+    overEl.style.height = `${topY}px`
+
+    underEl.style.top = `${bottomY}px`
+    underEl.style.height = `${Math.max(0, h - bottomY)}px`
+  }
 
   const chartsRef = useRef<{
     price: IChartApi | null
@@ -139,8 +162,6 @@ export default function EtfWeeklyChart({ series }: Props) {
     ema8: ISeriesApi<'Line', Time> | null
     sma200: ISeriesApi<'Line', Time> | null
     volume: ISeriesApi<'Histogram', Time> | null
-    rsiOverbought: ISeriesApi<'Baseline', Time> | null
-    rsiOversold: ISeriesApi<'Baseline', Time> | null
     rsi14: ISeriesApi<'Line', Time> | null
     macd: ISeriesApi<'Line', Time> | null
     signal: ISeriesApi<'Line', Time> | null
@@ -150,8 +171,6 @@ export default function EtfWeeklyChart({ series }: Props) {
     ema8: null,
     sma200: null,
     volume: null,
-    rsiOverbought: null,
-    rsiOversold: null,
     rsi14: null,
     macd: null,
     signal: null,
@@ -304,7 +323,7 @@ export default function EtfWeeklyChart({ series }: Props) {
     const chart = createChart(rsiElRef.current, {
       autoSize: true,
       layout: {
-        background: { type: ColorType.Solid, color: '#111B2E' },
+        background: { type: ColorType.Solid, color: 'rgba(0,0,0,0)' },
         textColor: '#A9B6CC',
         fontFamily:
           '-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif',
@@ -316,30 +335,6 @@ export default function EtfWeeklyChart({ series }: Props) {
       rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)', minimumWidth: PANE_SCALE_MIN_WIDTH },
       timeScale: { borderColor: 'rgba(255,255,255,0.10)', visible: false },
       crosshair: { mode: CrosshairMode.Normal },
-    })
-    const overboughtBand = chart.addSeries(BaselineSeries, {
-      baseValue: { type: 'price', price: 70 },
-      topFillColor1: 'rgba(239,68,68,0.14)',
-      topFillColor2: 'rgba(239,68,68,0.06)',
-      topLineColor: 'rgba(0,0,0,0)',
-      bottomFillColor1: 'rgba(0,0,0,0)',
-      bottomFillColor2: 'rgba(0,0,0,0)',
-      bottomLineColor: 'rgba(0,0,0,0)',
-      lineWidth: 1,
-      priceLineVisible: false,
-      lastValueVisible: false,
-    })
-    const oversoldBand = chart.addSeries(BaselineSeries, {
-      baseValue: { type: 'price', price: 30 },
-      topFillColor1: 'rgba(0,0,0,0)',
-      topFillColor2: 'rgba(0,0,0,0)',
-      topLineColor: 'rgba(0,0,0,0)',
-      bottomFillColor1: 'rgba(16,185,129,0.12)',
-      bottomFillColor2: 'rgba(16,185,129,0.05)',
-      bottomLineColor: 'rgba(0,0,0,0)',
-      lineWidth: 1,
-      priceLineVisible: false,
-      lastValueVisible: false,
     })
     const rsiSeries = chart.addSeries(LineSeries, {
       color: '#34D399',
@@ -365,14 +360,11 @@ export default function EtfWeeklyChart({ series }: Props) {
       title: '70',
     })
     charts.rsi = chart
-    seriesApi.rsiOverbought = overboughtBand
-    seriesApi.rsiOversold = oversoldBand
     seriesApi.rsi14 = rsiSeries
+    requestAnimationFrame(updateRsiZoneBg)
     return () => {
       chart.remove()
       if (charts.rsi === chart) charts.rsi = null
-      seriesApi.rsiOverbought = null
-      seriesApi.rsiOversold = null
       seriesApi.rsi14 = null
     }
   }, [])
@@ -454,8 +446,6 @@ export default function EtfWeeklyChart({ series }: Props) {
     seriesRef.current.ema8?.setData(data.ema8)
     seriesRef.current.sma200?.setData(data.sma200)
     seriesRef.current.volume?.setData(data.volume)
-    seriesRef.current.rsiOverbought?.setData(data.rsi14)
-    seriesRef.current.rsiOversold?.setData(data.rsi14)
     seriesRef.current.rsi14?.setData(data.rsi14)
     seriesRef.current.macd?.setData(data.macdLine)
     seriesRef.current.signal?.setData(data.signalLine)
@@ -464,6 +454,7 @@ export default function EtfWeeklyChart({ series }: Props) {
     if (chartsRef.current.price) {
       chartsRef.current.price.timeScale().fitContent()
     }
+    requestAnimationFrame(updateRsiZoneBg)
   }, [data])
 
   useEffect(() => {
@@ -493,6 +484,7 @@ export default function EtfWeeklyChart({ series }: Props) {
         c.timeScale().setVisibleLogicalRange(range)
       }
       syncingRef.current = false
+      requestAnimationFrame(updateRsiZoneBg)
     }
 
     const onCrosshair = (src: IChartApi) => (param: { time?: Time } | null) => {
@@ -558,6 +550,14 @@ export default function EtfWeeklyChart({ series }: Props) {
       chart.subscribeCrosshairMove(fn)
     }
 
+    const ro =
+      typeof ResizeObserver === 'undefined' || !rsiElRef.current
+        ? null
+        : new ResizeObserver(() => {
+            requestAnimationFrame(updateRsiZoneBg)
+          })
+    if (ro && rsiElRef.current) ro.observe(rsiElRef.current)
+
     return () => {
       for (const { chart, fn } of rangeHandlers) {
         chart.timeScale().unsubscribeVisibleLogicalRangeChange(fn)
@@ -565,6 +565,7 @@ export default function EtfWeeklyChart({ series }: Props) {
       for (const { chart, fn } of crossHandlers) {
         chart.unsubscribeCrosshairMove(fn)
       }
+      ro?.disconnect()
     }
   }, [data])
 
@@ -683,7 +684,19 @@ export default function EtfWeeklyChart({ series }: Props) {
           <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
             RSI（14，周）
           </div>
-          <div ref={rsiElRef} className="h-full w-full" />
+          <div
+            ref={rsiOverboughtBgRef}
+            className="pointer-events-none absolute left-0 top-0 z-0 bg-[rgba(239,68,68,0.14)]"
+            style={{ right: PANE_SCALE_MIN_WIDTH }}
+            aria-hidden="true"
+          />
+          <div
+            ref={rsiOversoldBgRef}
+            className="pointer-events-none absolute left-0 top-0 z-0 bg-[rgba(16,185,129,0.12)]"
+            style={{ right: PANE_SCALE_MIN_WIDTH }}
+            aria-hidden="true"
+          />
+          <div ref={rsiElRef} className="relative z-10 h-full w-full" />
         </div>
 
         <div
