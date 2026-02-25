@@ -602,8 +602,8 @@ export default function EtfWeeklyChart({ series }: Props) {
       ) : null}
 
       <div className="mt-3 space-y-2">
-        <div className="relative rounded-lg border border-white/10 bg-[#111B2E]">
-          <div className="pointer-events-none absolute left-3 top-2 text-[11px] font-semibold text-[#94A3B8]">
+        <div className="relative rounded-lg border border-white/10 bg-[#111B2E] pt-6">
+          <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
             价格（前复权）+ EMA8 + SMA200
           </div>
           <div ref={priceElRef} className="h-[280px] w-full" />
@@ -616,7 +616,7 @@ export default function EtfWeeklyChart({ series }: Props) {
           )}
           style={{ height: showVolume ? 110 : 1 }}
         >
-          <div className="pointer-events-none absolute left-3 top-2 text-[11px] font-semibold text-[#94A3B8]">
+          <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
             成交量（周）
           </div>
           <div ref={volElRef} className="h-full w-full" />
@@ -629,7 +629,7 @@ export default function EtfWeeklyChart({ series }: Props) {
           )}
           style={{ height: showRsi ? 110 : 1 }}
         >
-          <div className="pointer-events-none absolute left-3 top-2 text-[11px] font-semibold text-[#94A3B8]">
+          <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
             RSI（14，周）
           </div>
           <div ref={rsiElRef} className="h-full w-full" />
@@ -642,7 +642,7 @@ export default function EtfWeeklyChart({ series }: Props) {
           )}
           style={{ height: showMacd ? 140 : 1 }}
         >
-          <div className="pointer-events-none absolute left-3 top-2 text-[11px] font-semibold text-[#94A3B8]">
+          <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
             MACD（12,26,9，周）
           </div>
           <div ref={macdElRef} className="h-full w-full" />
