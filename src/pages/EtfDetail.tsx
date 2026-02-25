@@ -3,8 +3,15 @@ import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Construction, Info } from 'lucide-react'
 import NavBar from '@/components/NavBar'
 import DataStatusBanner from '@/components/DataStatusBanner'
+import EtfWeeklyChart from '@/components/charts/EtfWeeklyChart'
 import ZBadge from '@/components/ZBadge'
-import { type EtfDetail, fetchEtfDetail, type Top100Meta } from '@/utils/etfApi'
+import {
+  type EtfDetail,
+  type EtfWeeklyChart as EtfWeeklyChartData,
+  fetchEtfDetail,
+  fetchEtfWeeklyChart,
+  type Top100Meta,
+} from '@/utils/etfApi'
 import { formatYmd } from '@/utils/format'
 
 export default function EtfDetail() {
@@ -16,6 +23,11 @@ export default function EtfDetail() {
   const [error, setError] = useState<string | null>(null)
   const [meta, setMeta] = useState<Top100Meta | null>(null)
   const [data, setData] = useState<EtfDetail | null>(null)
+
+  const [weeklyLoading, setWeeklyLoading] = useState(true)
+  const [weeklyError, setWeeklyError] = useState<string | null>(null)
+  const [weeklyMeta, setWeeklyMeta] = useState<Top100Meta | null>(null)
+  const [weeklyData, setWeeklyData] = useState<EtfWeeklyChartData | null>(null)
 
   useEffect(() => {
     if (!code) return
@@ -45,6 +57,39 @@ export default function EtfDetail() {
         setData(null)
         setError('网络异常或 API 不可用')
         setLoading(false)
+      }
+    })()
+    return () => ac.abort()
+  }, [code])
+
+  useEffect(() => {
+    if (!code) return
+    const ac = new AbortController()
+    ;(async () => {
+      setWeeklyLoading(true)
+      setWeeklyError(null)
+      try {
+        const res = await fetchEtfWeeklyChart(code, ac.signal)
+        if (res.success === false) {
+          setWeeklyMeta(null)
+          setWeeklyData(null)
+          setWeeklyError(res.message ?? res.error)
+          setWeeklyLoading(false)
+          return
+        }
+        setWeeklyMeta(res.meta)
+        setWeeklyData(res.data)
+        setWeeklyLoading(false)
+      } catch (e) {
+        const name =
+          typeof e === 'object' && e && 'name' in e
+            ? String((e as { name: unknown }).name)
+            : ''
+        if (name === 'AbortError') return
+        setWeeklyMeta(null)
+        setWeeklyData(null)
+        setWeeklyError('网络异常或 API 不可用')
+        setWeeklyLoading(false)
       }
     })()
     return () => ac.abort()
@@ -164,8 +209,59 @@ export default function EtfDetail() {
           </div>
         </section>
 
+        <section className="mt-4 rounded-xl border border-white/10 bg-[#111B2E] p-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium">周线图表</div>
+          </div>
+
+          <div className="mt-3">
+            <DataStatusBanner
+              loading={weeklyLoading}
+              error={weeklyError}
+              meta={weeklyMeta}
+              incompleteCount={0}
+              onRetry={() => {
+                if (!code) return
+                const ac = new AbortController()
+                setWeeklyLoading(true)
+                setWeeklyError(null)
+                fetchEtfWeeklyChart(code, ac.signal)
+                  .then((res) => {
+                    if (res.success === false) {
+                      setWeeklyMeta(null)
+                      setWeeklyData(null)
+                      setWeeklyError(res.message ?? res.error)
+                      setWeeklyLoading(false)
+                      return
+                    }
+                    setWeeklyMeta(res.meta)
+                    setWeeklyData(res.data)
+                    setWeeklyLoading(false)
+                  })
+                  .catch((e) => {
+                    const name =
+                      typeof e === 'object' && e && 'name' in e
+                        ? String((e as { name: unknown }).name)
+                        : ''
+                    if (name === 'AbortError') return
+                    setWeeklyMeta(null)
+                    setWeeklyData(null)
+                    setWeeklyError('网络异常或 API 不可用')
+                    setWeeklyLoading(false)
+                  })
+              }}
+            />
+          </div>
+
+          {weeklyData ? (
+            <div className="mt-4">
+              <EtfWeeklyChart series={weeklyData.series} />
+            </div>
+          ) : null}
+        </section>
+
         <section className="mt-4 grid gap-4 md:grid-cols-3">
-          {['走势', '资金流', '更多指标'].map((t) => (
+          {['资金流', '更多指标'].map((t) => (
             <div
               key={t}
               className="rounded-xl border border-white/10 bg-[#111B2E] p-4"

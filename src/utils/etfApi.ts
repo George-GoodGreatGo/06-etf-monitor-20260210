@@ -131,6 +131,34 @@ export type EtfDetail = {
   z90: number | null
 }
 
+export type EtfWeeklyChartPoint = {
+  time: number
+  value: number
+}
+
+export type EtfWeeklyChartColoredPoint = {
+  time: number
+  value: number
+  color?: string
+}
+
+export type EtfWeeklyChartSeries = {
+  price: EtfWeeklyChartPoint[]
+  ema8: EtfWeeklyChartPoint[]
+  sma200: EtfWeeklyChartPoint[]
+  volume: EtfWeeklyChartColoredPoint[]
+  rsi14: EtfWeeklyChartPoint[]
+  macd: {
+    macd: EtfWeeklyChartPoint[]
+    signal: EtfWeeklyChartPoint[]
+    hist: EtfWeeklyChartColoredPoint[]
+  }
+}
+
+export type EtfWeeklyChart = {
+  series: EtfWeeklyChartSeries
+}
+
 export async function fetchEtfDetail(
   code: string,
   signal: AbortSignal,
@@ -172,5 +200,54 @@ export async function fetchEtfDetail(
   }
 
   return json as ApiOk<EtfDetail> | ApiErr
+}
+
+export async function fetchEtfWeeklyChart(
+  code: string,
+  signal: AbortSignal,
+): Promise<ApiOk<EtfWeeklyChart> | ApiErr> {
+  let res: Response
+  try {
+    res = await fetch(
+      apiUrl(`/api/etf/${encodeURIComponent(code)}/weekly-chart?adjust=qfq`),
+      {
+        signal,
+        keepalive: true,
+        credentials: 'include',
+        headers: {
+          ...adminAuthHeaders(),
+        },
+      },
+    )
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    const name = e instanceof Error ? e.name : ''
+    const aborted =
+      name === 'AbortError' ||
+      msg.includes('net::ERR_ABORTED') ||
+      msg.toLowerCase().includes('aborted')
+    return {
+      success: false,
+      error: 'api_error',
+      message: aborted ? '请求已取消' : msg || '网络异常或 API 不可用',
+    }
+  }
+  const text = await res.text()
+  let json: unknown = null
+  try {
+    json = text ? (JSON.parse(text) as unknown) : null
+  } catch {
+    json = null
+  }
+  if (!res.ok) {
+    const msg = getMessage(json) ?? `HTTP ${res.status}`
+    return {
+      success: false,
+      error: res.status === 401 ? 'unauthorized' : 'api_error',
+      message: msg,
+    }
+  }
+
+  return json as ApiOk<EtfWeeklyChart> | ApiErr
 }
 

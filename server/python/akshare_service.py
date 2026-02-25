@@ -206,7 +206,7 @@ def _top100_worker(item):
     }
 
 
-def _hist_daily_custom(symbol: str, start_date: str, end_date: str):
+def _hist_daily_custom(symbol: str, start_date: str, end_date: str, fqt: int = 0):
     import requests
 
     url = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
@@ -215,7 +215,7 @@ def _hist_daily_custom(symbol: str, start_date: str, end_date: str):
         "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f116",
         "ut": "7eea3edcaed734bea9cbfc24409ed989",
         "klt": "101",
-        "fqt": "0",
+        "fqt": str(int(fqt)),
         "beg": start_date,
         "end": end_date,
     }
@@ -771,6 +771,226 @@ def detail(code: str):
     )
 
 
+def _epoch_ms_utc(ymd: str) -> int:
+    dt = datetime.strptime(ymd, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    return int(dt.timestamp() * 1000)
+
+
+def _fqt_from_adjust(adjust: str) -> int:
+    a = str(adjust or "").strip().lower()
+    if a == "qfq":
+        return 1
+    if a == "hfq":
+        return 2
+    return 0
+
+
+def weekly_chart(code: str, adjust: str):
+    fetched_at = _iso_now()
+    c = str(code or "").strip()
+    a = str(adjust or "").strip().lower() or "qfq"
+
+    if not c:
+        return _err("bad_request", "缺少 code")
+    if a not in ("qfq", "hfq", "none"):
+        return _err("bad_request", "adjust 仅支持 qfq/hfq/none")
+
+    cache_key = "".join(ch for ch in c if ch.isdigit())
+    if not cache_key:
+        cache_key = c.replace("/", "_").replace("\\", "_").replace("..", "_")
+    cache_file = _cache_path(f"weekly_chart_{cache_key}_{a}.json")
+
+    cached = _read_json_file(cache_file)
+    if isinstance(cached, dict):
+        cached_date = cached.get("dataDate")
+        cached_series = cached.get("series")
+        cached_at = cached.get("cachedAt")
+        cached_partial = cached.get("isPartialWeek")
+        if (
+            isinstance(cached_date, str)
+            and isinstance(cached_at, str)
+            and isinstance(cached_series, dict)
+            and isinstance(cached_partial, bool)
+        ):
+            latest = _latest_trade_date_sina(c)
+            if latest and latest == cached_date:
+                meta = {
+                    "fetchedAt": fetched_at,
+                    "snapshotAt": fetched_at,
+                    "cachedAt": cached_at,
+                    "dataDate": cached_date,
+                    "code": c,
+                    "adjust": a,
+                    "freq": "W",
+                    "isPartialWeek": cached_partial,
+                    "source": "eastmoney:kline",
+                }
+                return _ok(meta, {"series": cached_series})
+
+    import pandas as pd
+    import numpy as np
+
+    end = _cn_now().strftime("%Y%m%d")
+    df = _hist_daily_custom(c, "20100101", end, _fqt_from_adjust(a))
+    if df is None or df.empty:
+        return _err("akshare_error", "无法获取历史日线数据")
+
+    if "日期" not in df.columns:
+        return _err("akshare_error", "历史日线缺少 日期 字段")
+
+    df2 = df.copy()
+    df2["日期"] = df2["日期"].apply(_fmt_ymd)
+    df2["dt"] = pd.to_datetime(df2["日期"], errors="coerce")
+    df2 = df2.dropna(subset=["dt"])
+    df2 = df2.sort_values(by="dt")
+
+    close_col = "收盘" if "收盘" in df2.columns else None
+    vol_col = "成交量" if "成交量" in df2.columns else None
+    if close_col is None or vol_col is None:
+        return _err("akshare_error", "历史日线缺少 收盘/成交量 字段")
+
+    df2[close_col] = pd.to_numeric(df2[close_col], errors="coerce")
+    df2[vol_col] = pd.to_numeric(df2[vol_col], errors="coerce")
+
+    df2["period"] = df2["dt"].dt.to_period("W-FRI")
+
+    def agg_week(x):
+        x2 = x.sort_values(by="dt")
+        last = x2.iloc[-1]
+        d = last["dt"]
+        close_v = float(last[close_col]) if pd.notna(last[close_col]) else np.nan
+        vol_v = float(x2[vol_col].sum()) if vol_col in x2.columns else np.nan
+        return pd.Series({"date": d.strftime("%Y-%m-%d"), "close": close_v, "volume": vol_v})
+
+    wk = df2.groupby("period", sort=True).apply(agg_week).reset_index(drop=True)
+    wk = wk.dropna(subset=["date"])
+    if wk.empty:
+        return _err("akshare_error", "周线聚合结果为空")
+
+    data_date = str(df2.iloc[-1]["日期"])
+    last_dt = df2.iloc[-1]["dt"]
+    is_partial = int(last_dt.weekday()) != 4
+
+    close = pd.to_numeric(wk["close"], errors="coerce")
+    ema8 = close.ewm(span=8, adjust=False).mean()
+    sma200 = close.rolling(window=200, min_periods=200).mean()
+
+    diff = close.diff()
+    gain = diff.clip(lower=0)
+    loss = (-diff).clip(lower=0)
+    avg_gain = gain.ewm(alpha=1 / 14, adjust=False).mean()
+    avg_loss = loss.ewm(alpha=1 / 14, adjust=False).mean()
+
+    rs = avg_gain / avg_loss
+    rsi_raw = 100.0 - (100.0 / (1.0 + rs))
+    rsi = np.where(
+        (avg_gain == 0) & (avg_loss == 0),
+        50.0,
+        np.where(avg_loss == 0, 100.0, np.where(avg_gain == 0, 0.0, rsi_raw)),
+    )
+    rsi = pd.Series(rsi, index=wk.index)
+
+    ema12 = close.ewm(span=12, adjust=False).mean()
+    ema26 = close.ewm(span=26, adjust=False).mean()
+    macd_line = ema12 - ema26
+    signal_line = macd_line.ewm(span=9, adjust=False).mean()
+    hist = macd_line - signal_line
+
+    price_series = []
+    ema8_series = []
+    sma200_series = []
+    volume_series = []
+    rsi14_series = []
+    macd_series = []
+    signal_series = []
+    hist_series = []
+
+    prev_close = None
+    for i, row in wk.iterrows():
+        d = str(row["date"])
+        t = _epoch_ms_utc(d)
+
+        c_val = float(close.iloc[i]) if pd.notna(close.iloc[i]) else None
+        if c_val is not None:
+            price_series.append({"time": t, "value": c_val})
+
+        e8 = float(ema8.iloc[i]) if pd.notna(ema8.iloc[i]) else None
+        if e8 is not None:
+            ema8_series.append({"time": t, "value": e8})
+
+        s200 = float(sma200.iloc[i]) if pd.notna(sma200.iloc[i]) else None
+        if s200 is not None:
+            sma200_series.append({"time": t, "value": s200})
+
+        vol_v = float(row["volume"]) if pd.notna(row["volume"]) else None
+        if vol_v is not None:
+            color = "#A9B6CC"
+            if prev_close is not None and c_val is not None:
+                if c_val > prev_close:
+                    color = "#EF4444"
+                elif c_val < prev_close:
+                    color = "#10B981"
+            volume_series.append({"time": t, "value": int(vol_v), "color": color})
+
+        r14 = float(rsi.iloc[i]) if pd.notna(rsi.iloc[i]) else None
+        if r14 is not None:
+            rsi14_series.append({"time": t, "value": r14})
+
+        m_val = float(macd_line.iloc[i]) if pd.notna(macd_line.iloc[i]) else None
+        if m_val is not None:
+            macd_series.append({"time": t, "value": m_val})
+
+        s_val = float(signal_line.iloc[i]) if pd.notna(signal_line.iloc[i]) else None
+        if s_val is not None:
+            signal_series.append({"time": t, "value": s_val})
+
+        h_val = float(hist.iloc[i]) if pd.notna(hist.iloc[i]) else None
+        if h_val is not None:
+            h_color = "#A9B6CC"
+            if h_val > 0:
+                h_color = "#EF4444"
+            elif h_val < 0:
+                h_color = "#10B981"
+            hist_series.append({"time": t, "value": h_val, "color": h_color})
+
+        if c_val is not None:
+            prev_close = c_val
+
+    series = {
+        "price": price_series,
+        "ema8": ema8_series,
+        "sma200": sma200_series,
+        "volume": volume_series,
+        "rsi14": rsi14_series,
+        "macd": {"macd": macd_series, "signal": signal_series, "hist": hist_series},
+    }
+
+    _write_json_file_atomic(
+        cache_file,
+        {
+            "cachedAt": fetched_at,
+            "dataDate": data_date,
+            "code": c,
+            "adjust": a,
+            "freq": "W",
+            "isPartialWeek": bool(is_partial),
+            "series": series,
+        },
+    )
+
+    meta = {
+        "fetchedAt": fetched_at,
+        "snapshotAt": fetched_at,
+        "dataDate": data_date,
+        "code": c,
+        "adjust": a,
+        "freq": "W",
+        "isPartialWeek": bool(is_partial),
+        "source": "eastmoney:kline",
+    }
+    return _ok(meta, {"series": series})
+
+
 def main(argv):
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -784,6 +1004,10 @@ def main(argv):
     p_detail = sub.add_parser("detail")
     p_detail.add_argument("--code", type=str, required=True)
 
+    p_weekly = sub.add_parser("weekly-chart")
+    p_weekly.add_argument("--code", type=str, required=True)
+    p_weekly.add_argument("--adjust", type=str, default="qfq")
+
     args = parser.parse_args(argv)
     try:
         if args.cmd == "top100":
@@ -791,6 +1015,8 @@ def main(argv):
             result = top100(args.limit, args.refresh, args.ensure_latest, pf)
         elif args.cmd == "detail":
             result = detail(args.code)
+        elif args.cmd == "weekly-chart":
+            result = weekly_chart(args.code, args.adjust)
         else:
             result = _err("bad_request", "未知命令")
     except Exception as e:

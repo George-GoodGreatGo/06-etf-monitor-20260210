@@ -1,0 +1,7 @@
+- [x] 周线数据接口可用：返回 close_qfq/ema8/sma200/volume/rsi14/macd 三序列
+- [x] 同一交易日口径正确：包含最新交易日，partial week 标识正确
+- [x] 前端 4-pane 图表渲染完成：价格+均线/量柱/RSI/MACD
+- [x] 交互对标：缩放/平移/十字光标跨 pane 同步/tooltip 实时数值
+- [x] 图例显隐可用：切换任意序列不影响其他 pane
+- [x] 暗黑主题可读性良好：网格线/坐标轴/字体与颜色清晰
+- [x] 构建与类型检查通过：`npm run check`、`npm run build`

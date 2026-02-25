@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import NavBar from '@/components/NavBar'
 import DataStatusBanner from '@/components/DataStatusBanner'
 import { type SortDir } from '@/components/SortableTh'
@@ -14,7 +14,6 @@ import {
   fetchEtfTop100,
   type Top100SortKey,
 } from '@/utils/etfApi'
-import { parseIsoToLocal } from '@/utils/format'
 import { apiUrl } from '@/utils/apiBase'
 import { adminAuthHeaders } from '@/utils/adminAccess'
 

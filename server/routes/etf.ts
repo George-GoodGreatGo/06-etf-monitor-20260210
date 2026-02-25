@@ -252,4 +252,69 @@ router.get('/detail/:code', (req: Request, res: Response) => {
     })
 })
 
+router.get('/:code/weekly-chart', (req: Request, res: Response) => {
+  const code = String(req.params.code || '').trim()
+  if (!code) {
+    res.status(400).json({ success: false, error: 'bad_request', message: '缺少 code' })
+    return
+  }
+
+  const adjustRaw = typeof req.query.adjust === 'string' ? req.query.adjust : ''
+  const adjust = (adjustRaw || 'qfq').trim().toLowerCase()
+  if (adjust !== 'qfq' && adjust !== 'hfq' && adjust !== 'none') {
+    res.status(400).json({
+      success: false,
+      error: 'bad_request',
+      message: 'adjust 仅支持 qfq/hfq/none',
+    })
+    return
+  }
+
+  if (process.env.VERCEL) {
+    res.status(501).json({
+      success: false,
+      error: 'not_supported',
+      message: 'Vercel 环境不支持该接口（需要本机 Python/AkShare 子进程）。',
+    })
+    return
+  }
+
+  runAkshare(`weekly-chart:v1:${code}:${adjust}`, ['weekly-chart', '--code', code, '--adjust', adjust], {
+    cacheTtlMs: 600_000,
+    timeoutMs: 180_000,
+  })
+    .then((out) => {
+      if (out.success === true) {
+        res.status(200).json(out)
+        return
+      }
+
+      if (out.error === 'bad_request') {
+        res.status(400).json(out)
+        return
+      }
+
+      if (out.error === 'not_supported') {
+        res.status(501).json(out)
+        return
+      }
+
+      if (out.error === 'cache_miss') {
+        res.status(503).json(out)
+        return
+      }
+
+      const msg = out.message || ''
+      const status = msg.includes('未检测到') ? 501 : 502
+      res.status(status).json(out)
+    })
+    .catch((e) => {
+      res.status(502).json({
+        success: false,
+        error: 'akshare_error',
+        message: e instanceof Error ? e.message : String(e),
+      })
+    })
+})
+
 export default router
