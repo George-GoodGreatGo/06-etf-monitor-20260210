@@ -484,185 +484,143 @@ export default function Home() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#050A0B] text-[#E6EDF7]">
-      <img
-        src="/figma/login/login_bg_mask.svg"
-        alt=""
-        className="pointer-events-none absolute inset-0 z-0 h-full w-full select-none object-cover"
-        aria-hidden="true"
-      />
-      <img
-        src="/figma/login/login_bg_bottom.svg"
-        alt=""
-        className="pointer-events-none absolute bottom-0 left-0 right-0 z-0 w-full select-none"
-        aria-hidden="true"
+    <div className="min-h-screen bg-[#050A0B] text-[#E6EDF7]">
+      <NavBar
+        rightMeta={
+          meta
+            ? {
+                fetchedAt: meta.cachedAt || meta.fetchedAt,
+                dataDate: meta.dataDate,
+              }
+            : undefined
+        }
+        onRefetch={onRefetch}
+        refetching={adminRefreshing || (loading && (loadingMode === 'refetch' || treatAsRefetch))}
+        onLogout={() => {
+          void (async () => {
+            try {
+              ;(window as unknown as { google?: { accounts?: { id?: { disableAutoSelect?: () => void } } } })
+                .google?.accounts?.id?.disableAutoSelect?.()
+              await fetch(apiUrl('/api/auth/logout'), {
+                method: 'POST',
+                credentials: 'include',
+              })
+            } catch {
+              void 0
+            } finally {
+              nav(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`, { replace: true })
+            }
+          })()
+        }}
       />
 
-      <div className="relative z-10">
-        <NavBar
-          rightMeta={
-            meta
-              ? {
-                  fetchedAt: meta.cachedAt || meta.fetchedAt,
-                  dataDate: meta.dataDate,
-                }
-              : undefined
+      <main className="mx-auto w-full max-w-[1280px] px-8 pb-14 pt-8">
+        <div className="mb-4">
+          <h1 className="text-2xl font-semibold tracking-tight text-white">Top200 ETF 异动监测</h1>
+          <div className="mt-2 text-sm text-[#9CA3AF]">
+            仅展示最近一个完整交易日数据；缺失/失败会明确提示且不展示推测值。
+          </div>
+        </div>
+
+        <DataStatusBanner
+          loading={loading}
+          error={error}
+          notice={adminNotice}
+          meta={meta}
+          incompleteCount={incompleteCount}
+          loadingMode={
+            loading
+              ? treatAsRefetch
+                ? 'refetch'
+                : loadingMode
+              : 'fetch'
           }
-          onRefetch={onRefetch}
-          refetching={adminRefreshing || (loading && (loadingMode === 'refetch' || treatAsRefetch))}
-          onLogout={() => {
-            void (async () => {
-              try {
-                ;(window as unknown as { google?: { accounts?: { id?: { disableAutoSelect?: () => void } } } })
-                  .google?.accounts?.id?.disableAutoSelect?.()
-                await fetch(apiUrl('/api/auth/logout'), {
-                  method: 'POST',
-                  credentials: 'include',
-                })
-              } catch {
-                void 0
-              } finally {
-                nav(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`, { replace: true })
-              }
-            })()
+          loadingProgressPct={treatAsRefetch || loadingMode === 'cold' ? refetchProgressPct : null}
+          loadingEtaSeconds={treatAsRefetch || loadingMode === 'cold' ? refetchEtaSeconds : undefined}
+          backendProgressText={backendProgressText}
+          onRetry={() => {
+            const seq = ++reqSeqRef.current
+            void runFetch(seq)
           }}
         />
 
-        <main className="mx-auto w-full max-w-[1280px] px-4 pb-14 pt-6 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-2xl border border-[rgba(230,81,0,0.12)] bg-[rgba(13,26,28,0.78)] p-4 shadow-[0_0_50px_-18px_rgba(230,81,0,0.18)] backdrop-blur-[24px] sm:p-6">
-            <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-xl bg-[rgba(230,81,0,0.16)] blur-[80px]" />
-
-            <div className="relative mb-4 space-y-3">
-              <div>
-                <h1 className="text-lg font-semibold tracking-tight text-white">Top200 ETF 异动监测</h1>
-                <div className="mt-1 text-xs text-[#94A3B8]">
-                  仅展示最近一个完整交易日数据；缺失/失败会明确提示且不展示推测值
-                </div>
-              </div>
-
-              <div className="border-b border-[rgba(255,255,255,0.06)] pb-3">
-                <div className="flex justify-center">
-                <div
-                  role="tablist"
-                  aria-label="首页视图切换"
-                  className="inline-flex items-center gap-3"
-                >
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === 'list'}
-                    onClick={() => {
-                      if (tab === 'list') return
-                      const next = new URLSearchParams(searchParams)
-                      next.set('tab', 'list')
-                      setSearchParams(next, { replace: true })
-                    }}
-                    className={cn(
-                      'inline-flex h-9 items-center justify-center gap-2 rounded-md border px-4 text-xs font-semibold transition',
-                      tab === 'list'
-                        ? 'border-[#FF5722] text-[#FF5722] hover:bg-[rgba(255,255,255,0.04)]'
-                        : 'border-[rgba(255,255,255,0.12)] text-[#94A3B8] hover:border-[rgba(255,255,255,0.2)] hover:bg-[rgba(255,255,255,0.03)]',
-                    )}
-                  >
-                    <img
-                      src={tab === 'list' ? '/figma/list/list_tab_icon.svg' : '/figma/list/list_tab_icon_muted.svg'}
-                      alt=""
-                      className="h-4 w-auto select-none"
-                      aria-hidden="true"
-                    />
-                    TOP200 列表
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === 'insight'}
-                    onClick={() => {
-                      if (tab === 'insight') return
-                      const next = new URLSearchParams(searchParams)
-                      next.set('tab', 'insight')
-                      setSearchParams(next, { replace: true })
-                    }}
-                    className={cn(
-                      'inline-flex h-9 items-center justify-center gap-2 rounded-md border px-4 text-xs font-semibold transition',
-                      tab === 'insight'
-                        ? 'border-[#FF5722] text-[#FF5722] hover:bg-[rgba(255,255,255,0.04)]'
-                        : 'border-[rgba(255,255,255,0.12)] text-[#94A3B8] hover:border-[rgba(255,255,255,0.2)] hover:bg-[rgba(255,255,255,0.03)]',
-                    )}
-                  >
-                    <img
-                      src={
-                        tab === 'insight'
-                          ? '/figma/list/insight_tab_icon_active.svg'
-                          : '/figma/list/insight_tab_icon.svg'
-                      }
-                      alt=""
-                      className="h-4 w-auto select-none"
-                      aria-hidden="true"
-                    />
-                    AI 解读
-                  </button>
-                </div>
-              </div>
-              </div>
-
-              {tab === 'list' ? <Top100FilterBar keyword={keyword} onChangeKeyword={setKeyword} onReset={onReset} /> : null}
-            </div>
-
-            <div className="space-y-4">
-              <DataStatusBanner
-                loading={loading}
-                error={error}
-                notice={adminNotice}
-                meta={meta}
-                incompleteCount={incompleteCount}
-                loadingMode={
-                  loading
-                    ? treatAsRefetch
-                      ? 'refetch'
-                      : loadingMode
-                    : 'fetch'
-                }
-                loadingProgressPct={treatAsRefetch || loadingMode === 'cold' ? refetchProgressPct : null}
-                loadingEtaSeconds={treatAsRefetch || loadingMode === 'cold' ? refetchEtaSeconds : undefined}
-                backendProgressText={backendProgressText}
-                onRetry={() => {
-                  const seq = ++reqSeqRef.current
-                  void runFetch(seq)
-                }}
-              />
-
-              {tab === 'insight' ? (
-                <Top100InsightPanel
-                  meta={meta}
-                  rows={rows}
-                  disableGenerate={adminRefreshing || (loading && (loadingMode === 'refetch' || treatAsRefetch))}
-                />
-              ) : (
-                <Top100Table
-                  rows={rows}
-                  loading={loading}
-                  error={error}
-                  keyword={debouncedKeyword}
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onToggleSort={onToggleSort}
-                />
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div role="tablist" aria-label="首页视图切换" className="flex items-center gap-8">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'list'}
+              onClick={() => {
+                if (tab === 'list') return
+                const next = new URLSearchParams(searchParams)
+                next.set('tab', 'list')
+                setSearchParams(next, { replace: true })
+              }}
+              className={cn(
+                'relative inline-flex items-center gap-2 pb-2 text-sm font-semibold transition',
+                tab === 'list' ? 'text-[#FF5722]' : 'text-[#9CA3AF] hover:text-white',
               )}
-            </div>
-
-            <div className="relative mt-6 flex items-center justify-between text-xs text-[#94A3B8]">
-              <div>展示口径：Top200 按成交额排序（默认），仅完整交易日</div>
-              <Link to="/methodology" className="text-[#E65100] hover:brightness-110">
-                数据与方法说明 →
-              </Link>
-            </div>
-
-            <div className="relative mt-2 text-xs text-[#94A3B8]">
-              {meta ? `快照时间：${parseIsoToLocal(meta.cachedAt || meta.fetchedAt)}` : ''}
-            </div>
+            >
+              <img
+                src={tab === 'list' ? '/figma/list/list_tab_icon.svg' : '/figma/list/list_tab_icon_muted.svg'}
+                alt=""
+                className="h-4 w-auto select-none"
+                aria-hidden="true"
+              />
+              TOP200 列表
+              {tab === 'list' ? (
+                <span className="absolute -bottom-[10px] left-0 right-0 h-[2px] bg-[#FF5722]" />
+              ) : null}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'insight'}
+              onClick={() => {
+                if (tab === 'insight') return
+                const next = new URLSearchParams(searchParams)
+                next.set('tab', 'insight')
+                setSearchParams(next, { replace: true })
+              }}
+              className={cn(
+                'relative inline-flex items-center gap-2 pb-2 text-sm font-semibold transition',
+                tab === 'insight' ? 'text-[#FF5722]' : 'text-[#9CA3AF] hover:text-white',
+              )}
+            >
+              <img
+                src={tab === 'insight' ? '/figma/list/insight_tab_icon_active.svg' : '/figma/list/insight_tab_icon.svg'}
+                alt=""
+                className="h-4 w-auto select-none"
+                aria-hidden="true"
+              />
+              AI 解读
+              {tab === 'insight' ? (
+                <span className="absolute -bottom-[10px] left-0 right-0 h-[2px] bg-[#FF5722]" />
+              ) : null}
+            </button>
           </div>
-        </main>
-      </div>
+
+          {tab === 'list' ? <Top100FilterBar keyword={keyword} onChangeKeyword={setKeyword} onReset={onReset} /> : null}
+        </div>
+
+        {tab === 'insight' ? (
+          <Top100InsightPanel
+            meta={meta}
+            rows={rows}
+            disableGenerate={adminRefreshing || (loading && (loadingMode === 'refetch' || treatAsRefetch))}
+          />
+        ) : (
+          <Top100Table
+            rows={rows}
+            loading={loading}
+            error={error}
+            keyword={debouncedKeyword}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            onToggleSort={onToggleSort}
+          />
+        )}
+      </main>
     </div>
   )
 }

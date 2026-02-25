@@ -39,40 +39,34 @@ export default function DataStatusBanner({
       backendProgressText.includes('校验最新交易日')
     const showProgress = (loadingMode === 'refetch' || (loadingMode === 'cold' && !isEnsureLatestOnly)) && pct != null
     return (
-      <div className="ui-glass-panel rounded px-4 py-3">
+      <div className="relative overflow-hidden rounded border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-4 py-3">
+        <div className="absolute left-0 top-0 h-full w-[3px] bg-[#FF5722]" />
         <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2 text-xs text-[#A9B6CC]">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            {loadingMode === 'refetch'
-              ? '正在重新获取数据…'
-              : loadingMode === 'cold'
-                ? isEnsureLatestOnly
-                  ? '正在校验最新交易日…'
-                  : '正在首次计算数据…'
-                : '正在通过 API 获取数据…'}
-            {showProgress ? <span className="text-[#E6EDF7]">{pct}%</span> : null}
+          <div className="flex items-center gap-2 text-sm text-[#E6EDF7]">
+            <Loader2 className="h-4 w-4 animate-spin text-[#FF5722]" />
+            <span className="font-semibold">
+              {loadingMode === 'refetch'
+                ? '正在重新获取数据…'
+                : loadingMode === 'cold'
+                  ? isEnsureLatestOnly
+                    ? '正在校验最新交易日…'
+                    : '正在首次计算数据…'
+                  : '正在通过 API 获取数据…'}
+            </span>
+            {showProgress ? <span className="text-[#9CA3AF]">{pct}%</span> : null}
             {(loadingMode === 'refetch' || loadingMode === 'cold') && loadingEtaSeconds ? (
-              <span className="text-[#A9B6CC]">（参考 {loadingEtaSeconds}s）</span>
+              <span className="text-xs text-[#6B7280]">（参考 {loadingEtaSeconds}s）</span>
             ) : null}
           </div>
 
           {showProgress ? (
-            <div className="h-2 w-full rounded-full bg-white/5">
-              <div
-                className="h-2 rounded-full bg-[#E65100] transition-[width]"
-                style={{ width: `${pct}%` }}
-              />
+            <div className="h-2 w-full rounded-full bg-[rgba(255,255,255,0.06)]">
+              <div className="h-2 rounded-full bg-[#FF5722] transition-[width]" style={{ width: `${pct}%` }} />
             </div>
           ) : null}
 
           {(loadingMode === 'refetch' || loadingMode === 'cold') && backendProgressText ? (
-            <div className="text-xs text-[#A9B6CC]">{backendProgressText}</div>
-          ) : null}
-
-          {showProgress && pct >= 99 ? (
-            <div className="text-xs text-[#A9B6CC]">
-              全量重算需要的时间较多，请耐心等待
-            </div>
+            <div className="text-xs text-[#9CA3AF]">{backendProgressText}</div>
           ) : null}
         </div>
       </div>
@@ -81,21 +75,18 @@ export default function DataStatusBanner({
 
   if (error) {
     return (
-      <div className="ui-glass-panel rounded border border-[#EF4444]/40 px-4 py-3">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="mt-0.5 h-4 w-4 text-[#EF4444]" />
-            <div>
-              <div className="text-sm font-medium">数据获取失败</div>
-              <div className="mt-0.5 text-xs text-[#A9B6CC]">
-                {error}。不会展示任何推测值。
-              </div>
-            </div>
+      <div className="relative overflow-hidden rounded border border-[rgba(239,68,68,0.35)] bg-[rgba(255,255,255,0.03)] px-4 py-3">
+        <div className="absolute left-0 top-0 h-full w-[3px] bg-[#EF4444]" />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-sm">
+            <AlertTriangle className="h-4 w-4 text-[#EF4444]" />
+            <span className="font-semibold text-white">数据获取失败</span>
+            <span className="text-xs text-[#9CA3AF]">{error}。不会展示任何推测值。</span>
           </div>
           <button
             type="button"
             onClick={onRetry}
-            className="ui-btn ui-btn-accent h-9 px-3 text-xs"
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-[6px] bg-[#FF5722] px-4 text-xs font-semibold text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.35),0px_10px_15px_-3px_rgba(0,0,0,0.35)] transition hover:brightness-110 active:brightness-95"
           >
             <RefreshCw className="h-4 w-4" />
             重试
@@ -109,28 +100,21 @@ export default function DataStatusBanner({
     return (
       <div
         className={cn(
-          'ui-glass-panel rounded px-4 py-3',
-          notice.tone === 'warn' ? 'border border-[#F59E0B]/40' : 'border border-[rgba(230,81,0,0.15)]',
+          'relative overflow-hidden rounded border bg-[rgba(255,255,255,0.03)] px-4 py-3',
+          notice.tone === 'warn' ? 'border-[rgba(245,158,11,0.35)]' : 'border-[rgba(255,255,255,0.08)]',
         )}
       >
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-start gap-2">
-            <Loader2 className="mt-0.5 h-4 w-4 animate-spin text-[#FF8A50]" />
-            <div>
-              <div className="text-sm font-medium">
-                {notice.tone === 'warn' ? '刷新可能仍在后台运行' : '后台刷新中'}
-              </div>
-              <div className="mt-0.5 text-xs text-[#A9B6CC]">{notice.message}</div>
-              <div className="mt-1 text-xs text-[#A9B6CC]">
-                交易日：{meta ? formatYmd(meta.dataDate) : '—'}；快照时间：{snapshotAt ? parseIsoToLocal(snapshotAt) : '—'}
-              </div>
-            </div>
+        <div className={cn('absolute left-0 top-0 h-full w-[3px]', notice.tone === 'warn' ? 'bg-[#F59E0B]' : 'bg-[#FF5722]')} />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-sm">
+            <Loader2 className={cn('h-4 w-4 animate-spin', notice.tone === 'warn' ? 'text-[#F59E0B]' : 'text-[#FF5722]')} />
+            <span className="font-semibold text-white">{notice.tone === 'warn' ? '刷新可能仍在后台运行' : '后台刷新中'}</span>
+            <span className="text-xs text-[#9CA3AF]">{notice.message}</span>
           </div>
-
           <button
             type="button"
             onClick={onRetry}
-            className="ui-btn ui-btn-outline h-9 px-3 text-xs"
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-[6px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.04)] px-4 text-xs font-semibold text-[#FF5722] transition hover:border-[rgba(255,255,255,0.18)] hover:bg-[rgba(255,255,255,0.06)]"
           >
             <RefreshCw className="h-4 w-4" />
             刷新页面数据
@@ -141,28 +125,27 @@ export default function DataStatusBanner({
   }
 
   return (
-    <div className="ui-glass-panel rounded px-4 py-3">
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-start gap-2">
-          <ShieldCheck className="mt-0.5 h-4 w-4 text-[#22C55E]" />
-          <div>
-            <div className="text-sm font-medium">数据已就绪（仅完整交易日）</div>
-            <div className="mt-0.5 text-xs text-[#A9B6CC]">
-              交易日：{meta ? formatYmd(meta.dataDate) : '—'}；快照时间：
-              {snapshotAt ? parseIsoToLocal(snapshotAt) : '—'}
-            </div>
+    <div className="relative overflow-hidden rounded border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-4 py-3">
+      <div className="absolute left-0 top-0 h-full w-[3px] bg-[#10B981]" />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <div className="flex items-center gap-2 text-sm">
+            <ShieldCheck className="h-4 w-4 text-[#10B981]" />
+            <span className="font-semibold text-white">数据已就绪（仅完整交易日）</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-[#9CA3AF]">
+            <span>交易日：{meta ? formatYmd(meta.dataDate) : '—'}</span>
+            <span>快照时间：{snapshotAt ? parseIsoToLocal(snapshotAt) : '—'}</span>
           </div>
         </div>
 
         <div
           className={cn(
-            'rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-xs text-[#94A3B8]',
-            incompleteCount > 0 && 'border-[rgba(230,81,0,0.25)]',
+            'inline-flex items-center rounded-[6px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.04)] px-3 py-2 text-xs text-[#9CA3AF]',
+            incompleteCount > 0 && 'border-[rgba(255,87,34,0.25)]',
           )}
         >
-          {incompleteCount > 0
-            ? `已标记 ${incompleteCount} 条为“数据不完整/失败”，不展示推测值`
-            : '全部条目字段校验通过'}
+          {incompleteCount > 0 ? `已标记 ${incompleteCount} 条为“数据不完整/失败”` : '已完成校验'}
         </div>
       </div>
     </div>

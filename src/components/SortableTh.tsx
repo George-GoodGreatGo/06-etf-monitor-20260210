@@ -19,11 +19,11 @@ export default function SortableTh({
   className?: string
 }) {
   const icon = !active ? (
-    <ChevronsUpDown className="h-4 w-4" />
+    <ChevronsUpDown className="h-[14px] w-[14px]" />
   ) : dir === 'asc' ? (
-    <ArrowUp className="h-4 w-4" />
+    <ArrowUp className="h-[14px] w-[14px]" />
   ) : (
-    <ArrowDown className="h-4 w-4" />
+    <ArrowDown className="h-[14px] w-[14px]" />
   )
 
   return (
@@ -46,8 +46,8 @@ export default function SortableTh({
         {children}
         <span
           className={cn(
-            'text-[#94A3B8] opacity-0 transition-opacity group-hover:opacity-100',
-            active && 'text-[#E6EDF7] opacity-100',
+            'text-[#6B7280] opacity-0 transition-opacity group-hover:opacity-100',
+            active && 'text-[#9CA3AF] opacity-100',
           )}
         >
           {icon}

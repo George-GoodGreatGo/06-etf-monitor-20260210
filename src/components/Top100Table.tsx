@@ -53,10 +53,10 @@ export default function Top100Table({
   const data = sortRows(filtered, sortKey, sortDir)
 
   return (
-    <section className="mt-4 ui-glass-panel overflow-hidden rounded-lg shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.35),0px_10px_15px_-3px_rgba(0,0,0,0.35)]">
+    <section className="mt-4 overflow-hidden rounded-lg border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)] shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.35),0px_10px_15px_-3px_rgba(0,0,0,0.35)]">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[900px] text-left text-sm">
-          <thead className="border-b border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.02)] text-xs uppercase tracking-wide text-[#94A3B8]">
+          <thead className="border-b border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.03)] text-xs text-[#9CA3AF]">
             <tr>
               <th className="px-4 py-3">#</th>
               <SortableTh
@@ -122,7 +122,7 @@ export default function Top100Table({
             {loading ? (
               Array.from({ length: 8 }).map((_, idx) => (
                 <tr key={idx} className="animate-pulse">
-                  <td className="px-4 py-3 text-[#94A3B8]">{idx + 1}</td>
+                  <td className="px-4 py-3 text-[#9CA3AF]">{idx + 1}</td>
                   <td className="px-4 py-3" colSpan={7}>
                     <div className="h-4 w-full rounded bg-white/10" />
                   </td>
@@ -158,22 +158,22 @@ export default function Top100Table({
                   <tr
                     key={r.code}
                     className={cn(
-                      'transition hover:bg-[rgba(230,81,0,0.06)]',
+                      'transition hover:bg-[rgba(255,255,255,0.02)]',
                       muted && 'opacity-80',
                     )}
                   >
-                    <td className="px-4 py-3 text-xs text-[#94A3B8]">{idx + 1}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-[#FF8A50]">{r.code}</td>
+                    <td className="px-4 py-3 text-xs text-[#6B7280]">{idx + 1}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-[#E6EDF7]">{r.code}</td>
                     <td className="px-4 py-3">
                       <div className="font-medium">{r.name}</div>
-                      <div className="mt-0.5 text-xs text-[#94A3B8]">
-                        交易日：{formatYmd(r.latestTradingDate)}
+                      <div className="mt-0.5 text-xs text-[#6B7280]">
+                        {formatYmd(r.latestTradingDate)}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-xs">
                       {r.volume == null ? '—' : formatCompactNumber(r.volume)}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-xs">
+                    <td className="px-4 py-3 text-right font-mono text-xs font-semibold text-white">
                       {r.turnover == null ? '—' : formatCompactNumber(r.turnover)}
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-xs">
@@ -185,8 +185,8 @@ export default function Top100Table({
                             r.turnoverChangePct1d > 0
                               ? 'text-[#EF4444]'
                               : r.turnoverChangePct1d < 0
-                                ? 'text-[#22C55E]'
-                                : 'text-[#94A3B8]',
+                                ? 'text-[#10B981]'
+                                : 'text-[#9CA3AF]',
                           )}
                         >
                           {formatPct(r.turnoverChangePct1d)}
@@ -202,8 +202,8 @@ export default function Top100Table({
                             r.turnoverChangePct7dAvg > 0
                               ? 'text-[#EF4444]'
                               : r.turnoverChangePct7dAvg < 0
-                                ? 'text-[#22C55E]'
-                                : 'text-[#94A3B8]',
+                                ? 'text-[#10B981]'
+                                : 'text-[#9CA3AF]',
                           )}
                         >
                           {formatPct(r.turnoverChangePct7dAvg)}
@@ -220,7 +220,7 @@ export default function Top100Table({
                         href={`/etf/${encodeURIComponent(r.code)}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="ui-btn ui-btn-outline px-3 py-2 text-xs"
+                        className="inline-flex items-center justify-center gap-2 rounded-[6px] border border-[rgba(255,87,34,0.35)] px-3 py-2 text-xs font-semibold text-[#FF5722] transition hover:bg-[rgba(255,87,34,0.08)]"
                       >
                         查看
                         <ExternalLink className="h-4 w-4" />
@@ -232,6 +232,10 @@ export default function Top100Table({
             )}
           </tbody>
         </table>
+      </div>
+      <div className="flex items-center justify-between border-t border-[rgba(255,255,255,0.06)] px-4 py-3 text-xs text-[#6B7280]">
+        <div>{`正在显示 ${data.length} 条数据（滚动查看更多）`}</div>
+        <div>到底了</div>
       </div>
     </section>
   )
