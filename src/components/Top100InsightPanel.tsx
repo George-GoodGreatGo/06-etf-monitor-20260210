@@ -6,7 +6,7 @@ import type { EtfTopRow, Top100Meta } from '@/utils/etfApi'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
-type InsightGenerateStatus = 'idle' | 'generating' | 'ready'
+type InsightGenerateStatus = 'idle' | 'generating' | 'ready' | 'failed'
 type InsightSectionTone = 'summary' | 'focus' | 'risk' | 'snapshot' | 'normal'
 type InsightSection = {
   title: string
@@ -101,6 +101,7 @@ export default function Top100InsightPanel({
   const [error, setError] = useState<string | null>(null)
   const [markdown, setMarkdown] = useState<string>('')
   const [status, setStatus] = useState<InsightGenerateStatus>('idle')
+  const [statusError, setStatusError] = useState<string | null>(null)
   const [reloadSeq, setReloadSeq] = useState(0)
 
   const snapshotAt = meta ? meta.cachedAt || meta.fetchedAt : null
@@ -123,6 +124,7 @@ export default function Top100InsightPanel({
     if (!meta || rows.length === 0) {
       setMarkdown('')
       setStatus('idle')
+      setStatusError(null)
       setLoading(false)
       setError(null)
       return
@@ -133,6 +135,7 @@ export default function Top100InsightPanel({
 
     setLoading(true)
     setError(null)
+    setStatusError(null)
 
     void (async () => {
       try {
@@ -160,11 +163,13 @@ export default function Top100InsightPanel({
             ? ((j as Record<string, unknown>).data as Record<string, unknown>)
             : null
         const nextStatus =
-          dataObj && typeof dataObj.status === 'string' && ['idle', 'generating', 'ready'].includes(dataObj.status)
+          dataObj && typeof dataObj.status === 'string' && ['idle', 'generating', 'ready', 'failed'].includes(dataObj.status)
             ? (dataObj.status as InsightGenerateStatus)
             : 'idle'
+        const nextStatusError = dataObj && typeof dataObj.lastError === 'string' ? dataObj.lastError : null
 
         setStatus(nextStatus)
+        setStatusError(nextStatusError)
         if (nextStatus !== 'ready') {
           setMarkdown('')
           return
@@ -324,6 +329,24 @@ export default function Top100InsightPanel({
         <div className="mt-3 rounded-lg border border-white/10 bg-black/10 px-3 py-3 text-xs text-[#A9B6CC]">
           <div className="flex items-center justify-between gap-3">
             <div>内容正在生成中，请稍等</div>
+            <button
+              type="button"
+              onClick={() => setReloadSeq((v) => v + 1)}
+              className="ui-btn ui-btn-outline h-8 px-3 text-xs"
+              disabled={loading}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              刷新
+            </button>
+          </div>
+        </div>
+      ) : status === 'failed' ? (
+        <div className="mt-3 rounded-lg border border-[#EF4444]/40 bg-black/10 px-3 py-3 text-xs text-[#A9B6CC]">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <div className="text-[#FCA5A5]">解读生成失败，请稍后重试</div>
+              {statusError ? <div className="text-[#A9B6CC]">{statusError}</div> : null}
+            </div>
             <button
               type="button"
               onClick={() => setReloadSeq((v) => v + 1)}

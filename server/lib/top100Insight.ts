@@ -2,12 +2,35 @@ import { cozeStreamRunToMarkdown } from './coze.js'
 import {
   insertTop100InsightIgnoreDuplicates,
   readTop100InsightByDataDate,
+  readTop100InsightStatusByDataDate,
   type Top100InsightRow,
+  upsertTop100InsightStatus,
 } from './supabaseRest.js'
 
-export type Top100InsightGenerateStatus = 'idle' | 'generating' | 'ready'
+export type Top100InsightGenerateStatus = 'idle' | 'generating' | 'ready' | 'failed'
 
 const inflightEnsures = new Map<string, Promise<Top100InsightRow>>()
+
+async function writeInsightStatusSafe(payload: {
+  data_date: string
+  status: Top100InsightGenerateStatus
+  last_error?: string | null
+  started_at?: string | null
+  finished_at?: string | null
+}) {
+  try {
+    await upsertTop100InsightStatus({
+      data_date: payload.data_date,
+      status: payload.status,
+      last_error: payload.last_error ?? null,
+      started_at: payload.started_at ?? null,
+      finished_at: payload.finished_at ?? null,
+      updated_at: new Date().toISOString(),
+    })
+  } catch (e) {
+    console.warn('writeInsightStatusSafe failed', e instanceof Error ? e.message : String(e))
+  }
+}
 
 export function buildTop100InsightPromptText(input: {
   dataDate: string
@@ -74,14 +97,28 @@ export async function ensureTop100Insight(
   if (!Array.isArray(rows) || rows.length === 0) throw new Error('missing rows')
 
   const existing = await readTop100InsightByDataDate(d)
-  if (existing) return existing
+  if (existing) {
+    await writeInsightStatusSafe({ data_date: d, status: 'ready', last_error: null, finished_at: new Date().toISOString() })
+    return existing
+  }
 
   const inflight = inflightEnsures.get(d)
   if (inflight) return inflight
 
   const task = (async () => {
     const before = await readTop100InsightByDataDate(d)
-    if (before) return before
+    if (before) {
+      await writeInsightStatusSafe({ data_date: d, status: 'ready', last_error: null, finished_at: new Date().toISOString() })
+      return before
+    }
+
+    await writeInsightStatusSafe({
+      data_date: d,
+      status: 'generating',
+      last_error: null,
+      started_at: new Date().toISOString(),
+      finished_at: null,
+    })
 
     const promptText = buildTop100InsightPromptText({
       dataDate: d,
@@ -110,7 +147,23 @@ export async function ensureTop100Insight(
 
   inflightEnsures.set(d, task)
   try {
-    return await task
+    const out = await task
+    await writeInsightStatusSafe({
+      data_date: d,
+      status: 'ready',
+      last_error: null,
+      finished_at: new Date().toISOString(),
+    })
+    return out
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    await writeInsightStatusSafe({
+      data_date: d,
+      status: 'failed',
+      last_error: msg,
+      finished_at: new Date().toISOString(),
+    })
+    throw e
   } finally {
     const current = inflightEnsures.get(d)
     if (current === task) inflightEnsures.delete(d)
@@ -121,6 +174,34 @@ export async function getTop100InsightGenerateStatus(dataDate: string): Promise<
   const d = String(dataDate || '').trim()
   if (!d) return 'idle'
   if (inflightEnsures.has(d)) return 'generating'
+  const statusRow = await readTop100InsightStatusByDataDate(d)
+  if (statusRow && statusRow.status) {
+    if (statusRow.status === 'ready' || statusRow.status === 'generating' || statusRow.status === 'failed') {
+      return statusRow.status
+    }
+  }
   const existing = await readTop100InsightByDataDate(d)
   return existing ? 'ready' : 'idle'
+}
+
+export async function getTop100InsightStatusDetail(dataDate: string): Promise<{
+  status: Top100InsightGenerateStatus
+  lastError: string | null
+  updatedAt: string | null
+}> {
+  const d = String(dataDate || '').trim()
+  if (!d) return { status: 'idle', lastError: null, updatedAt: null }
+  if (inflightEnsures.has(d)) return { status: 'generating', lastError: null, updatedAt: null }
+  const statusRow = await readTop100InsightStatusByDataDate(d)
+  if (statusRow) {
+    const s = statusRow.status
+    const status: Top100InsightGenerateStatus = s === 'ready' || s === 'generating' || s === 'failed' ? s : 'idle'
+    return {
+      status,
+      lastError: statusRow.last_error || null,
+      updatedAt: statusRow.updated_at || null,
+    }
+  }
+  const existing = await readTop100InsightByDataDate(d)
+  return existing ? { status: 'ready', lastError: null, updatedAt: existing.updated_at } : { status: 'idle', lastError: null, updatedAt: null }
 }

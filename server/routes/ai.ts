@@ -1,6 +1,6 @@
 import express, { type Request, type Response } from 'express'
 import { readTop100InsightByDataDate, readTop100LatestSnapshot } from '../lib/supabaseRest.js'
-import { getTop100InsightGenerateStatus } from '../lib/top100Insight.js'
+import { getTop100InsightStatusDetail } from '../lib/top100Insight.js'
 
 const router = express.Router()
 
@@ -51,12 +51,14 @@ router.get('/top100/insight/status', async (req: Request, res: Response) => {
     return
   }
 
-  const status = await getTop100InsightGenerateStatus(dataDate)
+  const detail = await getTop100InsightStatusDetail(dataDate)
   res.status(200).json({
     success: true,
     data: {
       dataDate,
-      status,
+      status: detail.status,
+      lastError: detail.lastError,
+      updatedAt: detail.updatedAt,
     },
   })
 })
