@@ -1,10 +1,12 @@
-import { Loader2, Sparkles, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
+import { Loader2, Sparkles, AlertTriangle, RefreshCw } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { apiUrl } from '@/utils/apiBase'
 import { adminAuthHeaders } from '@/utils/adminAccess'
 import type { EtfTopRow, Top100Meta } from '@/utils/etfApi'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+
+type InsightGenerateStatus = 'idle' | 'generating' | 'ready'
 
 export default function Top100InsightPanel({
   meta,
@@ -16,15 +18,16 @@ export default function Top100InsightPanel({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [markdown, setMarkdown] = useState<string>('')
-  const [expanded, setExpanded] = useState(false)
+  const [status, setStatus] = useState<InsightGenerateStatus>('idle')
+  const [reloadSeq, setReloadSeq] = useState(0)
 
   const snapshotAt = meta ? meta.cachedAt || meta.fetchedAt : null
   const key = useMemo(() => {
     const d = meta?.dataDate || ''
     const s = snapshotAt || ''
     const n = rows.length
-    return `${d}|${s}|${n}`
-  }, [meta?.dataDate, rows.length, snapshotAt])
+    return `${d}|${s}|${n}|${reloadSeq}`
+  }, [meta?.dataDate, reloadSeq, rows.length, snapshotAt])
 
   const abortRef = useRef<AbortController | null>(null)
 
@@ -35,7 +38,13 @@ export default function Top100InsightPanel({
   }, [])
 
   useEffect(() => {
-    if (!meta || rows.length === 0) return
+    if (!meta || rows.length === 0) {
+      setMarkdown('')
+      setStatus('idle')
+      setLoading(false)
+      setError(null)
+      return
+    }
     abortRef.current?.abort()
     const ac = new AbortController()
     abortRef.current = ac
@@ -45,7 +54,7 @@ export default function Top100InsightPanel({
 
     void (async () => {
       try {
-        const res = await fetch(apiUrl(`/api/ai/top100/insight?dataDate=${encodeURIComponent(meta.dataDate)}`), {
+        const statusRes = await fetch(apiUrl(`/api/ai/top100/insight/status?dataDate=${encodeURIComponent(meta.dataDate)}`), {
           method: 'GET',
           credentials: 'include',
           headers: {
@@ -54,26 +63,63 @@ export default function Top100InsightPanel({
           signal: ac.signal,
         })
 
-        if (res.status === 404) {
-          setMarkdown('')
-          return
-        }
-
-        if (!res.ok) {
-          const j = (await res.json().catch(() => null)) as unknown
+        if (!statusRes.ok) {
+          const j = (await statusRes.json().catch(() => null)) as unknown
           const msg =
             j && typeof j === 'object' && (j as Record<string, unknown>).message
               ? String((j as Record<string, unknown>).message)
-              : `HTTP ${res.status}`
+              : `HTTP ${statusRes.status}`
           throw new Error(msg)
         }
 
-        const j = (await res.json().catch(() => null)) as unknown
+        const j = (await statusRes.json().catch(() => null)) as unknown
         const dataObj =
           j && typeof j === 'object' && (j as Record<string, unknown>).data && typeof (j as Record<string, unknown>).data === 'object'
             ? ((j as Record<string, unknown>).data as Record<string, unknown>)
             : null
-        const md = dataObj && typeof dataObj.markdown === 'string' ? dataObj.markdown : ''
+        const nextStatus =
+          dataObj && typeof dataObj.status === 'string' && ['idle', 'generating', 'ready'].includes(dataObj.status)
+            ? (dataObj.status as InsightGenerateStatus)
+            : 'idle'
+
+        setStatus(nextStatus)
+        if (nextStatus !== 'ready') {
+          setMarkdown('')
+          return
+        }
+
+        const insightRes = await fetch(apiUrl(`/api/ai/top100/insight?dataDate=${encodeURIComponent(meta.dataDate)}`), {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            ...adminAuthHeaders(),
+          },
+          signal: ac.signal,
+        })
+
+        if (insightRes.status === 404) {
+          setMarkdown('')
+          return
+        }
+
+        if (!insightRes.ok) {
+          const insightErr = (await insightRes.json().catch(() => null)) as unknown
+          const msg =
+            insightErr && typeof insightErr === 'object' && (insightErr as Record<string, unknown>).message
+              ? String((insightErr as Record<string, unknown>).message)
+              : `HTTP ${insightRes.status}`
+          throw new Error(msg)
+        }
+
+        const insightObj = (await insightRes.json().catch(() => null)) as unknown
+        const insightData =
+          insightObj &&
+          typeof insightObj === 'object' &&
+          (insightObj as Record<string, unknown>).data &&
+          typeof (insightObj as Record<string, unknown>).data === 'object'
+            ? ((insightObj as Record<string, unknown>).data as Record<string, unknown>)
+            : null
+        const md = insightData && typeof insightData.markdown === 'string' ? insightData.markdown : ''
         setMarkdown(md)
       } catch (e) {
         const name =
@@ -97,17 +143,6 @@ export default function Top100InsightPanel({
           <Sparkles className="h-4 w-4 text-[#FF8A50]" />
           <div className="text-sm font-medium">大模型解读（基于快照）</div>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="ui-btn ui-btn-outline h-9 px-3 text-xs"
-          >
-            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            {expanded ? '折叠' : '展开'}
-          </button>
-        </div>
       </div>
 
       {error ? (
@@ -120,22 +155,33 @@ export default function Top100InsightPanel({
         </div>
       ) : null}
 
-      {!expanded ? (
-        <div className="mt-3 text-xs text-[#A9B6CC]">
-          {hasContent ? '已生成解读，点击“展开”查看' : '解读尚未生成，点击“展开”查看状态'}
-        </div>
-      ) : loading ? (
+      {loading ? (
         <div className="mt-3 flex items-center gap-2 rounded-lg border border-white/10 bg-black/10 px-3 py-2 text-xs text-[#A9B6CC]">
           <Loader2 className="h-4 w-4 animate-spin" />
-          正在读取解读…
+          正在读取解读状态…
         </div>
-      ) : hasContent ? (
+      ) : status === 'ready' && hasContent ? (
         <div className="mt-3 text-sm leading-relaxed text-[#E6EDF7]">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
         </div>
+      ) : status === 'generating' ? (
+        <div className="mt-3 rounded-lg border border-white/10 bg-black/10 px-3 py-3 text-xs text-[#A9B6CC]">
+          <div className="flex items-center justify-between gap-3">
+            <div>内容正在生成中，请稍等</div>
+            <button
+              type="button"
+              onClick={() => setReloadSeq((v) => v + 1)}
+              className="ui-btn ui-btn-outline h-8 px-3 text-xs"
+              disabled={loading}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              刷新
+            </button>
+          </div>
+        </div>
       ) : (
         <div className="mt-3 rounded-lg border border-white/10 bg-black/10 px-3 py-2 text-xs text-[#A9B6CC]">
-          解读尚未生成。系统会在检测到新交易日快照后自动生成并落库；同一交易日只会生成一次。
+          未有解读内容，请点击右上角“重新获取”按钮
         </div>
       )}
     </section>

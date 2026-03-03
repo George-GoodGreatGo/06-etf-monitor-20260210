@@ -5,6 +5,10 @@ import {
   type Top100InsightRow,
 } from './supabaseRest.js'
 
+export type Top100InsightGenerateStatus = 'idle' | 'generating' | 'ready'
+
+const inflightEnsures = new Map<string, Promise<Top100InsightRow>>()
+
 export function buildTop100InsightPromptText(input: {
   dataDate: string
   snapshotAt: string | null
@@ -72,27 +76,51 @@ export async function ensureTop100Insight(
   const existing = await readTop100InsightByDataDate(d)
   if (existing) return existing
 
-  const promptText = buildTop100InsightPromptText({
-    dataDate: d,
-    snapshotAt: snapshotAt ? String(snapshotAt) : null,
-    source: source ? String(source) : null,
-    rows,
-  })
+  const inflight = inflightEnsures.get(d)
+  if (inflight) return inflight
 
-  const { markdown } = await cozeStreamRunToMarkdown(promptText)
+  const task = (async () => {
+    const before = await readTop100InsightByDataDate(d)
+    if (before) return before
 
-  const inserted = await insertTop100InsightIgnoreDuplicates({
-    data_date: d,
-    snapshot_at: snapshotAt ? String(snapshotAt) : null,
-    source: source ? String(source) : null,
-    rows,
-    markdown,
-    updated_at: new Date().toISOString(),
-  })
+    const promptText = buildTop100InsightPromptText({
+      dataDate: d,
+      snapshotAt: snapshotAt ? String(snapshotAt) : null,
+      source: source ? String(source) : null,
+      rows,
+    })
 
-  if (inserted) return inserted
+    const { markdown } = await cozeStreamRunToMarkdown(promptText)
 
-  const after = await readTop100InsightByDataDate(d)
-  if (!after) throw new Error(`写入 top100_insight 失败或未生效：dataDate=${d}`)
-  return after
+    const inserted = await insertTop100InsightIgnoreDuplicates({
+      data_date: d,
+      snapshot_at: snapshotAt ? String(snapshotAt) : null,
+      source: source ? String(source) : null,
+      rows,
+      markdown,
+      updated_at: new Date().toISOString(),
+    })
+
+    if (inserted) return inserted
+
+    const after = await readTop100InsightByDataDate(d)
+    if (!after) throw new Error(`写入 top100_insight 失败或未生效：dataDate=${d}`)
+    return after
+  })()
+
+  inflightEnsures.set(d, task)
+  try {
+    return await task
+  } finally {
+    const current = inflightEnsures.get(d)
+    if (current === task) inflightEnsures.delete(d)
+  }
+}
+
+export async function getTop100InsightGenerateStatus(dataDate: string): Promise<Top100InsightGenerateStatus> {
+  const d = String(dataDate || '').trim()
+  if (!d) return 'idle'
+  if (inflightEnsures.has(d)) return 'generating'
+  const existing = await readTop100InsightByDataDate(d)
+  return existing ? 'ready' : 'idle'
 }
