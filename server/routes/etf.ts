@@ -399,17 +399,17 @@ router.get('/top100', (req: Request, res: Response) => {
       const notes: string[] = Array.isArray(snap.notes) ? (snap.notes as unknown[]).filter((x) => typeof x === 'string') as string[] : []
       if (refresh || ensureLatest) {
         notes.unshift('当前部署环境不支持实时重算；refresh/ensureLatest 会退化为读取 Supabase 最新快照。')
-        const snapshotAt = (snap.cached_at || snap.fetched_at || null) as string | null
-        void ensureTop100Insight(
-          String(snap.data_date || ''),
-          snapshotAt,
-          (snap.source || 'supabase:snapshot') as string,
-          snap.rows as unknown[],
-        ).catch((e) => {
-          console.warn('ensureTop100Insight failed', e instanceof Error ? e.message : String(e))
-          return null
-        })
       }
+      const snapshotAt = (snap.cached_at || snap.fetched_at || null) as string | null
+      void ensureTop100Insight(
+        String(snap.data_date || ''),
+        snapshotAt,
+        (snap.source || 'supabase:snapshot') as string,
+        snap.rows as unknown[],
+      ).catch((e) => {
+        console.warn('ensureTop100Insight failed', e instanceof Error ? e.message : String(e))
+        return null
+      })
 
       res.status(200).json({
         success: true,

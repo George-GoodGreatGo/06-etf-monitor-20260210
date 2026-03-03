@@ -38,6 +38,11 @@ jobs:
       - name: Refresh snapshot to Supabase
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          COZE_STREAM_RUN_URL: ${{ secrets.COZE_STREAM_RUN_URL }}
+          COZE_BEARER_TOKEN: ${{ secrets.COZE_BEARER_TOKEN }}
+          COZE_PROJECT_ID: ${{ secrets.COZE_PROJECT_ID }}
+          COZE_SESSION_ID: ${{ secrets.COZE_SESSION_ID }}
           TOP100_LIMIT: '200'
         run: npm run refresh:supabase:top100
