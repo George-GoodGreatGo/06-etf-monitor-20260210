@@ -1,5 +1,5 @@
 import { Loader2, Sparkles, AlertTriangle, RefreshCw } from 'lucide-react'
-import { Children, cloneElement, isValidElement, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { apiUrl } from '@/utils/apiBase'
 import { adminAuthHeaders } from '@/utils/adminAccess'
 import type { EtfTopRow, Top100Meta } from '@/utils/etfApi'
@@ -13,11 +13,6 @@ type InsightSection = {
   markdown: string
   tone: InsightSectionTone
 }
-
-const HIGHLIGHT_SPLIT_RE =
-  /(Top\d+|[+-]?\d+(?:\.\d+)?%|[+-]?\d{1,3}(?:,\d{3})+(?:\.\d+)?|[+-]?\d+(?:\.\d+)?|[0-9]{6}|总览|结论|重点|异动|风险|提示|快照|成交额|环比|7日均|90日Z|Z值)/g
-const HIGHLIGHT_EXACT_RE =
-  /^(Top\d+|[+-]?\d+(?:\.\d+)?%|[+-]?\d{1,3}(?:,\d{3})+(?:\.\d+)?|[+-]?\d+(?:\.\d+)?|[0-9]{6}|总览|结论|重点|异动|风险|提示|快照|成交额|环比|7日均|90日Z|Z值)$/
 
 function detectSectionTone(title: string): InsightSectionTone {
   const t = title.trim()
@@ -58,32 +53,6 @@ function buildInsightSections(markdown: string): InsightSection[] {
     markdown: s.lines.join('\n').trim(),
     tone: detectSectionTone(s.title),
   }))
-}
-
-function highlightText(text: string): ReactNode {
-  const parts = text.split(HIGHLIGHT_SPLIT_RE)
-  if (parts.length <= 1) return text
-  return parts.map((part, idx) =>
-    HIGHLIGHT_EXACT_RE.test(part) ? (
-      <mark
-        key={`${part}-${idx}`}
-        className="rounded-sm bg-[rgba(255,138,80,0.18)] px-0.5 text-[#FFD8C2]"
-      >
-        {part}
-      </mark>
-    ) : (
-      part
-    ),
-  )
-}
-
-function highlightNode(node: ReactNode): ReactNode {
-  if (typeof node === 'string') return highlightText(node)
-  if (!node || typeof node !== 'object') return node
-  if (!isValidElement(node)) return node
-  const props = node.props as { children?: ReactNode }
-  const nextChildren = Children.map(props.children, (child) => highlightNode(child))
-  return cloneElement(node, undefined, nextChildren)
 }
 
 function toneClassName(tone: InsightSectionTone): string {
@@ -232,45 +201,45 @@ export default function Top100InsightPanel({
   const markdownComponents = useMemo(
     () => ({
       h1: ({ children }: { children?: ReactNode }) => (
-        <h1 className="mb-2 mt-2 text-base font-semibold text-[#F8FAFC]">{Children.map(children, (child) => highlightNode(child))}</h1>
+        <h1 className="mb-2 mt-2 text-base font-semibold text-[#F8FAFC]">{children}</h1>
       ),
       h2: ({ children }: { children?: ReactNode }) => (
-        <h2 className="mb-2 mt-2 text-sm font-semibold text-[#F1F5F9]">{Children.map(children, (child) => highlightNode(child))}</h2>
+        <h2 className="mb-2 mt-2 text-sm font-semibold text-[#F1F5F9]">{children}</h2>
       ),
       h3: ({ children }: { children?: ReactNode }) => (
-        <h3 className="mb-1 mt-2 text-sm font-semibold text-[#E2E8F0]">{Children.map(children, (child) => highlightNode(child))}</h3>
+        <h3 className="mb-1 mt-2 text-sm font-semibold text-[#E2E8F0]">{children}</h3>
       ),
       p: ({ children }: { children?: ReactNode }) => (
-        <p className="mb-2 leading-7 text-[#E6EDF7]">{Children.map(children, (child) => highlightNode(child))}</p>
+        <p className="mb-2 leading-7 text-[#E6EDF7]">{children}</p>
       ),
       ul: ({ children }: { children?: ReactNode }) => (
-        <ul className="mb-2 list-disc space-y-1 pl-5">{Children.map(children, (child) => highlightNode(child))}</ul>
+        <ul className="mb-2 list-disc space-y-1 pl-5">{children}</ul>
       ),
       ol: ({ children }: { children?: ReactNode }) => (
-        <ol className="mb-2 list-decimal space-y-1 pl-5">{Children.map(children, (child) => highlightNode(child))}</ol>
+        <ol className="mb-2 list-decimal space-y-1 pl-5">{children}</ol>
       ),
       li: ({ children }: { children?: ReactNode }) => (
-        <li className="leading-7 text-[#E6EDF7]">{Children.map(children, (child) => highlightNode(child))}</li>
+        <li className="leading-7 text-[#E6EDF7]">{children}</li>
       ),
       strong: ({ children }: { children?: ReactNode }) => (
-        <strong className="font-semibold text-[#FFF2E8]">{Children.map(children, (child) => highlightNode(child))}</strong>
+        <strong className="font-semibold text-[#FFF2E8]">{children}</strong>
       ),
       blockquote: ({ children }: { children?: ReactNode }) => (
-        <blockquote className="my-2 border-l-2 border-white/20 pl-3 text-[#CBD5E1]">{Children.map(children, (child) => highlightNode(child))}</blockquote>
+        <blockquote className="my-2 border-l-2 border-white/20 pl-3 text-[#CBD5E1]">{children}</blockquote>
       ),
       table: ({ children }: { children?: ReactNode }) => <table className="my-2 w-full border-collapse text-xs">{children}</table>,
       th: ({ children }: { children?: ReactNode }) => (
-        <th className="border border-white/10 px-2 py-1 text-left font-semibold text-[#E2E8F0]">{Children.map(children, (child) => highlightNode(child))}</th>
+        <th className="border border-white/10 px-2 py-1 text-left font-semibold text-[#E2E8F0]">{children}</th>
       ),
       td: ({ children }: { children?: ReactNode }) => (
-        <td className="border border-white/10 px-2 py-1 text-[#E6EDF7]">{Children.map(children, (child) => highlightNode(child))}</td>
+        <td className="border border-white/10 px-2 py-1 text-[#E6EDF7]">{children}</td>
       ),
       code: ({ children }: { children?: ReactNode }) => (
         <code className="rounded bg-white/10 px-1 py-0.5 text-[0.9em] text-[#FDE68A]">{children}</code>
       ),
       a: ({ href, children }: { href?: string; children?: ReactNode }) => (
         <a href={href} target="_blank" rel="noreferrer" className="text-[#FFB08A] underline decoration-dotted underline-offset-2">
-          {Children.map(children, (child) => highlightNode(child))}
+          {children}
         </a>
       ),
     }),
