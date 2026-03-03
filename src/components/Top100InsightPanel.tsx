@@ -1,5 +1,5 @@
 import { Loader2, Sparkles, AlertTriangle, RefreshCw } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Children, cloneElement, isValidElement, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { apiUrl } from '@/utils/apiBase'
 import { adminAuthHeaders } from '@/utils/adminAccess'
 import type { EtfTopRow, Top100Meta } from '@/utils/etfApi'
@@ -7,6 +7,92 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 type InsightGenerateStatus = 'idle' | 'generating' | 'ready'
+type InsightSectionTone = 'summary' | 'focus' | 'risk' | 'snapshot' | 'normal'
+type InsightSection = {
+  title: string
+  markdown: string
+  tone: InsightSectionTone
+}
+
+const HIGHLIGHT_SPLIT_RE =
+  /(Top\d+|[+-]?\d+(?:\.\d+)?%|[+-]?\d{1,3}(?:,\d{3})+(?:\.\d+)?|[+-]?\d+(?:\.\d+)?|[0-9]{6}|总览|结论|重点|异动|风险|提示|快照|成交额|环比|7日均|90日Z|Z值)/g
+const HIGHLIGHT_EXACT_RE =
+  /^(Top\d+|[+-]?\d+(?:\.\d+)?%|[+-]?\d{1,3}(?:,\d{3})+(?:\.\d+)?|[+-]?\d+(?:\.\d+)?|[0-9]{6}|总览|结论|重点|异动|风险|提示|快照|成交额|环比|7日均|90日Z|Z值)$/
+
+function detectSectionTone(title: string): InsightSectionTone {
+  const t = title.trim()
+  if (/总览|结论|概览/.test(t)) return 'summary'
+  if (/重点|异动|观察|机会/.test(t)) return 'focus'
+  if (/风险|提示|注意/.test(t)) return 'risk'
+  if (/快照|时间|口径|说明/.test(t)) return 'snapshot'
+  return 'normal'
+}
+
+function buildInsightSections(markdown: string): InsightSection[] {
+  const normalized = markdown.replace(/\r\n/g, '\n').trim()
+  if (!normalized) return []
+
+  const lines = normalized.split('\n')
+  let anchorCount = 0
+  const sections: Array<{ title: string; lines: string[] }> = []
+  let current: { title: string; lines: string[] } = { title: '解读正文', lines: [] }
+
+  for (const line of lines) {
+    const headingMatch = line.match(/^#{1,6}\s*(.+?)\s*$/)
+    const boldTitleMatch = line.match(/^\*\*(.+?)\*\*[:：]?\s*$/)
+    const titleText = headingMatch?.[1] || boldTitleMatch?.[1] || ''
+    if (titleText) {
+      if (current.lines.length > 0) sections.push(current)
+      current = { title: titleText.trim(), lines: [] }
+      anchorCount += 1
+      continue
+    }
+    current.lines.push(line)
+  }
+
+  if (current.lines.length > 0) sections.push(current)
+  if (anchorCount < 1 || sections.length < 2) return []
+
+  return sections.map((s) => ({
+    title: s.title,
+    markdown: s.lines.join('\n').trim(),
+    tone: detectSectionTone(s.title),
+  }))
+}
+
+function highlightText(text: string): ReactNode {
+  const parts = text.split(HIGHLIGHT_SPLIT_RE)
+  if (parts.length <= 1) return text
+  return parts.map((part, idx) =>
+    HIGHLIGHT_EXACT_RE.test(part) ? (
+      <mark
+        key={`${part}-${idx}`}
+        className="rounded-sm bg-[rgba(255,138,80,0.18)] px-0.5 text-[#FFD8C2]"
+      >
+        {part}
+      </mark>
+    ) : (
+      part
+    ),
+  )
+}
+
+function highlightNode(node: ReactNode): ReactNode {
+  if (typeof node === 'string') return highlightText(node)
+  if (!node || typeof node !== 'object') return node
+  if (!isValidElement(node)) return node
+  const props = node.props as { children?: ReactNode }
+  const nextChildren = Children.map(props.children, (child) => highlightNode(child))
+  return cloneElement(node, undefined, nextChildren)
+}
+
+function toneClassName(tone: InsightSectionTone): string {
+  if (tone === 'summary') return 'border-[rgba(56,189,248,0.35)] bg-[rgba(56,189,248,0.08)]'
+  if (tone === 'focus') return 'border-[rgba(255,138,80,0.4)] bg-[rgba(255,138,80,0.08)]'
+  if (tone === 'risk') return 'border-[rgba(239,68,68,0.4)] bg-[rgba(239,68,68,0.08)]'
+  if (tone === 'snapshot') return 'border-[rgba(148,163,184,0.35)] bg-[rgba(148,163,184,0.08)]'
+  return 'border-white/10 bg-black/10'
+}
 
 export default function Top100InsightPanel({
   meta,
@@ -135,6 +221,61 @@ export default function Top100InsightPanel({
   }, [key, meta, rows.length])
 
   const hasContent = Boolean(markdown.trim())
+  const sections = useMemo(() => {
+    try {
+      return buildInsightSections(markdown)
+    } catch {
+      return []
+    }
+  }, [markdown])
+
+  const markdownComponents = useMemo(
+    () => ({
+      h1: ({ children }: { children?: ReactNode }) => (
+        <h1 className="mb-2 mt-2 text-base font-semibold text-[#F8FAFC]">{Children.map(children, (child) => highlightNode(child))}</h1>
+      ),
+      h2: ({ children }: { children?: ReactNode }) => (
+        <h2 className="mb-2 mt-2 text-sm font-semibold text-[#F1F5F9]">{Children.map(children, (child) => highlightNode(child))}</h2>
+      ),
+      h3: ({ children }: { children?: ReactNode }) => (
+        <h3 className="mb-1 mt-2 text-sm font-semibold text-[#E2E8F0]">{Children.map(children, (child) => highlightNode(child))}</h3>
+      ),
+      p: ({ children }: { children?: ReactNode }) => (
+        <p className="mb-2 leading-7 text-[#E6EDF7]">{Children.map(children, (child) => highlightNode(child))}</p>
+      ),
+      ul: ({ children }: { children?: ReactNode }) => (
+        <ul className="mb-2 list-disc space-y-1 pl-5">{Children.map(children, (child) => highlightNode(child))}</ul>
+      ),
+      ol: ({ children }: { children?: ReactNode }) => (
+        <ol className="mb-2 list-decimal space-y-1 pl-5">{Children.map(children, (child) => highlightNode(child))}</ol>
+      ),
+      li: ({ children }: { children?: ReactNode }) => (
+        <li className="leading-7 text-[#E6EDF7]">{Children.map(children, (child) => highlightNode(child))}</li>
+      ),
+      strong: ({ children }: { children?: ReactNode }) => (
+        <strong className="font-semibold text-[#FFF2E8]">{Children.map(children, (child) => highlightNode(child))}</strong>
+      ),
+      blockquote: ({ children }: { children?: ReactNode }) => (
+        <blockquote className="my-2 border-l-2 border-white/20 pl-3 text-[#CBD5E1]">{Children.map(children, (child) => highlightNode(child))}</blockquote>
+      ),
+      table: ({ children }: { children?: ReactNode }) => <table className="my-2 w-full border-collapse text-xs">{children}</table>,
+      th: ({ children }: { children?: ReactNode }) => (
+        <th className="border border-white/10 px-2 py-1 text-left font-semibold text-[#E2E8F0]">{Children.map(children, (child) => highlightNode(child))}</th>
+      ),
+      td: ({ children }: { children?: ReactNode }) => (
+        <td className="border border-white/10 px-2 py-1 text-[#E6EDF7]">{Children.map(children, (child) => highlightNode(child))}</td>
+      ),
+      code: ({ children }: { children?: ReactNode }) => (
+        <code className="rounded bg-white/10 px-1 py-0.5 text-[0.9em] text-[#FDE68A]">{children}</code>
+      ),
+      a: ({ href, children }: { href?: string; children?: ReactNode }) => (
+        <a href={href} target="_blank" rel="noreferrer" className="text-[#FFB08A] underline decoration-dotted underline-offset-2">
+          {Children.map(children, (child) => highlightNode(child))}
+        </a>
+      ),
+    }),
+    [],
+  )
 
   return (
     <section className="mt-4 ui-glass-panel px-4 py-3" data-testid="top100-insight">
@@ -161,9 +302,26 @@ export default function Top100InsightPanel({
           正在读取解读状态…
         </div>
       ) : status === 'ready' && hasContent ? (
-        <div className="mt-3 text-sm leading-relaxed text-[#E6EDF7]">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
-        </div>
+        sections.length > 0 ? (
+          <div className="mt-3 space-y-3 text-sm leading-relaxed text-[#E6EDF7]">
+            {sections.map((section, idx) => (
+              <div key={`${section.title}-${idx}`} className={`rounded-lg border px-3 py-3 ${toneClassName(section.tone)}`}>
+                <div className="mb-2 text-sm font-semibold tracking-wide text-[#FFF2E8]">{section.title}</div>
+                {section.markdown ? (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                    {section.markdown}
+                  </ReactMarkdown>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-3 text-sm leading-relaxed text-[#E6EDF7]">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+              {markdown}
+            </ReactMarkdown>
+          </div>
+        )
       ) : status === 'generating' ? (
         <div className="mt-3 rounded-lg border border-white/10 bg-black/10 px-3 py-3 text-xs text-[#A9B6CC]">
           <div className="flex items-center justify-between gap-3">
