@@ -543,7 +543,7 @@ export default function Home() {
           }}
         />
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div role="tablist" aria-label="首页视图切换" className="flex items-center gap-8">
             <button
               type="button"
@@ -599,7 +599,13 @@ export default function Home() {
             </button>
           </div>
 
-          {tab === 'list' ? <Top100FilterBar keyword={keyword} onChangeKeyword={setKeyword} onReset={onReset} /> : null}
+          <div className="sm:min-h-10 sm:flex sm:items-center">
+            {tab === 'list' ? (
+              <Top100FilterBar keyword={keyword} onChangeKeyword={setKeyword} onReset={onReset} />
+            ) : (
+              <div className="hidden h-10 sm:block" aria-hidden="true" />
+            )}
+          </div>
         </div>
 
         {tab === 'insight' ? (
