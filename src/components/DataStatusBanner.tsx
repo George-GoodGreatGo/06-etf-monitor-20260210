@@ -39,10 +39,10 @@ export default function DataStatusBanner({
       backendProgressText.includes('校验最新交易日')
     const showProgress = (loadingMode === 'refetch' || (loadingMode === 'cold' && !isEnsureLatestOnly)) && pct != null
     return (
-      <div className="relative overflow-hidden rounded border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-4 py-3">
+      <div className="relative overflow-hidden rounded border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-4 py-2.5">
         <div className="absolute left-0 top-0 h-full w-[3px] bg-[#FF5722]" />
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2 text-sm text-[#E6EDF7]">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2 text-[13px] text-[#E6EDF7]">
             <Loader2 className="h-4 w-4 animate-spin text-[#FF5722]" />
             <span className="font-semibold">
               {loadingMode === 'refetch'
@@ -75,10 +75,10 @@ export default function DataStatusBanner({
 
   if (error) {
     return (
-      <div className="relative overflow-hidden rounded border border-[rgba(239,68,68,0.35)] bg-[rgba(255,255,255,0.03)] px-4 py-3">
+      <div className="relative overflow-hidden rounded border border-[rgba(239,68,68,0.35)] bg-[rgba(255,255,255,0.03)] px-4 py-2.5">
         <div className="absolute left-0 top-0 h-full w-[3px] bg-[#EF4444]" />
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 text-sm">
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-[13px]">
             <AlertTriangle className="h-4 w-4 text-[#EF4444]" />
             <span className="font-semibold text-white">数据获取失败</span>
             <span className="text-xs text-[#9CA3AF]">{error}。不会展示任何推测值。</span>
@@ -100,13 +100,13 @@ export default function DataStatusBanner({
     return (
       <div
         className={cn(
-          'relative overflow-hidden rounded border bg-[rgba(255,255,255,0.03)] px-4 py-3',
+          'relative overflow-hidden rounded border bg-[rgba(255,255,255,0.03)] px-4 py-2.5',
           notice.tone === 'warn' ? 'border-[rgba(245,158,11,0.35)]' : 'border-[rgba(255,255,255,0.08)]',
         )}
       >
         <div className={cn('absolute left-0 top-0 h-full w-[3px]', notice.tone === 'warn' ? 'bg-[#F59E0B]' : 'bg-[#FF5722]')} />
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 text-sm">
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-[13px]">
             <Loader2 className={cn('h-4 w-4 animate-spin', notice.tone === 'warn' ? 'text-[#F59E0B]' : 'text-[#FF5722]')} />
             <span className="font-semibold text-white">{notice.tone === 'warn' ? '刷新可能仍在后台运行' : '后台刷新中'}</span>
             <span className="text-xs text-[#9CA3AF]">{notice.message}</span>
@@ -125,11 +125,11 @@ export default function DataStatusBanner({
   }
 
   return (
-    <div className="relative overflow-hidden rounded border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-4 py-3">
+    <div className="relative overflow-hidden rounded border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-4 py-2.5">
       <div className="absolute left-0 top-0 h-full w-[3px] bg-[#10B981]" />
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <div className="flex items-center gap-2 text-sm">
+      <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="flex items-center gap-2 text-[13px]">
             <ShieldCheck className="h-4 w-4 text-[#10B981]" />
             <span className="font-semibold text-white">数据已就绪（仅完整交易日）</span>
           </div>
