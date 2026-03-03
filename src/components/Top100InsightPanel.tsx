@@ -14,6 +14,16 @@ type InsightSection = {
   tone: InsightSectionTone
 }
 
+function parseSectionTitle(line: string): string {
+  const headingMatch = line.match(/^#{1,6}\s*(.+?)\s*$/)
+  if (headingMatch?.[1]) return headingMatch[1].trim()
+
+  const boldLineMatch = line.match(/^\*\*(.+?)\*\*[:：]?\s*$/)
+  if (boldLineMatch?.[1]) return boldLineMatch[1].trim()
+
+  return ''
+}
+
 function detectSectionTone(title: string): InsightSectionTone {
   const t = title.trim()
   if (/总览|结论|概览/.test(t)) return 'summary'
@@ -24,35 +34,52 @@ function detectSectionTone(title: string): InsightSectionTone {
 }
 
 function buildInsightSections(markdown: string): InsightSection[] {
-  const normalized = markdown.replace(/\r\n/g, '\n').trim()
-  if (!normalized) return []
+  const normalized = markdown.replace(/\r\n/g, '\n')
+  if (!normalized.trim()) return []
 
   const lines = normalized.split('\n')
-  let anchorCount = 0
-  const sections: Array<{ title: string; lines: string[] }> = []
-  let current: { title: string; lines: string[] } = { title: '解读正文', lines: [] }
+  const anchors: Array<{ index: number; title: string }> = []
 
-  for (const line of lines) {
-    const headingMatch = line.match(/^#{1,6}\s*(.+?)\s*$/)
-    const boldTitleMatch = line.match(/^\*\*(.+?)\*\*[:：]?\s*$/)
-    const titleText = headingMatch?.[1] || boldTitleMatch?.[1] || ''
-    if (titleText) {
-      if (current.lines.length > 0) sections.push(current)
-      current = { title: titleText.trim(), lines: [] }
-      anchorCount += 1
-      continue
-    }
-    current.lines.push(line)
+  for (let i = 0; i < lines.length; i += 1) {
+    const title = parseSectionTitle(lines[i])
+    if (title) anchors.push({ index: i, title })
   }
 
-  if (current.lines.length > 0) sections.push(current)
-  if (anchorCount < 1 || sections.length < 2) return []
+  if (anchors.length < 1) return []
 
-  return sections.map((s) => ({
-    title: s.title,
-    markdown: s.lines.join('\n').trim(),
-    tone: detectSectionTone(s.title),
-  }))
+  const sections: InsightSection[] = []
+  const firstAnchorIndex = anchors[0].index
+  if (firstAnchorIndex > 0) {
+    const preface = lines.slice(0, firstAnchorIndex).join('\n')
+    if (preface.trim()) {
+      sections.push({
+        title: '解读正文',
+        markdown: preface,
+        tone: 'normal',
+      })
+    }
+  }
+
+  for (let i = 0; i < anchors.length; i += 1) {
+    const current = anchors[i]
+    const end = i + 1 < anchors.length ? anchors[i + 1].index : lines.length
+    const block = lines.slice(current.index, end).join('\n')
+    sections.push({
+      title: current.title,
+      markdown: block,
+      tone: detectSectionTone(current.title),
+    })
+  }
+
+  if (sections.length < 2) return []
+
+  const reconstructed = sections
+    .map((s) => s.markdown)
+    .join('\n')
+    .replace(/\r\n/g, '\n')
+  if (reconstructed.trim() !== normalized.trim()) return []
+
+  return sections
 }
 
 function toneClassName(tone: InsightSectionTone): string {
@@ -275,7 +302,9 @@ export default function Top100InsightPanel({
           <div className="mt-3 space-y-3 text-sm leading-relaxed text-[#E6EDF7]">
             {sections.map((section, idx) => (
               <div key={`${section.title}-${idx}`} className={`rounded-lg border px-3 py-3 ${toneClassName(section.tone)}`}>
-                <div className="mb-2 text-sm font-semibold tracking-wide text-[#FFF2E8]">{section.title}</div>
+                {parseSectionTitle(section.markdown.split('\n')[0] || '') === section.title ? null : (
+                  <div className="mb-2 text-sm font-semibold tracking-wide text-[#FFF2E8]">{section.title}</div>
+                )}
                 {section.markdown ? (
                   <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                     {section.markdown}
