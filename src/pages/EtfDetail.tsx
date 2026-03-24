@@ -18,6 +18,29 @@ import { apiUrl } from '@/utils/apiBase'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
+function tryParseFirstJsonObject(text: string): Record<string, unknown> | null {
+  const raw = String(text || '')
+  const start = raw.indexOf('{')
+  const end = raw.lastIndexOf('}')
+  if (start < 0 || end < 0 || end <= start) return null
+  const candidate = raw.slice(start, end + 1).trim()
+  if (!candidate.startsWith('{') || !candidate.endsWith('}')) return null
+  try {
+    const j = JSON.parse(candidate) as unknown
+    if (!j || typeof j !== 'object' || Array.isArray(j)) return null
+    return j as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+function splitNonEmptyLines(text: string): string[] {
+  return String(text || '')
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+}
+
 export default function EtfDetail() {
   const { code } = useParams()
   const [searchParams] = useSearchParams()
@@ -110,6 +133,8 @@ export default function EtfDetail() {
     }),
     [],
   )
+
+  const insightJson = useMemo(() => tryParseFirstJsonObject(insightText), [insightText])
 
   const startInsight = useMemo(() => {
     return async () => {
@@ -459,9 +484,125 @@ export default function EtfDetail() {
 
           {insightText.trim() ? (
             <div className="mt-3 text-sm leading-relaxed text-[#E6EDF7]">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                {insightText}
-              </ReactMarkdown>
+              {insightJson ? (
+                <div className="space-y-3">
+                  <div className="grid gap-2 rounded-lg border border-white/10 bg-black/10 px-3 py-3 text-xs text-[#A9B6CC] md:grid-cols-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>状态</span>
+                      <span className="font-mono text-[#E6EDF7]">
+                        {typeof insightJson.status === 'string' ? insightJson.status : '—'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>置信度</span>
+                      <span className="font-mono text-[#E6EDF7]">
+                        {typeof insightJson.confidence_score === 'number'
+                          ? `${Math.round(insightJson.confidence_score)}`
+                          : '—'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>模型类型</span>
+                      <span className="text-right text-[#E6EDF7]">
+                        {typeof insightJson.setup_type === 'string' ? insightJson.setup_type : '—'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>分析时间</span>
+                      <span className="font-mono text-[#E6EDF7]">
+                        {typeof insightJson.analysis_time === 'string' ? insightJson.analysis_time : '—'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 md:col-span-2">
+                      <span>数据区间</span>
+                      <span className="text-right font-mono text-[#E6EDF7]">
+                        {typeof insightJson.data_period === 'string' ? insightJson.data_period : '—'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {typeof insightJson.core_logic === 'string' ? (
+                    <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-3">
+                      <div className="text-xs font-semibold text-[#FFF2E8]">核心逻辑</div>
+                      <div className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[#E6EDF7]">{insightJson.core_logic}</div>
+                    </div>
+                  ) : null}
+
+                  {insightJson.detailed_analysis && typeof insightJson.detailed_analysis === 'object' ? (
+                    <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-3">
+                      <div className="text-xs font-semibold text-[#FFF2E8]">详细分析</div>
+                      <div className="mt-2 space-y-3">
+                        {(() => {
+                          const o = insightJson.detailed_analysis as Record<string, unknown>
+                          const items: Array<{ key: string; title: string }> = [
+                            { key: 'trend_and_margin', title: '趋势与安全边际' },
+                            { key: 'momentum_and_vol', title: '动量与量能' },
+                            { key: 'risk_warning', title: '风险提示' },
+                          ]
+                          return items
+                            .map((it) => {
+                              const v = o[it.key]
+                              if (typeof v !== 'string' || !v.trim()) return null
+                              return (
+                                <div key={it.key}>
+                                  <div className="text-xs font-semibold text-[#E2E8F0]">{it.title}</div>
+                                  <div className="mt-1 whitespace-pre-wrap text-sm leading-7 text-[#E6EDF7]">{v}</div>
+                                </div>
+                              )
+                            })
+                            .filter(Boolean)
+                        })()}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {insightJson.action_plan && typeof insightJson.action_plan === 'object' ? (
+                    <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-3">
+                      <div className="text-xs font-semibold text-[#FFF2E8]">操作计划</div>
+                      <div className="mt-2 space-y-2 text-sm leading-7 text-[#E6EDF7]">
+                        {(() => {
+                          const o = insightJson.action_plan as Record<string, unknown>
+                          const entry = typeof o.entry_zone === 'string' ? o.entry_zone.trim() : ''
+                          const stop = typeof o.stop_loss === 'string' ? o.stop_loss.trim() : ''
+                          return (
+                            <>
+                              <div className="flex flex-col gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-2">
+                                <div className="text-xs text-[#A9B6CC]">入场条件/区间</div>
+                                <div className="whitespace-pre-wrap">{entry || '—'}</div>
+                              </div>
+                              <div className="flex flex-col gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-2">
+                                <div className="text-xs text-[#A9B6CC]">止损</div>
+                                <div className="whitespace-pre-wrap">{stop || '—'}</div>
+                              </div>
+                            </>
+                          )
+                        })()}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {typeof insightJson.thinking_process === 'string' && insightJson.thinking_process.trim() ? (
+                    <details className="rounded-lg border border-white/10 bg-black/10 px-3 py-3">
+                      <summary className="cursor-pointer text-xs font-semibold text-[#FFF2E8]">思考过程</summary>
+                      <div className="mt-2">
+                        {splitNonEmptyLines(insightJson.thinking_process).length > 1 ? (
+                          <ul className="list-disc space-y-1 pl-5 text-sm leading-7 text-[#E6EDF7]">
+                            {splitNonEmptyLines(insightJson.thinking_process).map((line, idx) => (
+                              <li key={`${idx}-${line}`}>{line}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className="whitespace-pre-wrap text-sm leading-7 text-[#E6EDF7]">{insightJson.thinking_process}</div>
+                        )}
+                      </div>
+                    </details>
+                  ) : null}
+                </div>
+              ) : (
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                  {insightText}
+                </ReactMarkdown>
+              )}
             </div>
           ) : insightStatus === 'idle' ? (
             <div className="mt-3 rounded-lg border border-white/10 bg-black/10 px-3 py-2 text-xs text-[#A9B6CC]">
