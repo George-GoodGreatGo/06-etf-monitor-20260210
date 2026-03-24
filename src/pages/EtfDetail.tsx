@@ -41,6 +41,28 @@ function splitNonEmptyLines(text: string): string[] {
     .filter(Boolean)
 }
 
+function mapInsightStatusCn(raw: unknown): string {
+  const s = typeof raw === 'string' ? raw.trim() : ''
+  if (!s) return '—'
+  const up = s.toUpperCase()
+  const map: Record<string, string> = {
+    WATCH: '观察',
+    WAIT: '等待',
+    BUY: '买入',
+    SELL: '卖出',
+    HOLD: '持有',
+    AVOID: '回避',
+    RISK: '高风险',
+  }
+  return map[up] || s
+}
+
+function formatConfidenceScore(raw: unknown): string {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return '—'
+  const n = Math.round(raw)
+  return `${Math.min(100, Math.max(0, n))}/100`
+}
+
 export default function EtfDetail() {
   const { code } = useParams()
   const [searchParams] = useSearchParams()
@@ -488,21 +510,19 @@ export default function EtfDetail() {
                 <div className="space-y-3">
                   <div className="grid gap-2 rounded-lg border border-white/10 bg-black/10 px-3 py-3 text-xs text-[#A9B6CC] md:grid-cols-2">
                     <div className="flex items-center justify-between gap-2">
-                      <span>状态</span>
+                      <span>结论状态</span>
                       <span className="font-mono text-[#E6EDF7]">
-                        {typeof insightJson.status === 'string' ? insightJson.status : '—'}
+                        {mapInsightStatusCn(insightJson.status)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
                       <span>置信度</span>
                       <span className="font-mono text-[#E6EDF7]">
-                        {typeof insightJson.confidence_score === 'number'
-                          ? `${Math.round(insightJson.confidence_score)}`
-                          : '—'}
+                        {formatConfidenceScore(insightJson.confidence_score)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                      <span>模型类型</span>
+                      <span>形态/模型</span>
                       <span className="text-right text-[#E6EDF7]">
                         {typeof insightJson.setup_type === 'string' ? insightJson.setup_type : '—'}
                       </span>
@@ -571,7 +591,7 @@ export default function EtfDetail() {
                                 <div className="whitespace-pre-wrap">{entry || '—'}</div>
                               </div>
                               <div className="flex flex-col gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-2">
-                                <div className="text-xs text-[#A9B6CC]">止损</div>
+                                <div className="text-xs text-[#A9B6CC]">止损位</div>
                                 <div className="whitespace-pre-wrap">{stop || '—'}</div>
                               </div>
                             </>
@@ -583,7 +603,7 @@ export default function EtfDetail() {
 
                   {typeof insightJson.thinking_process === 'string' && insightJson.thinking_process.trim() ? (
                     <details className="rounded-lg border border-white/10 bg-black/10 px-3 py-3">
-                      <summary className="cursor-pointer text-xs font-semibold text-[#FFF2E8]">思考过程</summary>
+                      <summary className="cursor-pointer text-xs font-semibold text-[#FFF2E8]">推导过程</summary>
                       <div className="mt-2">
                         {splitNonEmptyLines(insightJson.thinking_process).length > 1 ? (
                           <ul className="list-disc space-y-1 pl-5 text-sm leading-7 text-[#E6EDF7]">
