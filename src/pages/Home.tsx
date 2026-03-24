@@ -65,9 +65,7 @@ export default function Home() {
   const reqSeqRef = useRef(0)
   const mountedRef = useRef(true)
 
-  const bootIdRef = useRef<string | null>(null)
   const [isVercelBackend, setIsVercelBackend] = useState<boolean | null>(null)
-  const initialLoadDoneRef = useRef(false)
 
   useEffect(() => {
     mountedRef.current = true
@@ -80,17 +78,12 @@ export default function Home() {
     metaRef.current = meta
   }, [meta])
 
-
   useEffect(() => {
     const run = async () => {
       try {
         const res = await fetch(apiUrl('/api/health'), { credentials: 'include', headers: { ...adminAuthHeaders() } })
         const j = (await res.json()) as unknown
         if (typeof j !== 'object' || j === null) return
-        const bootId = (j as Record<string, unknown>).serverBootId
-        if (typeof bootId !== 'string' || !bootId) return
-        bootIdRef.current = bootId
-
         const v = (j as Record<string, unknown>).isVercel
         if (typeof v === 'boolean') setIsVercelBackend(v)
       } catch {
@@ -312,55 +305,7 @@ export default function Home() {
       window.localStorage.removeItem(activeRefetchTokenKey)
     }
 
-    if (initialLoadDoneRef.current) {
-      void runFetch(seq)
-      return
-    }
-    initialLoadDoneRef.current = true
-
-    const runInitial = async () => {
-      let bootId = bootIdRef.current
-      if (!bootId) {
-        try {
-          const res = await fetch(apiUrl('/api/health'))
-          const j = (await res.json()) as unknown
-          if (typeof j === 'object' && j !== null) {
-            const v = (j as Record<string, unknown>).serverBootId
-            if (typeof v === 'string' && v) bootId = v
-          }
-        } catch {
-          bootId = null
-        }
-      }
-
-      if (!bootId) {
-        void runFetch(seq, { mode: 'fetch' })
-        return
-      }
-
-      const lastBootId = window.localStorage.getItem('etf_monitor_server_boot_id')
-      if (lastBootId === bootId) {
-        void runFetch(seq, { mode: 'fetch' })
-        return
-      }
-
-      const lockKey = `etf_monitor_refetch_lock:${bootId}`
-      const lockTs = Number(window.localStorage.getItem(lockKey) || '0')
-      const now = Date.now()
-      const lockTtlMs = 240_000
-      const shouldRefetch = !lockTs || now - lockTs > lockTtlMs
-      window.localStorage.setItem('etf_monitor_server_boot_id', bootId)
-
-      if (!shouldRefetch) {
-        void runFetch(seq, { mode: 'fetch' })
-        return
-      }
-
-      window.localStorage.setItem(lockKey, String(now))
-      void runFetch(seq, { mode: 'cold' })
-    }
-
-    void runInitial()
+    void runFetch(seq, { mode: 'fetch' })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

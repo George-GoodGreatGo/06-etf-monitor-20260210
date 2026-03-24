@@ -3,7 +3,7 @@ name: Refresh Top100 Snapshot
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 11 * * 1-5'
+    - cron: '0 14 * * 1-5'
     - cron: '59 15 * * 1-5'
 
 permissions:

@@ -1,0 +1,6 @@
+- [x] GitHub Actions 配置文件中已将 19:00 的任务更新为 22:00 (14:00 UTC)。
+- [x] `Home.tsx` 中已完全移除 `runInitial` 函数及其所有引用。
+- [x] `Home.tsx` 中已移除 `initialLoadDoneRef` 和 `bootIdRef` 及其逻辑。
+- [x] 首页加载时不再发起 `/api/health` 请求（已从代码中移除相关异步逻辑）。
+- [x] 首页加载时依然能正确执行 `runFetch` 并渲染数据（已保留基础加载逻辑）。
+- [x] 浏览器 `localStorage` 中不再主动维护 `etf_monitor_server_boot_id`。
