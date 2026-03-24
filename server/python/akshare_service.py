@@ -872,8 +872,8 @@ def weekly_chart(code: str, adjust: str):
     is_partial = int(last_dt.weekday()) != 4
 
     close = pd.to_numeric(wk["close"], errors="coerce")
-    ema8 = close.ewm(span=8, adjust=False).mean()
-    sma200 = close.rolling(window=200, min_periods=200).mean()
+    ema20 = close.ewm(span=20, adjust=False).mean()
+    sma60 = close.rolling(window=60, min_periods=60).mean()
 
     diff = close.diff()
     gain = diff.clip(lower=0)
@@ -897,8 +897,8 @@ def weekly_chart(code: str, adjust: str):
     hist = macd_line - signal_line
 
     price_series = []
-    ema8_series = []
-    sma200_series = []
+    ema20_series = []
+    sma60_series = []
     volume_series = []
     rsi14_series = []
     macd_series = []
@@ -914,13 +914,13 @@ def weekly_chart(code: str, adjust: str):
         if c_val is not None:
             price_series.append({"time": t, "value": c_val})
 
-        e8 = float(ema8.iloc[i]) if pd.notna(ema8.iloc[i]) else None
-        if e8 is not None:
-            ema8_series.append({"time": t, "value": e8})
+        e20 = float(ema20.iloc[i]) if pd.notna(ema20.iloc[i]) else None
+        if e20 is not None:
+            ema20_series.append({"time": t, "value": e20})
 
-        s200 = float(sma200.iloc[i]) if pd.notna(sma200.iloc[i]) else None
-        if s200 is not None:
-            sma200_series.append({"time": t, "value": s200})
+        s60 = float(sma60.iloc[i]) if pd.notna(sma60.iloc[i]) else None
+        if s60 is not None:
+            sma60_series.append({"time": t, "value": s60})
 
         vol_v = float(row["volume"]) if pd.notna(row["volume"]) else None
         if vol_v is not None:
@@ -958,8 +958,8 @@ def weekly_chart(code: str, adjust: str):
 
     series = {
         "price": price_series,
-        "ema8": ema8_series,
-        "sma200": sma200_series,
+        "ema20": ema20_series,
+        "sma60": sma60_series,
         "volume": volume_series,
         "rsi14": rsi14_series,
         "macd": {"macd": macd_series, "signal": signal_series, "hist": hist_series},

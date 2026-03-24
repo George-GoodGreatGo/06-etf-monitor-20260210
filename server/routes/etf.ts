@@ -15,8 +15,8 @@ const pythonCacheDir = path.join(__dirname, '..', 'python', '.cache')
 type WeeklySeriesPoint = { time: number; value: number; color?: string }
 type WeeklyChartSeries = {
   price: WeeklySeriesPoint[]
-  ema8: WeeklySeriesPoint[]
-  sma200: WeeklySeriesPoint[]
+  ema20: WeeklySeriesPoint[]
+  sma60: WeeklySeriesPoint[]
   volume: WeeklySeriesPoint[]
   rsi14: WeeklySeriesPoint[]
   macd: {
@@ -238,8 +238,8 @@ async function buildWeeklyChartVercel(code: string, adjust: string): Promise<Wee
         return out
       }
 
-      const ema8 = calcEma(closes, 8)
-      const sma200 = calcSma(closes, 200)
+      const ema20 = calcEma(closes, 20)
+      const sma60 = calcSma(closes, 60)
       const rsi14 = calcRsi14(closes, 14)
       const ema12 = calcEma(closes, 12)
       const ema26 = calcEma(closes, 26)
@@ -253,8 +253,8 @@ async function buildWeeklyChartVercel(code: string, adjust: string): Promise<Wee
       const isPartialWeek = lastDailyDt.getDay() !== 5
 
       const priceSeries: WeeklySeriesPoint[] = []
-      const ema8Series: WeeklySeriesPoint[] = []
-      const sma200Series: WeeklySeriesPoint[] = []
+      const ema20Series: WeeklySeriesPoint[] = []
+      const sma60Series: WeeklySeriesPoint[] = []
       const volumeSeries: WeeklySeriesPoint[] = []
       const rsiSeries: WeeklySeriesPoint[] = []
       const macdSeries: WeeklySeriesPoint[] = []
@@ -267,9 +267,9 @@ async function buildWeeklyChartVercel(code: string, adjust: string): Promise<Wee
         const cVal = closes[i]
 
         priceSeries.push({ time: t, value: cVal })
-        ema8Series.push({ time: t, value: ema8[i] })
-        const s200 = sma200[i]
-        if (s200 != null) sma200Series.push({ time: t, value: s200 })
+        ema20Series.push({ time: t, value: ema20[i] })
+        const s60 = sma60[i]
+        if (s60 != null) sma60Series.push({ time: t, value: s60 })
 
         let vColor = '#A9B6CC'
         if (prevClose != null) {
@@ -291,8 +291,8 @@ async function buildWeeklyChartVercel(code: string, adjust: string): Promise<Wee
 
       const series: WeeklyChartSeries = {
         price: priceSeries,
-        ema8: ema8Series,
-        sma200: sma200Series,
+        ema20: ema20Series,
+        sma60: sma60Series,
         volume: volumeSeries,
         rsi14: rsiSeries,
         macd: { macd: macdSeries, signal: signalSeries, hist: histSeries },

@@ -144,8 +144,8 @@ export type EtfWeeklyChartColoredPoint = {
 
 export type EtfWeeklyChartSeries = {
   price: EtfWeeklyChartPoint[]
-  ema8: EtfWeeklyChartPoint[]
-  sma200: EtfWeeklyChartPoint[]
+  ema20: EtfWeeklyChartPoint[]
+  sma60: EtfWeeklyChartPoint[]
   volume: EtfWeeklyChartColoredPoint[]
   rsi14: EtfWeeklyChartPoint[]
   macd: {

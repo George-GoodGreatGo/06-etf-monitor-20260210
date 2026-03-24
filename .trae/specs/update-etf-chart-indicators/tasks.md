@@ -1,0 +1,24 @@
+# Tasks
+
+- [x] Task 1: 更新后端数据计算逻辑
+  - [x] 修改 `server/routes/etf.ts` 中的 `WeeklyChartSeries` 类型定义：`ema8` -> `ema20`, `sma200` -> `sma60`。
+  - [x] 修改 `buildWeeklyChartVercel` 函数：
+    - [x] 将 `calcEma(closes, 8)` 修改为 `calcEma(closes, 20)`。
+    - [x] 将 `calcSma(closes, 200)` 修改为 `calcSma(closes, 60)`。
+    - [x] 更新循环中的赋值逻辑，将计算结果填入新的 `ema20` 和 `sma60` 序列。
+- [x] Task 2: 更新前端 API 类型定义
+  - [x] 修改 `src/utils/etfApi.ts` 中的 `EtfWeeklyChartSeries` 类型定义：`ema8` -> `ema20`, `sma200` -> `sma60`。
+- [x] Task 3: 更新前端图表组件渲染逻辑
+  - [x] 修改 `src/components/charts/EtfWeeklyChart.tsx`:
+    - [x] 更新 `HoverState` 类型。
+    - [x] 更新组件内部状态：`showEma8` -> `showEma20`, `showSma200` -> `showSma60`。
+    - [x] 更新 `seriesRef` 中的引用名称。
+    - [x] 更新 `data` useMemo 中的数据处理逻辑，适配新的字段名。
+    - [x] 更新主图 Series 初始化逻辑 (LineStyles, colors)。
+    - [x] 更新悬浮提示 (Legend) 的文案和取值。
+    - [x] 更新图表控制按钮 (Buttons) 的文案。
+    - [x] 更新图表左上角的覆盖说明文字。
+- [x] Task 4: 验证更新效果
+  - [x] 确认详情页图表能正确显示 EMA20 和 SMA60。
+  - [x] 确认悬浮提示中的数值与图表对应。
+  - [x] 确认控制按钮可以正常切换指标显示。
