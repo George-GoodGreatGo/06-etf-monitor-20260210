@@ -612,6 +612,7 @@ export default function Home() {
           <Top100InsightPanel
             meta={meta}
             rows={rows}
+            isHomeLoading={loading}
           />
         ) : (
           <Top100Table

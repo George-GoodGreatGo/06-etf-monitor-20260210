@@ -93,9 +93,11 @@ function toneClassName(tone: InsightSectionTone): string {
 export default function Top100InsightPanel({
   meta,
   rows,
+  isHomeLoading,
 }: {
   meta: Top100Meta | null
   rows: EtfTopRow[]
+  isHomeLoading?: boolean
 }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -120,13 +122,16 @@ export default function Top100InsightPanel({
     }
   }, [])
 
+  // 1. Initial fetch & state transition logic
   useEffect(() => {
-    if (!meta || rows.length === 0) {
-      setMarkdown('')
-      setStatus('idle')
-      setStatusError(null)
-      setLoading(false)
-      setError(null)
+    if (isHomeLoading || !meta || rows.length === 0) {
+      if (!isHomeLoading) {
+        setMarkdown('')
+        setStatus('idle')
+        setStatusError(null)
+        setLoading(false)
+        setError(null)
+      }
       return
     }
     abortRef.current?.abort()
@@ -219,7 +224,46 @@ export default function Top100InsightPanel({
         setLoading(false)
       }
     })()
-  }, [key, meta, rows.length])
+  }, [key, meta, rows.length, isHomeLoading])
+
+  // 2. Polling logic for 'generating' state
+  useEffect(() => {
+    if (status !== 'generating' || isHomeLoading || !meta) return
+
+    let timer: number | null = null
+    const tick = async () => {
+      try {
+        const res = await fetch(apiUrl(`/api/ai/top100/insight/status?dataDate=${encodeURIComponent(meta.dataDate)}`), {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            ...adminAuthHeaders(),
+          },
+        })
+        if (!res.ok) return
+        const j = (await res.json()) as unknown
+        if (!j || typeof j !== 'object') return
+        const dataObj = (j as Record<string, unknown>).data as Record<string, unknown>
+        if (!dataObj) return
+
+        const nextStatus = dataObj.status as InsightGenerateStatus
+        if (nextStatus === 'ready') {
+          // Status changed to ready! Trigger a reload of the content
+          setReloadSeq((v) => v + 1)
+        } else if (nextStatus === 'failed') {
+          setStatus('failed')
+          setStatusError(String(dataObj.lastError || '未知错误'))
+        }
+      } catch {
+        void 0
+      }
+    }
+
+    timer = window.setInterval(tick, 3000)
+    return () => {
+      if (timer) window.clearInterval(timer)
+    }
+  }, [status, isHomeLoading, meta])
 
   const hasContent = Boolean(markdown.trim())
   const sections = useMemo(() => {
@@ -283,7 +327,7 @@ export default function Top100InsightPanel({
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-[#FF8A50]" />
-          <div className="text-sm font-medium">大模型解读（基于快照）</div>
+          <div className="text-sm font-medium text-[#E6EDF7]">大模型解读（基于快照）</div>
         </div>
       </div>
 
@@ -297,7 +341,12 @@ export default function Top100InsightPanel({
         </div>
       ) : null}
 
-      {loading ? (
+      {isHomeLoading ? (
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-white/10 bg-black/10 px-3 py-2 text-xs text-[#A9B6CC]">
+          <Loader2 className="h-4 w-4 animate-spin text-[#FF5722]" />
+          正在获取新交易日的数据…
+        </div>
+      ) : loading ? (
         <div className="mt-3 flex items-center gap-2 rounded-lg border border-white/10 bg-black/10 px-3 py-2 text-xs text-[#A9B6CC]">
           <Loader2 className="h-4 w-4 animate-spin" />
           正在读取解读状态…
@@ -327,17 +376,9 @@ export default function Top100InsightPanel({
         )
       ) : status === 'generating' ? (
         <div className="mt-3 rounded-lg border border-white/10 bg-black/10 px-3 py-3 text-xs text-[#A9B6CC]">
-          <div className="flex items-center justify-between gap-3">
-            <div>内容正在生成中，请稍等</div>
-            <button
-              type="button"
-              onClick={() => setReloadSeq((v) => v + 1)}
-              className="ui-btn ui-btn-outline h-8 px-3 text-xs"
-              disabled={loading}
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              刷新
-            </button>
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-4 w-4 animate-spin text-[#FF8A50]" />
+            <div>正调用大模型进行生成，请稍等</div>
           </div>
         </div>
       ) : status === 'failed' ? (
