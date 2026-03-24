@@ -243,7 +243,7 @@ function aggregateWeeklyFromDaily(
   })
 }
 
-async function buildWeeklyChartVercel(code: string, adjust: string): Promise<WeeklyChartOut> {
+export async function buildWeeklyChartVercel(code: string, adjust: string): Promise<WeeklyChartOut> {
   const cacheKey = `weekly-chart:v2:${code}:${adjust}`
   const now = Date.now()
   const cached = vercelWeeklyCache.get(cacheKey)

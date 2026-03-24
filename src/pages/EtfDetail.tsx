@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Construction, Info } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Construction, Info, Loader2, Sparkles } from 'lucide-react'
 import NavBar from '@/components/NavBar'
 import DataStatusBanner from '@/components/DataStatusBanner'
 import EtfWeeklyChart from '@/components/charts/EtfWeeklyChart'
@@ -13,6 +13,10 @@ import {
   type Top100Meta,
 } from '@/utils/etfApi'
 import { formatYmd } from '@/utils/format'
+import { adminAuthHeaders } from '@/utils/adminAccess'
+import { apiUrl } from '@/utils/apiBase'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 export default function EtfDetail() {
   const { code } = useParams()
@@ -28,6 +32,15 @@ export default function EtfDetail() {
   const [weeklyError, setWeeklyError] = useState<string | null>(null)
   const [weeklyMeta, setWeeklyMeta] = useState<Top100Meta | null>(null)
   const [weeklyData, setWeeklyData] = useState<EtfWeeklyChartData | null>(null)
+
+  const [insightStatus, setInsightStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle')
+  const [insightError, setInsightError] = useState<string | null>(null)
+  const [insightText, setInsightText] = useState('')
+  const insightAbortRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    return () => insightAbortRef.current?.abort()
+  }, [])
 
   useEffect(() => {
     if (!code) return
@@ -61,6 +74,156 @@ export default function EtfDetail() {
     })()
     return () => ac.abort()
   }, [code])
+
+  const markdownComponents = useMemo(
+    () => ({
+      h1: ({ children }: { children?: ReactNode }) => (
+        <h1 className="mb-2 mt-2 text-base font-semibold text-[#F8FAFC]">{children}</h1>
+      ),
+      h2: ({ children }: { children?: ReactNode }) => (
+        <h2 className="mb-2 mt-2 text-sm font-semibold text-[#F1F5F9]">{children}</h2>
+      ),
+      h3: ({ children }: { children?: ReactNode }) => (
+        <h3 className="mb-1 mt-2 text-sm font-semibold text-[#E2E8F0]">{children}</h3>
+      ),
+      p: ({ children }: { children?: ReactNode }) => <p className="mb-2 leading-7 text-[#E6EDF7]">{children}</p>,
+      ul: ({ children }: { children?: ReactNode }) => <ul className="mb-2 list-disc space-y-1 pl-5">{children}</ul>,
+      ol: ({ children }: { children?: ReactNode }) => <ol className="mb-2 list-decimal space-y-1 pl-5">{children}</ol>,
+      li: ({ children }: { children?: ReactNode }) => <li className="leading-7 text-[#E6EDF7]">{children}</li>,
+      strong: ({ children }: { children?: ReactNode }) => <strong className="font-semibold text-[#FFF2E8]">{children}</strong>,
+      blockquote: ({ children }: { children?: ReactNode }) => (
+        <blockquote className="my-2 border-l-2 border-white/20 pl-3 text-[#CBD5E1]">{children}</blockquote>
+      ),
+      table: ({ children }: { children?: ReactNode }) => <table className="my-2 w-full border-collapse text-xs">{children}</table>,
+      th: ({ children }: { children?: ReactNode }) => (
+        <th className="border border-white/10 px-2 py-1 text-left font-semibold text-[#E2E8F0]">{children}</th>
+      ),
+      td: ({ children }: { children?: ReactNode }) => <td className="border border-white/10 px-2 py-1 text-[#E6EDF7]">{children}</td>,
+      code: ({ children }: { children?: ReactNode }) => (
+        <code className="rounded bg-white/10 px-1 py-0.5 text-[0.9em] text-[#FDE68A]">{children}</code>
+      ),
+      a: ({ href, children }: { href?: string; children?: ReactNode }) => (
+        <a href={href} target="_blank" rel="noreferrer" className="text-[#FFB08A] underline decoration-dotted underline-offset-2">
+          {children}
+        </a>
+      ),
+    }),
+    [],
+  )
+
+  const startInsight = useMemo(() => {
+    return async () => {
+      if (!code) return
+      if (!weeklyData) {
+        setInsightStatus('error')
+        setInsightError('周线数据未就绪，无法解读')
+        return
+      }
+
+      insightAbortRef.current?.abort()
+      const ac = new AbortController()
+      insightAbortRef.current = ac
+
+      setInsightStatus('running')
+      setInsightError(null)
+      setInsightText('')
+
+      try {
+        const res = await fetch(apiUrl('/api/ai/etf/detail/insight'), {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            ...adminAuthHeaders(),
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ code }),
+          signal: ac.signal,
+        })
+
+        if (!res.ok || !res.body) {
+          const j = (await res.json().catch(() => null)) as unknown
+          const msg =
+            j && typeof j === 'object' && (j as Record<string, unknown>).message
+              ? String((j as Record<string, unknown>).message)
+              : `HTTP ${res.status}`
+          setInsightStatus('error')
+          setInsightError(msg)
+          return
+        }
+
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder('utf-8')
+        let buffer = ''
+        let finished = false
+        let hadError = false
+
+        const handleEvent = (o: Record<string, unknown>) => {
+          const type = typeof o.type === 'string' ? o.type : ''
+          if (type === 'content' && typeof o.content === 'string') {
+            setInsightText((prev) => prev + o.content)
+            return { done: false }
+          }
+          if (type === 'answer') {
+            const c = o.content as unknown
+            const answer =
+              c && typeof c === 'object' && typeof (c as Record<string, unknown>).answer === 'string'
+                ? String((c as Record<string, unknown>).answer)
+                : ''
+            if (answer) setInsightText((prev) => prev + answer)
+            if (Boolean(o.finish)) return { done: true }
+            return { done: false }
+          }
+          if (type === 'end') {
+            const status = typeof o.status === 'string' ? o.status : ''
+            if (status === 'error') {
+              const msg = typeof o.message === 'string' ? o.message : '解读失败'
+              setInsightStatus('error')
+              setInsightError(msg)
+              hadError = true
+            }
+            return { done: true }
+          }
+          return { done: false }
+        }
+
+        while (!finished) {
+          const { value, done } = await reader.read()
+          if (done) break
+          const chunk = decoder.decode(value, { stream: true })
+          if (!chunk) continue
+          buffer += chunk
+          const lines = buffer.split(/\r?\n/)
+          buffer = lines.pop() || ''
+          for (const line of lines) {
+            const trimmed = line.trimStart()
+            if (!trimmed.startsWith('data:')) continue
+            const data = trimmed.slice(5).trim()
+            if (!data || data === '[DONE]') continue
+            try {
+              const j = JSON.parse(data) as unknown
+              if (!j || typeof j !== 'object') continue
+              const r = handleEvent(j as Record<string, unknown>)
+              if (r.done) {
+                finished = true
+                break
+              }
+            } catch {
+              void 0
+            }
+          }
+        }
+
+        if (!hadError) {
+          setInsightStatus('done')
+        }
+      } catch (e) {
+        const name = typeof e === 'object' && e && 'name' in e ? String((e as { name: unknown }).name) : ''
+        if (name === 'AbortError') return
+        setInsightStatus('error')
+        setInsightError(e instanceof Error ? e.message : String(e))
+      }
+    }
+  }, [code, weeklyData])
 
   useEffect(() => {
     if (!code) return
@@ -256,6 +419,53 @@ export default function EtfDetail() {
           {weeklyData ? (
             <div className="mt-4">
               <EtfWeeklyChart series={weeklyData.series} />
+            </div>
+          ) : null}
+        </section>
+
+        <section className="mt-4 rounded-xl border border-white/10 bg-[#111B2E] p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-[#FF8A50]" />
+              <div className="text-sm font-medium">数据解读</div>
+            </div>
+            <button
+              type="button"
+              onClick={startInsight}
+              disabled={!code || insightStatus === 'running'}
+              className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs transition hover:border-white/20 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {insightStatus === 'running' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              开始解读
+            </button>
+          </div>
+
+          {insightStatus === 'running' ? (
+            <div className="mt-3 flex items-center gap-2 rounded-lg border border-white/10 bg-black/10 px-3 py-2 text-xs text-[#A9B6CC]">
+              <Loader2 className="h-4 w-4 animate-spin text-[#FF8A50]" />
+              正在调用模型进行解读，请稍后
+            </div>
+          ) : null}
+
+          {insightStatus === 'error' ? (
+            <div className="mt-3 flex items-start gap-2 rounded-lg border border-[#EF4444]/40 bg-black/10 px-3 py-2 text-xs text-[#A9B6CC]">
+              <AlertTriangle className="mt-0.5 h-4 w-4 text-[#EF4444]" />
+              <div>
+                <div className="text-[#E6EDF7]">解读失败</div>
+                <div className="mt-0.5">{insightError || '未知错误'}</div>
+              </div>
+            </div>
+          ) : null}
+
+          {insightText.trim() ? (
+            <div className="mt-3 text-sm leading-relaxed text-[#E6EDF7]">
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                {insightText}
+              </ReactMarkdown>
+            </div>
+          ) : insightStatus === 'idle' ? (
+            <div className="mt-3 rounded-lg border border-white/10 bg-black/10 px-3 py-2 text-xs text-[#A9B6CC]">
+              点击“开始解读”，将基于周线指标生成交易机会解读
             </div>
           ) : null}
         </section>

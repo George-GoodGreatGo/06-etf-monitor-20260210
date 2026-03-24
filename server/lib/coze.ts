@@ -36,6 +36,150 @@ function extractMarkdownFromCozeEvent(o: Record<string, unknown>): { text: strin
   return { text: '', done: false }
 }
 
+export async function cozeStreamRunToSseEvents(
+  promptText: string,
+  opts: {
+    url: string
+    token: string
+    projectId?: string
+    sessionId?: string
+    signal?: AbortSignal
+    onEvent: (event: Record<string, unknown>) => void
+  },
+) {
+  const url = String(opts.url || '').trim()
+  const token = String(opts.token || '').trim()
+  if (!url) throw new Error('missing coze url')
+  if (!token) throw new Error('missing coze token')
+
+  const projectIdRaw = String(opts.projectId || '').trim()
+  const sessionId = String(opts.sessionId || '').trim() || randomUUID()
+
+  const body: Record<string, unknown> = {
+    content: {
+      query: {
+        prompt: [
+          {
+            type: 'text',
+            content: {
+              text: String(promptText || ''),
+            },
+          },
+        ],
+      },
+    },
+    type: 'query',
+    session_id: sessionId,
+  }
+
+  if (projectIdRaw) {
+    body.project_id = Number.isFinite(Number(projectIdRaw)) ? Number(projectIdRaw) : projectIdRaw
+  }
+
+  const upstream = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream, text/plain, application/json',
+    },
+    body: JSON.stringify(body),
+    signal: opts.signal,
+  })
+
+  if (!upstream.ok) {
+    const msg = await upstream.text().catch(() => '')
+    throw new Error(`Coze 调用失败：HTTP ${upstream.status} ${msg}`)
+  }
+
+  if (!upstream.body) {
+    const text = await upstream.text().catch(() => '')
+    if (text) {
+      opts.onEvent({ type: 'answer', content: { answer: text }, finish: true })
+    }
+    opts.onEvent({ type: 'end', status: 'success' })
+    return { sessionId }
+  }
+
+  const contentType = String(upstream.headers.get('content-type') || '').toLowerCase()
+  const isEventStream = contentType.includes('text/event-stream')
+  if (!isEventStream) {
+    const text = await upstream.text().catch(() => '')
+    if (text) {
+      opts.onEvent({ type: 'answer', content: { answer: text }, finish: true })
+    }
+    opts.onEvent({ type: 'end', status: 'success' })
+    return { sessionId }
+  }
+
+  const reader = upstream.body.getReader()
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+  let done = false
+
+  try {
+    while (!done) {
+      const { value, done: streamDone } = await reader.read()
+      if (streamDone) break
+      const chunk = decoder.decode(value, { stream: true })
+      if (!chunk) continue
+
+      buffer += chunk
+      const lines = buffer.split(/\r?\n/)
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        const trimmed = line.trimStart()
+        if (!trimmed.startsWith('data:')) continue
+        const data = trimmed.slice(5).trim()
+        if (!data || data === '[DONE]') continue
+
+        try {
+          const j = JSON.parse(data) as unknown
+          if (!j || typeof j !== 'object') continue
+          const o = j as Record<string, unknown>
+          opts.onEvent(o)
+          const { done: d } = extractMarkdownFromCozeEvent(o)
+          if (d) {
+            done = true
+            break
+          }
+        } catch {
+          void 0
+        }
+      }
+    }
+  } finally {
+    try {
+      await reader.cancel()
+    } catch {
+      void 0
+    }
+  }
+
+  const tail = buffer.trim()
+  if (!done && tail) {
+    const trimmed = tail.trimStart()
+    if (trimmed.startsWith('data:')) {
+      const data = trimmed.slice(5).trim()
+      if (data && data !== '[DONE]') {
+        try {
+          const j = JSON.parse(data) as unknown
+          if (j && typeof j === 'object') {
+            const o = j as Record<string, unknown>
+            opts.onEvent(o)
+          }
+        } catch {
+          void 0
+        }
+      }
+    }
+  }
+
+  opts.onEvent({ type: 'end', status: 'success' })
+  return { sessionId }
+}
+
 export async function cozeStreamRunToMarkdown(promptText: string, opts?: { sessionId?: string; signal?: AbortSignal }) {
   const token = mustEnv('COZE_BEARER_TOKEN')
   const url = String(process.env.COZE_STREAM_RUN_URL || 'https://f87gr4kxcm.coze.site/stream_run').trim()
@@ -167,4 +311,3 @@ export async function cozeStreamRunToMarkdown(promptText: string, opts?: { sessi
     markdown: out,
   }
 }
-
