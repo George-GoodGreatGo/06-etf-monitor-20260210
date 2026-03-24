@@ -1,0 +1,24 @@
+# Tasks
+
+- [x] Task 1: 更新后端数据计算逻辑 (Bollinger Bands)
+  - [x] 修改 `server/routes/etf.ts`：
+    - [x] 新增 `calcBollingerBands(closes, period, multiplier)` 函数。
+    - [x] 更新 `WeeklyChartSeries` 类型定义：增加 `bb: { mb: WeeklySeriesPoint[]; ub: WeeklySeriesPoint[]; lb: WeeklySeriesPoint[]; bandwidth: WeeklySeriesPoint[] }`。
+    - [x] 在 `buildWeeklyChartVercel` 函数中调用 `calcBollingerBands(closes, 20, 2)`。
+    - [x] 同步更新周线聚合结果的赋值逻辑。
+- [x] Task 2: 更新前端 API 类型定义
+  - [x] 修改 `src/utils/etfApi.ts` 中的 `EtfWeeklyChartSeries` 类型定义：增加 `bb` 字段及其子序列。
+- [x] Task 3: 更新前端图表组件渲染逻辑
+  - [x] 修改 `src/components/charts/EtfWeeklyChart.tsx`:
+    - [x] 更新 `HoverState` 类型。
+    - [x] 更新组件内部状态：`showBB` 控制布林带显示。
+    - [x] 更新 `seriesRef` 中的引用名称，增加 `mb`, `ub`, `lb` 序列。
+    - [x] 更新 `data` useMemo 中的数据处理逻辑，适配新的 `bb` 字段。
+    - [x] 更新主图 Series 初始化逻辑 (LineStyles, colors)。MB 为实线，UB/LB 为虚线。
+    - [x] 更新悬浮提示 (Legend) 的文案和取值，包括带宽高。
+    - [x] 更新图表控制按钮 (Buttons) 的文案。
+    - [x] 更新图表左上角的覆盖说明文字。
+- [x] Task 4: 验证更新效果
+  - [x] 确认详情页图表能正确显示布林带。
+  - [x] 确认悬浮提示中的数值与图表对应。
+  - [x] 确认控制按钮可以正常切换指标显示。

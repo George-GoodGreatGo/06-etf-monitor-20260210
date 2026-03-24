@@ -29,6 +29,10 @@ type HoverState = {
   price?: number
   ema20?: number
   sma60?: number
+  bbMb?: number
+  bbUb?: number
+  bbLb?: number
+  bbBw?: number
   volume?: number
   rsi14?: number
   macd?: number
@@ -113,6 +117,7 @@ function alignHist(
 export default function EtfWeeklyChart({ series }: Props) {
   const [showEma20, setShowEma20] = useState(true)
   const [showSma60, setShowSma60] = useState(true)
+  const [showBB, setShowBB] = useState(true)
   const [showVolume, setShowVolume] = useState(true)
   const [showRsi, setShowRsi] = useState(true)
   const [showMacd, setShowMacd] = useState(true)
@@ -161,6 +166,9 @@ export default function EtfWeeklyChart({ series }: Props) {
     price: ISeriesApi<'Line', Time> | null
     ema20: ISeriesApi<'Line', Time> | null
     sma60: ISeriesApi<'Line', Time> | null
+    mb: ISeriesApi<'Line', Time> | null
+    ub: ISeriesApi<'Line', Time> | null
+    lb: ISeriesApi<'Line', Time> | null
     volume: ISeriesApi<'Histogram', Time> | null
     rsi14: ISeriesApi<'Line', Time> | null
     macd: ISeriesApi<'Line', Time> | null
@@ -170,6 +178,9 @@ export default function EtfWeeklyChart({ series }: Props) {
     price: null,
     ema20: null,
     sma60: null,
+    mb: null,
+    ub: null,
+    lb: null,
     volume: null,
     rsi14: null,
     macd: null,
@@ -181,6 +192,10 @@ export default function EtfWeeklyChart({ series }: Props) {
     const priceRaw: LineData<Time>[] = series.price.map((p) => ({ time: toUnixSeconds(p.time), value: p.value }))
     const ema20Raw: LineData<Time>[] = series.ema20.map((p) => ({ time: toUnixSeconds(p.time), value: p.value }))
     const sma60Raw: LineData<Time>[] = series.sma60.map((p) => ({ time: toUnixSeconds(p.time), value: p.value }))
+    const bbMbRaw: LineData<Time>[] = series.bb.mb.map((p) => ({ time: toUnixSeconds(p.time), value: p.value }))
+    const bbUbRaw: LineData<Time>[] = series.bb.ub.map((p) => ({ time: toUnixSeconds(p.time), value: p.value }))
+    const bbLbRaw: LineData<Time>[] = series.bb.lb.map((p) => ({ time: toUnixSeconds(p.time), value: p.value }))
+    const bbBwRaw: LineData<Time>[] = series.bb.bandwidth.map((p) => ({ time: toUnixSeconds(p.time), value: p.value }))
     const volumeRaw: HistogramData<Time>[] = series.volume.map((p) => ({
       time: toUnixSeconds(p.time),
       value: p.value,
@@ -199,6 +214,10 @@ export default function EtfWeeklyChart({ series }: Props) {
     const price = priceRaw
     const ema20 = alignLine(times, ema20Raw, priceRaw[0]?.value ?? 0)
     const sma60 = alignLine(times, sma60Raw, priceRaw[0]?.value ?? 0)
+    const bbMb = alignLine(times, bbMbRaw, priceRaw[0]?.value ?? 0)
+    const bbUb = alignLine(times, bbUbRaw, priceRaw[0]?.value ?? 0)
+    const bbLb = alignLine(times, bbLbRaw, priceRaw[0]?.value ?? 0)
+    const bbBw = alignLine(times, bbBwRaw, 0)
     const volume = alignHist(times, volumeRaw, 0)
     const rsi14 = alignLine(times, rsi14Raw, 50)
     const macdLine = alignLine(times, macdLineRaw, 0)
@@ -213,13 +232,17 @@ export default function EtfWeeklyChart({ series }: Props) {
     for (const p of price) put(p.time as UTCTimestamp, { price: p.value })
     for (const p of ema20) put(p.time as UTCTimestamp, { ema20: p.value })
     for (const p of sma60) put(p.time as UTCTimestamp, { sma60: p.value })
+    for (const p of bbMb) put(p.time as UTCTimestamp, { bbMb: p.value })
+    for (const p of bbUb) put(p.time as UTCTimestamp, { bbUb: p.value })
+    for (const p of bbLb) put(p.time as UTCTimestamp, { bbLb: p.value })
+    for (const p of bbBw) put(p.time as UTCTimestamp, { bbBw: p.value })
     for (const p of volume) put(p.time as UTCTimestamp, { volume: p.value })
     for (const p of rsi14) put(p.time as UTCTimestamp, { rsi14: p.value })
     for (const p of macdLine) put(p.time as UTCTimestamp, { macd: p.value })
     for (const p of signalLine) put(p.time as UTCTimestamp, { signal: p.value })
     for (const p of hist) put(p.time as UTCTimestamp, { hist: p.value })
 
-    return { price, ema20, sma60, volume, rsi14, macdLine, signalLine, hist, map }
+    return { price, ema20, sma60, bbMb, bbUb, bbLb, bbBw, volume, rsi14, macdLine, signalLine, hist, map }
   }, [series])
 
   useEffect(() => {
@@ -268,10 +291,38 @@ export default function EtfWeeklyChart({ series }: Props) {
       priceFormat: { type: 'custom', formatter: (v) => trimFixed(v, 3) },
     })
 
+    const bbMbSeries = chart.addSeries(LineSeries, {
+      color: 'rgba(255, 255, 255, 0.4)',
+      lineWidth: 1,
+      lineStyle: LineStyle.Solid,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      priceFormat: { type: 'custom', formatter: (v) => trimFixed(v, 3) },
+    })
+    const bbUbSeries = chart.addSeries(LineSeries, {
+      color: 'rgba(255, 255, 255, 0.25)',
+      lineWidth: 1,
+      lineStyle: LineStyle.Dashed,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      priceFormat: { type: 'custom', formatter: (v) => trimFixed(v, 3) },
+    })
+    const bbLbSeries = chart.addSeries(LineSeries, {
+      color: 'rgba(255, 255, 255, 0.25)',
+      lineWidth: 1,
+      lineStyle: LineStyle.Dashed,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      priceFormat: { type: 'custom', formatter: (v) => trimFixed(v, 3) },
+    })
+
     charts.price = chart
     seriesApi.price = priceSeries
     seriesApi.ema20 = ema20Series
     seriesApi.sma60 = sma60Series
+    seriesApi.mb = bbMbSeries
+    seriesApi.ub = bbUbSeries
+    seriesApi.lb = bbLbSeries
 
     return () => {
       chart.remove()
@@ -279,6 +330,9 @@ export default function EtfWeeklyChart({ series }: Props) {
       seriesApi.price = null
       seriesApi.ema20 = null
       seriesApi.sma60 = null
+      seriesApi.mb = null
+      seriesApi.ub = null
+      seriesApi.lb = null
     }
   }, [])
 
@@ -446,6 +500,9 @@ export default function EtfWeeklyChart({ series }: Props) {
     seriesRef.current.price?.setData(data.price)
     seriesRef.current.ema20?.setData(data.ema20)
     seriesRef.current.sma60?.setData(data.sma60)
+    seriesRef.current.mb?.setData(data.bbMb)
+    seriesRef.current.ub?.setData(data.bbUb)
+    seriesRef.current.lb?.setData(data.bbLb)
     seriesRef.current.volume?.setData(data.volume)
     seriesRef.current.rsi14?.setData(data.rsi14)
     seriesRef.current.macd?.setData(data.macdLine)
@@ -465,6 +522,13 @@ export default function EtfWeeklyChart({ series }: Props) {
   useEffect(() => {
     seriesRef.current.sma60?.applyOptions({ visible: showSma60 })
   }, [showSma60])
+
+  useEffect(() => {
+    const s = seriesRef.current
+    s.mb?.applyOptions({ visible: showBB })
+    s.ub?.applyOptions({ visible: showBB })
+    s.lb?.applyOptions({ visible: showBB })
+  }, [showBB])
 
   useEffect(() => {
     const charts: IChartApi[] = [
@@ -595,6 +659,17 @@ export default function EtfWeeklyChart({ series }: Props) {
           <span className="h-2 w-2 rounded-full bg-[#A78BFA]" />
           SMA60
         </button>
+        <button
+          type="button"
+          onClick={() => setShowBB((v) => !v)}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+            showBB ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+          )}
+        >
+          <span className="h-2 w-2 rounded-full bg-[rgba(255,255,255,0.4)]" />
+          布林带
+        </button>
         <div className="mx-2 h-4 w-px bg-white/10" />
         <button
           type="button"
@@ -638,6 +713,20 @@ export default function EtfWeeklyChart({ series }: Props) {
             <div className="text-right font-mono">{fmt(hover.ema20, 3)}</div>
             <div className="text-[#A9B6CC]">SMA60</div>
             <div className="text-right font-mono">{fmt(hover.sma60, 3)}</div>
+            {showBB && (
+              <>
+                <div className="text-[#A9B6CC]">MB</div>
+                <div className="text-right font-mono">{fmt(hover.bbMb, 3)}</div>
+                <div className="text-[#A9B6CC]">UB</div>
+                <div className="text-right font-mono">{fmt(hover.bbUb, 3)}</div>
+                <div className="text-[#A9B6CC]">LB</div>
+                <div className="text-right font-mono">{fmt(hover.bbLb, 3)}</div>
+                <div className="text-[#A9B6CC]">带宽</div>
+                <div className="text-right font-mono">
+                  {typeof hover.bbBw === 'number' ? (hover.bbBw * 100).toFixed(1) + '%' : '—'}
+                </div>
+              </>
+            )}
             <div className="text-[#A9B6CC]">成交量</div>
             <div className="text-right font-mono">
               {typeof hover.volume === 'number' ? formatCompactNumber(hover.volume) : '—'}
@@ -657,7 +746,7 @@ export default function EtfWeeklyChart({ series }: Props) {
       <div className="mt-3 space-y-2">
         <div className="relative rounded-lg border border-white/10 bg-[#111B2E] pt-6">
           <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
-            价格（前复权）+ EMA20 + SMA60
+            价格（前复权）+ EMA20 + SMA60 {showBB && '+ 布林带'}
           </div>
           <div ref={priceElRef} className="h-[280px] w-full" />
         </div>

@@ -146,6 +146,12 @@ export type EtfWeeklyChartSeries = {
   price: EtfWeeklyChartPoint[]
   ema20: EtfWeeklyChartPoint[]
   sma60: EtfWeeklyChartPoint[]
+  bb: {
+    mb: EtfWeeklyChartPoint[]
+    ub: EtfWeeklyChartPoint[]
+    lb: EtfWeeklyChartPoint[]
+    bandwidth: EtfWeeklyChartPoint[]
+  }
   volume: EtfWeeklyChartColoredPoint[]
   rsi14: EtfWeeklyChartPoint[]
   macd: {

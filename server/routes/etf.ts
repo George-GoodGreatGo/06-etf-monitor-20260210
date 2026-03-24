@@ -17,6 +17,12 @@ type WeeklyChartSeries = {
   price: WeeklySeriesPoint[]
   ema20: WeeklySeriesPoint[]
   sma60: WeeklySeriesPoint[]
+  bb: {
+    mb: WeeklySeriesPoint[]
+    ub: WeeklySeriesPoint[]
+    lb: WeeklySeriesPoint[]
+    bandwidth: WeeklySeriesPoint[]
+  }
   volume: WeeklySeriesPoint[]
   rsi14: WeeklySeriesPoint[]
   macd: {
@@ -81,6 +87,34 @@ function calcSma(values: number[], window: number): Array<number | null> {
     if (i >= window - 1) out[i] = sum / window
   }
   return out
+}
+
+function calcBollingerBands(values: number[], period = 20, multiplier = 2): {
+  mb: Array<number | null>,
+  ub: Array<number | null>,
+  lb: Array<number | null>,
+  bandwidth: Array<number | null>
+} {
+  const outMb: Array<number | null> = new Array(values.length).fill(null)
+  const outUb: Array<number | null> = new Array(values.length).fill(null)
+  const outLb: Array<number | null> = new Array(values.length).fill(null)
+  const outBandwidth: Array<number | null> = new Array(values.length).fill(null)
+
+  for (let i = period - 1; i < values.length; i++) {
+    const slice = values.slice(i - period + 1, i + 1)
+    const mb = slice.reduce((a, b) => a + b, 0) / period
+    outMb[i] = mb
+
+    const sumSqDiff = slice.reduce((a, b) => a + Math.pow(b - mb, 2), 0)
+    const sd = Math.sqrt(sumSqDiff / period)
+    const ub = mb + sd * multiplier
+    const lb = mb - sd * multiplier
+    outUb[i] = ub
+    outLb[i] = lb
+    outBandwidth[i] = mb === 0 ? 0 : (ub - lb) / mb
+  }
+
+  return { mb: outMb, ub: outUb, lb: outLb, bandwidth: outBandwidth }
 }
 
 function calcRsi14(values: number[], period = 14): Array<number | null> {
@@ -240,6 +274,7 @@ async function buildWeeklyChartVercel(code: string, adjust: string): Promise<Wee
 
       const ema20 = calcEma(closes, 20)
       const sma60 = calcSma(closes, 60)
+      const bb = calcBollingerBands(closes, 20, 2)
       const rsi14 = calcRsi14(closes, 14)
       const ema12 = calcEma(closes, 12)
       const ema26 = calcEma(closes, 26)
@@ -255,6 +290,10 @@ async function buildWeeklyChartVercel(code: string, adjust: string): Promise<Wee
       const priceSeries: WeeklySeriesPoint[] = []
       const ema20Series: WeeklySeriesPoint[] = []
       const sma60Series: WeeklySeriesPoint[] = []
+      const bbMbSeries: WeeklySeriesPoint[] = []
+      const bbUbSeries: WeeklySeriesPoint[] = []
+      const bbLbSeries: WeeklySeriesPoint[] = []
+      const bbBandwidthSeries: WeeklySeriesPoint[] = []
       const volumeSeries: WeeklySeriesPoint[] = []
       const rsiSeries: WeeklySeriesPoint[] = []
       const macdSeries: WeeklySeriesPoint[] = []
@@ -270,6 +309,15 @@ async function buildWeeklyChartVercel(code: string, adjust: string): Promise<Wee
         ema20Series.push({ time: t, value: ema20[i] })
         const s60 = sma60[i]
         if (s60 != null) sma60Series.push({ time: t, value: s60 })
+
+        const mb = bb.mb[i]
+        const ub = bb.ub[i]
+        const lb = bb.lb[i]
+        const bw = bb.bandwidth[i]
+        if (mb != null) bbMbSeries.push({ time: t, value: mb })
+        if (ub != null) bbUbSeries.push({ time: t, value: ub })
+        if (lb != null) bbLbSeries.push({ time: t, value: lb })
+        if (bw != null) bbBandwidthSeries.push({ time: t, value: bw })
 
         let vColor = '#A9B6CC'
         if (prevClose != null) {
@@ -293,6 +341,12 @@ async function buildWeeklyChartVercel(code: string, adjust: string): Promise<Wee
         price: priceSeries,
         ema20: ema20Series,
         sma60: sma60Series,
+        bb: {
+          mb: bbMbSeries,
+          ub: bbUbSeries,
+          lb: bbLbSeries,
+          bandwidth: bbBandwidthSeries,
+        },
         volume: volumeSeries,
         rsi14: rsiSeries,
         macd: { macd: macdSeries, signal: signalSeries, hist: histSeries },

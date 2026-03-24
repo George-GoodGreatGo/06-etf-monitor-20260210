@@ -1,0 +1,8 @@
+- [x] 后端 `WeeklyChartSeries` 类型已更新，增加 `bb` 字段 (mb, ub, lb, bandwidth)
+- [x] 后端已新增 `calcBollingerBands` 函数并应用于周线图表数据
+- [x] 后端布林带计算周期设为 20，倍数设为 2，并计算带宽 (Bandwidth)
+- [x] 前端 `EtfWeeklyChartSeries` 类型定义已同步更新
+- [x] 图表悬浮提示已正确显示 "MB", "UB", "LB" 和 "Bandwidth" 标签及其数值
+- [x] 图表上方控制按钮文案已增加 "布林带" 切换按钮
+- [x] 图表主图叠加层文案已更新，包含 "Bollinger Bands" 说明
+- [x] 指标切换功能（显示/隐藏）对布林带三条线均生效
