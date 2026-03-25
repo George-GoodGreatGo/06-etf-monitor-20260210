@@ -240,13 +240,16 @@ router.post('/etf/detail/insight', async (req: Request, res: Response) => {
     })
   }
 
+  const maxWeeks = 200
+  const trimmedRows = rows.slice(Math.max(0, rows.length - maxWeeks))
+
   const payload = {
     symbol: code,
     name_cn: nameCn,
     adjustment: adjust,
     freq: 'W',
-    weekly_count: rows.length,
-    data: rows,
+    weekly_count: trimmedRows.length,
+    data: trimmedRows,
   }
 
   try {
