@@ -263,7 +263,13 @@ export default function EtfWeeklyChart({ series }: Props) {
         horzLines: { color: 'rgba(255,255,255,0.06)' },
       },
       rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)', minimumWidth: PANE_SCALE_MIN_WIDTH },
-      timeScale: { borderColor: 'rgba(255,255,255,0.10)', visible: false },
+      timeScale: {
+        borderColor: 'rgba(255,255,255,0.10)',
+        visible: false,
+        fixLeftEdge: true,
+        fixRightEdge: true,
+        rightOffset: 0,
+      },
       crosshair: { mode: CrosshairMode.Normal },
     })
 
@@ -353,7 +359,13 @@ export default function EtfWeeklyChart({ series }: Props) {
         horzLines: { color: 'rgba(255,255,255,0.06)' },
       },
       rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)', minimumWidth: PANE_SCALE_MIN_WIDTH },
-      timeScale: { borderColor: 'rgba(255,255,255,0.10)', visible: false },
+      timeScale: {
+        borderColor: 'rgba(255,255,255,0.10)',
+        visible: false,
+        fixLeftEdge: true,
+        fixRightEdge: true,
+        rightOffset: 0,
+      },
       crosshair: { mode: CrosshairMode.Normal },
     })
     const volumeSeries = chart.addSeries(HistogramSeries, {
@@ -388,7 +400,13 @@ export default function EtfWeeklyChart({ series }: Props) {
         horzLines: { color: 'rgba(255,255,255,0.06)' },
       },
       rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)', minimumWidth: PANE_SCALE_MIN_WIDTH },
-      timeScale: { borderColor: 'rgba(255,255,255,0.10)', visible: false },
+      timeScale: {
+        borderColor: 'rgba(255,255,255,0.10)',
+        visible: false,
+        fixLeftEdge: true,
+        fixRightEdge: true,
+        rightOffset: 0,
+      },
       crosshair: { mode: CrosshairMode.Normal },
     })
     const rsiSeries = chart.addSeries(LineSeries, {
@@ -441,7 +459,13 @@ export default function EtfWeeklyChart({ series }: Props) {
         horzLines: { color: 'rgba(255,255,255,0.06)' },
       },
       rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)', minimumWidth: PANE_SCALE_MIN_WIDTH },
-      timeScale: { borderColor: 'rgba(255,255,255,0.10)', visible: false },
+      timeScale: {
+        borderColor: 'rgba(255,255,255,0.10)',
+        visible: false,
+        fixLeftEdge: true,
+        fixRightEdge: true,
+        rightOffset: 0,
+      },
       crosshair: { mode: CrosshairMode.Normal },
     })
     const histSeries = chart.addSeries(HistogramSeries, {

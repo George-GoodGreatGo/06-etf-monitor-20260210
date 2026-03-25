@@ -30,6 +30,12 @@ export type Top100InsightStatusRow = {
   updated_at: string
 }
 
+export type EtfWeeklyInsightRow = {
+  code: string
+  insight_text: string
+  created_at: string
+}
+
 export async function readTop100LatestSnapshot(): Promise<Top100LatestRow | null> {
   const supabaseUrl = String(process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '')
   const anonKey = String(process.env.SUPABASE_ANON_KEY || '').trim()
@@ -156,7 +162,7 @@ export async function upsertTop100InsightStatus(payload: {
   started_at?: string | null
   finished_at?: string | null
   updated_at?: string
-}): Promise<Top100InsightStatusRow | null> {
+}): Promise<void> {
   const supabaseUrl = mustEnv('SUPABASE_URL').replace(/\/+$/, '')
   const serviceKey = mustEnv('SUPABASE_SERVICE_ROLE_KEY')
   const p = payload && typeof payload === 'object' ? payload : null
@@ -164,15 +170,14 @@ export async function upsertTop100InsightStatus(payload: {
 
   const dataDate = String(p.data_date || '').trim()
   if (!dataDate) throw new Error('missing data_date')
-  const status = String(p.status || '').trim()
-  if (!status) throw new Error('missing status')
+  const status = p.status
 
   const row = {
     data_date: dataDate,
     status,
-    last_error: p.last_error == null ? null : String(p.last_error),
-    started_at: p.started_at == null ? null : String(p.started_at),
-    finished_at: p.finished_at == null ? null : String(p.finished_at),
+    last_error: p.last_error ?? null,
+    started_at: p.started_at ?? null,
+    finished_at: p.finished_at ?? null,
     updated_at: p.updated_at ? String(p.updated_at) : new Date().toISOString(),
   }
 
@@ -183,19 +188,65 @@ export async function upsertTop100InsightStatus(payload: {
       apikey: serviceKey,
       Authorization: `Bearer ${serviceKey}`,
       'Content-Type': 'application/json',
-      Prefer: 'resolution=merge-duplicates,return=representation',
+      Prefer: 'resolution=merge-duplicates,return=minimal',
     },
     body: JSON.stringify(row),
   })
 
   if (!res.ok) {
     const body = await res.text().catch(() => '')
-    throw new Error(`supabase write failed: HTTP ${res.status} ${body}`)
+    throw new Error(`supabase write top100_insight_status failed: HTTP ${res.status} ${body}`)
   }
+}
 
+export async function readEtfWeeklyInsight(code: string): Promise<EtfWeeklyInsightRow | null> {
+  const supabaseUrl = String(process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '')
+  const anonKey = String(process.env.SUPABASE_ANON_KEY || '').trim()
+  const c = String(code || '').trim()
+  if (!supabaseUrl || !anonKey || !c) return null
+
+  const url = `${supabaseUrl}/rest/v1/etf_weekly_insight?code=eq.${encodeURIComponent(c)}&select=*`
+  const res = await fetch(url, {
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+    },
+  })
+  if (!res.ok) return null
   const j = (await res.json().catch(() => null)) as unknown
   if (!Array.isArray(j) || j.length === 0) return null
   const first = j[0]
   if (!first || typeof first !== 'object') return null
-  return first as Top100InsightStatusRow
+  return first as EtfWeeklyInsightRow
+}
+
+export async function upsertEtfWeeklyInsight(code: string, insightText: string): Promise<void> {
+  const supabaseUrl = mustEnv('SUPABASE_URL').replace(/\/+$/, '')
+  const serviceKey = mustEnv('SUPABASE_SERVICE_ROLE_KEY')
+  const c = String(code || '').trim()
+  const t = String(insightText || '').trim()
+  if (!c || !t) return
+
+  const row = {
+    code: c,
+    insight_text: t,
+    created_at: new Date().toISOString(),
+  }
+
+  const url = `${supabaseUrl}/rest/v1/etf_weekly_insight?on_conflict=code`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates,return=minimal',
+    },
+    body: JSON.stringify(row),
+  })
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    console.error(`supabase write etf_weekly_insight failed: HTTP ${res.status} ${body}`)
+  }
 }

@@ -101,6 +101,43 @@ router.post('/top100/insight', async (req: Request, res: Response) => {
   res.end()
 })
 
+router.get('/etf/detail/insight', async (req: Request, res: Response) => {
+  res.setHeader('Cache-Control', 'no-store')
+  const q = req.query as Record<string, unknown>
+  const code = typeof q.code === 'string' ? q.code.trim() : ''
+  
+  if (!code) {
+    res.status(400).json({ success: false, error: 'bad_request', message: '缺少 code' })
+    return
+  }
+
+  const { readEtfWeeklyInsight } = await import('../lib/supabaseRest.js')
+  const row = await readEtfWeeklyInsight(code)
+  if (!row) {
+    res.status(200).json({ success: true, data: null })
+    return
+  }
+
+  const createdTime = new Date(row.created_at).getTime()
+  const now = Date.now()
+  const ageHours = (now - createdTime) / (1000 * 60 * 60)
+
+  if (ageHours > 23) {
+    // expired
+    res.status(200).json({ success: true, data: null })
+    return
+  }
+
+  res.status(200).json({
+    success: true,
+    data: {
+      code: row.code,
+      insightText: row.insight_text,
+      createdAt: row.created_at,
+    },
+  })
+})
+
 router.post('/etf/detail/insight', async (req: Request, res: Response) => {
   res.status(200)
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
@@ -252,12 +289,29 @@ router.post('/etf/detail/insight', async (req: Request, res: Response) => {
     data: trimmedRows,
   }
 
+  let fullAnswer = ''
+
+  const interceptWriteEvent = (o: Record<string, unknown>) => {
+    if (o.type === 'answer' && o.content && typeof (o.content as Record<string, unknown>).answer === 'string') {
+      fullAnswer += (o.content as Record<string, unknown>).answer
+    }
+    writeEvent(o)
+  }
+
   try {
     await cozeStreamRunToSseEvents(JSON.stringify(payload), {
       url,
       token,
-      onEvent: writeEvent,
+      onEvent: interceptWriteEvent,
     })
+    
+    // Save to database
+    if (fullAnswer.trim()) {
+      const { upsertEtfWeeklyInsight } = await import('../lib/supabaseRest.js')
+      await upsertEtfWeeklyInsight(code, fullAnswer.trim()).catch(e => {
+        console.error('Failed to save ETF weekly insight to DB:', e)
+      })
+    }
   } catch (e) {
     writeEvent({ type: 'end', status: 'error', message: e instanceof Error ? e.message : String(e) })
   } finally {

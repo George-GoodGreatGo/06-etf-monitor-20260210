@@ -97,11 +97,36 @@ export default function EtfDetail() {
   const [insightStatus, setInsightStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle')
   const [insightError, setInsightError] = useState<string | null>(null)
   const [insightText, setInsightText] = useState('')
+  const [insightCachedTime, setInsightCachedTime] = useState<string | null>(null)
   const insightAbortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     return () => insightAbortRef.current?.abort()
   }, [])
+
+  useEffect(() => {
+    if (!code) return
+    const ac = new AbortController()
+    ;(async () => {
+      try {
+        const res = await fetch(apiUrl(`/api/ai/etf/detail/insight?code=${encodeURIComponent(code)}`), {
+          signal: ac.signal,
+          headers: adminAuthHeaders(),
+        })
+        if (res.ok) {
+          const j = await res.json()
+          if (j.success && j.data && j.data.insightText) {
+            setInsightText(j.data.insightText)
+            setInsightCachedTime(j.data.createdAt)
+            setInsightStatus('done')
+          }
+        }
+      } catch (e) {
+        // ignore errors for cached check
+      }
+    })()
+    return () => ac.abort()
+  }, [code])
 
   useEffect(() => {
     if (!code) return
@@ -190,6 +215,7 @@ export default function EtfDetail() {
       setInsightStatus('running')
       setInsightError(null)
       setInsightText('')
+      setInsightCachedTime(null)
 
       try {
         const res = await fetch(apiUrl('/api/ai/etf/detail/insight'), {
@@ -491,6 +517,11 @@ export default function EtfDetail() {
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-[#FF8A50]" />
               <div className="text-sm font-medium">数据解读</div>
+              {insightCachedTime && insightStatus !== 'running' ? (
+                <span className="ml-2 text-xs text-[#A9B6CC]">
+                  (缓存于 {new Date(insightCachedTime).toLocaleString()})
+                </span>
+              ) : null}
             </div>
             <button
               type="button"
@@ -499,7 +530,7 @@ export default function EtfDetail() {
               className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs transition hover:border-white/20 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {insightStatus === 'running' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              开始解读
+              {insightCachedTime ? '重新解读' : '开始解读'}
             </button>
           </div>
 
@@ -695,20 +726,7 @@ export default function EtfDetail() {
           ) : null}
         </section>
 
-        <section className="mt-4 grid gap-4 md:grid-cols-3">
-          {['资金流', '更多指标'].map((t) => (
-            <div
-              key={t}
-              className="rounded-xl border border-white/10 bg-[#111B2E] p-4"
-            >
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-medium">{t}</div>
-                <Construction className="h-4 w-4 text-[#A9B6CC]" />
-              </div>
-              <div className="mt-2 text-xs text-[#A9B6CC]">模块占位，后续上线</div>
-            </div>
-          ))}
-        </section>
+
       </main>
     </div>
   )
