@@ -87,7 +87,7 @@ function toneClassName(tone: InsightSectionTone): string {
   if (tone === 'focus') return 'border-[rgba(255,138,80,0.4)] bg-[rgba(255,138,80,0.08)]'
   if (tone === 'risk') return 'border-[rgba(239,68,68,0.4)] bg-[rgba(239,68,68,0.08)]'
   if (tone === 'snapshot') return 'border-[rgba(148,163,184,0.35)] bg-[rgba(148,163,184,0.08)]'
-  return 'border-white/10 bg-black/10'
+  return 'border-[#1E293B] bg-[#0B1120]'
 }
 
 export default function Top100InsightPanel({
@@ -323,37 +323,40 @@ export default function Top100InsightPanel({
   )
 
   return (
-    <section className="mt-4 ui-glass-panel px-4 py-3" data-testid="top100-insight">
+    <section
+      className="mt-4 overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] px-4 py-3 shadow-lg"
+      data-testid="top100-insight"
+    >
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-[#FF8A50]" />
-          <div className="text-sm font-medium text-[#E6EDF7]">大模型解读（基于快照）</div>
+          <div className="text-sm font-medium text-[#E2E8F0]">大模型解读（基于快照）</div>
         </div>
       </div>
 
       {error ? (
-        <div className="mt-3 flex items-start gap-2 rounded-lg border border-[#EF4444]/40 bg-black/10 px-3 py-2 text-xs text-[#A9B6CC]">
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-[#EF4444]/40 bg-[#0B1120] px-3 py-2 text-xs text-[#94A3B8]">
           <AlertTriangle className="mt-0.5 h-4 w-4 text-[#EF4444]" />
           <div>
-            <div className="text-[#E6EDF7]">解读读取失败</div>
+            <div className="text-[#E2E8F0]">解读读取失败</div>
             <div className="mt-0.5">{error}</div>
           </div>
         </div>
       ) : null}
 
       {isHomeLoading ? (
-        <div className="mt-3 flex items-center gap-2 rounded-lg border border-white/10 bg-black/10 px-3 py-2 text-xs text-[#A9B6CC]">
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-[#1E293B] bg-[#0B1120] px-3 py-2 text-xs text-[#94A3B8]">
           <Loader2 className="h-4 w-4 animate-spin text-[#FF5722]" />
           正在获取新交易日的数据…
         </div>
       ) : loading ? (
-        <div className="mt-3 flex items-center gap-2 rounded-lg border border-white/10 bg-black/10 px-3 py-2 text-xs text-[#A9B6CC]">
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-[#1E293B] bg-[#0B1120] px-3 py-2 text-xs text-[#94A3B8]">
           <Loader2 className="h-4 w-4 animate-spin" />
           正在读取解读状态…
         </div>
       ) : status === 'ready' && hasContent ? (
         sections.length > 0 ? (
-          <div className="mt-3 space-y-3 text-sm leading-relaxed text-[#E6EDF7]">
+          <div className="mt-3 space-y-3 text-sm leading-relaxed text-[#E2E8F0]">
             {sections.map((section, idx) => (
               <div key={`${section.title}-${idx}`} className={`rounded-lg border px-3 py-3 ${toneClassName(section.tone)}`}>
                 {parseSectionTitle(section.markdown.split('\n')[0] || '') === section.title ? null : (
@@ -368,25 +371,25 @@ export default function Top100InsightPanel({
             ))}
           </div>
         ) : (
-          <div className="mt-3 text-sm leading-relaxed text-[#E6EDF7]">
+          <div className="mt-3 text-sm leading-relaxed text-[#E2E8F0]">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
               {markdown}
             </ReactMarkdown>
           </div>
         )
       ) : status === 'generating' ? (
-        <div className="mt-3 rounded-lg border border-white/10 bg-black/10 px-3 py-3 text-xs text-[#A9B6CC]">
+        <div className="mt-3 rounded-lg border border-[#1E293B] bg-[#0B1120] px-3 py-3 text-xs text-[#94A3B8]">
           <div className="flex items-center gap-3">
             <Loader2 className="h-4 w-4 animate-spin text-[#FF8A50]" />
             <div>正调用大模型进行生成，请稍等</div>
           </div>
         </div>
       ) : status === 'failed' ? (
-        <div className="mt-3 rounded-lg border border-[#EF4444]/40 bg-black/10 px-3 py-3 text-xs text-[#A9B6CC]">
+        <div className="mt-3 rounded-lg border border-[#EF4444]/40 bg-[#0B1120] px-3 py-3 text-xs text-[#94A3B8]">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
               <div className="text-[#FCA5A5]">解读生成失败，请稍后重试</div>
-              {statusError ? <div className="text-[#A9B6CC]">{statusError}</div> : null}
+              {statusError ? <div className="text-[#94A3B8]">{statusError}</div> : null}
             </div>
             <button
               type="button"
@@ -400,7 +403,7 @@ export default function Top100InsightPanel({
           </div>
         </div>
       ) : (
-        <div className="mt-3 rounded-lg border border-white/10 bg-black/10 px-3 py-2 text-xs text-[#A9B6CC]">
+        <div className="mt-3 rounded-lg border border-[#1E293B] bg-[#0B1120] px-3 py-2 text-xs text-[#94A3B8]">
           未有解读内容，请点击右上角“重新获取”按钮
         </div>
       )}
