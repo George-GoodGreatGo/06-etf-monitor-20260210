@@ -620,6 +620,10 @@ router.get('/detail/:code', (req: Request, res: Response) => {
           code,
           name: typeof row.name === 'string' ? row.name : null,
           latestTradingDate: typeof row.latestTradingDate === 'string' ? row.latestTradingDate : null,
+          volume: typeof row.volume === 'number' ? row.volume : null,
+          turnover: typeof row.turnover === 'number' ? row.turnover : null,
+          turnoverChangePct1d: typeof row.turnoverChangePct1d === 'number' ? row.turnoverChangePct1d : null,
+          turnoverChangePct7dAvg: typeof row.turnoverChangePct7dAvg === 'number' ? row.turnoverChangePct7dAvg : null,
           z90: typeof row.z90 === 'number' ? row.z90 : null,
         },
       })

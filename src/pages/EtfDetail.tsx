@@ -28,7 +28,7 @@ import {
   fetchEtfWeeklyChart,
   type Top100Meta,
 } from '@/utils/etfApi'
-import { formatYmd } from '@/utils/format'
+import { formatYmd, formatCompactNumber, formatPct } from '@/utils/format'
 import { adminAuthHeaders } from '@/utils/adminAccess'
 import { apiUrl } from '@/utils/apiBase'
 import ReactMarkdown from 'react-markdown'
@@ -415,26 +415,50 @@ export default function EtfDetail() {
               <span className="font-mono">{code}</span>{' '}
               <span className="text-[#A9B6CC]">{data?.name ?? '—'}</span>
             </h1>
-            <div className="mt-3 grid gap-3 md:grid-cols-3">
+            <div className="mt-4 grid gap-3 md:grid-cols-5">
               <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                <div className="text-xs text-[#A9B6CC]">最新完整交易日</div>
-                <div className="mt-1 font-mono text-sm">
+                <div className="text-[11px] text-[#A9B6CC]">最新完整交易日</div>
+                <div className="mt-1.5 font-mono text-sm font-medium">
                   {formatYmd(data?.latestTradingDate)}
                 </div>
               </div>
               <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                <div className="text-xs text-[#A9B6CC]">90 日成交额 Z 值</div>
+                <div className="text-[11px] text-[#A9B6CC]">当前交易日成交额</div>
+                <div className="mt-1.5 font-mono text-sm font-medium">
+                  {typeof data?.turnover === 'number' ? `${formatCompactNumber(data.turnover).replace('亿', '')} 亿` : '—'}
+                </div>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <div className="text-[11px] text-[#A9B6CC]">较昨日变化</div>
+                <div className="mt-1.5 font-mono text-sm font-medium">
+                  {typeof data?.turnoverChangePct1d === 'number' ? (
+                    <span className={data.turnoverChangePct1d > 0 ? 'text-[#EF4444]' : data.turnoverChangePct1d < 0 ? 'text-[#10B981]' : ''}>
+                      {formatPct(data.turnoverChangePct1d)}
+                    </span>
+                  ) : (
+                    '—'
+                  )}
+                </div>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <div className="text-[11px] text-[#A9B6CC]">较7日均</div>
+                <div className="mt-1.5 font-mono text-sm font-medium">
+                  {typeof data?.turnoverChangePct7dAvg === 'number' ? (
+                    <span className={data.turnoverChangePct7dAvg > 0 ? 'text-[#EF4444]' : data.turnoverChangePct7dAvg < 0 ? 'text-[#10B981]' : ''}>
+                      {formatPct(data.turnoverChangePct7dAvg)}
+                    </span>
+                  ) : (
+                    '—'
+                  )}
+                </div>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <div className="text-[11px] text-[#A9B6CC]">90日成交额 Z值</div>
                 <div className="mt-1">
                   <ZBadge
                     z={data?.z90 ?? null}
                     status={error ? 'api_error' : 'complete'}
                   />
-                </div>
-              </div>
-              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                <div className="text-xs text-[#A9B6CC]">说明</div>
-                <div className="mt-1 text-xs text-[#A9B6CC]">
-                  当前页面为占位，后续逐步补充更多指标
                 </div>
               </div>
             </div>
@@ -444,18 +468,18 @@ export default function EtfDetail() {
             <div className="flex items-start gap-2">
               <Info className="mt-0.5 h-4 w-4 text-[#A9B6CC]" />
               <div>
-                <div className="text-sm font-medium">数据约束</div>
-                <div className="mt-1 text-xs text-[#A9B6CC]">
-                  仅展示完整交易日数据；缺失/失败不补全、不杜撰。
+                <div className="text-sm font-medium">数据约束与来源</div>
+                <div className="mt-1 text-[11px] leading-relaxed text-[#A9B6CC]">
+                  所有基础数据（日线、周线、成交额）均来源于新浪财经公开接口。指标计算（EMA、SMA、MACD、RSI、布林带、Z值等）由本系统在获取原始行情后本地运算得出。仅展示完整交易日数据；缺失/失败不补全、不杜撰。
                 </div>
               </div>
             </div>
             <div className="mt-3">
               <Link
                 to="/methodology"
-                className="inline-flex items-center gap-2 text-xs text-[#A9B6CC] hover:text-[#E6EDF7]"
+                className="inline-flex items-center gap-2 text-[11px] text-[#A9B6CC] hover:text-[#E6EDF7]"
               >
-                查看数据与方法说明 →
+                查看详细数据与方法说明 →
               </Link>
             </div>
           </div>

@@ -128,6 +128,10 @@ export type EtfDetail = {
   code: string
   name: string | null
   latestTradingDate: string | null
+  volume: number | null
+  turnover: number | null
+  turnoverChangePct1d: number | null
+  turnoverChangePct7dAvg: number | null
   z90: number | null
 }
 
