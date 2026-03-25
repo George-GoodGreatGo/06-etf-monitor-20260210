@@ -461,7 +461,7 @@ export default function Home() {
       <main className="mx-auto w-full max-w-[1280px] px-8 pb-14 pt-6">
         <div className="mb-3">
           <h1 className="text-2xl font-semibold tracking-tight text-white">Top200 ETF 异动监测</h1>
-          <div className="mt-1.5 text-[13px] text-[#9CA3AF]">
+          <div className="mt-1.5 text-[13px] text-[#94A3B8]">
             仅展示最近一个完整交易日数据；缺失/失败会明确提示且不展示推测值。
           </div>
         </div>
@@ -502,7 +502,7 @@ export default function Home() {
               }}
               className={cn(
                 'relative inline-flex items-center gap-2 pb-2 text-sm font-semibold transition',
-                tab === 'list' ? 'text-[#FF5722]' : 'text-[#9CA3AF] hover:text-white',
+                tab === 'list' ? 'text-[#FF5722]' : 'text-[#94A3B8] hover:text-white',
               )}
             >
               <img
@@ -528,7 +528,7 @@ export default function Home() {
               }}
               className={cn(
                 'relative inline-flex items-center gap-2 pb-2 text-sm font-semibold transition',
-                tab === 'insight' ? 'text-[#FF5722]' : 'text-[#9CA3AF] hover:text-white',
+                tab === 'insight' ? 'text-[#FF5722]' : 'text-[#94A3B8] hover:text-white',
               )}
             >
               <img

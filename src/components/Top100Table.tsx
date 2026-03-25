@@ -53,10 +53,10 @@ export default function Top100Table({
   const data = sortRows(filtered, sortKey, sortDir)
 
   return (
-    <section className="mt-4 overflow-hidden rounded-lg border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)] shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.35),0px_10px_15px_-3px_rgba(0,0,0,0.35)]">
+    <section className="mt-4 overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] shadow-lg">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[900px] text-left text-sm">
-          <thead className="border-b border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.03)] text-xs text-[#9CA3AF]">
+          <thead className="border-b border-[#1E293B] bg-[#0B1120] text-xs font-medium text-[#94A3B8]">
             <tr>
               <th className="px-4 py-3">#</th>
               <SortableTh
@@ -118,13 +118,13 @@ export default function Top100Table({
               <th className="px-4 py-3 text-right">异动详情</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[rgba(255,255,255,0.06)]">
+          <tbody className="divide-y divide-[#1E293B]">
             {loading ? (
               Array.from({ length: 8 }).map((_, idx) => (
                 <tr key={idx} className="animate-pulse">
-                  <td className="px-4 py-3 text-[#9CA3AF]">{idx + 1}</td>
+                  <td className="px-4 py-3 text-[#94A3B8]">{idx + 1}</td>
                   <td className="px-4 py-3" colSpan={7}>
-                    <div className="h-4 w-full rounded bg-white/10" />
+                    <div className="h-4 w-full rounded bg-[#1E293B]" />
                   </td>
                   <td className="px-4 py-3" />
                 </tr>
@@ -133,8 +133,8 @@ export default function Top100Table({
               <tr>
                 <td className="px-4 py-10" colSpan={9}>
                   <div className="flex flex-col items-center gap-2 text-center">
-                    <div className="text-sm font-medium">暂无可展示数据</div>
-                    <div className="text-xs text-[#A9B6CC]">
+                    <div className="text-sm font-medium text-[#E2E8F0]">暂无可展示数据</div>
+                    <div className="text-xs text-[#94A3B8]">
                       {error
                         ? '请先修复数据源/API，再刷新页面'
                         : '尝试调整关键字筛选条件'}
@@ -158,35 +158,35 @@ export default function Top100Table({
                   <tr
                     key={r.code}
                     className={cn(
-                      'transition hover:bg-[rgba(255,255,255,0.02)]',
-                      muted && 'opacity-80',
+                      'transition hover:bg-[#1E293B]',
+                      muted && 'opacity-70',
                     )}
                   >
-                    <td className="px-4 py-3 text-xs text-[#6B7280]">{idx + 1}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-[#E6EDF7]">{r.code}</td>
+                    <td className="px-4 py-3 text-xs text-[#64748B]">{idx + 1}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-[#CBD5E1]">{r.code}</td>
                     <td className="px-4 py-3">
-                      <div className="font-medium">{r.name}</div>
-                      <div className="mt-0.5 text-xs text-[#6B7280]">
+                      <div className="font-medium text-[#F1F5F9]">{r.name}</div>
+                      <div className="mt-0.5 text-xs text-[#64748B]">
                         {formatYmd(r.latestTradingDate)}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-xs">
+                    <td className="px-4 py-3 text-right font-mono text-xs text-[#94A3B8]">
                       {r.volume == null ? '—' : formatCompactNumber(r.volume)}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-xs font-semibold text-white">
+                    <td className="px-4 py-3 text-right font-mono text-xs font-semibold text-[#F8FAFC]">
                       {r.turnover == null ? '—' : formatCompactNumber(r.turnover)}
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-xs">
                       {r.turnoverChangePct1d == null ? (
-                        '—'
+                        <span className="text-[#94A3B8]">—</span>
                       ) : (
                         <span
                           className={cn(
                             r.turnoverChangePct1d > 0
-                              ? 'text-[#EF4444]'
+                              ? 'text-[#F87171] font-medium'
                               : r.turnoverChangePct1d < 0
-                                ? 'text-[#10B981]'
-                                : 'text-[#9CA3AF]',
+                                ? 'text-[#34D399] font-medium'
+                                : 'text-[#94A3B8]',
                           )}
                         >
                           {formatPct(r.turnoverChangePct1d)}
@@ -195,15 +195,15 @@ export default function Top100Table({
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-xs">
                       {r.turnoverChangePct7dAvg == null ? (
-                        '—'
+                        <span className="text-[#94A3B8]">—</span>
                       ) : (
                         <span
                           className={cn(
                             r.turnoverChangePct7dAvg > 0
-                              ? 'text-[#EF4444]'
+                              ? 'text-[#F87171] font-medium'
                               : r.turnoverChangePct7dAvg < 0
-                                ? 'text-[#10B981]'
-                                : 'text-[#9CA3AF]',
+                                ? 'text-[#34D399] font-medium'
+                                : 'text-[#94A3B8]',
                           )}
                         >
                           {formatPct(r.turnoverChangePct7dAvg)}
@@ -220,10 +220,10 @@ export default function Top100Table({
                         href={`/etf/${encodeURIComponent(r.code)}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center justify-center gap-2 rounded-[6px] border border-[rgba(255,87,34,0.35)] px-3 py-2 text-xs font-semibold text-[#FF5722] transition hover:bg-[rgba(255,87,34,0.08)]"
+                        className="inline-flex items-center justify-center gap-2 rounded-[6px] border border-[#334155] bg-[#1E293B] px-3 py-1.5 text-xs font-medium text-[#E2E8F0] transition hover:border-[#475569] hover:bg-[#334155] hover:text-white"
                       >
                         查看
-                        <ExternalLink className="h-4 w-4" />
+                        <ExternalLink className="h-3.5 w-3.5 opacity-70" />
                       </a>
                     </td>
                   </tr>
@@ -233,7 +233,7 @@ export default function Top100Table({
           </tbody>
         </table>
       </div>
-      <div className="flex items-center justify-between border-t border-[rgba(255,255,255,0.06)] px-4 py-3 text-xs text-[#6B7280]">
+      <div className="flex items-center justify-between border-t border-[#1E293B] bg-[#0B1120] px-4 py-3 text-xs text-[#64748B]">
         <div>{`正在显示 ${data.length} 条数据（滚动查看更多）`}</div>
         <div>到底了</div>
       </div>
