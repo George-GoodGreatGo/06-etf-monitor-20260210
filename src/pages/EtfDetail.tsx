@@ -1,6 +1,18 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { AlertTriangle, ArrowLeft, Construction, Info, Loader2, Sparkles } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Construction,
+  Info,
+  Loader2,
+  Sparkles,
+  Target,
+  BrainCircuit,
+  Search,
+  CheckCircle2,
+  ListTodo,
+} from 'lucide-react'
 import NavBar from '@/components/NavBar'
 import DataStatusBanner from '@/components/DataStatusBanner'
 import EtfWeeklyChart from '@/components/charts/EtfWeeklyChart'
@@ -542,31 +554,37 @@ export default function EtfDetail() {
                   </div>
 
                   {typeof insightJson.core_logic === 'string' ? (
-                    <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-3">
-                      <div className="text-xs font-semibold text-[#FFF2E8]">核心逻辑</div>
-                      <div className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[#E6EDF7]">{insightJson.core_logic}</div>
+                    <div className="rounded-xl border border-white/10 bg-[#141E33] p-4 shadow-sm">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-[#FFF2E8]">
+                        <Target className="h-4 w-4 text-[#FF8A50]" />
+                        核心逻辑
+                      </div>
+                      <div className="mt-3 whitespace-pre-wrap text-[13px] leading-relaxed text-[#E6EDF7]">{insightJson.core_logic}</div>
                     </div>
                   ) : null}
 
                   {insightJson.detailed_analysis && typeof insightJson.detailed_analysis === 'object' ? (
-                    <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-3">
-                      <div className="text-xs font-semibold text-[#FFF2E8]">详细分析</div>
-                      <div className="mt-2 space-y-3">
+                    <div className="rounded-xl border border-white/10 bg-[#141E33] p-4 shadow-sm">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-[#FFF2E8]">
+                        <Search className="h-4 w-4 text-[#38BDF8]" />
+                        详细分析
+                      </div>
+                      <div className="mt-3 grid gap-4 md:grid-cols-3">
                         {(() => {
                           const o = insightJson.detailed_analysis as Record<string, unknown>
-                          const items: Array<{ key: string; title: string }> = [
-                            { key: 'trend_and_margin', title: '趋势与安全边际' },
-                            { key: 'momentum_and_vol', title: '动量与量能' },
-                            { key: 'risk_warning', title: '风险提示' },
+                          const items: Array<{ key: string; title: string; color: string }> = [
+                            { key: 'trend_and_margin', title: '趋势与安全边际', color: 'text-[#38BDF8]' },
+                            { key: 'momentum_and_vol', title: '动量与量能', color: 'text-[#34D399]' },
+                            { key: 'risk_warning', title: '风险提示', color: 'text-[#F43F5E]' },
                           ]
                           return items
                             .map((it) => {
                               const v = o[it.key]
                               if (typeof v !== 'string' || !v.trim()) return null
                               return (
-                                <div key={it.key}>
-                                  <div className="text-xs font-semibold text-[#E2E8F0]">{it.title}</div>
-                                  <div className="mt-1 whitespace-pre-wrap text-sm leading-7 text-[#E6EDF7]">{v}</div>
+                                <div key={it.key} className="rounded-lg bg-white/5 p-3">
+                                  <div className={`text-xs font-semibold ${it.color}`}>{it.title}</div>
+                                  <div className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed text-[#CBD5E1]">{v}</div>
                                 </div>
                               )
                             })
@@ -577,22 +595,31 @@ export default function EtfDetail() {
                   ) : null}
 
                   {insightJson.action_plan && typeof insightJson.action_plan === 'object' ? (
-                    <div className="rounded-lg border border-white/10 bg-black/10 px-3 py-3">
-                      <div className="text-xs font-semibold text-[#FFF2E8]">操作计划</div>
-                      <div className="mt-2 space-y-2 text-sm leading-7 text-[#E6EDF7]">
+                    <div className="rounded-xl border border-white/10 bg-[#141E33] p-4 shadow-sm">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-[#FFF2E8]">
+                        <ListTodo className="h-4 w-4 text-[#10B981]" />
+                        操作计划
+                      </div>
+                      <div className="mt-3 grid gap-3 md:grid-cols-2 text-sm leading-relaxed text-[#E6EDF7]">
                         {(() => {
                           const o = insightJson.action_plan as Record<string, unknown>
                           const entry = typeof o.entry_zone === 'string' ? o.entry_zone.trim() : ''
                           const stop = typeof o.stop_loss === 'string' ? o.stop_loss.trim() : ''
                           return (
                             <>
-                              <div className="flex flex-col gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-2">
-                                <div className="text-xs text-[#A9B6CC]">入场条件/区间</div>
-                                <div className="whitespace-pre-wrap">{entry || '—'}</div>
+                              <div className="flex flex-col gap-1.5 rounded-lg border border-white/10 bg-white/5 p-3">
+                                <div className="flex items-center gap-1.5 text-xs font-medium text-[#10B981]">
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                  入场条件/区间
+                                </div>
+                                <div className="whitespace-pre-wrap text-[13px] text-[#E2E8F0]">{entry || '—'}</div>
                               </div>
-                              <div className="flex flex-col gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-2">
-                                <div className="text-xs text-[#A9B6CC]">止损位</div>
-                                <div className="whitespace-pre-wrap">{stop || '—'}</div>
+                              <div className="flex flex-col gap-1.5 rounded-lg border border-[#F43F5E]/20 bg-[#F43F5E]/5 p-3">
+                                <div className="flex items-center gap-1.5 text-xs font-medium text-[#F43F5E]">
+                                  <AlertTriangle className="h-3.5 w-3.5" />
+                                  止损位
+                                </div>
+                                <div className="whitespace-pre-wrap text-[13px] text-[#E2E8F0]">{stop || '—'}</div>
                               </div>
                             </>
                           )
@@ -602,17 +629,21 @@ export default function EtfDetail() {
                   ) : null}
 
                   {typeof insightJson.thinking_process === 'string' && insightJson.thinking_process.trim() ? (
-                    <details className="rounded-lg border border-white/10 bg-black/10 px-3 py-3">
-                      <summary className="cursor-pointer text-xs font-semibold text-[#FFF2E8]">推导过程</summary>
-                      <div className="mt-2">
+                    <details className="rounded-xl border border-white/10 bg-[#141E33] p-4 shadow-sm group">
+                      <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-[#FFF2E8] list-none">
+                        <BrainCircuit className="h-4 w-4 text-[#A78BFA] group-open:text-[#C4B5FD] transition-colors" />
+                        <span className="group-open:text-[#C4B5FD] transition-colors">推导过程</span>
+                        <div className="ml-auto text-xs font-normal text-[#94A3B8] group-open:hidden">点击展开</div>
+                      </summary>
+                      <div className="mt-4 border-t border-white/10 pt-4">
                         {splitNonEmptyLines(insightJson.thinking_process).length > 1 ? (
-                          <ul className="list-disc space-y-1 pl-5 text-sm leading-7 text-[#E6EDF7]">
+                          <ul className="list-disc space-y-2 pl-5 text-[13px] leading-relaxed text-[#CBD5E1]">
                             {splitNonEmptyLines(insightJson.thinking_process).map((line, idx) => (
                               <li key={`${idx}-${line}`}>{line}</li>
                             ))}
                           </ul>
                         ) : (
-                          <div className="whitespace-pre-wrap text-sm leading-7 text-[#E6EDF7]">{insightJson.thinking_process}</div>
+                          <div className="whitespace-pre-wrap text-[13px] leading-relaxed text-[#CBD5E1]">{insightJson.thinking_process}</div>
                         )}
                       </div>
                     </details>
