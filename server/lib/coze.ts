@@ -185,7 +185,7 @@ export async function cozeStreamRunToMarkdown(promptText: string, opts?: { sessi
   const url = String(process.env.COZE_STREAM_RUN_URL || 'https://f87gr4kxcm.coze.site/stream_run').trim()
 
   const projectIdRaw = String(process.env.COZE_PROJECT_ID || '').trim()
-  const sessionId = String(opts?.sessionId || '').trim() || String(process.env.COZE_SESSION_ID || '').trim() || randomUUID()
+  const sessionId = String(opts?.sessionId || '').trim() || randomUUID()
 
   const body: Record<string, unknown> = {
     content: {
