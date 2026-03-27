@@ -11,6 +11,7 @@ import {
   type LogicalRange,
   type Time,
   type UTCTimestamp,
+  type WhitespaceData,
 } from 'lightweight-charts'
 import { cn } from '@/lib/utils'
 import type { LiquidityV5Point } from '@/utils/marketApi'
@@ -70,9 +71,11 @@ export default function MarketLiquidityChart({ series, className }: Props) {
   const chartsRef = useRef<{ price: IChartApi | null; v5: IChartApi | null }>({ price: null, v5: null })
   const seriesRef = useRef<{
     hs300: ISeriesApi<'Line', Time> | null
+    hs300Hot: ISeriesApi<'Line', Time> | null
+    hs300Cold: ISeriesApi<'Line', Time> | null
     v5: ISeriesApi<'Line', Time> | null
     v5Align: ISeriesApi<'Line', Time> | null
-  }>({ hs300: null, v5: null, v5Align: null })
+  }>({ hs300: null, hs300Hot: null, hs300Cold: null, v5: null, v5Align: null })
   const [hover, setHover] = useState<HoverState | null>(null)
 
   const updateV5ZoneBg = () => {
@@ -105,6 +108,8 @@ export default function MarketLiquidityChart({ series, className }: Props) {
 
   const data = useMemo(() => {
     const hs: LineData<Time>[] = []
+    const hsHot: Array<LineData<Time> | WhitespaceData<Time>> = []
+    const hsCold: Array<LineData<Time> | WhitespaceData<Time>> = []
     const v5: LineData<Time>[] = []
     const map = new Map<UTCTimestamp, HoverState>()
 
@@ -112,6 +117,11 @@ export default function MarketLiquidityChart({ series, className }: Props) {
       const t = ymdToUtcSeconds(p.date)
       if (!t) continue
       hs.push({ time: t, value: p.close })
+      const v = typeof p.v5 === 'number' && Number.isFinite(p.v5) ? p.v5 : null
+      if (v != null && v >= 70) hsHot.push({ time: t, value: p.close })
+      else hsHot.push({ time: t })
+      if (v != null && v <= 30) hsCold.push({ time: t, value: p.close })
+      else hsCold.push({ time: t })
       if (typeof p.v5 === 'number' && Number.isFinite(p.v5)) {
         v5.push({ time: t, value: p.v5 })
       }
@@ -123,7 +133,7 @@ export default function MarketLiquidityChart({ series, className }: Props) {
       })
     }
 
-    return { hs, v5, map }
+    return { hs, hsHot, hsCold, v5, map }
   }, [series])
 
   useEffect(() => {
@@ -158,13 +168,33 @@ export default function MarketLiquidityChart({ series, className }: Props) {
       lastValueVisible: true,
       priceFormat: { type: 'custom', formatter: (v) => fmt(v, 2) },
     })
+
+    const hsHot = chart.addSeries(LineSeries, {
+      color: '#F87171',
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    })
+    const hsCold = chart.addSeries(LineSeries, {
+      color: '#34D399',
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    })
+
     chartsRef.current.price = chart
     seriesRef.current.hs300 = hs
+    seriesRef.current.hs300Hot = hsHot
+    seriesRef.current.hs300Cold = hsCold
 
     return () => {
       chart.remove()
       if (chartsRef.current.price === chart) chartsRef.current.price = null
       seriesRef.current.hs300 = null
+      seriesRef.current.hs300Hot = null
+      seriesRef.current.hs300Cold = null
     }
   }, [])
 
@@ -337,6 +367,8 @@ export default function MarketLiquidityChart({ series, className }: Props) {
 
   useEffect(() => {
     seriesRef.current.hs300?.setData(data.hs)
+    seriesRef.current.hs300Hot?.setData(data.hsHot)
+    seriesRef.current.hs300Cold?.setData(data.hsCold)
     seriesRef.current.v5?.setData(data.v5)
     seriesRef.current.v5Align?.setData(data.hs)
     const price = chartsRef.current.price
