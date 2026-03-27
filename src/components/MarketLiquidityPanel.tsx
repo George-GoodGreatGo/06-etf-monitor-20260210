@@ -58,9 +58,9 @@ export default function MarketLiquidityPanel() {
     <section className="mt-4 overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <div className="text-xl font-semibold tracking-tight text-white">独家流动性指数（3指标）</div>
+          <div className="text-xl font-semibold tracking-tight text-white">沪深市场大盘看板</div>
           <div className="mt-1 text-[13px] text-[#94A3B8]">
-            指数 = (成交额分位数 × 换手率分位数 × 北向资金分位数)^(1/3)，分位数为90日滚动（最少20日）。
+            指数 = (成交额分位数 × 换手率分位数 × 北向资金分位数)^(1/3)，分位数为720日滚动（最少360日）。
           </div>
         </div>
 
