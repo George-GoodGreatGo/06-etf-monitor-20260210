@@ -63,14 +63,39 @@ type HoverState = {
 export default function MarketLiquidityChart({ series, className }: Props) {
   const priceElRef = useRef<HTMLDivElement | null>(null)
   const v5ElRef = useRef<HTMLDivElement | null>(null)
+  const v5OverboughtBgRef = useRef<HTMLDivElement | null>(null)
+  const v5OversoldBgRef = useRef<HTMLDivElement | null>(null)
   const syncingRef = useRef(false)
 
   const chartsRef = useRef<{ price: IChartApi | null; v5: IChartApi | null }>({ price: null, v5: null })
-  const seriesRef = useRef<{ hs300: ISeriesApi<'Line', Time> | null; v5: ISeriesApi<'Line', Time> | null }>({
-    hs300: null,
-    v5: null,
-  })
+  const seriesRef = useRef<{
+    hs300: ISeriesApi<'Line', Time> | null
+    v5: ISeriesApi<'Line', Time> | null
+    v5Align: ISeriesApi<'Line', Time> | null
+  }>({ hs300: null, v5: null, v5Align: null })
   const [hover, setHover] = useState<HoverState | null>(null)
+
+  const updateV5ZoneBg = () => {
+    const el = v5ElRef.current
+    const overEl = v5OverboughtBgRef.current
+    const underEl = v5OversoldBgRef.current
+    const s = seriesRef.current.v5
+    if (!el || !overEl || !underEl || !s) return
+
+    const h = el.clientHeight
+    const y70 = s.priceToCoordinate(70)
+    const y30 = s.priceToCoordinate(30)
+    if (y70 == null || y30 == null) return
+
+    const topY = Math.max(0, Math.min(h, y70))
+    const bottomY = Math.max(0, Math.min(h, y30))
+
+    overEl.style.top = '0px'
+    overEl.style.height = `${topY}px`
+
+    underEl.style.top = `${bottomY}px`
+    underEl.style.height = `${Math.max(0, h - bottomY)}px`
+  }
 
   const data = useMemo(() => {
     const hs: LineData<Time>[] = []
@@ -142,6 +167,11 @@ export default function MarketLiquidityChart({ series, className }: Props) {
 
     const chart = createChart(v5ElRef.current, {
       autoSize: true,
+      handleScale: {
+        axisPressedMouseMove: false,
+        mouseWheel: false,
+        pinch: false,
+      },
       layout: {
         background: { type: ColorType.Solid, color: '#111B2E' },
         textColor: '#A9B6CC',
@@ -169,7 +199,21 @@ export default function MarketLiquidityChart({ series, className }: Props) {
       priceLineVisible: false,
       lastValueVisible: true,
       priceFormat: { type: 'custom', formatter: (v) => fmt(v, 1) },
+      autoscaleInfoProvider: () => ({
+        priceRange: {
+          minValue: 0,
+          maxValue: 100,
+        },
+      }),
     })
+
+    const align = chart.addSeries(LineSeries, {
+      color: 'rgba(255,255,255,0)',
+      lineWidth: 1,
+      priceLineVisible: false,
+      lastValueVisible: false,
+    })
+    align.applyOptions({ visible: false })
 
     v5.createPriceLine({
       price: 30,
@@ -190,11 +234,13 @@ export default function MarketLiquidityChart({ series, className }: Props) {
 
     chartsRef.current.v5 = chart
     seriesRef.current.v5 = v5
+    seriesRef.current.v5Align = align
 
     return () => {
       chart.remove()
       if (chartsRef.current.v5 === chart) chartsRef.current.v5 = null
       seriesRef.current.v5 = null
+      seriesRef.current.v5Align = null
     }
   }, [])
 
@@ -214,6 +260,7 @@ export default function MarketLiquidityChart({ series, className }: Props) {
         c.timeScale().setVisibleLogicalRange(range)
       }
       syncingRef.current = false
+      requestAnimationFrame(updateV5ZoneBg)
     }
 
     const onCrosshair = (src: IChartApi) => (param: { time?: Time } | null) => {
@@ -227,6 +274,7 @@ export default function MarketLiquidityChart({ series, className }: Props) {
           c.clearCrosshairPosition()
         }
         syncingRef.current = false
+        requestAnimationFrame(updateV5ZoneBg)
         return
       }
 
@@ -248,6 +296,7 @@ export default function MarketLiquidityChart({ series, className }: Props) {
         }
       }
       syncingRef.current = false
+      requestAnimationFrame(updateV5ZoneBg)
     }
 
     const rangeHandlers: Array<{ chart: IChartApi; fn: (range: LogicalRange | null) => void }> = charts.map((c) => ({
@@ -263,6 +312,14 @@ export default function MarketLiquidityChart({ series, className }: Props) {
       chart.subscribeCrosshairMove(fn)
     }
 
+    const ro =
+      typeof ResizeObserver === 'undefined' || !v5ElRef.current
+        ? null
+        : new ResizeObserver(() => {
+            requestAnimationFrame(updateV5ZoneBg)
+          })
+    if (ro && v5ElRef.current) ro.observe(v5ElRef.current)
+
     return () => {
       for (const { chart, fn } of rangeHandlers) {
         chart.timeScale().unsubscribeVisibleLogicalRangeChange(fn)
@@ -270,18 +327,21 @@ export default function MarketLiquidityChart({ series, className }: Props) {
       for (const { chart, fn } of crossHandlers) {
         chart.unsubscribeCrosshairMove(fn)
       }
+      ro?.disconnect()
     }
   }, [data.map])
 
   useEffect(() => {
     seriesRef.current.hs300?.setData(data.hs)
     seriesRef.current.v5?.setData(data.v5)
+    seriesRef.current.v5Align?.setData(data.hs)
     const price = chartsRef.current.price
     const v5 = chartsRef.current.v5
     if (!price || !v5) return
     price.timeScale().fitContent()
     const range = price.timeScale().getVisibleLogicalRange()
     if (range) v5.timeScale().setVisibleLogicalRange(range)
+    requestAnimationFrame(updateV5ZoneBg)
   }, [data])
 
   return (
@@ -303,7 +363,21 @@ export default function MarketLiquidityChart({ series, className }: Props) {
       </div>
       <div className="pt-6">
         <div ref={priceElRef} className="h-[300px] w-full" />
-        <div ref={v5ElRef} className="h-[140px] w-full border-t border-white/10" />
+        <div className="relative h-[140px] w-full border-t border-white/10">
+          <div
+            ref={v5OverboughtBgRef}
+            className="pointer-events-none absolute left-0 top-0 z-0 bg-[rgba(239,68,68,0.12)]"
+            style={{ right: SCALE_MIN_WIDTH }}
+            aria-hidden="true"
+          />
+          <div
+            ref={v5OversoldBgRef}
+            className="pointer-events-none absolute left-0 top-0 z-0 bg-[rgba(16,185,129,0.10)]"
+            style={{ right: SCALE_MIN_WIDTH }}
+            aria-hidden="true"
+          />
+          <div ref={v5ElRef} className="relative z-10 h-full w-full" />
+        </div>
       </div>
     </div>
   )
