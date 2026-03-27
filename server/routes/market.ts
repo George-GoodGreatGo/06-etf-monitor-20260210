@@ -61,7 +61,7 @@ router.get('/liquidity/v5', async (req: Request, res: Response) => {
         dataDate: last?.date ?? null,
         source: 'codebuddy:financedata',
         notes: [
-          'V5流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为60日滚动，最小有效20日。',
+          'V5流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为90日滚动，最小有效20日。',
         ],
       },
       data: {

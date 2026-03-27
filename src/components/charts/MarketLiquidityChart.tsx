@@ -15,7 +15,7 @@ import {
 import { cn } from '@/lib/utils'
 import type { LiquidityV5Point } from '@/utils/marketApi'
 
-const SCALE_MIN_WIDTH = 92
+const SCALE_MIN_WIDTH = 110
 
 function ymdToUtcSeconds(ymd: string): UTCTimestamp | null {
   const s = String(ymd || '').trim()
@@ -169,7 +169,7 @@ export default function MarketLiquidityChart({ series, className }: Props) {
       autoSize: true,
       handleScale: {
         axisPressedMouseMove: false,
-        mouseWheel: false,
+        mouseWheel: true,
         pinch: false,
       },
       layout: {
@@ -358,12 +358,17 @@ export default function MarketLiquidityChart({ series, className }: Props) {
         </div>
       ) : null}
 
-      <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
-        沪深300（主图）+ A股市场流动性指数（V5几何平均）
-      </div>
       <div className="pt-6">
-        <div ref={priceElRef} className="h-[300px] w-full" />
+        <div className="relative">
+          <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
+            沪深300（主图）
+          </div>
+          <div ref={priceElRef} className="h-[300px] w-full" />
+        </div>
         <div className="relative h-[140px] w-full border-t border-white/10">
+          <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
+            A股市场流动性指数（V5）
+          </div>
           <div
             ref={v5OverboughtBgRef}
             className="pointer-events-none absolute left-0 top-0 z-0 bg-[rgba(239,68,68,0.12)]"
