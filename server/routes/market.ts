@@ -95,7 +95,7 @@ router.get('/liquidity/v5', async (req: Request, res: Response) => {
         source: 'codebuddy:financedata + eastmoney:kline',
         notes: [
           'V5流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为90日滚动，最小有效20日。',
-          '股债性价比=1/沪深300PE-中国10Y国债收益率，value再取90日滚动分位（最小有效20日），分位越高代表股票更有性价比。',
+          '股债性价比=1/沪深300PE-中国10Y国债收益率，value再取180日滚动分位（最小有效20日），分位越高代表股票更有性价比。',
         ],
       },
       data: {
