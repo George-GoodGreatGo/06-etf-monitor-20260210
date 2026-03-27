@@ -559,7 +559,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
           <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
             <div className="text-[#A9B6CC]">沪深300</div>
             <div className="text-right font-mono">{fmt(hover.close, 2)}</div>
-            <div className="text-[#A9B6CC]">V5</div>
+            <div className="text-[#A9B6CC]">流动性指数</div>
             <div className="text-right font-mono">{fmt(hover.v5, 1)}</div>
             <div className="text-[#A9B6CC]">股债分位</div>
             <div className="text-right font-mono">{fmt(hover.ebPct, 1)}</div>
@@ -602,7 +602,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
         </div>
         <div className="relative h-[140px] w-full border-t border-white/10">
           <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
-            A股市场流动性指数（V5）
+            独家流动性指数（3指标）
           </div>
           <div
             ref={v5OverboughtBgRef}
