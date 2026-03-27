@@ -85,7 +85,13 @@ export default function MarketLiquidityChart({ series, className }: Props) {
     const h = el.clientHeight
     const y70 = s.priceToCoordinate(70)
     const y30 = s.priceToCoordinate(30)
-    if (y70 == null || y30 == null) return
+    if (y70 == null || y30 == null) {
+      overEl.style.display = 'none'
+      underEl.style.display = 'none'
+      return
+    }
+    overEl.style.display = 'block'
+    underEl.style.display = 'block'
 
     const topY = Math.max(0, Math.min(h, y70))
     const bottomY = Math.max(0, Math.min(h, y30))
@@ -341,7 +347,7 @@ export default function MarketLiquidityChart({ series, className }: Props) {
     price.timeScale().fitContent()
     const range = price.timeScale().getVisibleLogicalRange()
     if (range) v5.timeScale().setVisibleLogicalRange(range)
-    requestAnimationFrame(updateV5ZoneBg)
+    requestAnimationFrame(() => requestAnimationFrame(updateV5ZoneBg))
   }, [data])
 
   return (
@@ -371,17 +377,17 @@ export default function MarketLiquidityChart({ series, className }: Props) {
           </div>
           <div
             ref={v5OverboughtBgRef}
-            className="pointer-events-none absolute left-0 top-0 z-0 bg-[rgba(239,68,68,0.12)]"
+            className="pointer-events-none absolute left-0 top-0 z-10 bg-[rgba(239,68,68,0.12)]"
             style={{ right: SCALE_MIN_WIDTH }}
             aria-hidden="true"
           />
           <div
             ref={v5OversoldBgRef}
-            className="pointer-events-none absolute left-0 top-0 z-0 bg-[rgba(16,185,129,0.10)]"
+            className="pointer-events-none absolute left-0 top-0 z-10 bg-[rgba(16,185,129,0.10)]"
             style={{ right: SCALE_MIN_WIDTH }}
             aria-hidden="true"
           />
-          <div ref={v5ElRef} className="relative z-10 h-full w-full" />
+          <div ref={v5ElRef} className="relative z-0 h-full w-full" />
         </div>
       </div>
     </div>
