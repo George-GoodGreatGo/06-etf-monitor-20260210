@@ -58,15 +58,15 @@ export default function MarketLiquidityPanel() {
     <section className="mt-4 overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <div className="text-xl font-semibold tracking-tight text-white">A股市场流动性指数（V5 几何平均）</div>
+          <div className="text-xl font-semibold tracking-tight text-white">独家流动性指数（3指标）</div>
           <div className="mt-1 text-[13px] text-[#94A3B8]">
-            V5 = (成交额分位数 × 换手率分位数 × 北向资金分位数)^(1/3)，分位数为90日滚动（最少20日）。
+            指数 = (成交额分位数 × 换手率分位数 × 北向资金分位数)^(1/3)，分位数为90日滚动（最少20日）。
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="rounded-lg border border-[#1E293B] bg-[#0F172A] px-3 py-2 text-xs">
-            <div className="text-[#94A3B8]">最新 V5</div>
+            <div className="text-[#94A3B8]">最新指数</div>
             <div className="mt-1 flex items-baseline gap-2">
               <div className="font-mono text-sm font-semibold text-[#F8FAFC]">
                 {typeof latest?.v5 === 'number' ? latest.v5.toFixed(1) : '—'}

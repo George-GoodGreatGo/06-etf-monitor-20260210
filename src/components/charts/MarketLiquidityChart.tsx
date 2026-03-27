@@ -569,10 +569,12 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
 
       <div className="pt-6">
         <div className="relative">
-          <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
-            沪深300（主图）
+          <div className="pointer-events-none absolute left-3 top-2 z-20">
+            <div className="inline-flex items-center gap-2 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
+              沪深300（主图）
+            </div>
           </div>
-          <div className="absolute left-3 top-9 z-30 flex items-center gap-2">
+          <div className="absolute left-3 top-8 z-30 flex items-center gap-2">
             <button
               type="button"
               onClick={() => setShowEma20((v) => !v)}
