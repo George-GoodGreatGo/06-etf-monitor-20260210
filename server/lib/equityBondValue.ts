@@ -20,6 +20,24 @@ function fillForward(values: Array<number | null>): Array<number | null> {
   return out
 }
 
+function fillLeadingWithFirst(values: Array<number | null>): Array<number | null> {
+  let first: number | null = null
+  for (let i = 0; i < values.length; i += 1) {
+    const v = values[i]
+    if (v != null) {
+      first = v
+      break
+    }
+  }
+  if (first == null) return values
+  const out = values.slice()
+  for (let i = 0; i < out.length; i += 1) {
+    if (out[i] != null) break
+    out[i] = first
+  }
+  return out
+}
+
 function rollingPercentilePct(values: Array<number | null>, window: number, minPeriods: number): Array<number | null> {
   const out: Array<number | null> = new Array(values.length).fill(null)
   for (let i = 0; i < values.length; i += 1) {
@@ -63,11 +81,13 @@ export function buildEquityBondValuePctSeries(input: {
 
   const peF = fillForward(pe)
   const yF = fillForward(y)
+  const peFF = fillLeadingWithFirst(peF)
+  const yFF = fillLeadingWithFirst(yF)
 
   const value: Array<number | null> = new Array(dates.length).fill(null)
   for (let i = 0; i < dates.length; i += 1) {
-    const peV = peF[i]
-    const yPct = yF[i]
+    const peV = peFF[i]
+    const yPct = yFF[i]
     if (peV == null || yPct == null || peV <= 0) {
       value[i] = null
       continue
