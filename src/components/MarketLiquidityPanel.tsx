@@ -51,7 +51,7 @@ export default function MarketLiquidityPanel() {
   const state = useMemo(() => calcState(latest?.v5), [latest?.v5])
 
   return (
-    <div className="mt-4">
+    <section className="mt-4 overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <div className="text-xl font-semibold tracking-tight text-white">A股市场流动性指数（V5 几何平均）</div>
@@ -85,10 +85,10 @@ export default function MarketLiquidityPanel() {
         />
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-lg border border-white/10">
+      <div className="mt-4 overflow-hidden rounded-lg border border-white/10 bg-[#111B2E]">
         <MarketLiquidityChart series={series} />
       </div>
-    </div>
+    </section>
   )
 }
 
