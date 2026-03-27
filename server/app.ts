@@ -13,6 +13,7 @@ import authRoutes from './routes/auth.js'
 import etfRoutes from './routes/etf.js'
 import adminRoutes from './routes/admin.js'
 import aiRoutes from './routes/ai.js'
+import marketRoutes from './routes/market.js'
 import { serverBootId, serverStartedAt } from './lib/runtime.js'
 import { requireAdminAccess } from './lib/adminAuth.js'
 
@@ -37,6 +38,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/etf', requireAdminAccess, etfRoutes)
 app.use('/api/admin', requireAdminAccess, adminRoutes)
 app.use('/api/ai', requireAdminAccess, aiRoutes)
+app.use('/api/market', requireAdminAccess, marketRoutes)
 
 /**
  * health

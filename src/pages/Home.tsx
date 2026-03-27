@@ -6,6 +6,7 @@ import { type SortDir } from '@/components/SortableTh'
 import Top100FilterBar from '@/components/Top100FilterBar'
 import Top100Table from '@/components/Top100Table'
 import Top100InsightPanel from '@/components/Top100InsightPanel'
+import MarketLiquidityPanel from '@/components/MarketLiquidityPanel'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { cn } from '@/lib/utils'
 import {
@@ -22,7 +23,7 @@ const defaultSort: { key: Top100SortKey; dir: SortDir } = {
   dir: 'desc',
 }
 
-type HomeTab = 'list' | 'insight'
+type HomeTab = 'list' | 'insight' | 'liquidity'
 
 export default function Home() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -32,7 +33,7 @@ export default function Home() {
   const debouncedKeyword = useDebouncedValue(keyword, 250)
 
   const rawTab = searchParams.get('tab')
-  const tab: HomeTab = rawTab === 'insight' || rawTab === 'list' ? rawTab : 'list'
+  const tab: HomeTab = rawTab === 'insight' || rawTab === 'list' || rawTab === 'liquidity' ? rawTab : 'list'
 
   const [sortKey, setSortKey] = useState<Top100SortKey>(
     (searchParams.get('sort') as Top100SortKey) ?? defaultSort.key,
@@ -94,7 +95,7 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    if (rawTab === 'list' || rawTab === 'insight') return
+    if (rawTab === 'list' || rawTab === 'insight' || rawTab === 'liquidity') return
     const next = new URLSearchParams(searchParams)
     next.set('tab', 'list')
     setSearchParams(next, { replace: true })
@@ -542,6 +543,27 @@ export default function Home() {
                 <span className="absolute -bottom-[10px] left-0 right-0 h-[2px] bg-[#FF5722]" />
               ) : null}
             </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'liquidity'}
+              onClick={() => {
+                if (tab === 'liquidity') return
+                const next = new URLSearchParams(searchParams)
+                next.set('tab', 'liquidity')
+                setSearchParams(next, { replace: true })
+              }}
+              className={cn(
+                'relative inline-flex items-center gap-2 pb-2 text-sm font-semibold transition',
+                tab === 'liquidity' ? 'text-[#FF5722]' : 'text-[#94A3B8] hover:text-white',
+              )}
+            >
+              <span className={cn('h-2 w-2 rounded-full', tab === 'liquidity' ? 'bg-[#FF5722]' : 'bg-[#334155]')} />
+              流动性指数
+              {tab === 'liquidity' ? (
+                <span className="absolute -bottom-[10px] left-0 right-0 h-[2px] bg-[#FF5722]" />
+              ) : null}
+            </button>
           </div>
 
           <div className="sm:min-h-10 sm:flex sm:items-center">
@@ -554,11 +576,9 @@ export default function Home() {
         </div>
 
         {tab === 'insight' ? (
-          <Top100InsightPanel
-            meta={meta}
-            rows={rows}
-            isHomeLoading={loading}
-          />
+          <Top100InsightPanel meta={meta} rows={rows} isHomeLoading={loading} />
+        ) : tab === 'liquidity' ? (
+          <MarketLiquidityPanel />
         ) : (
           <Top100Table
             rows={rows}
