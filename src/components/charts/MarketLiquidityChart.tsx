@@ -13,7 +13,7 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts'
 import { cn } from '@/lib/utils'
-import type { LiquidityV5Point } from '@/utils/marketApi'
+import type { EquityBondPoint, LiquidityV5Point } from '@/utils/marketApi'
 
 const SCALE_MIN_WIDTH = 110
 
@@ -50,6 +50,7 @@ function normalizeTime(t: Time | undefined): UTCTimestamp | null {
 
 type Props = {
   series: LiquidityV5Point[]
+  equityBond?: EquityBondPoint[]
   className?: string
 }
 
@@ -58,21 +59,29 @@ type HoverState = {
   date: string
   close?: number
   v5?: number
+  ebPct?: number
 }
 
-export default function MarketLiquidityChart({ series, className }: Props) {
+export default function MarketLiquidityChart({ series, equityBond, className }: Props) {
   const priceElRef = useRef<HTMLDivElement | null>(null)
   const v5ElRef = useRef<HTMLDivElement | null>(null)
+  const ebElRef = useRef<HTMLDivElement | null>(null)
   const v5OverboughtBgRef = useRef<HTMLDivElement | null>(null)
   const v5OversoldBgRef = useRef<HTMLDivElement | null>(null)
   const syncingRef = useRef(false)
 
-  const chartsRef = useRef<{ price: IChartApi | null; v5: IChartApi | null }>({ price: null, v5: null })
+  const chartsRef = useRef<{ price: IChartApi | null; v5: IChartApi | null; eb: IChartApi | null }>({
+    price: null,
+    v5: null,
+    eb: null,
+  })
   const seriesRef = useRef<{
     hs300: ISeriesApi<'Line', Time> | null
     v5: ISeriesApi<'Line', Time> | null
     v5Align: ISeriesApi<'Line', Time> | null
-  }>({ hs300: null, v5: null, v5Align: null })
+    eb: ISeriesApi<'Line', Time> | null
+    ebAlign: ISeriesApi<'Line', Time> | null
+  }>({ hs300: null, v5: null, v5Align: null, eb: null, ebAlign: null })
   const hsSegRef = useRef<{ hot: ISeriesApi<'Line', Time>[]; cold: ISeriesApi<'Line', Time>[] }>({
     hot: [],
     cold: [],
@@ -112,10 +121,18 @@ export default function MarketLiquidityChart({ series, className }: Props) {
     const hsHotSegments: LineData<Time>[][] = []
     const hsColdSegments: LineData<Time>[][] = []
     const v5: LineData<Time>[] = []
+    const eb: LineData<Time>[] = []
     const map = new Map<UTCTimestamp, HoverState>()
 
     let hotBuf: LineData<Time>[] = []
     let coldBuf: LineData<Time>[] = []
+
+    const ebByDate = new Map<string, number>()
+    for (const p of equityBond || []) {
+      const d = String(p?.date || '').trim()
+      const v = typeof p?.pct === 'number' && Number.isFinite(p.pct) ? p.pct : null
+      if (d && v != null) ebByDate.set(d, v)
+    }
 
     for (const p of series) {
       const t = ymdToUtcSeconds(p.date)
@@ -137,19 +154,24 @@ export default function MarketLiquidityChart({ series, className }: Props) {
       if (typeof p.v5 === 'number' && Number.isFinite(p.v5)) {
         v5.push({ time: t, value: p.v5 })
       }
+      const ebPct = ebByDate.get(p.date)
+      if (typeof ebPct === 'number' && Number.isFinite(ebPct)) {
+        eb.push({ time: t, value: ebPct })
+      }
       map.set(t, {
         t,
         date: p.date,
         close: p.close,
         v5: typeof p.v5 === 'number' && Number.isFinite(p.v5) ? p.v5 : undefined,
+        ebPct: typeof ebPct === 'number' && Number.isFinite(ebPct) ? ebPct : undefined,
       })
     }
 
     if (hotBuf.length) hsHotSegments.push(hotBuf)
     if (coldBuf.length) hsColdSegments.push(coldBuf)
 
-    return { hs, hsHotSegments, hsColdSegments, v5, map }
-  }, [series])
+    return { hs, hsHotSegments, hsColdSegments, v5, eb, map }
+  }, [equityBond, series])
 
   useEffect(() => {
     if (!priceElRef.current || chartsRef.current.price) return
@@ -218,7 +240,7 @@ export default function MarketLiquidityChart({ series, className }: Props) {
       rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)', minimumWidth: SCALE_MIN_WIDTH },
       timeScale: {
         borderColor: 'rgba(255,255,255,0.10)',
-        visible: true,
+        visible: false,
         fixLeftEdge: true,
         fixRightEdge: true,
         rightOffset: 0,
@@ -277,11 +299,76 @@ export default function MarketLiquidityChart({ series, className }: Props) {
   }, [])
 
   useEffect(() => {
+    if (!ebElRef.current || chartsRef.current.eb) return
+
+    const chart = createChart(ebElRef.current, {
+      autoSize: true,
+      handleScale: {
+        axisPressedMouseMove: false,
+        mouseWheel: true,
+        pinch: false,
+      },
+      layout: {
+        background: { type: ColorType.Solid, color: '#111B2E' },
+        textColor: '#A9B6CC',
+        fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif',
+      },
+      grid: {
+        vertLines: { color: 'rgba(255,255,255,0.06)' },
+        horzLines: { color: 'rgba(255,255,255,0.06)' },
+      },
+      rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)', minimumWidth: SCALE_MIN_WIDTH },
+      timeScale: {
+        borderColor: 'rgba(255,255,255,0.10)',
+        visible: true,
+        fixLeftEdge: true,
+        fixRightEdge: true,
+        rightOffset: 0,
+      },
+      crosshair: { mode: CrosshairMode.Normal },
+    })
+
+    const eb = chart.addSeries(LineSeries, {
+      color: '#A78BFA',
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: true,
+      priceFormat: { type: 'custom', formatter: (v) => fmt(v, 1) },
+      autoscaleInfoProvider: () => ({
+        priceRange: {
+          minValue: 0,
+          maxValue: 100,
+        },
+      }),
+    })
+
+    const align = chart.addSeries(LineSeries, {
+      color: 'rgba(255,255,255,0)',
+      lineWidth: 1,
+      priceLineVisible: false,
+      lastValueVisible: false,
+    })
+    align.applyOptions({ visible: false })
+
+    chartsRef.current.eb = chart
+    seriesRef.current.eb = eb
+    seriesRef.current.ebAlign = align
+
+    return () => {
+      chart.remove()
+      if (chartsRef.current.eb === chart) chartsRef.current.eb = null
+      seriesRef.current.eb = null
+      seriesRef.current.ebAlign = null
+    }
+  }, [])
+
+  useEffect(() => {
     const price = chartsRef.current.price
     const v5 = chartsRef.current.v5
-    if (!price || !v5) return
+    const eb = chartsRef.current.eb
+    if (!price || !v5 || !eb) return
 
-    const charts: IChartApi[] = [price, v5]
+    const charts: IChartApi[] = [price, v5, eb]
 
     const onVisibleLogicalRange = (src: IChartApi) => (range: LogicalRange | null) => {
       if (syncingRef.current) return
@@ -314,6 +401,7 @@ export default function MarketLiquidityChart({ series, className }: Props) {
 
       const hsSeries = seriesRef.current.hs300
       const v5Series = seriesRef.current.v5
+      const ebSeries = seriesRef.current.eb
       const h = data.map.get(t)
 
       syncingRef.current = true
@@ -323,6 +411,8 @@ export default function MarketLiquidityChart({ series, className }: Props) {
           c.setCrosshairPosition(h.close, t, hsSeries)
         } else if (c === v5 && v5Series && typeof h?.v5 === 'number') {
           c.setCrosshairPosition(h.v5, t, v5Series)
+        } else if (c === eb && ebSeries && typeof h?.ebPct === 'number') {
+          c.setCrosshairPosition(h.ebPct, t, ebSeries)
         } else {
           c.clearCrosshairPosition()
         }
@@ -367,9 +457,12 @@ export default function MarketLiquidityChart({ series, className }: Props) {
     seriesRef.current.hs300?.setData(data.hs)
     seriesRef.current.v5?.setData(data.v5)
     seriesRef.current.v5Align?.setData(data.hs)
+    seriesRef.current.eb?.setData(data.eb)
+    seriesRef.current.ebAlign?.setData(data.hs)
     const price = chartsRef.current.price
     const v5 = chartsRef.current.v5
-    if (!price || !v5) return
+    const eb = chartsRef.current.eb
+    if (!price || !v5 || !eb) return
 
     for (const s of hsSegRef.current.hot) price.removeSeries(s)
     for (const s of hsSegRef.current.cold) price.removeSeries(s)
@@ -402,6 +495,7 @@ export default function MarketLiquidityChart({ series, className }: Props) {
     price.timeScale().fitContent()
     const range = price.timeScale().getVisibleLogicalRange()
     if (range) v5.timeScale().setVisibleLogicalRange(range)
+    if (range) eb.timeScale().setVisibleLogicalRange(range)
     requestAnimationFrame(() => requestAnimationFrame(updateV5ZoneBg))
   }, [data])
 
@@ -415,6 +509,8 @@ export default function MarketLiquidityChart({ series, className }: Props) {
             <div className="text-right font-mono">{fmt(hover.close, 2)}</div>
             <div className="text-[#A9B6CC]">V5</div>
             <div className="text-right font-mono">{fmt(hover.v5, 1)}</div>
+            <div className="text-[#A9B6CC]">股债分位</div>
+            <div className="text-right font-mono">{fmt(hover.ebPct, 1)}</div>
           </div>
         </div>
       ) : null}
@@ -443,6 +539,12 @@ export default function MarketLiquidityChart({ series, className }: Props) {
             aria-hidden="true"
           />
           <div ref={v5ElRef} className="relative z-0 h-full w-full" />
+        </div>
+        <div className="relative h-[140px] w-full border-t border-white/10">
+          <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
+            股债性价比（分位）
+          </div>
+          <div ref={ebElRef} className="h-full w-full" />
         </div>
       </div>
     </div>

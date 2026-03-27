@@ -11,8 +11,17 @@ export type LiquidityV5Point = {
   v5: number | null
 }
 
+export type EquityBondPoint = {
+  date: string
+  value: number | null
+  pct: number | null
+}
+
 export type MarketLiquidityV5 = {
   series: LiquidityV5Point[]
+  equityBond?: {
+    series: EquityBondPoint[]
+  } | null
 }
 
 export async function fetchMarketLiquidityV5(signal?: AbortSignal): Promise<ApiOk<MarketLiquidityV5> | ApiErr> {

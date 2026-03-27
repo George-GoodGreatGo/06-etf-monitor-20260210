@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import DataStatusBanner from '@/components/DataStatusBanner'
 import MarketLiquidityChart from '@/components/charts/MarketLiquidityChart'
 import { cn } from '@/lib/utils'
-import { fetchMarketLiquidityV5, type LiquidityV5Point } from '@/utils/marketApi'
+import { fetchMarketLiquidityV5, type EquityBondPoint, type LiquidityV5Point } from '@/utils/marketApi'
 import type { Top100Meta } from '@/utils/etfApi'
 
 function calcState(v5: number | null | undefined): { label: string; cls: string } {
@@ -17,6 +17,7 @@ export default function MarketLiquidityPanel() {
   const [error, setError] = useState<string | null>(null)
   const [meta, setMeta] = useState<Top100Meta | null>(null)
   const [series, setSeries] = useState<LiquidityV5Point[]>([])
+  const [equityBond, setEquityBond] = useState<EquityBondPoint[]>([])
 
   useEffect(() => {
     const ac = new AbortController()
@@ -28,18 +29,21 @@ export default function MarketLiquidityPanel() {
         if (res.success === false) {
           setMeta(null)
           setSeries([])
+          setEquityBond([])
           setError(res.message ?? res.error)
           setLoading(false)
           return
         }
         setMeta(res.meta)
         setSeries(res.data.series || [])
+        setEquityBond(res.data.equityBond?.series || [])
         setLoading(false)
       } catch (e) {
         const name = e instanceof Error ? e.name : ''
         if (name === 'AbortError') return
         setMeta(null)
         setSeries([])
+        setEquityBond([])
         setError('网络异常或 API 不可用')
         setLoading(false)
       }
@@ -56,7 +60,7 @@ export default function MarketLiquidityPanel() {
         <div>
           <div className="text-xl font-semibold tracking-tight text-white">A股市场流动性指数（V5 几何平均）</div>
           <div className="mt-1 text-[13px] text-[#94A3B8]">
-            V5 = (成交额分位数 × 换手率分位数 × 北向资金分位数)^(1/3)，分位数为60日滚动（最少20日）。
+            V5 = (成交额分位数 × 换手率分位数 × 北向资金分位数)^(1/3)，分位数为90日滚动（最少20日）。
           </div>
         </div>
 
@@ -86,7 +90,7 @@ export default function MarketLiquidityPanel() {
       </div>
 
       <div className="mt-4 overflow-hidden rounded-lg border border-white/10 bg-[#111B2E]">
-        <MarketLiquidityChart series={series} />
+        <MarketLiquidityChart series={series} equityBond={equityBond} />
       </div>
     </section>
   )
