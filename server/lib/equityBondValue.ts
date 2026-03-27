@@ -97,7 +97,7 @@ export function buildEquityBondValuePctSeries(input: {
     value[i] = earningsYield - bondYield
   }
 
-  const pct = rollingPercentilePct(value, 365, 180)
+  const pct = rollingPercentilePct(value, 720, 360)
 
   const out: EquityBondPoint[] = []
   for (let i = 0; i < dates.length; i += 1) {
