@@ -226,16 +226,14 @@ export default function MarketLiquidityChart({ series, className }: Props) {
       color: 'rgba(16,185,129,0.45)',
       lineWidth: 1,
       lineStyle: LineStyle.Dashed,
-      axisLabelVisible: true,
-      title: '30',
+      axisLabelVisible: false,
     })
     v5.createPriceLine({
       price: 70,
       color: 'rgba(239,68,68,0.45)',
       lineWidth: 1,
       lineStyle: LineStyle.Dashed,
-      axisLabelVisible: true,
-      title: '70',
+      axisLabelVisible: false,
     })
 
     chartsRef.current.v5 = chart
