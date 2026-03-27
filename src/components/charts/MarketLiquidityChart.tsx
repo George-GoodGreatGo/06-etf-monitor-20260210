@@ -62,8 +62,6 @@ type HoverState = {
   ebPct?: number
 }
 
-type LineOrWhitespace = LineData<Time> | { time: Time }
-
 function buildEma(points: LineData<Time>[], period: number): LineData<Time>[] {
   if (!points.length) return []
   const a = 2 / (period + 1)
@@ -93,15 +91,17 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
   })
   const seriesRef = useRef<{
     hs300: ISeriesApi<'Line', Time> | null
-    hot: ISeriesApi<'Line', Time> | null
-    cold: ISeriesApi<'Line', Time> | null
     ema20: ISeriesApi<'Line', Time> | null
     ema60: ISeriesApi<'Line', Time> | null
     v5: ISeriesApi<'Line', Time> | null
     v5Align: ISeriesApi<'Line', Time> | null
     eb: ISeriesApi<'Line', Time> | null
     ebAlign: ISeriesApi<'Line', Time> | null
-  }>({ hs300: null, hot: null, cold: null, ema20: null, ema60: null, v5: null, v5Align: null, eb: null, ebAlign: null })
+  }>({ hs300: null, ema20: null, ema60: null, v5: null, v5Align: null, eb: null, ebAlign: null })
+  const hsSegRef = useRef<{ hot: ISeriesApi<'Line', Time>[]; cold: ISeriesApi<'Line', Time>[] }>({
+    hot: [],
+    cold: [],
+  })
   const [hover, setHover] = useState<HoverState | null>(null)
   const [showEma20, setShowEma20] = useState(true)
   const [showEma60, setShowEma60] = useState(true)
@@ -136,11 +136,13 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
 
   const data = useMemo(() => {
     const hs: LineData<Time>[] = []
-    const hot: LineOrWhitespace[] = []
-    const cold: LineOrWhitespace[] = []
+    const hsHotSegments: LineData<Time>[][] = []
+    const hsColdSegments: LineData<Time>[][] = []
     const v5: LineData<Time>[] = []
     const eb: LineData<Time>[] = []
     const map = new Map<UTCTimestamp, HoverState>()
+    let hotBuf: LineData<Time>[] = []
+    let coldBuf: LineData<Time>[] = []
 
     const ebByDate = new Map<string, number>()
     for (const p of equityBond || []) {
@@ -154,10 +156,18 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       if (!t) continue
       hs.push({ time: t, value: p.close })
       const v = typeof p.v5 === 'number' && Number.isFinite(p.v5) ? p.v5 : null
-      if (v != null && v >= 70) hot.push({ time: t, value: p.close })
-      else hot.push({ time: t })
-      if (v != null && v <= 30) cold.push({ time: t, value: p.close })
-      else cold.push({ time: t })
+      if (v != null && v >= 70) {
+        hotBuf.push({ time: t, value: p.close })
+      } else if (hotBuf.length) {
+        hsHotSegments.push(hotBuf)
+        hotBuf = []
+      }
+      if (v != null && v <= 30) {
+        coldBuf.push({ time: t, value: p.close })
+      } else if (coldBuf.length) {
+        hsColdSegments.push(coldBuf)
+        coldBuf = []
+      }
       if (typeof p.v5 === 'number' && Number.isFinite(p.v5)) {
         v5.push({ time: t, value: p.v5 })
       }
@@ -174,10 +184,13 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       })
     }
 
+    if (hotBuf.length) hsHotSegments.push(hotBuf)
+    if (coldBuf.length) hsColdSegments.push(coldBuf)
+
     const ema20 = buildEma(hs, 20)
     const ema60 = buildEma(hs, 60)
 
-    return { hs, hot, cold, ema20, ema60, v5, eb, map }
+    return { hs, hsHotSegments, hsColdSegments, ema20, ema60, v5, eb, map }
   }, [equityBond, series])
 
   useEffect(() => {
@@ -213,22 +226,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       priceFormat: { type: 'custom', formatter: (v) => fmt(v, 2) },
     })
 
-    const hot = chart.addSeries(LineSeries, {
-      color: '#F87171',
-      lineWidth: 2,
-      priceLineVisible: false,
-      lastValueVisible: false,
-      crosshairMarkerVisible: false,
-    })
-
-    const cold = chart.addSeries(LineSeries, {
-      color: '#34D399',
-      lineWidth: 2,
-      priceLineVisible: false,
-      lastValueVisible: false,
-      crosshairMarkerVisible: false,
-    })
-
     const ema20 = chart.addSeries(LineSeries, {
       color: '#F59E0B',
       lineWidth: 1,
@@ -249,8 +246,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
 
     chartsRef.current.price = chart
     seriesRef.current.hs300 = hs
-    seriesRef.current.hot = hot
-    seriesRef.current.cold = cold
     seriesRef.current.ema20 = ema20
     seriesRef.current.ema60 = ema60
 
@@ -258,10 +253,10 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       chart.remove()
       if (chartsRef.current.price === chart) chartsRef.current.price = null
       seriesRef.current.hs300 = null
-      seriesRef.current.hot = null
-      seriesRef.current.cold = null
       seriesRef.current.ema20 = null
       seriesRef.current.ema60 = null
+      hsSegRef.current.hot = []
+      hsSegRef.current.cold = []
     }
   }, [])
 
@@ -510,8 +505,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
 
   useEffect(() => {
     seriesRef.current.hs300?.setData(data.hs)
-    seriesRef.current.hot?.setData(data.hot as unknown as LineData<Time>[])
-    seriesRef.current.cold?.setData(data.cold as unknown as LineData<Time>[])
     seriesRef.current.ema20?.setData(data.ema20)
     seriesRef.current.ema60?.setData(data.ema60)
     seriesRef.current.v5?.setData(data.v5)
@@ -522,6 +515,34 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     const v5 = chartsRef.current.v5
     const eb = chartsRef.current.eb
     if (!price || !v5 || !eb) return
+
+    for (const s of hsSegRef.current.hot) price.removeSeries(s)
+    for (const s of hsSegRef.current.cold) price.removeSeries(s)
+    hsSegRef.current.hot = []
+    hsSegRef.current.cold = []
+
+    for (const seg of data.hsHotSegments) {
+      const s = price.addSeries(LineSeries, {
+        color: '#F87171',
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      })
+      s.setData(seg)
+      hsSegRef.current.hot.push(s)
+    }
+    for (const seg of data.hsColdSegments) {
+      const s = price.addSeries(LineSeries, {
+        color: '#34D399',
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      })
+      s.setData(seg)
+      hsSegRef.current.cold.push(s)
+    }
 
     price.timeScale().fitContent()
     const range = price.timeScale().getVisibleLogicalRange()
@@ -551,7 +572,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
           <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
             沪深300（主图）
           </div>
-          <div className="absolute right-3 top-2 z-30 flex items-center gap-2">
+          <div className="absolute left-3 top-9 z-30 flex items-center gap-2">
             <button
               type="button"
               onClick={() => setShowEma20((v) => !v)}
