@@ -31,16 +31,17 @@ function ymd8ToYear(ymd8: string): number | null {
 router.get('/liquidity/v5', async (req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'no-store')
 
-  const cacheKey = 'liquidity:v5'
+  const start = typeof req.query.startDate === 'string' ? req.query.startDate.trim() : '20150101'
+  const end = typeof req.query.endDate === 'string' ? req.query.endDate.trim() : ymdToday()
+  const liquidityStart = start < '20200101' ? '20200101' : start
+
+  const cacheKey = `liquidity:v5:${start}:${end}`
   const now = Date.now()
   const hit = cache.get(cacheKey)
   if (hit && hit.expiresAt > now) {
     res.status(200).json(hit.value)
     return
   }
-
-  const start = typeof req.query.startDate === 'string' ? req.query.startDate.trim() : '20200101'
-  const end = typeof req.query.endDate === 'string' ? req.query.endDate.trim() : ymdToday()
 
   try {
     const [hs300, sh, sz, north, hs300Pe] = await Promise.all([
@@ -51,17 +52,17 @@ router.get('/liquidity/v5', async (req: Request, res: Response) => {
       }),
       fetchFinanceData({
         apiName: 'daily_info',
-        params: { ts_code: 'SH_MARKET', start_date: start, end_date: end },
+        params: { ts_code: 'SH_MARKET', start_date: liquidityStart, end_date: end },
         fields: 'trade_date,amount,tr',
       }),
       fetchFinanceData({
         apiName: 'daily_info',
-        params: { ts_code: 'SZ_MARKET', start_date: start, end_date: end },
+        params: { ts_code: 'SZ_MARKET', start_date: liquidityStart, end_date: end },
         fields: 'trade_date,amount,tr',
       }),
       fetchFinanceData({
         apiName: 'moneyflow_hsgt',
-        params: { start_date: start, end_date: end },
+        params: { start_date: liquidityStart, end_date: end },
         fields: 'trade_date,north_money',
       }),
       fetchFinanceData({
@@ -88,12 +89,15 @@ router.get('/liquidity/v5', async (req: Request, res: Response) => {
     if (startY != null && endY != null) {
       const years: number[] = []
       for (let y = startY; y <= endY; y += 1) years.push(y)
-      try {
-        const maps = await Promise.all(years.map((year) => fetchGovBond10yYieldPctByDate({ year })))
-        for (const m of maps) {
-          for (const [d, y10] of m) yield10yPctByDate.set(d, y10)
+      const limit = 3
+      for (let i = 0; i < years.length; i += limit) {
+        const batch = years.slice(i, i + limit)
+        const results = await Promise.allSettled(batch.map((year) => fetchGovBond10yYieldPctByDate({ year })))
+        for (const r of results) {
+          if (r.status !== 'fulfilled') continue
+          for (const [d, y10] of r.value) yield10yPctByDate.set(d, y10)
         }
-      } catch {}
+      }
     }
 
     if (yield10yPctByDate.size === 0) throw new Error('10Y国债收益率数据源不可用')

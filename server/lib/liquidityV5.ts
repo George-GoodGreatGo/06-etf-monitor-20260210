@@ -136,12 +136,26 @@ export function buildLiquidityV5Series(input: {
 
   for (const d of dates) {
     close.push(closeByDate.get(d) ?? null)
-    const a = (amountShByDate.get(d) ?? 0) + (amountSzByDate.get(d) ?? 0)
-    totalAmount.push(Number.isFinite(a) ? a : null)
-    const t = ((trShByDate.get(d) ?? 0) + (trSzByDate.get(d) ?? 0)) / 2
-    totalTr.push(Number.isFinite(t) ? t : null)
-    const n = northByDate.has(d) ? (northByDate.get(d) ?? 0) : 0
-    north.push(Number.isFinite(n) ? n : null)
+    const aSh = amountShByDate.get(d)
+    const aSz = amountSzByDate.get(d)
+    if (aSh == null && aSz == null) totalAmount.push(null)
+    else {
+      const a = (aSh ?? 0) + (aSz ?? 0)
+      totalAmount.push(Number.isFinite(a) ? a : null)
+    }
+
+    const tSh = trShByDate.get(d)
+    const tSz = trSzByDate.get(d)
+    if (tSh == null && tSz == null) totalTr.push(null)
+    else {
+      const sum = (tSh ?? 0) + (tSz ?? 0)
+      const cnt = (tSh == null ? 0 : 1) + (tSz == null ? 0 : 1)
+      const t = cnt ? sum / cnt : NaN
+      totalTr.push(Number.isFinite(t) ? t : null)
+    }
+
+    const n = northByDate.get(d)
+    north.push(n == null ? null : n)
   }
 
   const closeF = fillForward(close)
