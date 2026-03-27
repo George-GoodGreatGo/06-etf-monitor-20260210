@@ -11,7 +11,6 @@ import {
   type LogicalRange,
   type Time,
   type UTCTimestamp,
-  type WhitespaceData,
 } from 'lightweight-charts'
 import { cn } from '@/lib/utils'
 import type { LiquidityV5Point } from '@/utils/marketApi'
@@ -71,11 +70,13 @@ export default function MarketLiquidityChart({ series, className }: Props) {
   const chartsRef = useRef<{ price: IChartApi | null; v5: IChartApi | null }>({ price: null, v5: null })
   const seriesRef = useRef<{
     hs300: ISeriesApi<'Line', Time> | null
-    hs300Hot: ISeriesApi<'Line', Time> | null
-    hs300Cold: ISeriesApi<'Line', Time> | null
     v5: ISeriesApi<'Line', Time> | null
     v5Align: ISeriesApi<'Line', Time> | null
-  }>({ hs300: null, hs300Hot: null, hs300Cold: null, v5: null, v5Align: null })
+  }>({ hs300: null, v5: null, v5Align: null })
+  const hsSegRef = useRef<{ hot: ISeriesApi<'Line', Time>[]; cold: ISeriesApi<'Line', Time>[] }>({
+    hot: [],
+    cold: [],
+  })
   const [hover, setHover] = useState<HoverState | null>(null)
 
   const updateV5ZoneBg = () => {
@@ -108,20 +109,31 @@ export default function MarketLiquidityChart({ series, className }: Props) {
 
   const data = useMemo(() => {
     const hs: LineData<Time>[] = []
-    const hsHot: Array<LineData<Time> | WhitespaceData<Time>> = []
-    const hsCold: Array<LineData<Time> | WhitespaceData<Time>> = []
+    const hsHotSegments: LineData<Time>[][] = []
+    const hsColdSegments: LineData<Time>[][] = []
     const v5: LineData<Time>[] = []
     const map = new Map<UTCTimestamp, HoverState>()
+
+    let hotBuf: LineData<Time>[] = []
+    let coldBuf: LineData<Time>[] = []
 
     for (const p of series) {
       const t = ymdToUtcSeconds(p.date)
       if (!t) continue
       hs.push({ time: t, value: p.close })
       const v = typeof p.v5 === 'number' && Number.isFinite(p.v5) ? p.v5 : null
-      if (v != null && v >= 70) hsHot.push({ time: t, value: p.close })
-      else hsHot.push({ time: t })
-      if (v != null && v <= 30) hsCold.push({ time: t, value: p.close })
-      else hsCold.push({ time: t })
+      if (v != null && v >= 70) {
+        hotBuf.push({ time: t, value: p.close })
+      } else if (hotBuf.length) {
+        hsHotSegments.push(hotBuf)
+        hotBuf = []
+      }
+      if (v != null && v <= 30) {
+        coldBuf.push({ time: t, value: p.close })
+      } else if (coldBuf.length) {
+        hsColdSegments.push(coldBuf)
+        coldBuf = []
+      }
       if (typeof p.v5 === 'number' && Number.isFinite(p.v5)) {
         v5.push({ time: t, value: p.v5 })
       }
@@ -133,7 +145,10 @@ export default function MarketLiquidityChart({ series, className }: Props) {
       })
     }
 
-    return { hs, hsHot, hsCold, v5, map }
+    if (hotBuf.length) hsHotSegments.push(hotBuf)
+    if (coldBuf.length) hsColdSegments.push(coldBuf)
+
+    return { hs, hsHotSegments, hsColdSegments, v5, map }
   }, [series])
 
   useEffect(() => {
@@ -169,32 +184,15 @@ export default function MarketLiquidityChart({ series, className }: Props) {
       priceFormat: { type: 'custom', formatter: (v) => fmt(v, 2) },
     })
 
-    const hsHot = chart.addSeries(LineSeries, {
-      color: '#F87171',
-      lineWidth: 2,
-      priceLineVisible: false,
-      lastValueVisible: false,
-      crosshairMarkerVisible: false,
-    })
-    const hsCold = chart.addSeries(LineSeries, {
-      color: '#34D399',
-      lineWidth: 2,
-      priceLineVisible: false,
-      lastValueVisible: false,
-      crosshairMarkerVisible: false,
-    })
-
     chartsRef.current.price = chart
     seriesRef.current.hs300 = hs
-    seriesRef.current.hs300Hot = hsHot
-    seriesRef.current.hs300Cold = hsCold
 
     return () => {
       chart.remove()
       if (chartsRef.current.price === chart) chartsRef.current.price = null
       seriesRef.current.hs300 = null
-      seriesRef.current.hs300Hot = null
-      seriesRef.current.hs300Cold = null
+      hsSegRef.current.hot = []
+      hsSegRef.current.cold = []
     }
   }, [])
 
@@ -367,13 +365,40 @@ export default function MarketLiquidityChart({ series, className }: Props) {
 
   useEffect(() => {
     seriesRef.current.hs300?.setData(data.hs)
-    seriesRef.current.hs300Hot?.setData(data.hsHot)
-    seriesRef.current.hs300Cold?.setData(data.hsCold)
     seriesRef.current.v5?.setData(data.v5)
     seriesRef.current.v5Align?.setData(data.hs)
     const price = chartsRef.current.price
     const v5 = chartsRef.current.v5
     if (!price || !v5) return
+
+    for (const s of hsSegRef.current.hot) price.removeSeries(s)
+    for (const s of hsSegRef.current.cold) price.removeSeries(s)
+    hsSegRef.current.hot = []
+    hsSegRef.current.cold = []
+
+    for (const seg of data.hsHotSegments) {
+      const s = price.addSeries(LineSeries, {
+        color: '#F87171',
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      })
+      s.setData(seg)
+      hsSegRef.current.hot.push(s)
+    }
+    for (const seg of data.hsColdSegments) {
+      const s = price.addSeries(LineSeries, {
+        color: '#34D399',
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      })
+      s.setData(seg)
+      hsSegRef.current.cold.push(s)
+    }
+
     price.timeScale().fitContent()
     const range = price.timeScale().getVisibleLogicalRange()
     if (range) v5.timeScale().setVisibleLogicalRange(range)
