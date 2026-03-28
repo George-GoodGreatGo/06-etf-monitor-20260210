@@ -60,7 +60,7 @@ export default function MarketLiquidityPanel() {
         <div>
           <div className="text-xl font-semibold tracking-tight text-white">沪深市场大盘看板</div>
           <div className="mt-1 text-[13px] text-[#94A3B8]">
-            指数 = (成交额分位数 × 换手率分位数 × 北向资金分位数)^(1/3)，分位数为720日滚动（最少360日）。
+            指数 = (成交额分位数 × 换手率分位数 × 北向资金分位数)^(1/3)，分位数为360日滚动（最少180日）。
           </div>
         </div>
 
