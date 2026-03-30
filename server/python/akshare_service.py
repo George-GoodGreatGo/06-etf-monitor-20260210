@@ -67,19 +67,41 @@ def _is_money_or_bond_etf(code: str, name: str) -> bool:
     c = (code or "").strip()
     n = (name or "").strip()
 
+    if "现金流" in n or "自由现金流" in n:
+        return False
+
     if c.startswith(("511", "551")):
         return True
 
-    keywords = [
+    money_keywords = [
         "货币",
-        "现金",
         "理财",
         "短融",
         "日利",
         "添益",
-        "债",
+        "现金管理",
+        "现金宝",
+        "现金增利",
+        "现金收益",
     ]
-    return any(k in n for k in keywords)
+    if any(k in n for k in money_keywords):
+        return True
+
+    bond_keywords = [
+        "债券",
+        "国债",
+        "信用债",
+        "利率债",
+        "可转债",
+        "转债",
+        "短债",
+        "中短债",
+        "政金债",
+        "地方债",
+        "国开债",
+        "城投债",
+    ]
+    return any(k in n for k in bond_keywords)
 
 
 def _sina_symbol_from_code(code: str) -> str:

@@ -176,8 +176,11 @@ export async function getTop100InsightGenerateStatus(dataDate: string): Promise<
   if (inflightEnsures.has(d)) return 'generating'
   const statusRow = await readTop100InsightStatusByDataDate(d)
   if (statusRow && statusRow.status) {
-    if (statusRow.status === 'ready' || statusRow.status === 'generating' || statusRow.status === 'failed') {
-      return statusRow.status
+    if (statusRow.status === 'ready') return 'ready'
+    if (statusRow.status === 'generating') return 'generating'
+    if (statusRow.status === 'failed') {
+      const existing = await readTop100InsightByDataDate(d)
+      return existing ? 'ready' : 'failed'
     }
   }
   const existing = await readTop100InsightByDataDate(d)
@@ -195,6 +198,10 @@ export async function getTop100InsightStatusDetail(dataDate: string): Promise<{
   const statusRow = await readTop100InsightStatusByDataDate(d)
   if (statusRow) {
     const s = statusRow.status
+    if (s === 'failed' || s === 'generating') {
+      const existing = await readTop100InsightByDataDate(d)
+      if (existing) return { status: 'ready', lastError: null, updatedAt: existing.updated_at }
+    }
     const status: Top100InsightGenerateStatus = s === 'ready' || s === 'generating' || s === 'failed' ? s : 'idle'
     return {
       status,
