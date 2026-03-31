@@ -569,34 +569,36 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
 
       <div className="pt-6">
         <div className="relative">
-          <div className="pointer-events-none absolute left-3 top-2 z-20">
-            <div className="inline-flex items-center gap-2 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
-              沪深300（主图）
+          <div className="absolute left-3 top-2 z-30 rounded-lg border border-white/10 bg-black/20 px-2 py-2 backdrop-blur">
+            <div className="text-[11px] font-semibold text-[#94A3B8]">沪深300（主图）</div>
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowEma20((v) => !v)}
+                className={cn(
+                  'inline-flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] font-semibold transition',
+                  showEma20
+                    ? 'border-white/15 bg-white/5 text-[#E6EDF7]'
+                    : 'border-white/10 bg-transparent hover:border-white/15',
+                )}
+              >
+                <span className="h-2 w-2 rounded-full bg-[#F59E0B]" />
+                EMA20
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowEma60((v) => !v)}
+                className={cn(
+                  'inline-flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] font-semibold transition',
+                  showEma60
+                    ? 'border-white/15 bg-white/5 text-[#E6EDF7]'
+                    : 'border-white/10 bg-transparent hover:border-white/15',
+                )}
+              >
+                <span className="h-2 w-2 rounded-full bg-[#A78BFA]" />
+                EMA60
+              </button>
             </div>
-          </div>
-          <div className="absolute left-3 top-8 z-30 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowEma20((v) => !v)}
-              className={cn(
-                'inline-flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] font-semibold transition',
-                showEma20 ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
-              )}
-            >
-              <span className="h-2 w-2 rounded-full bg-[#F59E0B]" />
-              EMA20
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowEma60((v) => !v)}
-              className={cn(
-                'inline-flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] font-semibold transition',
-                showEma60 ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
-              )}
-            >
-              <span className="h-2 w-2 rounded-full bg-[#A78BFA]" />
-              EMA60
-            </button>
           </div>
           <div ref={priceElRef} className="h-[300px] w-full" />
         </div>
