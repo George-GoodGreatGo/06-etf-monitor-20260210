@@ -362,9 +362,10 @@ router.post('/market/insight', async (req: Request, res: Response) => {
 
   const baseUrl = String(process.env.AIHUBMIX_BASE_URL || 'https://aihubmix.com/v1').trim()
   const apiKey = String(process.env.AIHUBMIX_API_KEY || '').trim()
-  const baseModel = String(process.env.AIHUBMIX_MODEL || 'gemini-3-flash-preview-free').trim()
+  const baseModel = String(process.env.AIHUBMIX_MODEL || 'mimo-v2-flash-free').trim()
   const isWebSearchOptionsModel = baseModel.startsWith('gemini-') || baseModel.startsWith('gpt-')
-  const baseExtraBody = baseModel === 'qwen3-max-thinking' ? { enable_thinking: true } : undefined
+  const baseExtraBody =
+    baseModel === 'qwen3-max-thinking' || baseModel.startsWith('mimo-') ? { enable_thinking: true } : undefined
   const searchMode = enableWebSearch ? (isWebSearchOptionsModel ? 'web_search_options' : 'surfing') : 'none'
   const model = enableWebSearch && !isWebSearchOptionsModel ? `${baseModel}:surfing` : baseModel
   const extraBody =
