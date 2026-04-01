@@ -362,9 +362,10 @@ router.post('/market/insight', async (req: Request, res: Response) => {
 
   const baseUrl = String(process.env.AIHUBMIX_BASE_URL || 'https://aihubmix.com/v1').trim()
   const apiKey = String(process.env.AIHUBMIX_API_KEY || '').trim()
-  const baseModel = String(process.env.AIHUBMIX_MODEL || 'qwen3-max-thinking').trim()
+  const baseModel = String(process.env.AIHUBMIX_MODEL || 'gemini-3-flash-preview-free').trim()
   const useSurfing = enableWebSearch
   const model = enableWebSearch ? `${baseModel}:surfing` : baseModel
+  const extraBody = baseModel === 'qwen3-max-thinking' ? { enable_thinking: true } : undefined
 
   writeEvent({
     type: 'meta',
@@ -551,7 +552,7 @@ router.post('/market/insight', async (req: Request, res: Response) => {
       model,
       temperature: 0.4,
       maxTokens: 2600,
-      extraBody: { enable_thinking: true },
+      ...(extraBody ? { extraBody } : {}),
       stream: true,
     },
     search: {
@@ -580,7 +581,7 @@ router.post('/market/insight', async (req: Request, res: Response) => {
       messages,
       temperature: 0.4,
       maxTokens: 2600,
-      extraBody: { enable_thinking: true },
+      ...(extraBody ? { extraBody } : {}),
       signal: ac.signal,
       onEvent: writeEvent,
     })
