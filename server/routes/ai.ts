@@ -486,6 +486,10 @@ router.post('/market/insight', async (req: Request, res: Response) => {
   if (isFiniteNum(ebPctDelta20) && ebPctDelta20 <= -10) addQ(`股债分位 下降 近一个月 原因 国债收益率 市盈率 ${timeHint}`)
   addQ(`央行 近两周 公开市场 操作 逆回购 MLF LPR ${timeHint}`)
   addQ(`证监会 上交所 深交所 近两周 政策 监管 要点 ${timeHint}`)
+  addQ(`券商 研报 A股 大盘 策略 观点 ${timeHint}`)
+  addQ(`机构 观点 A股 大盘 研判 风险 偏好 ${timeHint}`)
+  addQ(`知名投资者 观点 A股 大盘 市场 情绪 ${timeHint}`)
+  addQ(`外资 机构 观点 北向资金 A股 ${timeHint}`)
   const searchQueries = queries.slice(0, 8)
 
   const notes = metaObj && Array.isArray((metaObj as Record<string, unknown>).notes) ? (metaObj as Record<string, unknown>).notes : null
@@ -501,6 +505,7 @@ router.post('/market/insight', async (req: Request, res: Response) => {
     '当且仅当 enableWebSearch=true 时，你必须先联网检索；你会收到 search.queries（由多周期摘要与近20日变化提取趋势要素生成，含趋势强弱、波动收敛/扩张、流动性指数、股债分位区间）。请优先用这些 queries 进行检索（必要时可改写以提高召回）。',
     '在“近期资讯/关键事件”部分给出最近7-14天内与A股大盘相关的要点摘要，且每条要点必须附带可追溯 URL 与日期范围说明。',
     '在“归因总结”中把“指标信号”与“资讯证据”分开写清楚：每条归因必须说明是由哪些指标信号触发、并引用哪些来源链接支持。',
+    '检索与观点来源需包含：机构、券商、知名投资者等对近期（7-14天）的市场研判与观点；引用时同样必须带 URL。',
     '优先采用权威信源：交易所/监管与官方机构（上交所、深交所、证监会、央行、国家统计局等）、主流财经媒体（证券时报、中证报、上证报等）与权威门户的原文链接；避免使用无来源自媒体断言。',
     '若 enableWebSearch=true 但仍找不到可靠来源，必须明确说明“已联网检索但未获得足够可靠来源”，并给出你尝试过的2-4个检索关键词/查询方向。',
     '若 enableWebSearch=false，则“近期资讯/关键事件”必须写明“未启用联网检索，未接入新闻/事件数据”。',

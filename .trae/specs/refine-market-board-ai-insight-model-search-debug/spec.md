@@ -4,7 +4,7 @@
 当前大盘看板 AI 解读已可用，但在“模型选择、联网检索的可控性、指标语义可解释性、以及可观测调试信息”方面仍不够满足分析与迭代需求。
 
 ## What Changes
-- 后端：大盘看板 AI 解读默认模型改为 `qwen3-max-thinking`（仅影响 `/api/ai/market/insight`）。
+- 后端：大盘看板 AI 解读默认模型改为 `gemini-3-flash-preview-free`（仅影响 `/api/ai/market/insight`）。
 - 后端：联网检索阶段引入“由指标趋势驱动的检索 query 生成”，并要求模型基于检索结果进行归因总结（引用权威来源链接）。
 - 后端：向模型提供指标时补充“字段含义 + 单位/口径”（例如 点、%、万元、分位%、无量纲、利差为比率等），提升模型解读一致性。
 - 前端：调试信息升级为可折叠面板，完整展示发给模型的参数（model/enableWebSearch/生成的检索 queries/系统或开发者 prompt/用户 prompt）。
@@ -21,12 +21,12 @@
 
 ## ADDED Requirements
 ### Requirement: 默认模型为 gpt-4.1-free（仅大盘看板）
-系统 SHALL 将大盘看板 AI 解读的默认模型设置为 `qwen3-max-thinking`。
+系统 SHALL 将大盘看板 AI 解读的默认模型设置为 `gemini-3-flash-preview-free`。
 
 #### Scenario: 默认调用
 - **GIVEN** 服务端未显式配置 `AIHUBMIX_MODEL`
 - **WHEN** 用户在大盘看板点击生成 AI 解读
-- **THEN** 后端使用 `qwen3-max-thinking` 作为基础模型 id（联网时追加 `:surfing`）
+- **THEN** 后端使用 `gemini-3-flash-preview-free` 作为基础模型 id（联网时追加 `:surfing`）
 - **AND** 不影响 Top200 列表的 AI 解读
 
 ### Requirement: 指标驱动的资讯检索与归因
