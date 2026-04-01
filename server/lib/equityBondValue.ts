@@ -1,5 +1,8 @@
 export type EquityBondPoint = {
   date: string
+  pe: number | null
+  earningsYield: number | null
+  yield10yPct: number | null
   value: number | null
   pct: number | null
 }
@@ -85,15 +88,18 @@ export function buildEquityBondValuePctSeries(input: {
   const yFF = fillLeadingWithFirst(yF)
 
   const value: Array<number | null> = new Array(dates.length).fill(null)
+  const earningsYieldArr: Array<number | null> = new Array(dates.length).fill(null)
   for (let i = 0; i < dates.length; i += 1) {
     const peV = peFF[i]
     const yPct = yFF[i]
     if (peV == null || yPct == null || peV <= 0) {
       value[i] = null
+      earningsYieldArr[i] = peV != null && peV > 0 ? 1 / peV : null
       continue
     }
     const earningsYield = 1 / peV
     const bondYield = yPct / 100
+    earningsYieldArr[i] = earningsYield
     value[i] = earningsYield - bondYield
   }
 
@@ -101,7 +107,14 @@ export function buildEquityBondValuePctSeries(input: {
 
   const out: EquityBondPoint[] = []
   for (let i = 0; i < dates.length; i += 1) {
-    out.push({ date: dates[i], value: value[i], pct: pct[i] })
+    out.push({
+      date: dates[i],
+      pe: peFF[i],
+      earningsYield: earningsYieldArr[i],
+      yield10yPct: yFF[i],
+      value: value[i],
+      pct: pct[i],
+    })
   }
   return out
 }

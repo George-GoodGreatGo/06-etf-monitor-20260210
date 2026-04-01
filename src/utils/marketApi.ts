@@ -5,6 +5,9 @@ import type { ApiErr, ApiOk, Top100Meta } from '@/utils/etfApi'
 export type LiquidityV5Point = {
   date: string
   close: number
+  amount: number | null
+  tr: number | null
+  northMoney: number | null
   amountPct: number | null
   trPct: number | null
   northPct: number | null
@@ -13,6 +16,9 @@ export type LiquidityV5Point = {
 
 export type EquityBondPoint = {
   date: string
+  pe: number | null
+  earningsYield: number | null
+  yield10yPct: number | null
   value: number | null
   pct: number | null
 }

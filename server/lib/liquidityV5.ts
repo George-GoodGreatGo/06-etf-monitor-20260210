@@ -3,6 +3,9 @@ type Point = { date: string; value: number }
 export type LiquidityV5Point = {
   date: string
   close: number
+  amount: number | null
+  tr: number | null
+  northMoney: number | null
   amountPct: number | null
   trPct: number | null
   northPct: number | null
@@ -175,6 +178,9 @@ export function buildLiquidityV5Series(input: {
     out.push({
       date: dates[i],
       close: c,
+      amount: amountF[i],
+      tr: trF[i],
+      northMoney: northF[i],
       amountPct: amountPct[i],
       trPct: trPct[i],
       northPct: northPct[i],

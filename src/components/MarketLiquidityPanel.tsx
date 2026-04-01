@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import DataStatusBanner from '@/components/DataStatusBanner'
 import MarketLiquidityChart from '@/components/charts/MarketLiquidityChart'
+import MarketLiquidityTable from '@/components/MarketLiquidityTable'
 import { cn } from '@/lib/utils'
 import { fetchMarketLiquidityV5, type EquityBondPoint, type LiquidityV5Point } from '@/utils/marketApi'
 import type { Top100Meta } from '@/utils/etfApi'
@@ -23,6 +24,7 @@ export default function MarketLiquidityPanel() {
   const [meta, setMeta] = useState<Top100Meta | null>(null)
   const [series, setSeries] = useState<LiquidityV5Point[]>([])
   const [equityBond, setEquityBond] = useState<EquityBondPoint[]>([])
+  const [view, setView] = useState<'chart' | 'table'>('chart')
 
   useEffect(() => {
     const ac = new AbortController()
@@ -82,7 +84,30 @@ export default function MarketLiquidityPanel() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2 text-xs text-[#A9B6CC]">
+            <button
+              type="button"
+              onClick={() => setView('chart')}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+                view === 'chart' ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+              )}
+            >
+              图表视图
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('table')}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+                view === 'table' ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+              )}
+            >
+              表格视图
+            </button>
+          </div>
+
           <div className="min-w-[240px] rounded-lg border border-[#1E293B] bg-[#0F172A] px-3 py-2 text-xs">
             <div className="flex items-center justify-between gap-3">
               <div className="text-[#94A3B8]">数据日期</div>
@@ -124,7 +149,12 @@ export default function MarketLiquidityPanel() {
 
       <div className="mt-4">
         <div className="relative">
-          <MarketLiquidityChart series={series} equityBond={equityBond} />
+          <div className={cn(view === 'chart' ? 'block' : 'hidden')}>
+            <MarketLiquidityChart series={series} equityBond={equityBond} />
+          </div>
+          <div className={cn(view === 'table' ? 'block' : 'hidden')}>
+            <MarketLiquidityTable series={series} equityBond={equityBond} />
+          </div>
           {loading && !error ? (
             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-black/10 backdrop-blur-[1px]">
               <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-black/30 px-4 py-3 text-sm text-[#E6EDF7]">
