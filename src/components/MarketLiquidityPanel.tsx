@@ -60,13 +60,13 @@ export default function MarketLiquidityPanel() {
         <div>
           <div className="text-xl font-semibold tracking-tight text-white">沪深市场大盘看板</div>
           <div className="mt-1 text-[13px] text-[#94A3B8]">
-            指数 = (成交额分位数 × 换手率分位数 × 北向资金分位数)^(1/3)，分位数为360日滚动（最少180日）。
+            独家流动性指数（3指标）= (成交额分位数 × 换手率分位数 × 北向资金分位数)^(1/3)，分位数为360日滚动（最少180日）。
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="rounded-lg border border-[#1E293B] bg-[#0F172A] px-3 py-2 text-xs">
-            <div className="text-[#94A3B8]">最新指数</div>
+            <div className="text-[#94A3B8]">最新流动性指数</div>
             <div className="mt-1 flex items-baseline gap-2">
               <div className="font-mono text-sm font-semibold text-[#F8FAFC]">
                 {typeof latest?.v5 === 'number' ? latest.v5.toFixed(1) : '—'}

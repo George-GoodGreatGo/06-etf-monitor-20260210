@@ -559,7 +559,7 @@ export default function Home() {
               )}
             >
               <span className={cn('h-2 w-2 rounded-full', tab === 'liquidity' ? 'bg-[#FF5722]' : 'bg-[#334155]')} />
-              流动性指数
+              大盘看板
               {tab === 'liquidity' ? (
                 <span className="absolute -bottom-[10px] left-0 right-0 h-[2px] bg-[#FF5722]" />
               ) : null}

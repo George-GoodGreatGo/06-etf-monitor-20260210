@@ -105,8 +105,11 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
   const [hover, setHover] = useState<HoverState | null>(null)
   const [showEma20, setShowEma20] = useState(true)
   const [showEma60, setShowEma60] = useState(true)
+  const [showLiquidityPane, setShowLiquidityPane] = useState(true)
+  const [showEquityBondPane, setShowEquityBondPane] = useState(true)
 
   const updateV5ZoneBg = () => {
+    if (!showLiquidityPane) return
     const el = v5ElRef.current
     const overEl = v5OverboughtBgRef.current
     const underEl = v5OversoldBgRef.current
@@ -416,9 +419,12 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     const price = chartsRef.current.price
     const v5 = chartsRef.current.v5
     const eb = chartsRef.current.eb
-    if (!price || !v5 || !eb) return
+    if (!price) return
 
-    const charts: IChartApi[] = [price, v5, eb]
+    const charts: IChartApi[] = [price]
+    if (showLiquidityPane && v5) charts.push(v5)
+    if (showEquityBondPane && eb) charts.push(eb)
+    if (charts.length <= 1) return
 
     const onVisibleLogicalRange = (src: IChartApi) => (range: LogicalRange | null) => {
       if (syncingRef.current) return
@@ -485,7 +491,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     }
 
     const ro =
-      typeof ResizeObserver === 'undefined' || !v5ElRef.current
+      typeof ResizeObserver === 'undefined' || !v5ElRef.current || !showLiquidityPane
         ? null
         : new ResizeObserver(() => {
             requestAnimationFrame(updateV5ZoneBg)
@@ -501,7 +507,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       }
       ro?.disconnect()
     }
-  }, [data.map])
+  }, [data.map, showEquityBondPane, showLiquidityPane])
 
   useEffect(() => {
     seriesRef.current.hs300?.setData(data.hs)
@@ -514,7 +520,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     const price = chartsRef.current.price
     const v5 = chartsRef.current.v5
     const eb = chartsRef.current.eb
-    if (!price || !v5 || !eb) return
+    if (!price) return
 
     for (const s of hsSegRef.current.hot) price.removeSeries(s)
     for (const s of hsSegRef.current.cold) price.removeSeries(s)
@@ -546,10 +552,20 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
 
     price.timeScale().fitContent()
     const range = price.timeScale().getVisibleLogicalRange()
-    if (range) v5.timeScale().setVisibleLogicalRange(range)
-    if (range) eb.timeScale().setVisibleLogicalRange(range)
+    if (range && showLiquidityPane && v5) v5.timeScale().setVisibleLogicalRange(range)
+    if (range && showEquityBondPane && eb) eb.timeScale().setVisibleLogicalRange(range)
     requestAnimationFrame(() => requestAnimationFrame(updateV5ZoneBg))
-  }, [data])
+  }, [data, showEquityBondPane, showLiquidityPane])
+
+  useEffect(() => {
+    const price = chartsRef.current.price
+    if (!price) return
+    const range = price.timeScale().getVisibleLogicalRange()
+    if (!range) return
+    if (showLiquidityPane && chartsRef.current.v5) chartsRef.current.v5.timeScale().setVisibleLogicalRange(range)
+    if (showEquityBondPane && chartsRef.current.eb) chartsRef.current.eb.timeScale().setVisibleLogicalRange(range)
+    requestAnimationFrame(updateV5ZoneBg)
+  }, [showEquityBondPane, showLiquidityPane])
 
   return (
     <div className={cn('relative', className)}>
@@ -559,19 +575,27 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
           <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
             <div className="text-[#A9B6CC]">沪深300</div>
             <div className="text-right font-mono">{fmt(hover.close, 2)}</div>
-            <div className="text-[#A9B6CC]">流动性指数</div>
-            <div className="text-right font-mono">{fmt(hover.v5, 1)}</div>
-            <div className="text-[#A9B6CC]">股债分位</div>
-            <div className="text-right font-mono">{fmt(hover.ebPct, 1)}</div>
+            {showLiquidityPane ? (
+              <>
+                <div className="text-[#A9B6CC]">独家流动性指数（3指标）</div>
+                <div className="text-right font-mono">{fmt(hover.v5, 1)}</div>
+              </>
+            ) : null}
+            {showEquityBondPane ? (
+              <>
+                <div className="text-[#A9B6CC]">股债性价比（分位）</div>
+                <div className="text-right font-mono">{fmt(hover.ebPct, 1)}</div>
+              </>
+            ) : null}
           </div>
         </div>
       ) : null}
 
       <div className="pt-6">
         <div className="relative">
-          <div className="absolute left-3 top-2 z-30 rounded-lg border border-white/10 bg-black/20 px-2 py-2 backdrop-blur">
+          <div className="absolute left-3 top-2 z-30 rounded bg-black/20 px-2 py-2 backdrop-blur">
             <div className="text-[11px] font-semibold text-[#94A3B8]">沪深300（主图）</div>
-            <div className="mt-2 flex items-center gap-2">
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setShowEma20((v) => !v)}
@@ -598,11 +622,42 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
                 <span className="h-2 w-2 rounded-full bg-[#A78BFA]" />
                 EMA60
               </button>
+              <div className="mx-1 h-4 w-px bg-white/10" />
+              <button
+                type="button"
+                onClick={() => setShowLiquidityPane((v) => !v)}
+                className={cn(
+                  'inline-flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] font-semibold transition',
+                  showLiquidityPane
+                    ? 'border-white/15 bg-white/5 text-[#E6EDF7]'
+                    : 'border-white/10 bg-transparent hover:border-white/15',
+                )}
+              >
+                流动性
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowEquityBondPane((v) => !v)}
+                className={cn(
+                  'inline-flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] font-semibold transition',
+                  showEquityBondPane
+                    ? 'border-white/15 bg-white/5 text-[#E6EDF7]'
+                    : 'border-white/10 bg-transparent hover:border-white/15',
+                )}
+              >
+                股债
+              </button>
             </div>
           </div>
           <div ref={priceElRef} className="h-[300px] w-full" />
         </div>
-        <div className="relative h-[140px] w-full border-t border-white/10">
+        <div
+          className={cn(
+            'relative w-full overflow-hidden transition-[height,opacity]',
+            showLiquidityPane ? 'border-t border-white/10 opacity-100' : 'pointer-events-none border-t-0 opacity-0',
+          )}
+          style={{ height: showLiquidityPane ? 140 : 1 }}
+        >
           <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
             独家流动性指数（3指标）
           </div>
@@ -620,7 +675,13 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
           />
           <div ref={v5ElRef} className="relative z-0 h-full w-full" />
         </div>
-        <div className="relative h-[140px] w-full border-t border-white/10">
+        <div
+          className={cn(
+            'relative w-full overflow-hidden transition-[height,opacity]',
+            showEquityBondPane ? 'border-t border-white/10 opacity-100' : 'pointer-events-none border-t-0 opacity-0',
+          )}
+          style={{ height: showEquityBondPane ? 140 : 1 }}
+        >
           <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
             股债性价比（分位）
           </div>
