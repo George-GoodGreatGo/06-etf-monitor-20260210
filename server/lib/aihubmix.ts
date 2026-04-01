@@ -37,28 +37,50 @@ export async function aihubmixChatCompletionsToSseEvents(opts: {
   if (!apiKey) throw new Error('缺少服务端环境变量：AIHUBMIX_API_KEY')
   if (!model) throw new Error('缺少服务端环境变量：AIHUBMIX_MODEL')
 
-  const upstream = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      Accept: 'text/event-stream, application/json, text/plain',
-    },
-    body: JSON.stringify({
-      model,
-      messages: opts.messages.map((m) => ({ ...m, role: m.role === 'developer' ? 'system' : m.role })),
-      temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.4,
-      top_p: typeof opts.topP === 'number' ? opts.topP : 1,
-      max_tokens: typeof opts.maxTokens === 'number' ? opts.maxTokens : 1600,
-      ...(typeof opts.seed === 'number' ? { seed: opts.seed } : {}),
-      stream: true,
-    }),
-    signal: opts.signal,
-  })
+  const payloadBase = {
+    model,
+    messages: opts.messages,
+    temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.4,
+    top_p: typeof opts.topP === 'number' ? opts.topP : 1,
+    max_tokens: typeof opts.maxTokens === 'number' ? opts.maxTokens : 1600,
+    ...(typeof opts.seed === 'number' ? { seed: opts.seed } : {}),
+    stream: true,
+  }
 
+  const doFetch = async (body: unknown) => {
+    return fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream, application/json, text/plain',
+      },
+      body: JSON.stringify(body),
+      signal: opts.signal,
+    })
+  }
+
+  let upstream = await doFetch(payloadBase)
   if (!upstream.ok) {
     const msg = await upstream.text().catch(() => '')
-    throw new Error(`AIHubMix 调用失败：HTTP ${upstream.status} ${msg}`)
+    const shouldRetryDeveloperRole =
+      msg.includes('invalid role: developer') ||
+      msg.includes('invalid role: "developer"') ||
+      msg.includes('invalid role: developer ')
+    const hasDeveloper = opts.messages.some((m) => m.role === 'developer')
+    if (hasDeveloper && shouldRetryDeveloperRole) {
+      const retryBody = {
+        ...payloadBase,
+        messages: opts.messages.map((m) => ({ ...m, role: m.role === 'developer' ? 'system' : m.role })),
+      }
+      upstream = await doFetch(retryBody)
+      if (!upstream.ok) {
+        const msg2 = await upstream.text().catch(() => '')
+        throw new Error(`AIHubMix 调用失败：HTTP ${upstream.status} ${msg2}`)
+      }
+    } else {
+      throw new Error(`AIHubMix 调用失败：HTTP ${upstream.status} ${msg}`)
+    }
   }
 
   if (!upstream.body) {

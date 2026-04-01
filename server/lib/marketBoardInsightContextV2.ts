@@ -11,7 +11,7 @@ function clampInt(v: unknown, min: number, max: number, fallback: number): numbe
   return Math.max(min, Math.min(max, Math.floor(n)))
 }
 
-function pctChangeByDays(values: number[], days: number): number | null {
+function pctChange(values: number[], days: number): number | null {
   if (days <= 0) return null
   if (values.length <= days) return null
   const last = values[values.length - 1]
@@ -110,7 +110,7 @@ function zoneShare(points: LiquidityV5Point[], days: number): { n: number; oppPc
   }
 }
 
-export function buildMarketBoardInsightContext(input: {
+export function buildMarketBoardInsightContextV2(input: {
   series: LiquidityV5Point[]
   equityBond: EquityBondPoint[]
   windowDays?: number
@@ -127,7 +127,7 @@ export function buildMarketBoardInsightContext(input: {
   const horizons = [5, 20, 60, 120, 252] as const
 
   const returnsPct: Record<string, number | null> = {}
-  for (const h of horizons) returnsPct[`d${h}`] = pctChangeByDays(closes, h)
+  for (const h of horizons) returnsPct[`d${h}`] = pctChange(closes, h)
 
   const ema20 = emaLast(closes, 20)
   const ema60 = emaLast(closes, 60)
@@ -174,26 +174,22 @@ export function buildMarketBoardInsightContext(input: {
   const share120 = zoneShare(series, 120)
 
   const windowSlice = series.slice(Math.max(0, series.length - windowDays))
-  const windowCloses = windowSlice.map((p) => p.close).filter((v): v is number => isNum(v))
-  const windowReturnPct = windowCloses.length >= 2 ? ((windowCloses[windowCloses.length - 1] / windowCloses[0]) - 1) * 100 : null
-
-  const ebWindow: EquityBondPoint[] = []
-  for (const p of windowSlice) {
-    const eb = p.date ? ebByDate.get(p.date) : null
-    if (eb) ebWindow.push(eb)
-  }
-  const ebWindowPct = ebWindow.map((p) => (isNum(p.pct) ? p.pct : NaN)).filter((v) => Number.isFinite(v))
-  const ebWindowPctNow = ebWindowPct.length ? ebWindowPct[ebWindowPct.length - 1] : null
-  const ebWindowPctMin = ebWindowPct.length ? Math.min(...ebWindowPct) : null
-  const ebWindowPctMax = ebWindowPct.length ? Math.max(...ebWindowPct) : null
+  const windowDates = windowSlice.map((p) => p.date)
+  const windowClose = windowSlice.map((p) => p.close)
+  const windowV5 = windowSlice.map((p) => p.v5)
+  const windowAmountPct = windowSlice.map((p) => p.amountPct)
+  const windowTrPct = windowSlice.map((p) => p.trPct)
+  const windowNorthPct = windowSlice.map((p) => p.northPct)
+  const windowEquityBondPct = windowSlice.map((p) => ebByDate.get(p.date)?.pct ?? null)
+  const windowEquityBondSpread = windowSlice.map((p) => ebByDate.get(p.date)?.value ?? null)
 
   const context = {
     meta: {
       generatedAt: new Date().toISOString(),
       dataDate,
       windowDays,
-      recentDays,
       horizonsTradingDays: horizons,
+      recentDays,
     },
     latest: {
       date: dataDate,
@@ -243,43 +239,30 @@ export function buildMarketBoardInsightContext(input: {
       hs300ReturnPct: recentClosePct,
       v5Delta: recentV5Delta,
       equityBondPctDelta: ebRecentPctDelta,
-      rows: recentSlice.map((p) => {
-        const eb = ebByDate.get(p.date)
-        return {
-          date: p.date,
-          hs300Close: p.close,
-          v5: p.v5,
-          amountPct: p.amountPct,
-          trPct: p.trPct,
-          northPct: p.northPct,
-          equityBondPct: eb?.pct ?? null,
-          equityBondSpread: eb?.value ?? null,
-        }
-      }),
     },
     window: {
       days: windowDays,
-      hs300ReturnPct: windowReturnPct,
-      equityBondPct: {
-        last: ebWindowPctNow,
-        min: ebWindowPctMin,
-        max: ebWindowPctMax,
+      schema: {
+        dates: 'YYYY-MM-DD[]',
+        close: 'number[]',
+        v5: '(number|null)[]',
+        amountPct: '(number|null)[]',
+        trPct: '(number|null)[]',
+        northPct: '(number|null)[]',
+        equityBondPct: '(number|null)[]',
+        equityBondSpread: '(number|null)[]',
       },
-      rows: windowSlice.map((p) => {
-        const eb = ebByDate.get(p.date)
-        return {
-          date: p.date,
-          hs300Close: p.close,
-          v5: p.v5,
-          amountPct: p.amountPct,
-          trPct: p.trPct,
-          northPct: p.northPct,
-          equityBondPct: eb?.pct ?? null,
-          equityBondSpread: eb?.value ?? null,
-        }
-      }),
+      dates: windowDates,
+      close: windowClose,
+      v5: windowV5,
+      amountPct: windowAmountPct,
+      trPct: windowTrPct,
+      northPct: windowNorthPct,
+      equityBondPct: windowEquityBondPct,
+      equityBondSpread: windowEquityBondSpread,
     },
   }
 
   return context
 }
+

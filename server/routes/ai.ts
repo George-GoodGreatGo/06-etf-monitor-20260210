@@ -6,7 +6,7 @@ import { buildWeeklyChartVercel } from './etf.js'
 import { runAkshare } from '../lib/akshare.js'
 import { aihubmixChatCompletionsToSseEvents } from '../lib/aihubmix.js'
 import { getMarketLiquidityV5 } from '../lib/marketLiquidityV5Service.js'
-import { buildMarketBoardInsightContext } from '../lib/marketBoardInsightContext.js'
+import { buildMarketBoardInsightContextV2 } from '../lib/marketBoardInsightContextV2.js'
 import type { LiquidityV5Point } from '../lib/liquidityV5.js'
 import type { EquityBondPoint } from '../lib/equityBondValue.js'
 
@@ -363,9 +363,8 @@ router.post('/market/insight', async (req: Request, res: Response) => {
   const baseUrl = String(process.env.AIHUBMIX_BASE_URL || 'https://aihubmix.com/v1').trim()
   const apiKey = String(process.env.AIHUBMIX_API_KEY || '').trim()
   const baseModel = String(process.env.AIHUBMIX_MODEL || 'coding-minimax-m2.7-free').trim()
-  const surfingFlag = String(process.env.AIHUBMIX_ENABLE_SURFING || '1').trim()
-  const useSurfing = enableWebSearch && surfingFlag === '1'
-  const model = useSurfing ? `${baseModel}:surfing` : baseModel
+  const useSurfing = enableWebSearch
+  const model = enableWebSearch ? `${baseModel}:surfing` : baseModel
 
   writeEvent({
     type: 'meta',
@@ -410,7 +409,7 @@ router.post('/market/insight', async (req: Request, res: Response) => {
       ? ((dataObj.equityBond as Record<string, unknown>).series as EquityBondPoint[])
       : []
 
-  const context = buildMarketBoardInsightContext({
+  const context = buildMarketBoardInsightContextV2({
     series,
     equityBond: equityBondSeries,
     windowDays: 720,
@@ -424,7 +423,10 @@ router.post('/market/insight', async (req: Request, res: Response) => {
     '你是“沪深市场大盘看板”的AI解读助手，目标是帮助用户冷静决策：解释市场情绪、机会/风险、估值与流动性。',
     '必须以用户提供的结构化数据为准；对不确定内容要说“不确定/暂无数据”，不要编造。',
     '输出为 Markdown，结构固定包含：概览、短线视角（明确使用的周期：近7日、5日、20日）、中线视角（明确使用的周期：60日、120日）、长线视角（明确使用的周期：252日）、流动性与资金面、估值与股债、近期资讯/关键事件、观察清单、风险提示、免责声明。',
-    '“近期资讯/关键事件”必须带来源链接与日期范围说明（近3-7天）；若无可靠来源或未联网或搜索结果不足，则明确写“暂无可靠来源/未接入新闻事件数据”。',
+    '当且仅当 enableWebSearch=true 时，你必须先联网检索，并在“近期资讯/关键事件”部分给出最近7-14天内与A股大盘相关的要点摘要，且每条要点必须附带可追溯的来源链接（URL）与日期范围说明。',
+    '优先采用权威信源：交易所/监管与官方机构（上交所、深交所、证监会、央行、国家统计局等）、主流财经媒体（证券时报、中证报、上证报等）与权威门户的原文链接；避免使用无来源自媒体断言。',
+    '若 enableWebSearch=true 但仍找不到可靠来源，必须明确说明“已联网检索但未获得足够可靠来源”，并给出你尝试过的2-4个检索关键词/查询方向。',
+    '若 enableWebSearch=false，则“近期资讯/关键事件”必须写明“未启用联网检索，未接入新闻/事件数据”。',
     '不得给出具体买卖建议或保证性判断；必须包含“仅供参考，不构成投资建议”。',
     '尽量简洁：总长度控制在约 1200-1800 个中文字；如内容较多，优先保留结论与观察清单。',
   ].join('\n')
@@ -443,8 +445,8 @@ router.post('/market/insight', async (req: Request, res: Response) => {
     2,
   )
 
-  const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-    { role: 'system', content: developer },
+  const messages: Array<{ role: 'system' | 'developer' | 'user' | 'assistant'; content: string }> = [
+    { role: 'developer', content: developer },
     { role: 'user', content: user },
   ]
   if (continueFrom.trim()) {

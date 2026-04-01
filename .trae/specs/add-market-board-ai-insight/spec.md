@@ -99,7 +99,6 @@
 - `AIHUBMIX_BASE_URL`：默认 `https://aihubmix.com/v1`
 - `AIHUBMIX_API_KEY`：服务端密钥（仅服务端保存）
 - `AIHUBMIX_MODEL`：默认 `coding-minimax-m2.7-free`
-- `AIHUBMIX_ENABLE_SURFING`：可选，默认 `1`；`1` 表示在启用联网时使用 `model:surfing` 后缀（用于任意模型的联网搜索）
 
 ### 联网搜索策略
 - 当 `enableWebSearch=true` 时：
