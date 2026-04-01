@@ -362,12 +362,14 @@ router.post('/market/insight', async (req: Request, res: Response) => {
 
   const baseUrl = String(process.env.AIHUBMIX_BASE_URL || 'https://aihubmix.com/v1').trim()
   const apiKey = String(process.env.AIHUBMIX_API_KEY || '').trim()
-  const baseModel = String(process.env.AIHUBMIX_MODEL || 'coding-glm-5-turbo-free').trim()
+  const baseModel = String(process.env.AIHUBMIX_MODEL || 'doubao-seed-2-0-pro').trim()
   const buildModelConfig = (bm: string) => {
     const isWebSearchOptionsModel = bm.startsWith('gemini-') || bm.startsWith('gpt-')
     const baseExtraBody =
       bm === 'qwen3-max-thinking'
         ? { enable_thinking: true }
+        : bm === 'doubao-seed-2-0-pro' || bm.startsWith('doubao-')
+          ? { thinking: { type: 'enabled' } }
         : bm.includes('glm-5')
           ? { thinking: { type: 'enabled' } }
         : bm.startsWith('mimo-')
