@@ -73,7 +73,10 @@ router.get('/liquidity/v5', async (req: Request, res: Response) => {
     ])
 
     const series = buildLiquidityV5Series({ hs300, sh, sz, north })
-    const last = series.length ? series[series.length - 1] : null
+    if (series.length === 0) {
+      throw new Error('未获取到有效的指数和成交数据，可能数据源（如Tushare）限流或暂无数据。')
+    }
+    const last = series[series.length - 1]
 
     const peByDate = new Map<string, number>()
     const yield10yPctByDate = new Map<string, number>()

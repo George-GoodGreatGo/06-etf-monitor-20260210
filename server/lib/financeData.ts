@@ -30,7 +30,12 @@ export async function fetchFinanceData(input: {
     throw new Error(`financedata failed: HTTP ${res.status} ${text}`)
   }
 
-  const j = (await res.json().catch(() => null)) as FinanceDataResponse | null
+  const j = (await res.json().catch(() => null)) as (FinanceDataResponse & { code?: number; msg?: string }) | null
+  
+  if (j && typeof j === 'object' && 'code' in j && j.code !== 0) {
+    throw new Error(`financedata API error: ${j.msg || 'unknown error'}`)
+  }
+
   const data = j && typeof j === 'object' ? j.data : null
   const respFields = Array.isArray(data?.fields) ? data?.fields : null
   const respItems = Array.isArray(data?.items) ? data?.items : null
