@@ -12,6 +12,11 @@ function calcState(v5: number | null | undefined): { label: string; cls: string 
   return { label: '中性区', cls: 'text-[#94A3B8]' }
 }
 
+function fmt(v: number | null | undefined, digits: number): string {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return '—'
+  return v.toFixed(digits).replace(/\.0+$/, '')
+}
+
 export default function MarketLiquidityPanel() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -53,6 +58,16 @@ export default function MarketLiquidityPanel() {
 
   const latest = series.length ? series[series.length - 1] : null
   const state = useMemo(() => calcState(latest?.v5), [latest?.v5])
+  const latestEquityBond = useMemo(() => {
+    if (!equityBond.length) return null
+    const d = latest?.date
+    if (d) {
+      for (let i = equityBond.length - 1; i >= 0; i--) {
+        if (equityBond[i]?.date === d) return equityBond[i]
+      }
+    }
+    return equityBond[equityBond.length - 1] ?? null
+  }, [equityBond, latest?.date])
 
   return (
     <section className="mt-4 overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
@@ -68,13 +83,28 @@ export default function MarketLiquidityPanel() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="rounded-lg border border-[#1E293B] bg-[#0F172A] px-3 py-2 text-xs">
-            <div className="text-[#94A3B8]">最新流动性指数</div>
-            <div className="mt-1 flex items-baseline gap-2">
-              <div className="font-mono text-sm font-semibold text-[#F8FAFC]">
-                {typeof latest?.v5 === 'number' ? latest.v5.toFixed(1) : '—'}
+          <div className="min-w-[240px] rounded-lg border border-[#1E293B] bg-[#0F172A] px-3 py-2 text-xs">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-[#94A3B8]">数据日期</div>
+              <div className="font-mono text-[11px] text-[#A9B6CC]">{latest?.date ?? '—'}</div>
+            </div>
+
+            <div className="mt-2 space-y-1">
+              <div className="flex items-baseline justify-between gap-4">
+                <div className="text-[#94A3B8]">沪深300点位</div>
+                <div className="font-mono text-sm font-semibold text-[#F8FAFC]">{fmt(latest?.close, 2)}</div>
               </div>
-              <div className={cn('text-xs font-medium', state.cls)}>{state.label}</div>
+              <div className="flex items-baseline justify-between gap-4">
+                <div className="text-[#94A3B8]">独家流动性指数</div>
+                <div className="flex items-baseline gap-2">
+                  <div className="font-mono text-sm font-semibold text-[#F8FAFC]">{fmt(latest?.v5, 1)}</div>
+                  <div className={cn('text-xs font-medium', state.cls)}>{state.label}</div>
+                </div>
+              </div>
+              <div className="flex items-baseline justify-between gap-4">
+                <div className="text-[#94A3B8]">股债性价比（分位）</div>
+                <div className="font-mono text-sm font-semibold text-[#F8FAFC]">{fmt(latestEquityBond?.pct, 1)}</div>
+              </div>
             </div>
           </div>
         </div>
