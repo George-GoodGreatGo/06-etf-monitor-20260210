@@ -110,6 +110,80 @@ function zoneShare(points: LiquidityV5Point[], days: number): { n: number; oppPc
   }
 }
 
+function summarize(values: Array<number | null>): { n: number; last: number | null; first: number | null; delta: number | null; avg: number | null; min: number | null; max: number | null } {
+  let n = 0
+  let first: number | null = null
+  let last: number | null = null
+  let sum = 0
+  let min: number | null = null
+  let max: number | null = null
+  for (const v of values) {
+    if (!Number.isFinite(v as number)) continue
+    const x = v as number
+    n += 1
+    if (first == null) first = x
+    last = x
+    sum += x
+    if (min == null || x < min) min = x
+    if (max == null || x > max) max = x
+  }
+  return {
+    n,
+    last,
+    first,
+    delta: first != null && last != null ? last - first : null,
+    avg: n ? sum / n : null,
+    min,
+    max,
+  }
+}
+
+function buildHorizonSummary(args: {
+  days: number
+  seriesSlice: LiquidityV5Point[]
+  equityBondByDate: Map<string, EquityBondPoint>
+}) {
+  const dates = args.seriesSlice.map((p) => p.date)
+  const close = args.seriesSlice.map((p) => p.close ?? null)
+  const amount = args.seriesSlice.map((p) => p.amount ?? null)
+  const amountPct = args.seriesSlice.map((p) => p.amountPct ?? null)
+  const tr = args.seriesSlice.map((p) => p.tr ?? null)
+  const trPct = args.seriesSlice.map((p) => p.trPct ?? null)
+  const northMoney = args.seriesSlice.map((p) => p.northMoney ?? null)
+  const northPct = args.seriesSlice.map((p) => p.northPct ?? null)
+  const liquidityIndex = args.seriesSlice.map((p) => p.v5 ?? null)
+
+  const pe = dates.map((d) => args.equityBondByDate.get(d)?.pe ?? null)
+  const earningsYield = dates.map((d) => args.equityBondByDate.get(d)?.earningsYield ?? null)
+  const yield10yPct = dates.map((d) => args.equityBondByDate.get(d)?.yield10yPct ?? null)
+  const spreadValue = dates.map((d) => args.equityBondByDate.get(d)?.value ?? null)
+  const spreadPct = dates.map((d) => args.equityBondByDate.get(d)?.pct ?? null)
+
+  const closeSum = summarize(close)
+  const closeReturnPct = closeSum.first != null && closeSum.last != null && closeSum.first !== 0 ? ((closeSum.last / closeSum.first) - 1) * 100 : null
+
+  return {
+    days: args.days,
+    from: dates.length ? dates[0] : null,
+    to: dates.length ? dates[dates.length - 1] : null,
+    hs300Close: { ...closeSum, returnPct: closeReturnPct },
+    amount: summarize(amount),
+    amountPct: summarize(amountPct),
+    tr: summarize(tr),
+    trPct: summarize(trPct),
+    northMoney: summarize(northMoney),
+    northPct: summarize(northPct),
+    liquidityIndex: summarize(liquidityIndex),
+    equityBond: {
+      pe: summarize(pe),
+      earningsYield: summarize(earningsYield),
+      yield10yPct: summarize(yield10yPct),
+      spreadValue: summarize(spreadValue),
+      spreadPct: summarize(spreadPct),
+    },
+  }
+}
+
 export function buildMarketBoardInsightContextV2(input: {
   series: LiquidityV5Point[]
   equityBond: EquityBondPoint[]
@@ -260,6 +334,13 @@ export function buildMarketBoardInsightContextV2(input: {
         spreadValueDelta: ebValChange,
         spreadPctDelta: ebPctChange,
       },
+    },
+    horizons: {
+      d7: buildHorizonSummary({ days: 7, seriesSlice: series.slice(Math.max(0, series.length - 7)), equityBondByDate: ebByDate }),
+      d20: buildHorizonSummary({ days: 20, seriesSlice: series.slice(Math.max(0, series.length - 20)), equityBondByDate: ebByDate }),
+      d60: buildHorizonSummary({ days: 60, seriesSlice: series.slice(Math.max(0, series.length - 60)), equityBondByDate: ebByDate }),
+      d120: buildHorizonSummary({ days: 120, seriesSlice: series.slice(Math.max(0, series.length - 120)), equityBondByDate: ebByDate }),
+      d252: buildHorizonSummary({ days: 252, seriesSlice: series.slice(Math.max(0, series.length - 252)), equityBondByDate: ebByDate }),
     },
     recent: {
       days: recentDays,
