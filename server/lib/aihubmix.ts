@@ -69,9 +69,10 @@ export async function aihubmixChatCompletionsToSseEvents(opts: {
   if (!upstream.ok) {
     const msg = await upstream.text().catch(() => '')
     const shouldRetryDeveloperRole =
-      msg.includes('invalid role: developer') ||
-      msg.includes('invalid role: "developer"') ||
-      msg.includes('invalid role: developer ')
+      msg.toLowerCase().includes('invalid role') && msg.toLowerCase().includes('developer') ||
+      msg.toLowerCase().includes('invalid value') && msg.toLowerCase().includes('developer') ||
+      msg.toLowerCase().includes('messages.role') && msg.toLowerCase().includes('developer') ||
+      msg.includes('`developer`') && msg.toLowerCase().includes('supported values')
     const hasDeveloper = opts.messages.some((m) => m.role === 'developer')
     if (hasDeveloper && shouldRetryDeveloperRole) {
       const retryBody = {
