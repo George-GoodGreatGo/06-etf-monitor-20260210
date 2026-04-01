@@ -569,8 +569,58 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
 
   return (
     <div className={cn('relative', className)}>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-[#A9B6CC]">
+        <button
+          type="button"
+          onClick={() => setShowEma20((v) => !v)}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+            showEma20 ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+          )}
+        >
+          <span className="h-2 w-2 rounded-full bg-[#F59E0B]" />
+          EMA20
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowEma60((v) => !v)}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+            showEma60 ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+          )}
+        >
+          <span className="h-2 w-2 rounded-full bg-[#A78BFA]" />
+          EMA60
+        </button>
+        <div className="mx-2 h-4 w-px bg-white/10" />
+        <button
+          type="button"
+          onClick={() => setShowLiquidityPane((v) => !v)}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+            showLiquidityPane
+              ? 'border-white/15 bg-white/5 text-[#E6EDF7]'
+              : 'border-white/10 bg-transparent hover:border-white/15',
+          )}
+        >
+          流动性
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowEquityBondPane((v) => !v)}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+            showEquityBondPane
+              ? 'border-white/15 bg-white/5 text-[#E6EDF7]'
+              : 'border-white/10 bg-transparent hover:border-white/15',
+          )}
+        >
+          股债
+        </button>
+      </div>
+
       {hover ? (
-        <div className="pointer-events-none absolute right-3 top-3 z-10 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-[#E6EDF7] backdrop-blur">
+        <div className="pointer-events-none absolute right-3 top-10 z-10 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-[#E6EDF7] backdrop-blur">
           <div className="font-mono text-[11px] text-[#A9B6CC]">{hover.date}</div>
           <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
             <div className="text-[#A9B6CC]">沪深300</div>
@@ -591,70 +641,18 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
         </div>
       ) : null}
 
-      <div className="pt-6">
-        <div className="relative">
-          <div className="absolute left-3 top-2 z-30 rounded bg-black/20 px-2 py-2 backdrop-blur">
-            <div className="text-[11px] font-semibold text-[#94A3B8]">沪深300（主图）</div>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowEma20((v) => !v)}
-                className={cn(
-                  'inline-flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] font-semibold transition',
-                  showEma20
-                    ? 'border-white/15 bg-white/5 text-[#E6EDF7]'
-                    : 'border-white/10 bg-transparent hover:border-white/15',
-                )}
-              >
-                <span className="h-2 w-2 rounded-full bg-[#F59E0B]" />
-                EMA20
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowEma60((v) => !v)}
-                className={cn(
-                  'inline-flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] font-semibold transition',
-                  showEma60
-                    ? 'border-white/15 bg-white/5 text-[#E6EDF7]'
-                    : 'border-white/10 bg-transparent hover:border-white/15',
-                )}
-              >
-                <span className="h-2 w-2 rounded-full bg-[#A78BFA]" />
-                EMA60
-              </button>
-              <div className="mx-1 h-4 w-px bg-white/10" />
-              <button
-                type="button"
-                onClick={() => setShowLiquidityPane((v) => !v)}
-                className={cn(
-                  'inline-flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] font-semibold transition',
-                  showLiquidityPane
-                    ? 'border-white/15 bg-white/5 text-[#E6EDF7]'
-                    : 'border-white/10 bg-transparent hover:border-white/15',
-                )}
-              >
-                流动性
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowEquityBondPane((v) => !v)}
-                className={cn(
-                  'inline-flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] font-semibold transition',
-                  showEquityBondPane
-                    ? 'border-white/15 bg-white/5 text-[#E6EDF7]'
-                    : 'border-white/10 bg-transparent hover:border-white/15',
-                )}
-              >
-                股债
-              </button>
-            </div>
+      <div className="mt-3 space-y-2">
+        <div className="relative rounded-lg border border-white/10 bg-[#111B2E] pt-6">
+          <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
+            沪深300（主图）{showEma20 ? '+ EMA20' : ''} {showEma60 ? '+ EMA60' : ''}
           </div>
           <div ref={priceElRef} className="h-[300px] w-full" />
         </div>
+
         <div
           className={cn(
-            'relative w-full overflow-hidden transition-[height,opacity]',
-            showLiquidityPane ? 'border-t border-white/10 opacity-100' : 'pointer-events-none border-t-0 opacity-0',
+            'relative rounded-lg border border-white/10 bg-[#111B2E] transition-[height,opacity]',
+            showLiquidityPane ? 'opacity-100' : 'pointer-events-none opacity-0',
           )}
           style={{ height: showLiquidityPane ? 140 : 1 }}
         >
@@ -663,22 +661,23 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
           </div>
           <div
             ref={v5OverboughtBgRef}
-            className="pointer-events-none absolute left-0 top-0 z-10 bg-[rgba(239,68,68,0.12)]"
+            className="pointer-events-none absolute left-0 top-0 z-0 bg-[rgba(239,68,68,0.12)]"
             style={{ right: SCALE_MIN_WIDTH }}
             aria-hidden="true"
           />
           <div
             ref={v5OversoldBgRef}
-            className="pointer-events-none absolute left-0 top-0 z-10 bg-[rgba(16,185,129,0.10)]"
+            className="pointer-events-none absolute left-0 top-0 z-0 bg-[rgba(16,185,129,0.10)]"
             style={{ right: SCALE_MIN_WIDTH }}
             aria-hidden="true"
           />
-          <div ref={v5ElRef} className="relative z-0 h-full w-full" />
+          <div ref={v5ElRef} className="relative z-10 h-full w-full" />
         </div>
+
         <div
           className={cn(
-            'relative w-full overflow-hidden transition-[height,opacity]',
-            showEquityBondPane ? 'border-t border-white/10 opacity-100' : 'pointer-events-none border-t-0 opacity-0',
+            'relative rounded-lg border border-white/10 bg-[#111B2E] transition-[height,opacity]',
+            showEquityBondPane ? 'opacity-100' : 'pointer-events-none opacity-0',
           )}
           style={{ height: showEquityBondPane ? 140 : 1 }}
         >
