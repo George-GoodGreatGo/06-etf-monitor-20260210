@@ -156,7 +156,7 @@ export default function MarketLiquidityTable({ series, equityBond, className }: 
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">PE(倍)</th>
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">1/PE(比率)</th>
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">10Y(%)</th>
-              <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">股债 value(比率)</th>
+              <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">股债利差(比率)</th>
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">股债分位(%)</th>
             </tr>
           </thead>
