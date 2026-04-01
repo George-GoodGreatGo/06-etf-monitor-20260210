@@ -89,7 +89,7 @@ export default function MarketLiquidityPanel() {
         />
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-lg border border-white/10 bg-[#111B2E]">
+      <div className="mt-4">
         <MarketLiquidityChart series={series} equityBond={equityBond} />
       </div>
     </section>
