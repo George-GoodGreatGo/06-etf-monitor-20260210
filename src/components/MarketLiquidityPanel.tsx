@@ -123,7 +123,17 @@ export default function MarketLiquidityPanel() {
       </div>
 
       <div className="mt-4">
-        <MarketLiquidityChart series={series} equityBond={equityBond} />
+        <div className="relative">
+          <MarketLiquidityChart series={series} equityBond={equityBond} />
+          {loading && !error ? (
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-black/10 backdrop-blur-[1px]">
+              <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-black/30 px-4 py-3 text-sm text-[#E6EDF7]">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
+                正在加载图表数据…
+              </div>
+            </div>
+          ) : null}
+        </div>
       </div>
     </section>
   )
