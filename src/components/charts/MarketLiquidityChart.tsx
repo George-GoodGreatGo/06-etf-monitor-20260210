@@ -166,6 +166,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
   const v5OverboughtBgRef = useRef<HTMLDivElement | null>(null)
   const v5OversoldBgRef = useRef<HTMLDivElement | null>(null)
   const syncingRef = useRef(false)
+  const initViewKeyRef = useRef<string>('')
 
   const chartsRef = useRef<{ price: IChartApi | null; v5: IChartApi | null; eb: IChartApi | null }>({
     price: null,
@@ -710,12 +711,20 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       hsSegRef.current.cold.push(s)
     }
 
-    price.timeScale().fitContent()
+    const key = data.hs.length ? `${data.hs.length}:${String(data.hs[data.hs.length - 1]?.time ?? '')}` : ''
+    if (key && initViewKeyRef.current !== key) {
+      initViewKeyRef.current = key
+      const total = data.hs.length
+      const to = Math.max(0, total - 1)
+      const from = total > 720 ? total - 720 : 0
+      price.timeScale().setVisibleLogicalRange({ from, to })
+    }
+
     const range = price.timeScale().getVisibleLogicalRange()
     if (range && showLiquidityPane && v5) v5.timeScale().setVisibleLogicalRange(range)
     if (range && showEquityBondPane && eb) eb.timeScale().setVisibleLogicalRange(range)
     requestAnimationFrame(() => requestAnimationFrame(updateV5ZoneBg))
-  }, [data, showEquityBondPane, showLiquidityPane])
+  }, [data])
 
   useEffect(() => {
     const price = chartsRef.current.price

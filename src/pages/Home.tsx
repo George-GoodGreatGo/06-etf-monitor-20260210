@@ -558,7 +558,12 @@ export default function Home() {
                 tab === 'liquidity' ? 'text-[#FF5722]' : 'text-[#94A3B8] hover:text-white',
               )}
             >
-              <span className={cn('h-2 w-2 rounded-full', tab === 'liquidity' ? 'bg-[#FF5722]' : 'bg-[#334155]')} />
+              <img
+                src={tab === 'liquidity' ? '/figma/list/market_tab_icon.svg' : '/figma/list/market_tab_icon_muted.svg'}
+                alt=""
+                className="h-4 w-auto select-none"
+                aria-hidden="true"
+              />
               大盘看板
               {tab === 'liquidity' ? (
                 <span className="absolute -bottom-[10px] left-0 right-0 h-[2px] bg-[#FF5722]" />
