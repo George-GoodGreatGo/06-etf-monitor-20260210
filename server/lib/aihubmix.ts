@@ -45,7 +45,7 @@ export async function aihubmixChatCompletionsToSseEvents(opts: {
     },
     body: JSON.stringify({
       model,
-      messages: opts.messages,
+      messages: opts.messages.map((m) => ({ ...m, role: m.role === 'developer' ? 'system' : m.role })),
       temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.4,
       top_p: typeof opts.topP === 'number' ? opts.topP : 1,
       max_tokens: typeof opts.maxTokens === 'number' ? opts.maxTokens : 1600,
@@ -124,4 +124,3 @@ export async function aihubmixChatCompletionsToSseEvents(opts: {
 
   opts.onEvent({ type: 'end', status: 'success' })
 }
-

@@ -447,7 +447,7 @@ router.post('/market/insight', async (req: Request, res: Response) => {
       apiKey,
       model,
       messages: [
-        { role: 'developer', content: developer },
+        { role: 'system', content: developer },
         { role: 'user', content: user },
       ],
       temperature: 0.4,
