@@ -5,19 +5,18 @@ import { cn } from '@/lib/utils'
 import { apiUrl } from '@/utils/apiBase'
 import { adminAuthHeaders } from '@/utils/adminAccess'
 
-type Horizon = 'short' | 'medium' | 'long'
 type Status = 'idle' | 'running' | 'done' | 'error'
 
 export default function MarketBoardAiInsight({ className }: { className?: string }) {
   const [status, setStatus] = useState<Status>('idle')
   const [error, setError] = useState<string | null>(null)
   const [text, setText] = useState('')
-  const [indicatorHorizon, setIndicatorHorizon] = useState<Horizon>('medium')
-  const [recentDays, setRecentDays] = useState<number>(7)
   const [enableWebSearch, setEnableWebSearch] = useState<boolean>(true)
   const [copied, setCopied] = useState(false)
   const [finishReason, setFinishReason] = useState<string | null>(null)
   const [truncated, setTruncated] = useState(false)
+  const [debugModel, setDebugModel] = useState<string | null>(null)
+  const [debugUseSurfing, setDebugUseSurfing] = useState<boolean | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   const mdComponents = useMemo<Components>(
@@ -53,6 +52,8 @@ export default function MarketBoardAiInsight({ className }: { className?: string
       setError(null)
       setFinishReason(null)
       setTruncated(false)
+      setDebugModel(null)
+      setDebugUseSurfing(null)
       if (!opts?.continueFrom) setText('')
 
       try {
@@ -63,7 +64,7 @@ export default function MarketBoardAiInsight({ className }: { className?: string
             ...adminAuthHeaders(),
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ indicatorHorizon, recentDays, enableWebSearch, ...(opts?.continueFrom ? { continueFrom: opts.continueFrom } : {}) }),
+          body: JSON.stringify({ enableWebSearch, ...(opts?.continueFrom ? { continueFrom: opts.continueFrom } : {}) }),
           signal: ac.signal,
         })
 
@@ -86,6 +87,11 @@ export default function MarketBoardAiInsight({ className }: { className?: string
 
         const handleEvent = (o: Record<string, unknown>) => {
           const type = typeof o.type === 'string' ? o.type : ''
+          if (type === 'meta') {
+            if (typeof o.model === 'string') setDebugModel(o.model)
+            if (typeof o.useSurfing === 'boolean') setDebugUseSurfing(o.useSurfing)
+            return { done: false }
+          }
           if (type === 'content' && typeof o.content === 'string') {
             setText((prev) => prev + o.content)
             return { done: false }
@@ -150,7 +156,7 @@ export default function MarketBoardAiInsight({ className }: { className?: string
         setError(e instanceof Error ? e.message : String(e))
       }
     }
-  }, [enableWebSearch, indicatorHorizon, recentDays])
+  }, [enableWebSearch])
 
   return (
     <div className={cn('mt-4 rounded-lg border border-white/10 bg-[#111B2E]', className)}>
@@ -199,29 +205,6 @@ export default function MarketBoardAiInsight({ className }: { className?: string
             />
             联网补充资讯
           </label>
-          <select
-            className="rounded-md border border-white/10 bg-black/20 px-2 py-1 text-xs text-[#E6EDF7]"
-            value={indicatorHorizon}
-            onChange={(e) => setIndicatorHorizon(e.target.value as Horizon)}
-            disabled={status === 'running'}
-          >
-            <option value="short">短周期</option>
-            <option value="medium">中周期</option>
-            <option value="long">长周期</option>
-          </select>
-          <select
-            className="rounded-md border border-white/10 bg-black/20 px-2 py-1 text-xs text-[#E6EDF7]"
-            value={String(recentDays)}
-            onChange={(e) => {
-              const v = Number(e.target.value)
-              setRecentDays(Number.isFinite(v) ? v : 7)
-            }}
-            disabled={status === 'running'}
-          >
-            <option value="3">近 3 日</option>
-            <option value="5">近 5 日</option>
-            <option value="7">近 7 日</option>
-          </select>
           <button
             type="button"
             onClick={() => start()}
@@ -239,7 +222,7 @@ export default function MarketBoardAiInsight({ className }: { className?: string
       <div className="px-3 py-3">
         {status === 'idle' ? (
           <div className="text-xs leading-relaxed text-[#94A3B8]">
-            点击生成后，将基于大盘看板的多周期指标摘要与近期变化生成解读。默认开启联网补充近期资讯（会产生额外模型/搜索消耗）。
+            点击生成后，将基于大盘看板的多周期指标摘要与过去 720 天的指标数据生成解读，并分别从短线/中线/长线视角归纳观点。默认开启联网补充近期资讯（会产生额外模型/搜索消耗）。
           </div>
         ) : null}
 
@@ -257,14 +240,19 @@ export default function MarketBoardAiInsight({ className }: { className?: string
           </div>
         ) : null}
 
+        {status !== 'idle' ? (
+          <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[#64748B]">
+            <div>enableWebSearch: {String(enableWebSearch)}</div>
+            <div>model: {debugModel ?? '—'}</div>
+            <div>surfing: {debugUseSurfing == null ? '—' : String(debugUseSurfing)}</div>
+            {finishReason ? <div>finish_reason: {finishReason}</div> : null}
+          </div>
+        ) : null}
+
         {status === 'done' && truncated ? (
           <div className="mb-3 rounded-md border border-white/10 bg-black/20 px-3 py-2 text-xs text-[#A9B6CC]">
             当前输出可能达到长度上限（finish_reason=length），可点击“继续生成”补全剩余内容。
           </div>
-        ) : null}
-
-        {status === 'done' && finishReason && !truncated ? (
-          <div className="mb-3 text-[11px] text-[#64748B]">finish_reason: {finishReason}</div>
         ) : null}
 
         {text ? (

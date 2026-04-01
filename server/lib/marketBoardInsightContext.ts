@@ -1,8 +1,6 @@
 import type { EquityBondPoint } from './equityBondValue.js'
 import type { LiquidityV5Point } from './liquidityV5.js'
 
-type HorizonLabel = 'short' | 'medium' | 'long'
-
 function isNum(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v)
 }
@@ -115,13 +113,12 @@ function zoneShare(points: LiquidityV5Point[], days: number): { n: number; oppPc
 export function buildMarketBoardInsightContext(input: {
   series: LiquidityV5Point[]
   equityBond: EquityBondPoint[]
-  indicatorHorizon: HorizonLabel
-  recentDays: number
+  windowDays?: number
 }) {
   const series = input.series || []
   const equityBond = input.equityBond || []
-  const indicatorHorizon = input.indicatorHorizon
-  const recentDays = clampInt(input.recentDays, 3, 7, 7)
+  const windowDays = clampInt(input.windowDays, 30, 720, 720)
+  const recentDays = 7
 
   const last = series.length ? series[series.length - 1] : null
   const dataDate = last?.date ?? null
@@ -176,11 +173,25 @@ export function buildMarketBoardInsightContext(input: {
   const share60 = zoneShare(series, 60)
   const share120 = zoneShare(series, 120)
 
+  const windowSlice = series.slice(Math.max(0, series.length - windowDays))
+  const windowCloses = windowSlice.map((p) => p.close).filter((v): v is number => isNum(v))
+  const windowReturnPct = windowCloses.length >= 2 ? ((windowCloses[windowCloses.length - 1] / windowCloses[0]) - 1) * 100 : null
+
+  const ebWindow: EquityBondPoint[] = []
+  for (const p of windowSlice) {
+    const eb = p.date ? ebByDate.get(p.date) : null
+    if (eb) ebWindow.push(eb)
+  }
+  const ebWindowPct = ebWindow.map((p) => (isNum(p.pct) ? p.pct : NaN)).filter((v) => Number.isFinite(v))
+  const ebWindowPctNow = ebWindowPct.length ? ebWindowPct[ebWindowPct.length - 1] : null
+  const ebWindowPctMin = ebWindowPct.length ? Math.min(...ebWindowPct) : null
+  const ebWindowPctMax = ebWindowPct.length ? Math.max(...ebWindowPct) : null
+
   const context = {
     meta: {
       generatedAt: new Date().toISOString(),
       dataDate,
-      indicatorHorizon,
+      windowDays,
       recentDays,
       horizonsTradingDays: horizons,
     },
@@ -246,8 +257,29 @@ export function buildMarketBoardInsightContext(input: {
         }
       }),
     },
+    window: {
+      days: windowDays,
+      hs300ReturnPct: windowReturnPct,
+      equityBondPct: {
+        last: ebWindowPctNow,
+        min: ebWindowPctMin,
+        max: ebWindowPctMax,
+      },
+      rows: windowSlice.map((p) => {
+        const eb = ebByDate.get(p.date)
+        return {
+          date: p.date,
+          hs300Close: p.close,
+          v5: p.v5,
+          amountPct: p.amountPct,
+          trPct: p.trPct,
+          northPct: p.northPct,
+          equityBondPct: eb?.pct ?? null,
+          equityBondSpread: eb?.value ?? null,
+        }
+      }),
+    },
   }
 
   return context
 }
-

@@ -357,12 +357,6 @@ router.post('/market/insight', async (req: Request, res: Response) => {
   })
 
   const b = req.body && typeof req.body === 'object' ? (req.body as Record<string, unknown>) : {}
-  const indicatorHorizon =
-    b.indicatorHorizon === 'short' || b.indicatorHorizon === 'medium' || b.indicatorHorizon === 'long'
-      ? (b.indicatorHorizon as 'short' | 'medium' | 'long')
-      : 'medium'
-  const recentDaysRaw = typeof b.recentDays === 'number' ? b.recentDays : b.recentDays == null ? NaN : Number(b.recentDays)
-  const recentDays = Number.isFinite(recentDaysRaw) ? Math.max(3, Math.min(7, Math.floor(recentDaysRaw))) : 7
   const enableWebSearch = typeof b.enableWebSearch === 'boolean' ? b.enableWebSearch : true
   const continueFrom = typeof b.continueFrom === 'string' ? b.continueFrom : ''
 
@@ -372,6 +366,15 @@ router.post('/market/insight', async (req: Request, res: Response) => {
   const surfingFlag = String(process.env.AIHUBMIX_ENABLE_SURFING || '1').trim()
   const useSurfing = enableWebSearch && surfingFlag === '1'
   const model = useSurfing ? `${baseModel}:surfing` : baseModel
+
+  writeEvent({
+    type: 'meta',
+    provider: 'aihubmix',
+    enableWebSearch,
+    model,
+    baseModel,
+    useSurfing,
+  })
 
   if (!apiKey) {
     writeEvent({ type: 'end', status: 'error', message: '缺少服务端环境变量：AIHUBMIX_API_KEY' })
@@ -410,8 +413,7 @@ router.post('/market/insight', async (req: Request, res: Response) => {
   const context = buildMarketBoardInsightContext({
     series,
     equityBond: equityBondSeries,
-    indicatorHorizon,
-    recentDays,
+    windowDays: 720,
   })
 
   const notes = metaObj && Array.isArray((metaObj as Record<string, unknown>).notes) ? (metaObj as Record<string, unknown>).notes : null
@@ -421,8 +423,8 @@ router.post('/market/insight', async (req: Request, res: Response) => {
     '总是用中文回复。',
     '你是“沪深市场大盘看板”的AI解读助手，目标是帮助用户冷静决策：解释市场情绪、机会/风险、估值与流动性。',
     '必须以用户提供的结构化数据为准；对不确定内容要说“不确定/暂无数据”，不要编造。',
-    '输出为 Markdown，结构固定包含：概览、趋势与结构、流动性与资金面、估值与股债、近期资讯/关键事件、观察清单、风险提示、免责声明。',
-    '“近期资讯/关键事件”必须带来源链接与日期范围说明；若无可靠来源或未联网，则明确写“未接入新闻/事件数据”。',
+    '输出为 Markdown，结构固定包含：概览、短线视角（明确使用的周期：近7日、5日、20日）、中线视角（明确使用的周期：60日、120日）、长线视角（明确使用的周期：252日）、流动性与资金面、估值与股债、近期资讯/关键事件、观察清单、风险提示、免责声明。',
+    '“近期资讯/关键事件”必须带来源链接与日期范围说明（近3-7天）；若无可靠来源或未联网或搜索结果不足，则明确写“暂无可靠来源/未接入新闻事件数据”。',
     '不得给出具体买卖建议或保证性判断；必须包含“仅供参考，不构成投资建议”。',
     '尽量简洁：总长度控制在约 1200-1800 个中文字；如内容较多，优先保留结论与观察清单。',
   ].join('\n')
@@ -430,8 +432,6 @@ router.post('/market/insight', async (req: Request, res: Response) => {
   const user = JSON.stringify(
     {
       request: {
-        indicatorHorizon,
-        recentDays,
         enableWebSearch,
         model,
       },
