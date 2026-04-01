@@ -7,7 +7,6 @@ import {
   CalendarRange,
   ChevronDown,
   Clock,
-  Construction,
   Info,
   Loader2,
   Sparkles,
@@ -121,7 +120,7 @@ export default function EtfDetail() {
             setInsightStatus('done')
           }
         }
-      } catch (e) {
+      } catch {
         // ignore errors for cached check
       }
     })()
@@ -259,7 +258,7 @@ export default function EtfDetail() {
                 ? String((c as Record<string, unknown>).answer)
                 : ''
             if (answer) setInsightText((prev) => prev + answer)
-            if (Boolean(o.finish)) return { done: true }
+            if (o.finish) return { done: true }
             return { done: false }
           }
           if (type === 'end') {

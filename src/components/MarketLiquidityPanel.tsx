@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import DataStatusBanner from '@/components/DataStatusBanner'
+import MarketBoardAiInsight from '@/components/MarketBoardAiInsight'
 import MarketLiquidityChart from '@/components/charts/MarketLiquidityChart'
 import MarketLiquidityTable from '@/components/MarketLiquidityTable'
 import { cn } from '@/lib/utils'
@@ -165,6 +166,8 @@ export default function MarketLiquidityPanel() {
           ) : null}
         </div>
       </div>
+
+      <MarketBoardAiInsight />
     </section>
   )
 }

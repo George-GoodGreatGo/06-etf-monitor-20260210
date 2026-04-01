@@ -1,5 +1,3 @@
-type Point = { date: string; value: number }
-
 export type LiquidityV5Point = {
   date: string
   close: number
@@ -189,4 +187,3 @@ export function buildLiquidityV5Series(input: {
   }
   return out
 }
-

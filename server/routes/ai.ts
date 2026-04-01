@@ -4,6 +4,11 @@ import { getTop100InsightStatusDetail } from '../lib/top100Insight.js'
 import { cozeStreamRunToSseEvents } from '../lib/coze.js'
 import { buildWeeklyChartVercel } from './etf.js'
 import { runAkshare } from '../lib/akshare.js'
+import { aihubmixChatCompletionsToSseEvents } from '../lib/aihubmix.js'
+import { getMarketLiquidityV5 } from '../lib/marketLiquidityV5Service.js'
+import { buildMarketBoardInsightContext } from '../lib/marketBoardInsightContext.js'
+import type { LiquidityV5Point } from '../lib/liquidityV5.js'
+import type { EquityBondPoint } from '../lib/equityBondValue.js'
 
 const router = express.Router()
 
@@ -313,6 +318,149 @@ router.post('/etf/detail/insight', async (req: Request, res: Response) => {
       })
     }
   } catch (e) {
+    writeEvent({ type: 'end', status: 'error', message: e instanceof Error ? e.message : String(e) })
+  } finally {
+    res.end()
+  }
+})
+
+router.post('/market/insight', async (req: Request, res: Response) => {
+  res.status(200)
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
+  res.setHeader('Cache-Control', 'no-store')
+  res.setHeader('Connection', 'keep-alive')
+  res.setHeader('X-Accel-Buffering', 'no')
+
+  try {
+    ;(res as Response & { flushHeaders?: () => void }).flushHeaders?.()
+  } catch {
+    void 0
+  }
+
+  const writeEvent = (o: Record<string, unknown>) => {
+    try {
+      res.write(`data: ${JSON.stringify(o)}\n\n`)
+    } catch {
+      void 0
+    }
+  }
+
+  res.write(': stream-open\n\n')
+
+  const ac = new AbortController()
+  req.on('close', () => {
+    try {
+      ac.abort()
+    } catch {
+      void 0
+    }
+  })
+
+  const b = req.body && typeof req.body === 'object' ? (req.body as Record<string, unknown>) : {}
+  const indicatorHorizon =
+    b.indicatorHorizon === 'short' || b.indicatorHorizon === 'medium' || b.indicatorHorizon === 'long'
+      ? (b.indicatorHorizon as 'short' | 'medium' | 'long')
+      : 'medium'
+  const recentDaysRaw = typeof b.recentDays === 'number' ? b.recentDays : b.recentDays == null ? NaN : Number(b.recentDays)
+  const recentDays = Number.isFinite(recentDaysRaw) ? Math.max(3, Math.min(7, Math.floor(recentDaysRaw))) : 7
+  const enableWebSearch = typeof b.enableWebSearch === 'boolean' ? b.enableWebSearch : true
+
+  const baseUrl = String(process.env.AIHUBMIX_BASE_URL || 'https://aihubmix.com/v1').trim()
+  const apiKey = String(process.env.AIHUBMIX_API_KEY || '').trim()
+  const baseModel = String(process.env.AIHUBMIX_MODEL || 'coding-minimax-m2.7-free').trim()
+  const surfingFlag = String(process.env.AIHUBMIX_ENABLE_SURFING || '1').trim()
+  const useSurfing = enableWebSearch && surfingFlag === '1'
+  const model = useSurfing ? `${baseModel}:surfing` : baseModel
+
+  if (!apiKey) {
+    writeEvent({ type: 'end', status: 'error', message: '缺少服务端环境变量：AIHUBMIX_API_KEY' })
+    res.end()
+    return
+  }
+
+  let marketData: Record<string, unknown>
+  try {
+    marketData = await getMarketLiquidityV5()
+  } catch (e) {
+    writeEvent({ type: 'end', status: 'error', message: e instanceof Error ? e.message : String(e) })
+    res.end()
+    return
+  }
+
+  const ok = marketData && typeof marketData === 'object' && marketData.success === true
+  if (!ok) {
+    const msg =
+      marketData && typeof marketData === 'object' && typeof (marketData as Record<string, unknown>).message === 'string'
+        ? String((marketData as Record<string, unknown>).message)
+        : '市场数据不可用'
+    writeEvent({ type: 'end', status: 'error', message: msg })
+    res.end()
+    return
+  }
+
+  const dataObj = (marketData as Record<string, unknown>).data as Record<string, unknown>
+  const metaObj = (marketData as Record<string, unknown>).meta as Record<string, unknown>
+  const series: LiquidityV5Point[] = dataObj && Array.isArray(dataObj.series) ? (dataObj.series as LiquidityV5Point[]) : []
+  const equityBondSeries: EquityBondPoint[] =
+    dataObj && typeof dataObj.equityBond === 'object' && dataObj.equityBond && Array.isArray((dataObj.equityBond as Record<string, unknown>).series)
+      ? ((dataObj.equityBond as Record<string, unknown>).series as EquityBondPoint[])
+      : []
+
+  const context = buildMarketBoardInsightContext({
+    series,
+    equityBond: equityBondSeries,
+    indicatorHorizon,
+    recentDays,
+  })
+
+  const notes = metaObj && Array.isArray((metaObj as Record<string, unknown>).notes) ? (metaObj as Record<string, unknown>).notes : null
+  const source = metaObj && typeof (metaObj as Record<string, unknown>).source === 'string' ? String((metaObj as Record<string, unknown>).source) : null
+
+  const developer = [
+    '总是用中文回复。',
+    '你是“沪深市场大盘看板”的AI解读助手，目标是帮助用户冷静决策：解释市场情绪、机会/风险、估值与流动性。',
+    '必须以用户提供的结构化数据为准；对不确定内容要说“不确定/暂无数据”，不要编造。',
+    '输出为 Markdown，结构固定包含：概览、趋势与结构、流动性与资金面、估值与股债、近期资讯/关键事件、观察清单、风险提示、免责声明。',
+    '“近期资讯/关键事件”必须带来源链接与日期范围说明；若无可靠来源或未联网，则明确写“未接入新闻/事件数据”。',
+    '不得给出具体买卖建议或保证性判断；必须包含“仅供参考，不构成投资建议”。',
+  ].join('\n')
+
+  const user = JSON.stringify(
+    {
+      request: {
+        indicatorHorizon,
+        recentDays,
+        enableWebSearch,
+        model,
+      },
+      market: context,
+      marketNotes: notes,
+      marketSource: source,
+    },
+    null,
+    2,
+  )
+
+  try {
+    await aihubmixChatCompletionsToSseEvents({
+      baseUrl,
+      apiKey,
+      model,
+      messages: [
+        { role: 'developer', content: developer },
+        { role: 'user', content: user },
+      ],
+      temperature: 0.4,
+      maxTokens: 1800,
+      signal: ac.signal,
+      onEvent: writeEvent,
+    })
+  } catch (e) {
+    const name = e instanceof Error ? e.name : ''
+    if (name === 'AbortError') {
+      res.end()
+      return
+    }
     writeEvent({ type: 'end', status: 'error', message: e instanceof Error ? e.message : String(e) })
   } finally {
     res.end()
