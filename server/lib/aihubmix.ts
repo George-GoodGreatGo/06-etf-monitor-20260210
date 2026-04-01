@@ -25,6 +25,7 @@ export async function aihubmixChatCompletionsToSseEvents(opts: {
   messages: ChatMessage[]
   temperature?: number
   maxTokens?: number
+  maxCompletionTokens?: number
   topP?: number
   seed?: number
   extraBody?: Record<string, unknown>
@@ -43,7 +44,9 @@ export async function aihubmixChatCompletionsToSseEvents(opts: {
     messages: opts.messages,
     temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.4,
     top_p: typeof opts.topP === 'number' ? opts.topP : 1,
-    max_tokens: typeof opts.maxTokens === 'number' ? opts.maxTokens : 1600,
+    ...(typeof opts.maxCompletionTokens === 'number'
+      ? { max_completion_tokens: opts.maxCompletionTokens }
+      : { max_tokens: typeof opts.maxTokens === 'number' ? opts.maxTokens : 1600 }),
     ...(typeof opts.seed === 'number' ? { seed: opts.seed } : {}),
     ...(opts.extraBody && typeof opts.extraBody === 'object' ? opts.extraBody : {}),
     stream: true,

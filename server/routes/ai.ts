@@ -365,13 +365,18 @@ router.post('/market/insight', async (req: Request, res: Response) => {
   const baseModel = String(process.env.AIHUBMIX_MODEL || 'mimo-v2-flash-free').trim()
   const isWebSearchOptionsModel = baseModel.startsWith('gemini-') || baseModel.startsWith('gpt-')
   const baseExtraBody =
-    baseModel === 'qwen3-max-thinking' || baseModel.startsWith('mimo-') ? { enable_thinking: true } : undefined
+    baseModel === 'qwen3-max-thinking'
+      ? { enable_thinking: true }
+      : baseModel.startsWith('mimo-')
+        ? { thinking: { type: 'true' } }
+        : undefined
   const searchMode = enableWebSearch ? (isWebSearchOptionsModel ? 'web_search_options' : 'surfing') : 'none'
   const model = enableWebSearch && !isWebSearchOptionsModel ? `${baseModel}:surfing` : baseModel
   const extraBody =
     enableWebSearch && isWebSearchOptionsModel
       ? { ...(baseExtraBody || {}), web_search_options: {} }
       : baseExtraBody || undefined
+  const maxCompletionTokens = baseModel.startsWith('mimo-') ? 2600 : undefined
 
   writeEvent({
     type: 'meta',
@@ -566,6 +571,7 @@ router.post('/market/insight', async (req: Request, res: Response) => {
       searchMode,
       temperature: 0.4,
       maxTokens: 2600,
+      ...(maxCompletionTokens ? { maxCompletionTokens } : {}),
       ...(extraBody ? { extraBody } : {}),
       stream: true,
     },
@@ -595,6 +601,7 @@ router.post('/market/insight', async (req: Request, res: Response) => {
       messages,
       temperature: 0.4,
       maxTokens: 2600,
+      ...(maxCompletionTokens ? { maxCompletionTokens } : {}),
       ...(extraBody ? { extraBody } : {}),
       signal: ac.signal,
       onEvent: writeEvent,

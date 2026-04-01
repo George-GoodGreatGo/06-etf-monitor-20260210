@@ -1,4 +1,4 @@
-- [x] 大盘看板 AI 解读默认模型为 gemini-3-flash-preview-free；联网时使用 gemini-3-flash-preview-free:surfing
+- [x] 大盘看板 AI 解读默认模型为 mimo-v2-flash-free；联网时使用 mimo-v2-flash-free:surfing
 - [x] 联网检索时：search queries 由指标趋势驱动生成；输出含 7–14 天内资讯与权威来源 URL
 - [x] 联网但缺少可靠来源时：明确提示并列出尝试过的检索关键词/方向
 - [x] 模型输入包含指标字段字典：含义 + 单位/口径说明
