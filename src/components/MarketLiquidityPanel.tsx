@@ -59,8 +59,11 @@ export default function MarketLiquidityPanel() {
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <div className="text-xl font-semibold tracking-tight text-white">沪深市场大盘看板</div>
-          <div className="mt-1 text-[13px] text-[#94A3B8]">
-            独家流动性指数（3指标）= (成交额分位数 × 换手率分位数 × 北向资金分位数)^(1/3)，分位数为360日滚动（最少180日）。
+          <div className="mt-2 space-y-1 text-[13px] leading-relaxed text-[#94A3B8]">
+            <p><span className="font-medium text-[#CBD5E1]">沪深300</span>：反映中国A股市场整体表现的核心宽基指数。</p>
+            <p><span className="font-medium text-[#CBD5E1]">EMA20 / EMA60</span>：20日/60日指数移动平均线，辅助判断短、中长期趋势。</p>
+            <p><span className="font-medium text-[#CBD5E1]">独家流动性指数（3指标）</span>：=(成交额分位×换手率分位×北向资金分位)^(1/3)，360日滚动（最少180日）。&lt;30 为机会区，&gt;70 为风险区。</p>
+            <p><span className="font-medium text-[#CBD5E1]">股债性价比（分位）</span>：沪深300股息率与10年期国债收益率的差值，在过去720天（最少360天）的滚动分位数。</p>
           </div>
         </div>
 
