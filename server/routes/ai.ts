@@ -364,6 +364,7 @@ router.post('/market/insight', async (req: Request, res: Response) => {
   const recentDaysRaw = typeof b.recentDays === 'number' ? b.recentDays : b.recentDays == null ? NaN : Number(b.recentDays)
   const recentDays = Number.isFinite(recentDaysRaw) ? Math.max(3, Math.min(7, Math.floor(recentDaysRaw))) : 7
   const enableWebSearch = typeof b.enableWebSearch === 'boolean' ? b.enableWebSearch : true
+  const continueFrom = typeof b.continueFrom === 'string' ? b.continueFrom : ''
 
   const baseUrl = String(process.env.AIHUBMIX_BASE_URL || 'https://aihubmix.com/v1').trim()
   const apiKey = String(process.env.AIHUBMIX_API_KEY || '').trim()
@@ -423,6 +424,7 @@ router.post('/market/insight', async (req: Request, res: Response) => {
     '输出为 Markdown，结构固定包含：概览、趋势与结构、流动性与资金面、估值与股债、近期资讯/关键事件、观察清单、风险提示、免责声明。',
     '“近期资讯/关键事件”必须带来源链接与日期范围说明；若无可靠来源或未联网，则明确写“未接入新闻/事件数据”。',
     '不得给出具体买卖建议或保证性判断；必须包含“仅供参考，不构成投资建议”。',
+    '尽量简洁：总长度控制在约 1200-1800 个中文字；如内容较多，优先保留结论与观察清单。',
   ].join('\n')
 
   const user = JSON.stringify(
@@ -441,17 +443,24 @@ router.post('/market/insight', async (req: Request, res: Response) => {
     2,
   )
 
+  const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+    { role: 'system', content: developer },
+    { role: 'user', content: user },
+  ]
+  if (continueFrom.trim()) {
+    const tail = continueFrom.length > 6000 ? continueFrom.slice(continueFrom.length - 6000) : continueFrom
+    messages.push({ role: 'assistant', content: tail })
+    messages.push({ role: 'user', content: '继续从上次中断处输出剩余内容；不要重复已输出段落；保持相同 Markdown 结构与语气。' })
+  }
+
   try {
     await aihubmixChatCompletionsToSseEvents({
       baseUrl,
       apiKey,
       model,
-      messages: [
-        { role: 'system', content: developer },
-        { role: 'user', content: user },
-      ],
+      messages,
       temperature: 0.4,
-      maxTokens: 1800,
+      maxTokens: 2600,
       signal: ac.signal,
       onEvent: writeEvent,
     })

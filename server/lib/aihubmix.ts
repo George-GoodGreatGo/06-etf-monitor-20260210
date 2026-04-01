@@ -1,11 +1,12 @@
 type ChatMessage = { role: 'system' | 'developer' | 'user' | 'assistant'; content: string }
 
-function pickTextFromChatCompletionChunk(o: Record<string, unknown>): { text: string; done: boolean } {
+function pickTextFromChatCompletionChunk(o: Record<string, unknown>): { text: string; done: boolean; finishReason: string | null } {
   const choices = o.choices
-  if (!Array.isArray(choices) || !choices.length) return { text: '', done: false }
+  if (!Array.isArray(choices) || !choices.length) return { text: '', done: false, finishReason: null }
   const c0 = choices[0] && typeof choices[0] === 'object' ? (choices[0] as Record<string, unknown>) : null
-  if (!c0) return { text: '', done: false }
-  const finish = typeof c0.finish_reason === 'string' && c0.finish_reason ? true : false
+  if (!c0) return { text: '', done: false, finishReason: null }
+  const finishReason = typeof c0.finish_reason === 'string' && c0.finish_reason ? c0.finish_reason : null
+  const finish = Boolean(finishReason)
 
   const delta = c0.delta && typeof c0.delta === 'object' ? (c0.delta as Record<string, unknown>) : null
   const content =
@@ -14,7 +15,7 @@ function pickTextFromChatCompletionChunk(o: Record<string, unknown>): { text: st
       : c0.message && typeof c0.message === 'object' && typeof (c0.message as Record<string, unknown>).content === 'string'
         ? String((c0.message as Record<string, unknown>).content)
         : ''
-  return { text: content, done: finish }
+  return { text: content, done: finish, finishReason }
 }
 
 export async function aihubmixChatCompletionsToSseEvents(opts: {
@@ -80,6 +81,7 @@ export async function aihubmixChatCompletionsToSseEvents(opts: {
   const decoder = new TextDecoder('utf-8')
   let buffer = ''
   let done = false
+  let lastFinishReason: string | null = null
 
   try {
     while (!done) {
@@ -103,7 +105,8 @@ export async function aihubmixChatCompletionsToSseEvents(opts: {
         try {
           const j = JSON.parse(data) as unknown
           if (!j || typeof j !== 'object') continue
-          const { text, done: d } = pickTextFromChatCompletionChunk(j as Record<string, unknown>)
+          const { text, done: d, finishReason } = pickTextFromChatCompletionChunk(j as Record<string, unknown>)
+          if (finishReason) lastFinishReason = finishReason
           if (text) opts.onEvent({ type: 'answer', content: { answer: text }, finish: false })
           if (d) {
             done = true
@@ -122,5 +125,5 @@ export async function aihubmixChatCompletionsToSseEvents(opts: {
     }
   }
 
-  opts.onEvent({ type: 'end', status: 'success' })
+  opts.onEvent({ type: 'end', status: 'success', finishReason: lastFinishReason })
 }

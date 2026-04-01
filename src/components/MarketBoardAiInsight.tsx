@@ -16,6 +16,8 @@ export default function MarketBoardAiInsight({ className }: { className?: string
   const [recentDays, setRecentDays] = useState<number>(7)
   const [enableWebSearch, setEnableWebSearch] = useState<boolean>(true)
   const [copied, setCopied] = useState(false)
+  const [finishReason, setFinishReason] = useState<string | null>(null)
+  const [truncated, setTruncated] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
 
   const mdComponents = useMemo<Components>(
@@ -42,14 +44,16 @@ export default function MarketBoardAiInsight({ className }: { className?: string
   )
 
   const start = useMemo(() => {
-    return async () => {
+    return async (opts?: { continueFrom?: string }) => {
       abortRef.current?.abort()
       const ac = new AbortController()
       abortRef.current = ac
 
       setStatus('running')
       setError(null)
-      setText('')
+      setFinishReason(null)
+      setTruncated(false)
+      if (!opts?.continueFrom) setText('')
 
       try {
         const res = await fetch(apiUrl('/api/ai/market/insight'), {
@@ -59,7 +63,7 @@ export default function MarketBoardAiInsight({ className }: { className?: string
             ...adminAuthHeaders(),
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ indicatorHorizon, recentDays, enableWebSearch }),
+          body: JSON.stringify({ indicatorHorizon, recentDays, enableWebSearch, ...(opts?.continueFrom ? { continueFrom: opts.continueFrom } : {}) }),
           signal: ac.signal,
         })
 
@@ -93,11 +97,13 @@ export default function MarketBoardAiInsight({ className }: { className?: string
                 ? String((c as Record<string, unknown>).answer)
                 : ''
             if (answer) setText((prev) => prev + answer)
-            if (o.finish) return { done: true }
             return { done: false }
           }
           if (type === 'end') {
             const s = typeof o.status === 'string' ? o.status : ''
+            const fr = typeof o.finishReason === 'string' ? o.finishReason : null
+            setFinishReason(fr)
+            setTruncated(fr === 'length')
             if (s === 'error') {
               const msg = typeof o.message === 'string' ? o.message : '解读失败'
               setStatus('error')
@@ -174,6 +180,15 @@ export default function MarketBoardAiInsight({ className }: { className?: string
               {copied ? '已复制' : '复制'}
             </button>
           ) : null}
+          {truncated && status !== 'running' ? (
+            <button
+              type="button"
+              onClick={() => start({ continueFrom: text })}
+              className="inline-flex h-8 items-center justify-center rounded-[6px] bg-[#FF5722] px-3 text-xs font-semibold text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.35),0px_10px_15px_-3px_rgba(0,0,0,0.35)] transition hover:brightness-110 active:brightness-95"
+            >
+              继续生成
+            </button>
+          ) : null}
           <label className="inline-flex select-none items-center gap-2 rounded-md border border-white/10 bg-black/20 px-2 py-1">
             <input
               type="checkbox"
@@ -209,7 +224,7 @@ export default function MarketBoardAiInsight({ className }: { className?: string
           </select>
           <button
             type="button"
-            onClick={start}
+            onClick={() => start()}
             disabled={status === 'running'}
             className={cn(
               'inline-flex h-8 items-center justify-center rounded-[6px] px-3 text-xs font-semibold shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.35),0px_10px_15px_-3px_rgba(0,0,0,0.35)] transition',
@@ -240,6 +255,16 @@ export default function MarketBoardAiInsight({ className }: { className?: string
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
             正在生成解读…
           </div>
+        ) : null}
+
+        {status === 'done' && truncated ? (
+          <div className="mb-3 rounded-md border border-white/10 bg-black/20 px-3 py-2 text-xs text-[#A9B6CC]">
+            当前输出可能达到长度上限（finish_reason=length），可点击“继续生成”补全剩余内容。
+          </div>
+        ) : null}
+
+        {status === 'done' && finishReason && !truncated ? (
+          <div className="mb-3 text-[11px] text-[#64748B]">finish_reason: {finishReason}</div>
         ) : null}
 
         {text ? (
