@@ -100,8 +100,8 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
   const equityBond = buildEquityBondValuePctSeries({ dates, peByDate, yield10yPctByDate })
 
   const notes: string[] = [
-    'V5流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为360日滚动，最小有效180日。',
-    '股债性价比=1/沪深300PE-中国10Y国债收益率，value再取720日滚动分位（最小有效360日），分位越高代表股票更有性价比。',
+    '独家流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为360日滚动，最小有效180日。',
+    '股债利差=1/沪深300PE-中国10Y国债收益率，value再取720日滚动分位（最小有效360日），分位越高代表股票相对于国债更有性价比。',
     '股债性价比PE数据源：codebuddy:financedata(index_dailybasic)',
     '股债性价比10Y数据源：chinabond(yield.chinabond.com.cn, 整年标准期限xlsx)',
     '股债性价比对齐：以沪深300交易日为基准，缺失使用前值填充。',
@@ -126,4 +126,3 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
   cache.set(cacheKey, { expiresAt: now + 10 * 60_000, value: out })
   return out
 }
-

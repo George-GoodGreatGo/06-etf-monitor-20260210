@@ -17,6 +17,10 @@ export default function MarketBoardAiInsight({ className }: { className?: string
   const [truncated, setTruncated] = useState(false)
   const [debugModel, setDebugModel] = useState<string | null>(null)
   const [debugUseSurfing, setDebugUseSurfing] = useState<boolean | null>(null)
+  const [debugRequest, setDebugRequest] = useState<string | null>(null)
+  const [debugSearch, setDebugSearch] = useState<string | null>(null)
+  const [debugDeveloperPrompt, setDebugDeveloperPrompt] = useState<string | null>(null)
+  const [debugUserPrompt, setDebugUserPrompt] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   const mdComponents = useMemo<Components>(
@@ -54,6 +58,10 @@ export default function MarketBoardAiInsight({ className }: { className?: string
       setTruncated(false)
       setDebugModel(null)
       setDebugUseSurfing(null)
+      setDebugRequest(null)
+      setDebugSearch(null)
+      setDebugDeveloperPrompt(null)
+      setDebugUserPrompt(null)
       if (!opts?.continueFrom) setText('')
 
       try {
@@ -90,6 +98,20 @@ export default function MarketBoardAiInsight({ className }: { className?: string
           if (type === 'meta') {
             if (typeof o.model === 'string') setDebugModel(o.model)
             if (typeof o.useSurfing === 'boolean') setDebugUseSurfing(o.useSurfing)
+            return { done: false }
+          }
+          if (type === 'debug') {
+            try {
+              const req = o.request && typeof o.request === 'object' ? o.request : null
+              const search = o.search && typeof o.search === 'object' ? o.search : null
+              const prompts = o.prompts && typeof o.prompts === 'object' ? (o.prompts as Record<string, unknown>) : null
+              setDebugRequest(req ? JSON.stringify(req, null, 2) : null)
+              setDebugSearch(search ? JSON.stringify(search, null, 2) : null)
+              setDebugDeveloperPrompt(prompts && typeof prompts.developer === 'string' ? prompts.developer : null)
+              setDebugUserPrompt(prompts && typeof prompts.user === 'string' ? prompts.user : null)
+            } catch {
+              void 0
+            }
             return { done: false }
           }
           if (type === 'content' && typeof o.content === 'string') {
@@ -241,12 +263,45 @@ export default function MarketBoardAiInsight({ className }: { className?: string
         ) : null}
 
         {status !== 'idle' ? (
-          <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[#64748B]">
-            <div>enableWebSearch: {String(enableWebSearch)}</div>
-            <div>model: {debugModel ?? '—'}</div>
-            <div>surfing: {debugUseSurfing == null ? '—' : String(debugUseSurfing)}</div>
-            {finishReason ? <div>finish_reason: {finishReason}</div> : null}
-          </div>
+          <details className="mb-3 rounded-md border border-white/10 bg-black/20 px-3 py-2">
+            <summary className="cursor-pointer select-none text-xs text-[#A9B6CC]">调试信息</summary>
+            <div className="mt-2 space-y-3 text-[11px] text-[#94A3B8]">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <div>enableWebSearch: {String(enableWebSearch)}</div>
+                <div>model: {debugModel ?? '—'}</div>
+                <div>surfing: {debugUseSurfing == null ? '—' : String(debugUseSurfing)}</div>
+                {finishReason ? <div>finish_reason: {finishReason}</div> : null}
+              </div>
+
+              <div>
+                <div className="mb-1 font-semibold text-[#CBD5E1]">参数（请求）</div>
+                <pre className="max-h-60 overflow-auto whitespace-pre-wrap rounded border border-white/10 bg-black/30 p-2 text-[#E2E8F0]">
+                  {debugRequest ?? '—'}
+                </pre>
+              </div>
+
+              <div>
+                <div className="mb-1 font-semibold text-[#CBD5E1]">搜索（queries）</div>
+                <pre className="max-h-60 overflow-auto whitespace-pre-wrap rounded border border-white/10 bg-black/30 p-2 text-[#E2E8F0]">
+                  {debugSearch ?? '—'}
+                </pre>
+              </div>
+
+              <div>
+                <div className="mb-1 font-semibold text-[#CBD5E1]">Developer Prompt</div>
+                <pre className="max-h-60 overflow-auto whitespace-pre-wrap rounded border border-white/10 bg-black/30 p-2 text-[#E2E8F0]">
+                  {debugDeveloperPrompt ?? '—'}
+                </pre>
+              </div>
+
+              <div>
+                <div className="mb-1 font-semibold text-[#CBD5E1]">User Prompt</div>
+                <pre className="max-h-60 overflow-auto whitespace-pre-wrap rounded border border-white/10 bg-black/30 p-2 text-[#E2E8F0]">
+                  {debugUserPrompt ?? '—'}
+                </pre>
+              </div>
+            </div>
+          </details>
         ) : null}
 
         {status === 'done' && truncated ? (

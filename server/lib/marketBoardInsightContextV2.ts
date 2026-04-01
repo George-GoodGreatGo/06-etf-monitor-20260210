@@ -159,8 +159,8 @@ export function buildMarketBoardInsightContextV2(input: {
   const recentSlice = series.slice(Math.max(0, series.length - recentDays))
   const recentCloses = recentSlice.map((p) => p.close).filter((v): v is number => isNum(v))
   const recentClosePct = recentCloses.length >= 2 ? ((recentCloses[recentCloses.length - 1] / recentCloses[0]) - 1) * 100 : null
-  const recentV5 = recentSlice.map((p) => (isNum(p.v5) ? p.v5 : NaN)).filter((v) => Number.isFinite(v))
-  const recentV5Delta = recentV5.length >= 2 ? recentV5[recentV5.length - 1] - recentV5[0] : null
+  const recentLiquidityIndex = recentSlice.map((p) => (isNum(p.v5) ? p.v5 : NaN)).filter((v) => Number.isFinite(v))
+  const recentLiquidityIndexDelta = recentLiquidityIndex.length >= 2 ? recentLiquidityIndex[recentLiquidityIndex.length - 1] - recentLiquidityIndex[0] : null
 
   const ebRecent: EquityBondPoint[] = []
   for (const p of recentSlice) {
@@ -176,7 +176,7 @@ export function buildMarketBoardInsightContextV2(input: {
   const windowSlice = series.slice(Math.max(0, series.length - windowDays))
   const windowDates = windowSlice.map((p) => p.date)
   const windowClose = windowSlice.map((p) => p.close)
-  const windowV5 = windowSlice.map((p) => p.v5)
+  const windowLiquidityIndex = windowSlice.map((p) => p.v5)
   const windowAmountPct = windowSlice.map((p) => p.amountPct)
   const windowTrPct = windowSlice.map((p) => p.trPct)
   const windowNorthPct = windowSlice.map((p) => p.northPct)
@@ -190,6 +190,33 @@ export function buildMarketBoardInsightContextV2(input: {
       windowDays,
       horizonsTradingDays: horizons,
       recentDays,
+    },
+    indicatorDictionary: {
+      hs300Close: { meaning: '沪深300指数收盘点位', unit: '点', notes: '日线收盘价' },
+      ema20: { meaning: 'EMA20：20日指数移动平均线', unit: '点', notes: '用于短中期趋势参考' },
+      ema60: { meaning: 'EMA60：60日指数移动平均线', unit: '点', notes: '用于中期趋势参考' },
+      priceVsEma20: { meaning: '收盘价与EMA20的差值', unit: '点', notes: '正值代表收盘在EMA20上方' },
+      priceVsEma60: { meaning: '收盘价与EMA60的差值', unit: '点', notes: '正值代表收盘在EMA60上方' },
+      boll120_mb: { meaning: 'BOLL120中轨（120日SMA）', unit: '点', notes: '布林带参数N=120,K=2.0' },
+      boll120_ub: { meaning: 'BOLL120上轨', unit: '点', notes: '中轨 + 2*样本标准差' },
+      boll120_lb: { meaning: 'BOLL120下轨', unit: '点', notes: '中轨 - 2*样本标准差' },
+      boll120_bw: { meaning: 'BOLL120带宽', unit: '无量纲', notes: '(上轨-下轨)/中轨，反映波动收敛/扩张' },
+      boll120_bwChangePct20d: { meaning: '带宽近20日相对变化', unit: '%', notes: '正值代表带宽扩张，负值代表收敛' },
+      amount: { meaning: '两市成交额（沪+深）', unit: '千元', notes: '来自市场日度数据口径' },
+      amountPct: { meaning: '成交额滚动分位数', unit: '%', notes: '0-100，越高代表成交越活跃' },
+      tr: { meaning: '换手率（均值口径）', unit: '%', notes: '两市口径合成，越高代表交易更活跃' },
+      trPct: { meaning: '换手率滚动分位数', unit: '%', notes: '0-100，越高代表换手更活跃' },
+      northMoney: { meaning: '北向资金净流入', unit: '万元', notes: '正为净流入，负为净流出' },
+      northPct: { meaning: '北向资金滚动分位数', unit: '%', notes: '0-100，越高代表相对更强的北向流入' },
+      liquidityIndex: { meaning: '独家流动性指数（3指标）', unit: '无量纲', notes: '由成交额分位、换手率分位、北向分位合成；<30机会区，>70风险区' },
+      liquidityZone: { meaning: '流动性指数区间标签', unit: '枚举', notes: 'opportunity/neutral/risk/unknown' },
+      pe: { meaning: '沪深300市盈率', unit: '倍', notes: '来自指数估值口径' },
+      earningsYield: { meaning: '盈利收益率', unit: '比率', notes: '约等于 1/PE' },
+      yield10yPct: { meaning: '中国10年期国债收益率', unit: '%', notes: '百分数口径' },
+      spreadValue: { meaning: '股债利差 value', unit: '比率', notes: '盈利收益率(比率) - 10Y收益率(比率)；若换算为%p：spreadValue*100' },
+      spreadPct: { meaning: '股债利差滚动分位数', unit: '%', notes: '0-100，越高代表股票相对更有性价比' },
+      hs300ReturnsPct: { meaning: '沪深300多周期涨跌幅', unit: '%', notes: 'd5/d20/d60/d120/d252' },
+      liquidityZoneShare: { meaning: '流动性指数区间占比', unit: '%', notes: '在指定窗口内处于机会区/风险区的比例' },
     },
     latest: {
       date: dataDate,
@@ -212,8 +239,8 @@ export function buildMarketBoardInsightContextV2(input: {
         trPct: last?.trPct ?? null,
         northMoney: last?.northMoney ?? null,
         northPct: last?.northPct ?? null,
-        v5: last?.v5 ?? null,
-        v5Zone: v5Zone(last?.v5),
+        liquidityIndex: last?.v5 ?? null,
+        liquidityZone: v5Zone(last?.v5),
       },
       equityBond: {
         pe: ebLast?.pe ?? null,
@@ -225,7 +252,7 @@ export function buildMarketBoardInsightContextV2(input: {
     },
     multiPeriod: {
       hs300ReturnsPct: returnsPct,
-      v5ZoneShare: {
+      liquidityZoneShare: {
         d60: share60,
         d120: share120,
       },
@@ -237,7 +264,7 @@ export function buildMarketBoardInsightContextV2(input: {
     recent: {
       days: recentDays,
       hs300ReturnPct: recentClosePct,
-      v5Delta: recentV5Delta,
+      liquidityIndexDelta: recentLiquidityIndexDelta,
       equityBondPctDelta: ebRecentPctDelta,
     },
     window: {
@@ -245,7 +272,7 @@ export function buildMarketBoardInsightContextV2(input: {
       schema: {
         dates: 'YYYY-MM-DD[]',
         close: 'number[]',
-        v5: '(number|null)[]',
+        liquidityIndex: '(number|null)[]',
         amountPct: '(number|null)[]',
         trPct: '(number|null)[]',
         northPct: '(number|null)[]',
@@ -254,7 +281,7 @@ export function buildMarketBoardInsightContextV2(input: {
       },
       dates: windowDates,
       close: windowClose,
-      v5: windowV5,
+      liquidityIndex: windowLiquidityIndex,
       amountPct: windowAmountPct,
       trPct: windowTrPct,
       northPct: windowNorthPct,
@@ -265,4 +292,3 @@ export function buildMarketBoardInsightContextV2(input: {
 
   return context
 }
-

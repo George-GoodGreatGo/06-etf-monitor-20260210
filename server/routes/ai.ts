@@ -362,7 +362,7 @@ router.post('/market/insight', async (req: Request, res: Response) => {
 
   const baseUrl = String(process.env.AIHUBMIX_BASE_URL || 'https://aihubmix.com/v1').trim()
   const apiKey = String(process.env.AIHUBMIX_API_KEY || '').trim()
-  const baseModel = String(process.env.AIHUBMIX_MODEL || 'coding-minimax-m2.7-free').trim()
+  const baseModel = String(process.env.AIHUBMIX_MODEL || 'gpt-4.1-free').trim()
   const useSurfing = enableWebSearch
   const model = enableWebSearch ? `${baseModel}:surfing` : baseModel
 
@@ -415,6 +415,78 @@ router.post('/market/insight', async (req: Request, res: Response) => {
     windowDays: 720,
   })
 
+  const isFiniteNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+  const deltaByDays = <T,>(arr: T[], days: number, pick: (x: T) => number | null | undefined) => {
+    if (!Array.isArray(arr) || arr.length <= days) return null
+    const a = pick(arr[arr.length - 1])
+    const b = pick(arr[arr.length - 1 - days])
+    if (!isFiniteNum(a) || !isFiniteNum(b)) return null
+    return a - b
+  }
+
+  const buildDateRange = (ymd: string | null) => {
+    const s = typeof ymd === 'string' ? ymd.trim() : ''
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return { from: null, to: null }
+    const year = Number(s.slice(0, 4))
+    const month = Number(s.slice(5, 7))
+    const day = Number(s.slice(8, 10))
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return { from: null, to: null }
+    const toMs = Date.UTC(year, month - 1, day, 0, 0, 0, 0)
+    const fromMs = toMs - 14 * 24 * 60 * 60 * 1000
+    const to = new Date(toMs).toISOString().slice(0, 10)
+    const from = new Date(fromMs).toISOString().slice(0, 10)
+    return { from, to }
+  }
+
+  const range = buildDateRange(context?.meta?.dataDate ?? null)
+  const queries: string[] = []
+  const addQ = (q: string) => {
+    const s = String(q || '').trim()
+    if (!s) return
+    if (queries.includes(s)) return
+    queries.push(s)
+  }
+
+  const latest = context?.latest as Record<string, unknown> | undefined
+  const liquidity = latest && typeof latest.liquidity === 'object' ? (latest.liquidity as Record<string, unknown>) : null
+  const boll = latest && typeof latest.boll120 === 'object' ? (latest.boll120 as Record<string, unknown>) : null
+  const eb = latest && typeof latest.equityBond === 'object' ? (latest.equityBond as Record<string, unknown>) : null
+  const pxVs60 = typeof latest?.priceVsEma60 === 'number' ? (latest.priceVsEma60 as number) : NaN
+  const liquidityZone = typeof liquidity?.liquidityZone === 'string' ? String(liquidity.liquidityZone) : ''
+  const bwChange20 = typeof boll?.bwChangePct20d === 'number' ? (boll.bwChangePct20d as number) : NaN
+  const ebPct = typeof eb?.spreadPct === 'number' ? (eb.spreadPct as number) : NaN
+  const liquidityIndexNow = typeof liquidity?.liquidityIndex === 'number' ? (liquidity.liquidityIndex as number) : NaN
+  const liquidityIndexDelta20 = deltaByDays(series, 20, (p) => p.v5)
+  const ebPctDelta20 = deltaByDays(equityBondSeries, 20, (p) => p.pct)
+  const hs300Ret20 = context?.multiPeriod?.hs300ReturnsPct && typeof (context.multiPeriod.hs300ReturnsPct as Record<string, unknown>).d20 === 'number'
+    ? ((context.multiPeriod.hs300ReturnsPct as Record<string, unknown>).d20 as number)
+    : null
+
+  const timeHint = range.from && range.to ? `${range.from}~${range.to}` : '近两周'
+  addQ(`A股 大盘 沪深300 走势 原因 ${timeHint} 宏观`)
+  if (isFiniteNum(hs300Ret20) && hs300Ret20 <= -3) addQ(`沪深300 近一个月 下跌 原因 ${timeHint} 政策 宏观 资金面`)
+  if (isFiniteNum(hs300Ret20) && hs300Ret20 >= 3) addQ(`沪深300 近一个月 上涨 原因 ${timeHint} 政策 宏观 资金面`)
+  if (Number.isFinite(pxVs60) && pxVs60 < 0) addQ(`沪深300 跌破 均线 EMA60 原因 ${timeHint}`)
+  if (Number.isFinite(pxVs60) && pxVs60 > 0) addQ(`沪深300 上穿 均线 趋势 改变 ${timeHint}`)
+  if (liquidityZone === 'risk') addQ(`A股 流动性指数 过热 风险 北向资金 成交额 ${timeHint}`)
+  if (liquidityZone === 'opportunity') addQ(`A股 流动性指数 低位 机会 北向资金 成交额 ${timeHint}`)
+  if (isFiniteNum(liquidityIndexNow) && isFiniteNum(liquidityIndexDelta20) && liquidityIndexDelta20 >= 8)
+    addQ(`A股 流动性指数 上升 原因 成交额 换手 北向 ${timeHint}`)
+  if (isFiniteNum(liquidityIndexNow) && isFiniteNum(liquidityIndexDelta20) && liquidityIndexDelta20 <= -8)
+    addQ(`A股 流动性指数 下降 原因 成交额 换手 北向 ${timeHint}`)
+  addQ(`北向资金 近两周 净流入 净流出 影响 沪深300 ${timeHint}`)
+  addQ(`两市 成交额 放量 缩量 原因 ${timeHint}`)
+  if (Number.isFinite(bwChange20) && bwChange20 < -20) addQ(`A股 波动率 收敛 布林带 带宽 收窄 ${timeHint}`)
+  if (Number.isFinite(bwChange20) && bwChange20 > 20) addQ(`A股 波动率 扩张 布林带 带宽 扩大 ${timeHint}`)
+  addQ(`10年期国债收益率 近两周 变动 原因 ${timeHint}`)
+  if (Number.isFinite(ebPct) && ebPct >= 70) addQ(`股债利差 高分位 A股 估值 性价比 ${timeHint}`)
+  if (Number.isFinite(ebPct) && ebPct <= 30) addQ(`股债利差 低分位 A股 估值 风险 ${timeHint}`)
+  if (isFiniteNum(ebPctDelta20) && ebPctDelta20 >= 10) addQ(`股债分位 上升 近一个月 原因 国债收益率 市盈率 ${timeHint}`)
+  if (isFiniteNum(ebPctDelta20) && ebPctDelta20 <= -10) addQ(`股债分位 下降 近一个月 原因 国债收益率 市盈率 ${timeHint}`)
+  addQ(`央行 近两周 公开市场 操作 逆回购 MLF LPR ${timeHint}`)
+  addQ(`证监会 上交所 深交所 近两周 政策 监管 要点 ${timeHint}`)
+  const searchQueries = queries.slice(0, 8)
+
   const notes = metaObj && Array.isArray((metaObj as Record<string, unknown>).notes) ? (metaObj as Record<string, unknown>).notes : null
   const source = metaObj && typeof (metaObj as Record<string, unknown>).source === 'string' ? String((metaObj as Record<string, unknown>).source) : null
 
@@ -422,8 +494,11 @@ router.post('/market/insight', async (req: Request, res: Response) => {
     '总是用中文回复。',
     '你是“沪深市场大盘看板”的AI解读助手，目标是帮助用户冷静决策：解释市场情绪、机会/风险、估值与流动性。',
     '必须以用户提供的结构化数据为准；对不确定内容要说“不确定/暂无数据”，不要编造。',
+    '你会收到 indicatorDictionary（字段含义与单位/口径）。必须在解读中尊重单位与口径，不得混用；需要换算时要说明（例如比率与%p）。',
     '输出为 Markdown，结构固定包含：概览、短线视角（明确使用的周期：近7日、5日、20日）、中线视角（明确使用的周期：60日、120日）、长线视角（明确使用的周期：252日）、流动性与资金面、估值与股债、近期资讯/关键事件、观察清单、风险提示、免责声明。',
-    '当且仅当 enableWebSearch=true 时，你必须先联网检索，并在“近期资讯/关键事件”部分给出最近7-14天内与A股大盘相关的要点摘要，且每条要点必须附带可追溯的来源链接（URL）与日期范围说明。',
+    '当且仅当 enableWebSearch=true 时，你必须先联网检索；你会收到 search.queries（由多周期摘要与近20日变化提取趋势要素生成，含趋势强弱、波动收敛/扩张、流动性指数、股债分位区间）。请优先用这些 queries 进行检索（必要时可改写以提高召回）。',
+    '在“近期资讯/关键事件”部分给出最近7-14天内与A股大盘相关的要点摘要，且每条要点必须附带可追溯 URL 与日期范围说明。',
+    '在“归因总结”中把“指标信号”与“资讯证据”分开写清楚：每条归因必须说明是由哪些指标信号触发、并引用哪些来源链接支持。',
     '优先采用权威信源：交易所/监管与官方机构（上交所、深交所、证监会、央行、国家统计局等）、主流财经媒体（证券时报、中证报、上证报等）与权威门户的原文链接；避免使用无来源自媒体断言。',
     '若 enableWebSearch=true 但仍找不到可靠来源，必须明确说明“已联网检索但未获得足够可靠来源”，并给出你尝试过的2-4个检索关键词/查询方向。',
     '若 enableWebSearch=false，则“近期资讯/关键事件”必须写明“未启用联网检索，未接入新闻/事件数据”。',
@@ -436,6 +511,18 @@ router.post('/market/insight', async (req: Request, res: Response) => {
       request: {
         enableWebSearch,
         model,
+      },
+      search: {
+        range,
+        queries: searchQueries,
+        signals: {
+          hs300ReturnPct20d: hs300Ret20,
+          liquidityIndexNow,
+          liquidityIndexDelta20d: liquidityIndexDelta20,
+          bollBwChangePct20d: bwChange20,
+          equityBondPctNow: ebPct,
+          equityBondPctDelta20d: ebPctDelta20,
+        },
       },
       market: context,
       marketNotes: notes,
@@ -454,6 +541,26 @@ router.post('/market/insight', async (req: Request, res: Response) => {
     messages.push({ role: 'assistant', content: tail })
     messages.push({ role: 'user', content: '继续从上次中断处输出剩余内容；不要重复已输出段落；保持相同 Markdown 结构与语气。' })
   }
+
+  writeEvent({
+    type: 'debug',
+    request: {
+      enableWebSearch,
+      baseUrl,
+      model,
+      temperature: 0.4,
+      maxTokens: 2600,
+      stream: true,
+    },
+    search: {
+      range,
+      queries: searchQueries,
+    },
+    prompts: {
+      developer,
+      user,
+    },
+  })
 
   try {
     await aihubmixChatCompletionsToSseEvents({
