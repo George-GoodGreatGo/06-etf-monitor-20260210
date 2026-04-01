@@ -60,6 +60,10 @@ type HoverState = {
   close?: number
   v5?: number
   ebPct?: number
+  bbMid?: number
+  bbUpper?: number
+  bbLower?: number
+  bbBandwidth?: number
 }
 
 function buildEma(points: LineData<Time>[], period: number): LineData<Time>[] {
@@ -74,6 +78,85 @@ function buildEma(points: LineData<Time>[], period: number): LineData<Time>[] {
     out.push({ time: p.time, value: prev })
   }
   return out
+}
+
+type NullableLinePoint = { time: Time; value: number | null }
+
+function buildBollingerBands(points: LineData<Time>[], period = 120, k = 2.0): {
+  mid: NullableLinePoint[]
+  upper: NullableLinePoint[]
+  lower: NullableLinePoint[]
+  bandwidth: NullableLinePoint[]
+} {
+  const mid: NullableLinePoint[] = []
+  const upper: NullableLinePoint[] = []
+  const lower: NullableLinePoint[] = []
+  const bandwidth: NullableLinePoint[] = []
+
+  if (!points.length) return { mid, upper, lower, bandwidth }
+
+  const window: number[] = []
+  let sum = 0
+  let sumSq = 0
+
+  for (const p of points) {
+    const v = typeof p.value === 'number' && Number.isFinite(p.value) ? p.value : null
+
+    if (v == null) {
+      // 中文说明：若 close 无效，则本日无法计算布林带；同时清空窗口，避免在包含缺失值的窗口上计算。
+      window.length = 0
+      sum = 0
+      sumSq = 0
+      mid.push({ time: p.time, value: null })
+      upper.push({ time: p.time, value: null })
+      lower.push({ time: p.time, value: null })
+      bandwidth.push({ time: p.time, value: null })
+      continue
+    }
+
+    window.push(v)
+    sum += v
+    sumSq += v * v
+
+    if (window.length > period) {
+      const removed = window.shift()
+      if (typeof removed === 'number') {
+        sum -= removed
+        sumSq -= removed * removed
+      }
+    }
+
+    if (window.length < period) {
+      // 中文说明：数据不足 period 天时，按要求填充缺失值，保证输出长度与输入一致。
+      mid.push({ time: p.time, value: null })
+      upper.push({ time: p.time, value: null })
+      lower.push({ time: p.time, value: null })
+      bandwidth.push({ time: p.time, value: null })
+      continue
+    }
+
+    // 中文说明：中轨 = 过去 N 天收盘价的简单移动平均（SMA）
+    const mb = sum / period
+
+    // 中文说明：样本标准差（n-1）。使用 sumSq 与 sum 的推导式以提升性能：Var = (Σx^2 - (Σx)^2/n) / (n-1)
+    const numerator = sumSq - (sum * sum) / period
+    const variance = numerator <= 0 ? 0 : numerator / (period - 1)
+    const std = Math.sqrt(variance)
+
+    // 中文说明：上轨/下轨 = 中轨 ± K * 标准差
+    const ub = mb + k * std
+    const lb = mb - k * std
+
+    // 中文说明：带宽 = (上轨 - 下轨) / 中轨；若中轨为 0，则按缺失值处理避免除零。
+    const bw = mb === 0 ? null : (ub - lb) / mb
+
+    mid.push({ time: p.time, value: mb })
+    upper.push({ time: p.time, value: ub })
+    lower.push({ time: p.time, value: lb })
+    bandwidth.push({ time: p.time, value: bw })
+  }
+
+  return { mid, upper, lower, bandwidth }
 }
 
 export default function MarketLiquidityChart({ series, equityBond, className }: Props) {
@@ -93,11 +176,25 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     hs300: ISeriesApi<'Line', Time> | null
     ema20: ISeriesApi<'Line', Time> | null
     ema60: ISeriesApi<'Line', Time> | null
+    bbMid: ISeriesApi<'Line', Time> | null
+    bbUpper: ISeriesApi<'Line', Time> | null
+    bbLower: ISeriesApi<'Line', Time> | null
     v5: ISeriesApi<'Line', Time> | null
     v5Align: ISeriesApi<'Line', Time> | null
     eb: ISeriesApi<'Line', Time> | null
     ebAlign: ISeriesApi<'Line', Time> | null
-  }>({ hs300: null, ema20: null, ema60: null, v5: null, v5Align: null, eb: null, ebAlign: null })
+  }>({
+    hs300: null,
+    ema20: null,
+    ema60: null,
+    bbMid: null,
+    bbUpper: null,
+    bbLower: null,
+    v5: null,
+    v5Align: null,
+    eb: null,
+    ebAlign: null,
+  })
   const hsSegRef = useRef<{ hot: ISeriesApi<'Line', Time>[]; cold: ISeriesApi<'Line', Time>[] }>({
     hot: [],
     cold: [],
@@ -105,6 +202,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
   const [hover, setHover] = useState<HoverState | null>(null)
   const [showEma20, setShowEma20] = useState(true)
   const [showEma60, setShowEma60] = useState(true)
+  const [showBoll, setShowBoll] = useState(true)
   const [showLiquidityPane, setShowLiquidityPane] = useState(true)
   const [showEquityBondPane, setShowEquityBondPane] = useState(true)
 
@@ -193,7 +291,27 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     const ema20 = buildEma(hs, 20)
     const ema60 = buildEma(hs, 60)
 
-    return { hs, hsHotSegments, hsColdSegments, ema20, ema60, v5, eb, map }
+    const bbRaw = buildBollingerBands(hs, 120, 2.0)
+    const bbMid = bbRaw.mid.filter((p): p is { time: Time; value: number } => typeof p.value === 'number' && Number.isFinite(p.value))
+    const bbUpper = bbRaw.upper.filter((p): p is { time: Time; value: number } => typeof p.value === 'number' && Number.isFinite(p.value))
+    const bbLower = bbRaw.lower.filter((p): p is { time: Time; value: number } => typeof p.value === 'number' && Number.isFinite(p.value))
+
+    for (let i = 0; i < hs.length; i++) {
+      const t = hs[i]?.time
+      if (typeof t !== 'number') continue
+      const h = map.get(t as UTCTimestamp)
+      if (!h) continue
+      const mb = bbRaw.mid[i]?.value ?? null
+      const ub = bbRaw.upper[i]?.value ?? null
+      const lb = bbRaw.lower[i]?.value ?? null
+      const bw = bbRaw.bandwidth[i]?.value ?? null
+      h.bbMid = typeof mb === 'number' && Number.isFinite(mb) ? mb : undefined
+      h.bbUpper = typeof ub === 'number' && Number.isFinite(ub) ? ub : undefined
+      h.bbLower = typeof lb === 'number' && Number.isFinite(lb) ? lb : undefined
+      h.bbBandwidth = typeof bw === 'number' && Number.isFinite(bw) ? bw : undefined
+    }
+
+    return { hs, hsHotSegments, hsColdSegments, ema20, ema60, bbMid, bbUpper, bbLower, v5, eb, map }
   }, [equityBond, series])
 
   useEffect(() => {
@@ -247,10 +365,40 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       priceFormat: { type: 'custom', formatter: (v) => fmt(v, 2) },
     })
 
+    const bbMid = chart.addSeries(LineSeries, {
+      color: 'rgba(226,232,240,0.60)',
+      lineWidth: 1,
+      lineStyle: LineStyle.Dashed,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      priceFormat: { type: 'custom', formatter: (v) => fmt(v, 2) },
+    })
+
+    const bbUpper = chart.addSeries(LineSeries, {
+      color: 'rgba(148,163,184,0.60)',
+      lineWidth: 1,
+      lineStyle: LineStyle.Solid,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      priceFormat: { type: 'custom', formatter: (v) => fmt(v, 2) },
+    })
+
+    const bbLower = chart.addSeries(LineSeries, {
+      color: 'rgba(148,163,184,0.60)',
+      lineWidth: 1,
+      lineStyle: LineStyle.Solid,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      priceFormat: { type: 'custom', formatter: (v) => fmt(v, 2) },
+    })
+
     chartsRef.current.price = chart
     seriesRef.current.hs300 = hs
     seriesRef.current.ema20 = ema20
     seriesRef.current.ema60 = ema60
+    seriesRef.current.bbMid = bbMid
+    seriesRef.current.bbUpper = bbUpper
+    seriesRef.current.bbLower = bbLower
 
     return () => {
       chart.remove()
@@ -258,6 +406,9 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       seriesRef.current.hs300 = null
       seriesRef.current.ema20 = null
       seriesRef.current.ema60 = null
+      seriesRef.current.bbMid = null
+      seriesRef.current.bbUpper = null
+      seriesRef.current.bbLower = null
       hsSegRef.current.hot = []
       hsSegRef.current.cold = []
     }
@@ -270,6 +421,12 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
   useEffect(() => {
     seriesRef.current.ema60?.applyOptions({ visible: showEma60 })
   }, [showEma60])
+
+  useEffect(() => {
+    seriesRef.current.bbMid?.applyOptions({ visible: showBoll })
+    seriesRef.current.bbUpper?.applyOptions({ visible: showBoll })
+    seriesRef.current.bbLower?.applyOptions({ visible: showBoll })
+  }, [showBoll])
 
   useEffect(() => {
     if (!v5ElRef.current || chartsRef.current.v5) return
@@ -513,6 +670,9 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     seriesRef.current.hs300?.setData(data.hs)
     seriesRef.current.ema20?.setData(data.ema20)
     seriesRef.current.ema60?.setData(data.ema60)
+    seriesRef.current.bbMid?.setData(data.bbMid)
+    seriesRef.current.bbUpper?.setData(data.bbUpper)
+    seriesRef.current.bbLower?.setData(data.bbLower)
     seriesRef.current.v5?.setData(data.v5)
     seriesRef.current.v5Align?.setData(data.hs)
     seriesRef.current.eb?.setData(data.eb)
@@ -592,6 +752,17 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
           <span className="h-2 w-2 rounded-full bg-[#A78BFA]" />
           EMA60
         </button>
+        <button
+          type="button"
+          onClick={() => setShowBoll((v) => !v)}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+            showBoll ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+          )}
+        >
+          <span className="h-2 w-2 rounded-full bg-[#94A3B8]" />
+          BOLL120
+        </button>
         <div className="mx-2 h-4 w-px bg-white/10" />
         <button
           type="button"
@@ -625,6 +796,18 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
           <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
             <div className="text-[#A9B6CC]">沪深300</div>
             <div className="text-right font-mono">{fmt(hover.close, 2)}</div>
+            {showBoll ? (
+              <>
+                <div className="text-[#A9B6CC]">BOLL120(MB)</div>
+                <div className="text-right font-mono">{fmt(hover.bbMid, 2)}</div>
+                <div className="text-[#A9B6CC]">BOLL120(UB)</div>
+                <div className="text-right font-mono">{fmt(hover.bbUpper, 2)}</div>
+                <div className="text-[#A9B6CC]">BOLL120(LB)</div>
+                <div className="text-right font-mono">{fmt(hover.bbLower, 2)}</div>
+                <div className="text-[#A9B6CC]">BOLL120(BW)</div>
+                <div className="text-right font-mono">{fmt(hover.bbBandwidth, 4)}</div>
+              </>
+            ) : null}
             {showLiquidityPane ? (
               <>
                 <div className="text-[#A9B6CC]">独家流动性指数（3指标）</div>
@@ -644,7 +827,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       <div className="mt-3 space-y-2">
         <div className="relative rounded-lg border border-white/10 bg-[#111B2E] pt-6">
           <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
-            沪深300（主图）{showEma20 ? '+ EMA20' : ''} {showEma60 ? '+ EMA60' : ''}
+            沪深300（主图）{showEma20 ? '+ EMA20' : ''} {showEma60 ? '+ EMA60' : ''} {showBoll ? '+ BOLL120' : ''}
           </div>
           <div ref={priceElRef} className="h-[300px] w-full" />
         </div>
