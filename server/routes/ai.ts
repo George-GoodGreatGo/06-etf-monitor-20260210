@@ -362,29 +362,36 @@ router.post('/market/insight', async (req: Request, res: Response) => {
 
   const baseUrl = String(process.env.AIHUBMIX_BASE_URL || 'https://aihubmix.com/v1').trim()
   const apiKey = String(process.env.AIHUBMIX_API_KEY || '').trim()
-  const baseModel = String(process.env.AIHUBMIX_MODEL || 'mimo-v2-flash-free').trim()
-  const isWebSearchOptionsModel = baseModel.startsWith('gemini-') || baseModel.startsWith('gpt-')
-  const baseExtraBody =
-    baseModel === 'qwen3-max-thinking'
-      ? { enable_thinking: true }
-      : baseModel.startsWith('mimo-')
-        ? { thinking: { type: 'true' } }
-        : undefined
-  const searchMode = enableWebSearch ? (isWebSearchOptionsModel ? 'web_search_options' : 'surfing') : 'none'
-  const model = enableWebSearch && !isWebSearchOptionsModel ? `${baseModel}:surfing` : baseModel
-  const extraBody =
-    enableWebSearch && isWebSearchOptionsModel
-      ? { ...(baseExtraBody || {}), web_search_options: {} }
-      : baseExtraBody || undefined
-  const maxCompletionTokens = baseModel.startsWith('mimo-') ? 2600 : undefined
+  const baseModel = String(process.env.AIHUBMIX_MODEL || 'coding-glm-5-turbo-free').trim()
+  const buildModelConfig = (bm: string) => {
+    const isWebSearchOptionsModel = bm.startsWith('gemini-') || bm.startsWith('gpt-')
+    const baseExtraBody =
+      bm === 'qwen3-max-thinking'
+        ? { enable_thinking: true }
+        : bm.includes('glm-5')
+          ? { thinking: { type: 'enabled' } }
+        : bm.startsWith('mimo-')
+          ? { thinking: { type: 'true' } }
+          : undefined
+    const searchMode = enableWebSearch ? (isWebSearchOptionsModel ? 'web_search_options' : 'surfing') : 'none'
+    const model = enableWebSearch && !isWebSearchOptionsModel ? `${bm}:surfing` : bm
+    const extraBody =
+      enableWebSearch && isWebSearchOptionsModel
+        ? { ...(baseExtraBody || {}), web_search_options: {} }
+        : baseExtraBody || undefined
+    const maxCompletionTokens = bm.startsWith('mimo-') ? 2600 : undefined
+    return { baseModel: bm, model, searchMode, extraBody, maxCompletionTokens }
+  }
+
+  const modelCfg0 = buildModelConfig(baseModel)
 
   writeEvent({
     type: 'meta',
     provider: 'aihubmix',
     enableWebSearch,
-    model,
-    baseModel,
-    searchMode,
+    model: modelCfg0.model,
+    baseModel: modelCfg0.baseModel,
+    searchMode: modelCfg0.searchMode,
   })
 
   if (!apiKey) {
@@ -529,8 +536,8 @@ router.post('/market/insight', async (req: Request, res: Response) => {
     {
       request: {
         enableWebSearch,
-        model,
-        searchMode,
+        model: modelCfg0.model,
+        searchMode: modelCfg0.searchMode,
       },
       search: {
         range,
@@ -567,12 +574,12 @@ router.post('/market/insight', async (req: Request, res: Response) => {
     request: {
       enableWebSearch,
       baseUrl,
-      model,
-      searchMode,
+      model: modelCfg0.model,
+      searchMode: modelCfg0.searchMode,
       temperature: 0.4,
       maxTokens: 2600,
-      ...(maxCompletionTokens ? { maxCompletionTokens } : {}),
-      ...(extraBody ? { extraBody } : {}),
+      ...(modelCfg0.maxCompletionTokens ? { maxCompletionTokens: modelCfg0.maxCompletionTokens } : {}),
+      ...(modelCfg0.extraBody ? { extraBody: modelCfg0.extraBody } : {}),
       stream: true,
     },
     search: {
@@ -594,18 +601,65 @@ router.post('/market/insight', async (req: Request, res: Response) => {
   })
 
   try {
-    await aihubmixChatCompletionsToSseEvents({
-      baseUrl,
-      apiKey,
-      model,
-      messages,
-      temperature: 0.4,
-      maxTokens: 2600,
-      ...(maxCompletionTokens ? { maxCompletionTokens } : {}),
-      ...(extraBody ? { extraBody } : {}),
-      signal: ac.signal,
-      onEvent: writeEvent,
-    })
+    const runOnce = async (cfg: ReturnType<typeof buildModelConfig>) => {
+      return aihubmixChatCompletionsToSseEvents({
+        baseUrl,
+        apiKey,
+        model: cfg.model,
+        messages,
+        temperature: 0.4,
+        maxTokens: 2600,
+        ...(cfg.maxCompletionTokens ? { maxCompletionTokens: cfg.maxCompletionTokens } : {}),
+        ...(cfg.extraBody ? { extraBody: cfg.extraBody } : {}),
+        signal: ac.signal,
+        onEvent: writeEvent,
+      })
+    }
+
+    try {
+      await runOnce(modelCfg0)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      const isModelAccessError =
+        msg.includes('Incorrect model ID') ||
+        msg.includes('do not have permission') ||
+        msg.includes('no permission') ||
+        msg.includes('permission')
+
+      if (!isModelAccessError) throw e
+
+      const fallbackBaseModel = 'gemini-3-flash-preview-free'
+      const modelCfg1 = buildModelConfig(fallbackBaseModel)
+
+      writeEvent({
+        type: 'meta',
+        provider: 'aihubmix',
+        enableWebSearch,
+        model: modelCfg1.model,
+        baseModel: modelCfg1.baseModel,
+        searchMode: modelCfg1.searchMode,
+        fallbackFrom: modelCfg0.model,
+        fallbackReason: msg,
+      })
+
+      writeEvent({
+        type: 'debug',
+        request: {
+          enableWebSearch,
+          baseUrl,
+          model: modelCfg1.model,
+          searchMode: modelCfg1.searchMode,
+          temperature: 0.4,
+          maxTokens: 2600,
+          ...(modelCfg1.maxCompletionTokens ? { maxCompletionTokens: modelCfg1.maxCompletionTokens } : {}),
+          ...(modelCfg1.extraBody ? { extraBody: modelCfg1.extraBody } : {}),
+          stream: true,
+          fallbackFrom: modelCfg0.model,
+        },
+      })
+
+      await runOnce(modelCfg1)
+    }
   } catch (e) {
     const name = e instanceof Error ? e.name : ''
     if (name === 'AbortError') {
