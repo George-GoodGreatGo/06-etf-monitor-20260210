@@ -362,7 +362,7 @@ router.post('/market/insight', async (req: Request, res: Response) => {
 
   const baseUrl = String(process.env.AIHUBMIX_BASE_URL || 'https://aihubmix.com/v1').trim()
   const apiKey = String(process.env.AIHUBMIX_API_KEY || '').trim()
-  const baseModel = String(process.env.AIHUBMIX_MODEL || 'gpt-4.1-free').trim()
+  const baseModel = String(process.env.AIHUBMIX_MODEL || 'qwen3-max-thinking').trim()
   const useSurfing = enableWebSearch
   const model = enableWebSearch ? `${baseModel}:surfing` : baseModel
 
@@ -493,6 +493,7 @@ router.post('/market/insight', async (req: Request, res: Response) => {
   const developer = [
     '总是用中文回复。',
     '你是“沪深市场大盘看板”的AI解读助手，目标是帮助用户冷静决策：解释市场情绪、机会/风险、估值与流动性。',
+    '请先思考再回答，但不要输出思考过程或推理草稿，只输出最终结论与可核查的引用。',
     '必须以用户提供的结构化数据为准；对不确定内容要说“不确定/暂无数据”，不要编造。',
     '你会收到 indicatorDictionary（字段含义与单位/口径）。必须在解读中尊重单位与口径，不得混用；需要换算时要说明（例如比率与%p）。',
     '输出为 Markdown，结构固定包含：概览、短线视角（明确使用的周期：近7日、5日、20日）、中线视角（明确使用的周期：60日、120日）、长线视角（明确使用的周期：252日）、流动性与资金面、估值与股债、近期资讯/关键事件、观察清单、风险提示、免责声明。',
@@ -550,11 +551,20 @@ router.post('/market/insight', async (req: Request, res: Response) => {
       model,
       temperature: 0.4,
       maxTokens: 2600,
+      extraBody: { enable_thinking: true },
       stream: true,
     },
     search: {
       range,
       queries: searchQueries,
+      signals: {
+        hs300ReturnPct20d: hs300Ret20,
+        liquidityIndexNow,
+        liquidityIndexDelta20d: liquidityIndexDelta20,
+        bollBwChangePct20d: bwChange20,
+        equityBondPctNow: ebPct,
+        equityBondPctDelta20d: ebPctDelta20,
+      },
     },
     prompts: {
       developer,
@@ -570,6 +580,7 @@ router.post('/market/insight', async (req: Request, res: Response) => {
       messages,
       temperature: 0.4,
       maxTokens: 2600,
+      extraBody: { enable_thinking: true },
       signal: ac.signal,
       onEvent: writeEvent,
     })

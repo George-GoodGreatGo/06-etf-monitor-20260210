@@ -27,6 +27,7 @@ export async function aihubmixChatCompletionsToSseEvents(opts: {
   maxTokens?: number
   topP?: number
   seed?: number
+  extraBody?: Record<string, unknown>
   signal?: AbortSignal
   onEvent: (event: Record<string, unknown>) => void
 }) {
@@ -44,6 +45,7 @@ export async function aihubmixChatCompletionsToSseEvents(opts: {
     top_p: typeof opts.topP === 'number' ? opts.topP : 1,
     max_tokens: typeof opts.maxTokens === 'number' ? opts.maxTokens : 1600,
     ...(typeof opts.seed === 'number' ? { seed: opts.seed } : {}),
+    ...(opts.extraBody && typeof opts.extraBody === 'object' ? opts.extraBody : {}),
     stream: true,
   }
 
