@@ -12,6 +12,63 @@ import type { EquityBondPoint } from '../lib/equityBondValue.js'
 
 const router = express.Router()
 
+type Boll = { mb: number | null; ub: number | null; lb: number | null; bw: number | null }
+
+function buildEmaByDate(points: Array<{ date: string; close: number }>, period: number): Map<string, number> {
+  const out = new Map<string, number>()
+  if (!points.length) return out
+  const a = 2 / (period + 1)
+  let prev: number | null = null
+  for (const p of points) {
+    const v = typeof p.close === 'number' && Number.isFinite(p.close) ? p.close : null
+    if (v == null) continue
+    prev = prev == null ? v : a * v + (1 - a) * prev
+    out.set(p.date, prev)
+  }
+  return out
+}
+
+function buildBoll120ByDate(points: Array<{ date: string; close: number }>, period = 120, k = 2.0): Map<string, Boll> {
+  const out = new Map<string, Boll>()
+  if (!points.length) return out
+  const window: number[] = []
+  let sum = 0
+  let sumSq = 0
+  for (const p of points) {
+    const v = typeof p.close === 'number' && Number.isFinite(p.close) ? p.close : null
+    if (v == null) {
+      window.length = 0
+      sum = 0
+      sumSq = 0
+      out.set(p.date, { mb: null, ub: null, lb: null, bw: null })
+      continue
+    }
+    window.push(v)
+    sum += v
+    sumSq += v * v
+    if (window.length > period) {
+      const removed = window.shift()
+      if (typeof removed === 'number') {
+        sum -= removed
+        sumSq -= removed * removed
+      }
+    }
+    if (window.length < period) {
+      out.set(p.date, { mb: null, ub: null, lb: null, bw: null })
+      continue
+    }
+    const mb = sum / period
+    const numerator = sumSq - (sum * sum) / period
+    const variance = numerator <= 0 ? 0 : numerator / (period - 1)
+    const std = Math.sqrt(variance)
+    const ub = mb + k * std
+    const lb = mb - k * std
+    const bw = mb === 0 ? null : (ub - lb) / mb
+    out.set(p.date, { mb, ub, lb, bw })
+  }
+  return out
+}
+
 async function resolveDataDate(rawDataDate: unknown): Promise<string> {
   const fromQuery = typeof rawDataDate === 'string' ? rawDataDate.trim() : ''
   if (fromQuery) return fromQuery
@@ -413,11 +470,88 @@ router.post('/market/insight', async (req: Request, res: Response) => {
       ? ((dataObj.equityBond as Record<string, unknown>).series as EquityBondPoint[])
       : []
 
-  const context = buildMarketBoardInsightContextV2({
-    series,
-    equityBond: equityBondSeries,
-    windowDays: 720,
+  const windowDays = 720
+  const seriesSlice = series.slice(Math.max(0, series.length - windowDays))
+  const base = seriesSlice
+    .map((p) => ({ date: String(p?.date || '').trim(), close: p?.close }))
+    .filter((p): p is { date: string; close: number } => !!p.date && typeof p.close === 'number' && Number.isFinite(p.close))
+  const ema20ByDate = buildEmaByDate(base, 20)
+  const ema60ByDate = buildEmaByDate(base, 60)
+  const bollByDate = buildBoll120ByDate(base, 120, 2.0)
+
+  const ebByDate = new Map<string, EquityBondPoint>()
+  for (const p of equityBondSeries || []) {
+    const d = String(p?.date || '').trim()
+    if (!d) continue
+    ebByDate.set(d, p)
+  }
+
+  const fullCtx = buildMarketBoardInsightContextV2({ series: seriesSlice, equityBond: equityBondSeries, windowDays })
+  const keepKeys = new Set([
+    'hs300Close',
+    'ema20',
+    'ema60',
+    'boll120_mb',
+    'boll120_ub',
+    'boll120_lb',
+    'boll120_bw',
+    'amount',
+    'amountPct',
+    'tr',
+    'trPct',
+    'northMoney',
+    'northPct',
+    'liquidityIndex',
+    'pe',
+    'earningsYield',
+    'yield10yPct',
+    'spreadValue',
+    'spreadPct',
+  ])
+  const indicatorDictionary =
+    fullCtx && typeof fullCtx === 'object' && fullCtx.indicatorDictionary && typeof fullCtx.indicatorDictionary === 'object'
+      ? Object.fromEntries(Object.entries(fullCtx.indicatorDictionary).filter(([k]) => keepKeys.has(k)))
+      : {}
+
+  const daily = seriesSlice.map((p) => {
+    const eb = ebByDate.get(p.date)
+    const ema20 = ema20ByDate.get(p.date)
+    const ema60 = ema60ByDate.get(p.date)
+    const boll = bollByDate.get(p.date)
+    return {
+      date: p.date,
+      hs300Close: p.close ?? null,
+      ema20: ema20 ?? null,
+      ema60: ema60 ?? null,
+      boll120_mb: boll?.mb ?? null,
+      boll120_ub: boll?.ub ?? null,
+      boll120_lb: boll?.lb ?? null,
+      boll120_bw: boll?.bw ?? null,
+      amount: p.amount ?? null,
+      amountPct: p.amountPct ?? null,
+      tr: p.tr ?? null,
+      trPct: p.trPct ?? null,
+      northMoney: p.northMoney ?? null,
+      northPct: p.northPct ?? null,
+      liquidityIndex: p.v5 ?? null,
+      pe: eb?.pe ?? null,
+      earningsYield: eb?.earningsYield ?? null,
+      yield10yPct: eb?.yield10yPct ?? null,
+      spreadValue: eb?.value ?? null,
+      spreadPct: eb?.pct ?? null,
+    }
   })
+
+  const context = {
+    meta: {
+      generatedAt: new Date().toISOString(),
+      dataDate: seriesSlice.length ? seriesSlice[seriesSlice.length - 1]?.date ?? null : null,
+      windowDays,
+      n: daily.length,
+    },
+    indicatorDictionary,
+    series: daily,
+  }
 
   const notes = metaObj && Array.isArray((metaObj as Record<string, unknown>).notes) ? (metaObj as Record<string, unknown>).notes : null
   const source = metaObj && typeof (metaObj as Record<string, unknown>).source === 'string' ? String((metaObj as Record<string, unknown>).source) : null
@@ -461,7 +595,7 @@ router.post('/market/insight', async (req: Request, res: Response) => {
   const developer = [
     '总是用中文回复。',
     '你是“中国A股市场”的专业市场解读助手，拥有如巴菲特的价值投资追求，和查理芒格的多元分析视角，目标是始终以负责任、专业的视角，帮助用户进行理性决策。',
-    '你会收到结构化市场明细数据（含字段定义、单位、720天窗口数据、短中长期汇总）。',
+    '你会收到结构化市场明细数据（含字段定义、单位、最近720个交易日的逐日明细数据）。',
     '任务1：首先进行数据总结，作为资深交易员，检视所有数据点，明确短期（7/20日）、中期（60/120日）、长期（252日）的规律和市场动态，覆盖关键指标并说明变化方向与幅度。',
     '任务2：基于短期与中期趋势的指标变动特点，结合数据点和判断，主动执行联网搜索并归纳A股市场短期、中期波动原因（聚焦回答为什么下跌、为什么上涨，为什么波动。包括货币政策、财政政策、市场、机构观点、机构策略、机构偏好、大V言论）。资讯结论必须给出可追溯 URL（优先官方/主流财经媒体/券商研报）；若证据不足要明确说明不足点。',
     '任务3：站在专业投资者、理性交易者视角，对明细数据总结，结合资讯结论，给出市场机会识别、风险识别与情势建议（非个股买卖指令）。',
