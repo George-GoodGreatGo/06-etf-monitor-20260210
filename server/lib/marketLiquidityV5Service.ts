@@ -161,6 +161,24 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
   if (sourcePolicy !== 'financedata') {
     const akFirst = await tryAkshare()
     if (akFirst.ok) return akFirst.out
+    const stale = await readDiskCache()
+    if (stale) {
+      const staleObj = stale as Record<string, unknown>
+      const meta = staleObj.meta && typeof staleObj.meta === 'object' ? (staleObj.meta as Record<string, unknown>) : {}
+      const oldNotes = Array.isArray(meta.notes) ? (meta.notes as unknown[]) : []
+      const withStale = {
+        ...staleObj,
+        meta: {
+          ...meta,
+          fetchedAt: new Date().toISOString(),
+          source: 'stale-cache-from-last-success',
+          notes: [...oldNotes, `AkShare 实时拉取失败，已回退上次成功快照：${akFirst.err}`],
+        },
+      }
+      cache.set(cacheKey, { expiresAt: now + 5 * 60_000, value: withStale })
+      return withStale
+    }
+    throw new Error(`替代数据源不可用：${akFirst.err}`)
   }
 
   try {
@@ -277,6 +295,6 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       cache.set(cacheKey, { expiresAt: now + 5 * 60_000, value: withStale })
       return withStale
     }
-    throw new Error(`实时主源与替代数据源均不可用：${msg}`)
+    throw new Error(`实时主源与替代数据源均不可用：主源=${msg}；替代源=${akAfterFail.err}`)
   }
 }
