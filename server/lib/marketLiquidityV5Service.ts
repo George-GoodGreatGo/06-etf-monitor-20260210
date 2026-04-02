@@ -68,6 +68,100 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
   const now = Date.now()
   const hit = cache.get(cacheKey)
   if (hit && hit.expiresAt > now) return hit.value as Record<string, unknown>
+  const sourcePolicy = String(process.env.MARKET_DATA_SOURCE || 'akshare-first').trim().toLowerCase()
+
+  const tryAkshare = async (primaryFailReason?: string) => {
+    const ak = await runAkshare<{
+      hs300: Record<string, unknown>[]
+      sh: Record<string, unknown>[]
+      sz: Record<string, unknown>[]
+      north: Record<string, unknown>[]
+      hs300Pe: Record<string, unknown>[]
+    }>(`market-board-daily:${start}:${end}`, ['market-board-daily', '--start-date', start, '--end-date', end], {
+      cacheTtlMs: 3 * 60_000,
+      timeoutMs: 120_000,
+    })
+
+    if (!ak.success) {
+      return {
+        ok: false as const,
+        err: ((ak as unknown as Record<string, unknown>).message as string) || 'AkShare 替代源调用失败',
+      }
+    }
+
+    const data = ak.data && typeof ak.data === 'object' ? (ak.data as Record<string, unknown>) : {}
+    const hs300 = Array.isArray(data.hs300) ? (data.hs300 as Record<string, unknown>[]) : []
+    const sh = Array.isArray(data.sh) ? (data.sh as Record<string, unknown>[]) : []
+    const sz = Array.isArray(data.sz) ? (data.sz as Record<string, unknown>[]) : []
+    const north = Array.isArray(data.north) ? (data.north as Record<string, unknown>[]) : []
+    const hs300Pe = Array.isArray(data.hs300Pe) ? (data.hs300Pe as Record<string, unknown>[]) : []
+
+    const series = buildLiquidityV5Series({ hs300, sh, sz, north })
+    if (series.length === 0) {
+      return { ok: false as const, err: 'AkShare 返回数据不足以构建流动性序列' }
+    }
+
+    const last = series[series.length - 1]
+    const peByDate = new Map<string, number>()
+    const yield10yPctByDate = new Map<string, number>()
+
+    for (const r of hs300Pe) {
+      const d = normalizeTradeDate((r as Record<string, unknown>).trade_date)
+      const pe = typeof (r as Record<string, unknown>).pe === 'number' ? ((r as Record<string, unknown>).pe as number) : (r as Record<string, unknown>).pe == null ? NaN : Number((r as Record<string, unknown>).pe)
+      if (d && Number.isFinite(pe)) peByDate.set(d, pe)
+    }
+
+    const startY = ymd8ToYear(start)
+    const endY = ymd8ToYear(end)
+    if (startY != null && endY != null) {
+      const years: number[] = []
+      for (let y = startY; y <= endY; y += 1) years.push(y)
+      const limit = 3
+      for (let i = 0; i < years.length; i += limit) {
+        const batch = years.slice(i, i + limit)
+        const results = await Promise.allSettled(batch.map((year) => fetchGovBond10yYieldPctByDate({ year })))
+        for (const r of results) {
+          if (r.status !== 'fulfilled') continue
+          for (const [d, y10] of r.value) yield10yPctByDate.set(d, y10)
+        }
+      }
+    }
+
+    const dates = series.map((p) => p.date)
+    const equityBond = buildEquityBondValuePctSeries({ dates, peByDate, yield10yPctByDate })
+
+    const notes: string[] = [
+      '独家流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为360日滚动，最小有效180日。',
+      '股债利差=1/沪深300PE-中国10Y国债收益率，value再取720日滚动分位（最小有效360日），分位越高代表股票相对于国债更有性价比。',
+      '已使用 AkShare 替代数据源；缺失字段保持 null，不做推测补值。',
+      ...(primaryFailReason ? [`主源失败原因：${primaryFailReason}`] : []),
+    ]
+
+    const out = {
+      success: true,
+      meta: {
+        fetchedAt: new Date().toISOString(),
+        dataDate: last?.date ?? null,
+        source: 'akshare:eastmoney + yield.chinabond.com.cn',
+        notes,
+      },
+      data: {
+        series,
+        equityBond: {
+          series: equityBond,
+        },
+      },
+    }
+
+    cache.set(cacheKey, { expiresAt: now + 5 * 60_000, value: out })
+    await writeDiskCache(out)
+    return { ok: true as const, out }
+  }
+
+  if (sourcePolicy !== 'financedata') {
+    const akFirst = await tryAkshare()
+    if (akFirst.ok) return akFirst.out
+  }
 
   try {
     const [hs300, sh, sz, north, hs300Pe] = await Promise.all([
@@ -163,84 +257,8 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
     return out
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    const ak = await runAkshare<{
-      hs300: Record<string, unknown>[]
-      sh: Record<string, unknown>[]
-      sz: Record<string, unknown>[]
-      north: Record<string, unknown>[]
-      hs300Pe: Record<string, unknown>[]
-    }>(`market-board-daily:${start}:${end}`, ['market-board-daily', '--start-date', start, '--end-date', end], {
-      cacheTtlMs: 3 * 60_000,
-      timeoutMs: 120_000,
-    })
-
-    if (ak.success) {
-      const data = ak.data && typeof ak.data === 'object' ? (ak.data as Record<string, unknown>) : {}
-      const hs300 = Array.isArray(data.hs300) ? (data.hs300 as Record<string, unknown>[]) : []
-      const sh = Array.isArray(data.sh) ? (data.sh as Record<string, unknown>[]) : []
-      const sz = Array.isArray(data.sz) ? (data.sz as Record<string, unknown>[]) : []
-      const north = Array.isArray(data.north) ? (data.north as Record<string, unknown>[]) : []
-      const hs300Pe = Array.isArray(data.hs300Pe) ? (data.hs300Pe as Record<string, unknown>[]) : []
-
-      const series = buildLiquidityV5Series({ hs300, sh, sz, north })
-      if (series.length > 0) {
-        const last = series[series.length - 1]
-        const peByDate = new Map<string, number>()
-        const yield10yPctByDate = new Map<string, number>()
-
-        for (const r of hs300Pe) {
-          const d = normalizeTradeDate((r as Record<string, unknown>).trade_date)
-          const pe = typeof (r as Record<string, unknown>).pe === 'number' ? ((r as Record<string, unknown>).pe as number) : (r as Record<string, unknown>).pe == null ? NaN : Number((r as Record<string, unknown>).pe)
-          if (d && Number.isFinite(pe)) peByDate.set(d, pe)
-        }
-
-        const startY = ymd8ToYear(start)
-        const endY = ymd8ToYear(end)
-        if (startY != null && endY != null) {
-          const years: number[] = []
-          for (let y = startY; y <= endY; y += 1) years.push(y)
-          const limit = 3
-          for (let i = 0; i < years.length; i += limit) {
-            const batch = years.slice(i, i + limit)
-            const results = await Promise.allSettled(batch.map((year) => fetchGovBond10yYieldPctByDate({ year })))
-            for (const r of results) {
-              if (r.status !== 'fulfilled') continue
-              for (const [d, y10] of r.value) yield10yPctByDate.set(d, y10)
-            }
-          }
-        }
-
-        const dates = series.map((p) => p.date)
-        const equityBond = buildEquityBondValuePctSeries({ dates, peByDate, yield10yPctByDate })
-
-        const notes: string[] = [
-          '独家流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为360日滚动，最小有效180日。',
-          '股债利差=1/沪深300PE-中国10Y国债收益率，value再取720日滚动分位（最小有效360日），分位越高代表股票相对于国债更有性价比。',
-          '实时主源失败后已自动切换 AkShare 替代数据源；缺失字段保持 null，不做推测补值。',
-          `主源失败原因：${msg}`,
-        ]
-
-        const out = {
-          success: true,
-          meta: {
-            fetchedAt: new Date().toISOString(),
-            dataDate: last?.date ?? null,
-            source: 'akshare:eastmoney + yield.chinabond.com.cn',
-            notes,
-          },
-          data: {
-            series,
-            equityBond: {
-              series: equityBond,
-            },
-          },
-        }
-
-        cache.set(cacheKey, { expiresAt: now + 5 * 60_000, value: out })
-        await writeDiskCache(out)
-        return out
-      }
-    }
+    const akAfterFail = await tryAkshare(msg)
+    if (akAfterFail.ok) return akAfterFail.out
 
     const stale = await readDiskCache()
     if (stale) {
@@ -259,6 +277,6 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       cache.set(cacheKey, { expiresAt: now + 5 * 60_000, value: withStale })
       return withStale
     }
-    throw e
+    throw new Error(`实时主源与替代数据源均不可用：${msg}`)
   }
 }
