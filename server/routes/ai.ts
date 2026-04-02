@@ -7,6 +7,7 @@ import { runAkshare } from '../lib/akshare.js'
 import { aihubmixChatCompletionsToSseEvents } from '../lib/aihubmix.js'
 import { getMarketLiquidityV5 } from '../lib/marketLiquidityV5Service.js'
 import { buildMarketBoardInsightContextV2 } from '../lib/marketBoardInsightContextV2.js'
+import { searchNewsBySerpApi } from '../lib/newsSearch.js'
 import type { LiquidityV5Point } from '../lib/liquidityV5.js'
 import type { EquityBondPoint } from '../lib/equityBondValue.js'
 
@@ -362,6 +363,8 @@ router.post('/market/insight', async (req: Request, res: Response) => {
 
   const baseUrl = String(process.env.AIHUBMIX_BASE_URL || 'https://aihubmix.com/v1').trim()
   const apiKey = String(process.env.AIHUBMIX_API_KEY || '').trim()
+  const serpApiKey = String(process.env.SERPAPI_API_KEY || '').trim()
+  const useExternalNews = enableWebSearch && Boolean(serpApiKey)
   const baseModel = String(process.env.AIHUBMIX_MODEL || 'doubao-seed-2-0-pro').trim()
   const buildModelConfig = (bm: string) => {
     const isWebSearchOptionsModel = bm.startsWith('gemini-') || bm.startsWith('gpt-')
@@ -375,10 +378,11 @@ router.post('/market/insight', async (req: Request, res: Response) => {
         : bm.startsWith('mimo-')
           ? { thinking: { type: 'true' } }
           : undefined
-    const searchMode = enableWebSearch ? (isWebSearchOptionsModel ? 'web_search_options' : 'surfing') : 'none'
-    const model = enableWebSearch && !isWebSearchOptionsModel ? `${bm}:surfing` : bm
+    const modelWebSearchEnabled = enableWebSearch && !useExternalNews
+    const searchMode = useExternalNews ? 'external_serpapi' : modelWebSearchEnabled ? (isWebSearchOptionsModel ? 'web_search_options' : 'surfing') : 'none'
+    const model = modelWebSearchEnabled && !isWebSearchOptionsModel ? `${bm}:surfing` : bm
     const extraBody =
-      enableWebSearch && isWebSearchOptionsModel
+      modelWebSearchEnabled && isWebSearchOptionsModel
         ? { ...(baseExtraBody || {}), web_search_options: {} }
         : baseExtraBody || undefined
     const maxCompletionTokens = bm.startsWith('mimo-') ? 2600 : undefined
@@ -512,6 +516,22 @@ router.post('/market/insight', async (req: Request, res: Response) => {
   addQ(`外资 机构 观点 北向资金 A股 ${timeHint}`)
   const searchQueries = queries.slice(0, 8)
 
+  let externalNews: { provider: string; items: unknown[] } | null = null
+  if (useExternalNews) {
+    try {
+      externalNews = await searchNewsBySerpApi({
+        apiKey: serpApiKey,
+        queries: searchQueries,
+        from: range.from,
+        to: range.to,
+        maxItems: 12,
+        signal: ac.signal,
+      })
+    } catch {
+      externalNews = { provider: 'serpapi', items: [] }
+    }
+  }
+
   const notes = metaObj && Array.isArray((metaObj as Record<string, unknown>).notes) ? (metaObj as Record<string, unknown>).notes : null
   const source = metaObj && typeof (metaObj as Record<string, unknown>).source === 'string' ? String((metaObj as Record<string, unknown>).source) : null
 
@@ -522,7 +542,8 @@ router.post('/market/insight', async (req: Request, res: Response) => {
     '必须以用户提供的结构化数据为准；对不确定内容要说“不确定/暂无数据”，不要编造。',
     '你会收到 indicatorDictionary（字段含义与单位/口径）。必须在解读中尊重单位与口径，不得混用；需要换算时要说明（例如比率与%p）。',
     '输出为 Markdown，结构固定包含：概览、短线视角（明确使用的周期：近7日、5日、20日）、中线视角（明确使用的周期：60日、120日）、长线视角（明确使用的周期：252日）、流动性与资金面、估值与股债、近期资讯/关键事件、观察清单、风险提示、免责声明。',
-    '当且仅当 enableWebSearch=true 时，你必须先联网检索；你会收到 search.queries（由多周期摘要与近20日变化提取趋势要素生成，含趋势强弱、波动收敛/扩张、流动性指数、股债分位区间）。请优先用这些 queries 进行检索（必要时可改写以提高召回）。',
+    '当且仅当 enableWebSearch=true 时，你必须结合检索信息进行解读；你会收到 search.queries（由多周期摘要与近20日变化提取趋势要素生成，含趋势强弱、波动收敛/扩张、流动性指数、股债分位区间）。',
+    '若 externalNews.items 非空，必须优先使用 externalNews 作为资讯证据来源；不得虚构不存在的来源或链接。',
     '在“近期资讯/关键事件”部分给出最近7-14天内与A股大盘相关的要点摘要，且每条要点必须附带可追溯 URL 与日期范围说明。',
     '在“归因总结”中把“指标信号”与“资讯证据”分开写清楚：每条归因必须说明是由哪些指标信号触发、并引用哪些来源链接支持。',
     '检索与观点来源需包含：机构、券商、知名投资者等对近期（7-14天）的市场研判与观点；引用时同样必须带 URL。',
@@ -553,6 +574,7 @@ router.post('/market/insight', async (req: Request, res: Response) => {
           equityBondPctDelta20d: ebPctDelta20,
         },
       },
+      externalNews,
       market: context,
       marketNotes: notes,
       marketSource: source,
@@ -595,6 +617,10 @@ router.post('/market/insight', async (req: Request, res: Response) => {
         equityBondPctNow: ebPct,
         equityBondPctDelta20d: ebPctDelta20,
       },
+    },
+    externalNewsMeta: {
+      provider: externalNews?.provider ?? null,
+      count: Array.isArray(externalNews?.items) ? externalNews.items.length : 0,
     },
     prompts: {
       developer,
