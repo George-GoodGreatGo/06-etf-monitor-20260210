@@ -68,10 +68,17 @@ function calcV5(amountPct: Array<number | null>, trPct: Array<number | null>, no
       out[i] = null
       continue
     }
-    const aa = clip1to100(a == null ? 50 : a)
-    const tt = clip1to100(t == null ? 50 : t)
-    const nn = clip1to100(n == null ? 50 : n)
-    out[i] = Math.exp((Math.log(aa) + Math.log(tt) + Math.log(nn)) / 3)
+    const xs: number[] = []
+    if (a != null) xs.push(clip1to100(a))
+    if (t != null) xs.push(clip1to100(t))
+    if (n != null) xs.push(clip1to100(n))
+    if (xs.length === 0) {
+      out[i] = null
+      continue
+    }
+    let sum = 0
+    for (const x of xs) sum += Math.log(x)
+    out[i] = Math.exp(sum / xs.length)
   }
   return out
 }

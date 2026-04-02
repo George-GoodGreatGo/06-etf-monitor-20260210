@@ -429,14 +429,14 @@ router.post('/market/insight', async (req: Request, res: Response) => {
   const staleSnapshot = source === 'stale-cache-from-last-success' || typeof staleReason === 'string'
   const dataSourceType = staleSnapshot
     ? 'snapshot'
-    : source && source.includes('akshare')
+    : source && (source.includes('akshare') || source.includes('eastmoney:'))
       ? 'fallback'
       : 'primary'
   const dataSourceLabel =
     dataSourceType === 'snapshot'
       ? '快照数据源（最近一次成功快照）'
       : dataSourceType === 'fallback'
-        ? '替代数据源（AkShare）'
+        ? source && source.includes('eastmoney:') ? '替代数据源（Eastmoney HTTP）' : '替代数据源（AkShare）'
         : '主数据源（financedata）'
 
   writeEvent({
