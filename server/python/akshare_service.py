@@ -1013,6 +1013,161 @@ def weekly_chart(code: str, adjust: str):
     return _ok(meta, {"series": series})
 
 
+def _pick_col(df, candidates):
+    for c in candidates:
+        if c in df.columns:
+            return c
+    return None
+
+
+def _to_records_trade_date(df, date_candidates, field_map):
+    if df is None or df.empty:
+        return []
+    date_col = _pick_col(df, date_candidates)
+    if not date_col:
+        return []
+    d2 = df.copy()
+    d2[date_col] = d2[date_col].apply(_fmt_ymd)
+    out = []
+    for _, r in d2.iterrows():
+        d = str(r.get(date_col) or "").strip()
+        if not d:
+            continue
+        item = {"trade_date": d}
+        for k, cand in field_map.items():
+            col = _pick_col(d2, cand)
+            if not col:
+                item[k] = None
+                continue
+            item[k] = _to_float(r.get(col))
+        out.append(item)
+    return out
+
+
+def market_board_daily(start_date: str, end_date: str):
+    fetched_at = _iso_now()
+    import akshare as ak
+
+    hs300 = []
+    for getter in [
+        lambda: ak.index_zh_a_hist(symbol="000300", period="daily", start_date=start_date, end_date=end_date),
+        lambda: ak.stock_zh_index_daily_em(symbol="sh000300"),
+    ]:
+        try:
+            df = getter()
+            hs300 = _to_records_trade_date(
+                df,
+                ["日期", "date", "交易日期"],
+                {"close": ["收盘", "close"]},
+            )
+            if hs300:
+                break
+        except Exception:
+            continue
+
+    sh = []
+    for getter in [
+        lambda: ak.index_zh_a_hist(symbol="000001", period="daily", start_date=start_date, end_date=end_date),
+        lambda: ak.stock_zh_index_daily_em(symbol="sh000001"),
+    ]:
+        try:
+            df = getter()
+            sh = _to_records_trade_date(
+                df,
+                ["日期", "date", "交易日期"],
+                {"amount": ["成交额", "amount"], "tr": ["换手率", "turnover_rate"]},
+            )
+            if sh:
+                break
+        except Exception:
+            continue
+
+    sz = []
+    for getter in [
+        lambda: ak.index_zh_a_hist(symbol="399001", period="daily", start_date=start_date, end_date=end_date),
+        lambda: ak.stock_zh_index_daily_em(symbol="sz399001"),
+    ]:
+        try:
+            df = getter()
+            sz = _to_records_trade_date(
+                df,
+                ["日期", "date", "交易日期"],
+                {"amount": ["成交额", "amount"], "tr": ["换手率", "turnover_rate"]},
+            )
+            if sz:
+                break
+        except Exception:
+            continue
+
+    north = []
+    for getter in [
+        lambda: ak.stock_hsgt_hist_em(),
+        lambda: ak.stock_hsgt_north_net_flow_in_em(symbol="沪股通"),
+    ]:
+        try:
+            df = getter()
+            if df is None or df.empty:
+                continue
+            date_col = _pick_col(df, ["日期", "date", "交易日期"])
+            val_col = _pick_col(df, ["当日成交净买额", "北向资金", "净流入", "value"])
+            if not date_col or not val_col:
+                continue
+            d2 = df.copy()
+            d2[date_col] = d2[date_col].apply(_fmt_ymd)
+            rec = []
+            for _, r in d2.iterrows():
+                d = str(r.get(date_col) or "").strip()
+                if not d:
+                    continue
+                rec.append({"trade_date": d, "north_money": _to_float(r.get(val_col))})
+            if rec:
+                north = rec
+                break
+        except Exception:
+            continue
+
+    pe = []
+    for getter in [
+        lambda: ak.stock_index_pe_lg(symbol="沪深300"),
+        lambda: ak.stock_a_ttm_lyr(),
+    ]:
+        try:
+            df = getter()
+            if df is None or df.empty:
+                continue
+            date_col = _pick_col(df, ["日期", "date", "交易日期"])
+            pe_col = _pick_col(df, ["市盈率", "pe", "PE"])
+            if not date_col or not pe_col:
+                continue
+            d2 = df.copy()
+            d2[date_col] = d2[date_col].apply(_fmt_ymd)
+            rec = []
+            for _, r in d2.iterrows():
+                d = str(r.get(date_col) or "").strip()
+                if not d:
+                    continue
+                rec.append({"trade_date": d, "pe": _to_float(r.get(pe_col))})
+            if rec:
+                pe = rec
+                break
+        except Exception:
+            continue
+
+    if not hs300:
+        return _err("akshare_error", "替代数据源未能获取沪深300日线")
+
+    data_date = max((r.get("trade_date") for r in hs300 if r.get("trade_date")), default=None)
+    meta = {
+        "fetchedAt": fetched_at,
+        "dataDate": data_date,
+        "source": "akshare:eastmoney",
+        "notes": [
+            "本次使用 AkShare 作为替代数据源；部分字段可能缺失，缺失字段保持 null，不做推测补值。",
+        ],
+    }
+    return _ok(meta, {"hs300": hs300, "sh": sh, "sz": sz, "north": north, "hs300Pe": pe})
+
+
 def main(argv):
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -1030,6 +1185,10 @@ def main(argv):
     p_weekly.add_argument("--code", type=str, required=True)
     p_weekly.add_argument("--adjust", type=str, default="qfq")
 
+    p_mbd = sub.add_parser("market-board-daily")
+    p_mbd.add_argument("--start-date", type=str, required=True)
+    p_mbd.add_argument("--end-date", type=str, required=True)
+
     args = parser.parse_args(argv)
     try:
         if args.cmd == "top100":
@@ -1039,6 +1198,8 @@ def main(argv):
             result = detail(args.code)
         elif args.cmd == "weekly-chart":
             result = weekly_chart(args.code, args.adjust)
+        elif args.cmd == "market-board-daily":
+            result = market_board_daily(args.start_date, args.end_date)
         else:
             result = _err("bad_request", "未知命令")
     except Exception as e:

@@ -24,6 +24,9 @@ export default function MarketBoardAiInsight({ className }: { className?: string
   const [staleSnapshot, setStaleSnapshot] = useState(false)
   const [staleMessage, setStaleMessage] = useState<string | null>(null)
   const [staleReason, setStaleReason] = useState<string | null>(null)
+  const [dataSourceLabel, setDataSourceLabel] = useState<string | null>(null)
+  const [dataSourceType, setDataSourceType] = useState<string | null>(null)
+  const [dataDate, setDataDate] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   const mdComponents = useMemo<Components>(
@@ -69,6 +72,9 @@ export default function MarketBoardAiInsight({ className }: { className?: string
       setStaleSnapshot(false)
       setStaleMessage(null)
       setStaleReason(null)
+      setDataSourceLabel(null)
+      setDataSourceType(null)
+      setDataDate(null)
       if (!opts?.continueFrom) setText('')
 
       try {
@@ -108,6 +114,9 @@ export default function MarketBoardAiInsight({ className }: { className?: string
             if (typeof o.staleSnapshot === 'boolean') setStaleSnapshot(o.staleSnapshot)
             if (typeof o.staleMessage === 'string') setStaleMessage(o.staleMessage)
             if (typeof o.staleReason === 'string') setStaleReason(o.staleReason)
+            if (typeof o.dataSourceLabel === 'string') setDataSourceLabel(o.dataSourceLabel)
+            if (typeof o.dataSourceType === 'string') setDataSourceType(o.dataSourceType)
+            if (typeof o.dataDate === 'string') setDataDate(o.dataDate)
             return { done: false }
           }
           if (type === 'debug') {
@@ -256,6 +265,15 @@ export default function MarketBoardAiInsight({ className }: { className?: string
           <div className="rounded-md border border-[rgba(239,68,68,0.35)] bg-black/20 px-3 py-2 text-xs text-[#E6EDF7]">
             <div className="font-semibold text-white">生成失败</div>
             <div className="mt-1 text-[#FCA5A5]">{error ?? '未知错误'}</div>
+          </div>
+        ) : null}
+
+        {dataSourceLabel ? (
+          <div className="mb-3 rounded-md border border-[#38BDF8]/35 bg-[#062B3A]/40 px-3 py-2 text-xs text-[#BAE6FD]">
+            <div className="font-semibold text-[#BAE6FD]">当前数据来源：{dataSourceLabel}</div>
+            <div className="mt-1 text-[#7DD3FC]">
+              数据日期：{dataDate ?? '—'}{dataSourceType ? ` · 类型：${dataSourceType}` : ''}
+            </div>
           </div>
         ) : null}
 

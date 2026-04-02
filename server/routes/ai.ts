@@ -421,11 +421,31 @@ router.post('/market/insight', async (req: Request, res: Response) => {
 
   const notes = metaObj && Array.isArray((metaObj as Record<string, unknown>).notes) ? (metaObj as Record<string, unknown>).notes : null
   const source = metaObj && typeof (metaObj as Record<string, unknown>).source === 'string' ? String((metaObj as Record<string, unknown>).source) : null
+  const dataDate = metaObj && typeof (metaObj as Record<string, unknown>).dataDate === 'string' ? String((metaObj as Record<string, unknown>).dataDate) : null
   const staleReason =
     Array.isArray(notes)
       ? notes.find((x) => typeof x === 'string' && x.includes('已回退上次成功快照'))
       : null
   const staleSnapshot = source === 'stale-cache-from-last-success' || typeof staleReason === 'string'
+  const dataSourceType = staleSnapshot
+    ? 'snapshot'
+    : source && source.includes('akshare')
+      ? 'fallback'
+      : 'primary'
+  const dataSourceLabel =
+    dataSourceType === 'snapshot'
+      ? '快照数据源（最近一次成功快照）'
+      : dataSourceType === 'fallback'
+        ? '替代数据源（AkShare）'
+        : '主数据源（financedata）'
+
+  writeEvent({
+    type: 'meta',
+    dataSourceType,
+    dataSourceLabel,
+    dataDate,
+    marketSource: source,
+  })
 
   if (staleSnapshot) {
     writeEvent({
