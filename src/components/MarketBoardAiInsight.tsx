@@ -21,6 +21,9 @@ export default function MarketBoardAiInsight({ className }: { className?: string
   const [debugDeveloperPrompt, setDebugDeveloperPrompt] = useState<string | null>(null)
   const [debugUserPrompt, setDebugUserPrompt] = useState<string | null>(null)
   const [reasoningText, setReasoningText] = useState('')
+  const [staleSnapshot, setStaleSnapshot] = useState(false)
+  const [staleMessage, setStaleMessage] = useState<string | null>(null)
+  const [staleReason, setStaleReason] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   const mdComponents = useMemo<Components>(
@@ -63,6 +66,9 @@ export default function MarketBoardAiInsight({ className }: { className?: string
       setDebugDeveloperPrompt(null)
       setDebugUserPrompt(null)
       setReasoningText('')
+      setStaleSnapshot(false)
+      setStaleMessage(null)
+      setStaleReason(null)
       if (!opts?.continueFrom) setText('')
 
       try {
@@ -99,6 +105,9 @@ export default function MarketBoardAiInsight({ className }: { className?: string
           if (type === 'meta') {
             if (typeof o.model === 'string') setDebugModel(o.model)
             if (typeof o.searchMode === 'string') setDebugSearchMode(o.searchMode)
+            if (typeof o.staleSnapshot === 'boolean') setStaleSnapshot(o.staleSnapshot)
+            if (typeof o.staleMessage === 'string') setStaleMessage(o.staleMessage)
+            if (typeof o.staleReason === 'string') setStaleReason(o.staleReason)
             return { done: false }
           }
           if (type === 'debug') {
@@ -247,6 +256,13 @@ export default function MarketBoardAiInsight({ className }: { className?: string
           <div className="rounded-md border border-[rgba(239,68,68,0.35)] bg-black/20 px-3 py-2 text-xs text-[#E6EDF7]">
             <div className="font-semibold text-white">生成失败</div>
             <div className="mt-1 text-[#FCA5A5]">{error ?? '未知错误'}</div>
+          </div>
+        ) : null}
+
+        {staleSnapshot ? (
+          <div className="mb-3 rounded-md border border-[#F59E0B]/35 bg-[#3A2A08]/40 px-3 py-2 text-xs text-[#FDE68A]">
+            <div className="font-semibold text-[#FDE68A]">{staleMessage ?? '当前为最近一次成功快照（非实时）'}</div>
+            {staleReason ? <div className="mt-1 text-[#FCD34D]">{staleReason}</div> : null}
           </div>
         ) : null}
 
