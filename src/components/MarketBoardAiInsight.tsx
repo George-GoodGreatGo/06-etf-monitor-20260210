@@ -11,7 +11,6 @@ export default function MarketBoardAiInsight({ className }: { className?: string
   const [status, setStatus] = useState<Status>('idle')
   const [error, setError] = useState<string | null>(null)
   const [text, setText] = useState('')
-  const [enableWebSearch, setEnableWebSearch] = useState<boolean>(true)
   const [copied, setCopied] = useState(false)
   const [finishReason, setFinishReason] = useState<string | null>(null)
   const [truncated, setTruncated] = useState(false)
@@ -74,7 +73,7 @@ export default function MarketBoardAiInsight({ className }: { className?: string
             ...adminAuthHeaders(),
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ enableWebSearch, ...(opts?.continueFrom ? { continueFrom: opts.continueFrom } : {}) }),
+          body: JSON.stringify({ ...(opts?.continueFrom ? { continueFrom: opts.continueFrom } : {}) }),
           signal: ac.signal,
         })
 
@@ -184,7 +183,7 @@ export default function MarketBoardAiInsight({ className }: { className?: string
         setError(e instanceof Error ? e.message : String(e))
       }
     }
-  }, [enableWebSearch])
+  }, [])
 
   return (
     <div className={cn('mt-4 rounded-lg border border-white/10 bg-[#111B2E]', className)}>
@@ -223,16 +222,6 @@ export default function MarketBoardAiInsight({ className }: { className?: string
               继续生成
             </button>
           ) : null}
-          <label className="inline-flex select-none items-center gap-2 rounded-md border border-white/10 bg-black/20 px-2 py-1">
-            <input
-              type="checkbox"
-              className="h-3 w-3 accent-[#FF5722]"
-              checked={enableWebSearch}
-              onChange={(e) => setEnableWebSearch(e.target.checked)}
-              disabled={status === 'running'}
-            />
-            联网补充资讯
-          </label>
           <button
             type="button"
             onClick={() => start()}
@@ -250,7 +239,7 @@ export default function MarketBoardAiInsight({ className }: { className?: string
       <div className="px-3 py-3">
         {status === 'idle' ? (
           <div className="text-xs leading-relaxed text-[#94A3B8]">
-            点击生成后，将基于大盘看板的多周期指标摘要与过去 720 天的指标数据生成解读，并分别从短线/中线/长线视角归纳观点。默认开启联网补充近期资讯（会产生额外模型/搜索消耗）。
+            点击生成后，将基于大盘看板的多周期指标摘要与过去 720 天的指标数据生成解读，并分别从短线/中线/长线视角归纳观点。搜索策略由智能体侧自主决策执行。
           </div>
         ) : null}
 
@@ -273,7 +262,6 @@ export default function MarketBoardAiInsight({ className }: { className?: string
             <summary className="cursor-pointer select-none text-xs text-[#A9B6CC]">调试信息</summary>
             <div className="mt-2 space-y-3 text-[11px] text-[#94A3B8]">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                <div>enableWebSearch: {String(enableWebSearch)}</div>
                 <div>model: {debugModel ?? '—'}</div>
                 <div>searchMode: {debugSearchMode ?? '—'}</div>
                 {finishReason ? <div>finish_reason: {finishReason}</div> : null}
