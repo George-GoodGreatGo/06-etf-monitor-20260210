@@ -48,7 +48,11 @@ async function fetchOnce(url: string): Promise<Record<string, unknown>[]> {
 
   const j = (await res.json().catch(() => null)) as EastmoneyDcResponse | null
   if (!j || typeof j !== 'object') return []
-  if (j.success !== true) throw new Error(`northbound API error: ${j.message || 'unknown error'}`)
+  if (j.success !== true) {
+    const msg = typeof j.message === 'string' ? j.message : 'unknown error'
+    if (msg.includes('返回数据为空')) return []
+    throw new Error(`northbound API error: ${msg}`)
+  }
   const rows = Array.isArray(j.result?.data) ? j.result?.data : []
 
   const out: Record<string, unknown>[] = []
@@ -57,7 +61,7 @@ async function fetchOnce(url: string): Promise<Record<string, unknown>[]> {
     const dStr = typeof dRaw === 'string' ? dRaw.slice(0, 10) : ''
     const ymd8 = normalizeYmd8(dStr)
     if (!ymd8) continue
-    const v = toNum((r as Record<string, unknown>).NF_DEAL_AMT)
+    const v = toNum((r as Record<string, unknown>).NET_INFLOW_BOTH)
     out.push({ trade_date: ymd8, north_money: v })
   }
   return out
@@ -68,33 +72,32 @@ export async function fetchNorthboundNetInflowSeries(args: { startDate: string; 
   const endDate = normalizeYmd8(args.endDate)
   if (!startDate || !endDate) return []
 
-  const key = `northbound:nf_deal_amt:${startDate}:${endDate}`
+  const key = `northbound:netinflow_both:${startDate}:${endDate}`
   const now = Date.now()
   const hit = cache.get(key)
   if (hit && hit.expiresAt > now) return hit.value
 
   const start10 = ymd8ToYmd10(startDate)
-  const url = new URL('https://datacenter-web.eastmoney.com/web/api/data/v1/get')
-  url.searchParams.set('reportName', 'RPT_MUTUAL_DEALAMT')
-  url.searchParams.set('columns', 'ALL')
+  const end10 = ymd8ToYmd10(endDate)
+  const url = new URL('https://datacenter-web.eastmoney.com/securities/api/data/v1/get')
+  url.searchParams.set('reportName', 'RPT_MUTUAL_NETINFLOW_DETAILS')
+  url.searchParams.set('columns', 'DIRECTION_TYPE,TRADE_DATE,NET_INFLOW_SH,NET_INFLOW_SZ,NET_INFLOW_BOTH,TIME_TYPE')
   url.searchParams.set('pageNumber', '1')
   url.searchParams.set('pageSize', '600')
   url.searchParams.set('sortTypes', '1')
   url.searchParams.set('sortColumns', 'TRADE_DATE')
-  url.searchParams.set('source', 'WEB')
   url.searchParams.set('client', 'WEB')
-  url.searchParams.set('filter', `(TRADE_DATE>='${start10}')`)
+  url.searchParams.set(
+    'filter',
+    `(DIRECTION_TYPE="2")(TIME_TYPE="1")(TRADE_DATE>='${start10}')(TRADE_DATE<='${end10}')`,
+  )
 
   let lastErr: unknown = null
   for (let i = 0; i < 2; i += 1) {
     try {
       const rows = await fetchOnce(url.toString())
-      const filtered = rows.filter((r) => {
-        const d = normalizeYmd8((r as Record<string, unknown>).trade_date)
-        return d >= startDate && d <= endDate
-      })
-      cache.set(key, { expiresAt: now + 3 * 60_000, value: filtered })
-      return filtered
+      cache.set(key, { expiresAt: now + 3 * 60_000, value: rows })
+      return rows
     } catch (e) {
       lastErr = e
       if (i === 0) await sleep(250)

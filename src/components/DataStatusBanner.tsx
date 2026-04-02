@@ -27,6 +27,16 @@ export default function DataStatusBanner({
   backendProgressText?: string | null
 }) {
   const snapshotAt = meta?.cachedAt || meta?.fetchedAt || null
+  const source = typeof meta?.source === 'string' ? meta.source : null
+  const notes = Array.isArray(meta?.notes) ? meta?.notes : null
+  const staleSnapshot =
+    source === 'stale-cache-from-last-success' ||
+    (Array.isArray(notes) && notes.some((x) => typeof x === 'string' && x.includes('已回退上次成功快照')))
+  const dataSourceLabel = staleSnapshot
+    ? '快照数据源（最近一次成功快照）'
+    : source && (source.includes('eastmoney') || source.includes('akshare') || source.includes('csindex'))
+      ? '替代数据源'
+      : '主数据源'
 
   if (loading) {
     const pct =
@@ -136,6 +146,13 @@ export default function DataStatusBanner({
           <div className="flex flex-wrap items-center gap-2 text-xs text-[#9CA3AF]">
             <span>交易日：{meta ? formatYmd(meta.dataDate) : '—'}</span>
             <span>快照时间：{snapshotAt ? parseIsoToLocal(snapshotAt) : '—'}</span>
+            {source ? (
+              <span>
+                数据来源：{dataSourceLabel}
+                {staleSnapshot ? '（非实时）' : ''}
+                <span className="font-mono text-[11px] text-[#6B7280]">{` · ${source}`}</span>
+              </span>
+            ) : null}
           </div>
         </div>
 
@@ -151,4 +168,3 @@ export default function DataStatusBanner({
     </div>
   )
 }
-

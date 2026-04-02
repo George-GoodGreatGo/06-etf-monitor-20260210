@@ -172,7 +172,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
         '已使用 Eastmoney HTTP 替代数据源（无 Python 依赖），缺失字段保持 null，不做推测补值。',
         `成交额口径：来自 Eastmoney kline 成交额，已换算为“千元”（与表格视图一致）。`,
         '沪深300PE数据源：中证指数（csindex）。',
-        '北向资金净流入数据源：东方财富数据中心（reportName=RPT_MUTUAL_DEALAMT, 字段 NF_DEAL_AMT）。',
+        '北向资金净流入数据源：东方财富数据中心（reportName=RPT_MUTUAL_NETINFLOW_DETAILS, 字段 NET_INFLOW_BOTH，单位=百万元）。',
         `替代触发原因：${reason}`,
       ]
       const out = {
