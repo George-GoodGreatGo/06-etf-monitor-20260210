@@ -3,7 +3,8 @@ import { buildLiquidityV5Series } from './liquidityV5.js'
 import { buildEquityBondValuePctSeries } from './equityBondValue.js'
 import { fetchGovBond10yYieldPctByDate } from './chinamoneyGovBond.js'
 import { runAkshare } from './akshare.js'
-import { fetchTushare } from './tushare.js'
+import { fetchCsindexHs300PeSeries } from './csindex.js'
+import { fetchNorthboundNetInflowSeries } from './hkex.js'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
@@ -113,26 +114,6 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
   const noPythonRuntime = Boolean(process.env.VERCEL) || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME)
   const defaultPolicy = noPythonRuntime ? 'eastmoney-http' : 'akshare-first'
   const sourcePolicy = String(process.env.MARKET_DATA_SOURCE || defaultPolicy).trim().toLowerCase()
-  const tushareToken = String(process.env.TUSHARE_TOKEN || '').trim()
-
-  const tryTushareNorthAndPe = async () => {
-    if (!tushareToken) return { north: [] as Record<string, unknown>[], hs300Pe: [] as Record<string, unknown>[] }
-    const [north, hs300Pe] = await Promise.all([
-      fetchTushare({
-        token: tushareToken,
-        apiName: 'moneyflow_hsgt',
-        params: { start_date: liquidityStart, end_date: end },
-        fields: 'trade_date,north_money',
-      }),
-      fetchTushare({
-        token: tushareToken,
-        apiName: 'index_dailybasic',
-        params: { ts_code: '000300.SH', start_date: start, end_date: end },
-        fields: 'trade_date,pe',
-      }),
-    ])
-    return { north, hs300Pe }
-  }
 
   const tryEastmoneyHttpFallback = async (reason: string) => {
     try {
@@ -145,7 +126,10 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       const hs300 = hs300Raw.map((r) => ({ trade_date: r.trade_date, close: r.close }))
       const sh = shRaw.map((r) => ({ trade_date: r.trade_date, amount: r.amount, tr: r.tr }))
       const sz = szRaw.map((r) => ({ trade_date: r.trade_date, amount: r.amount, tr: r.tr }))
-      const { north, hs300Pe } = await tryTushareNorthAndPe()
+      const [north, hs300Pe] = await Promise.all([
+        fetchNorthboundNetInflowSeries({ startDate: liquidityStart, endDate: end }),
+        fetchCsindexHs300PeSeries({ startDate: start, endDate: end }),
+      ])
 
       const series = buildLiquidityV5Series({ hs300, sh, sz, north })
       if (series.length === 0) return { ok: false as const, err: 'Eastmoney HTTP 替代源返回为空' }
@@ -170,7 +154,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
 
       const peByDate = new Map<string, number>()
       for (const r of hs300Pe) {
-        const d = normalizeTradeDate((r as Record<string, unknown>).trade_date)
+        const d = ymd8ToYmd10((r as Record<string, unknown>).trade_date)
         const pe =
           typeof (r as Record<string, unknown>).pe === 'number'
             ? ((r as Record<string, unknown>).pe as number)
@@ -187,9 +171,8 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       const notes: string[] = [
         '已使用 Eastmoney HTTP 替代数据源（无 Python 依赖），缺失字段保持 null，不做推测补值。',
         `成交额口径：来自 Eastmoney kline 成交额，已换算为“千元”（与表格视图一致）。`,
-        ...(tushareToken
-          ? ['北向资金与沪深300PE数据源：Tushare（需要环境变量 TUSHARE_TOKEN）。']
-          : ['北向资金与沪深300PE未接入（未配置 TUSHARE_TOKEN），相关字段为 null。']),
+        '沪深300PE数据源：中证指数（csindex）。',
+        '北向资金净流入数据源：东方财富数据中心（reportName=RPT_MUTUAL_DEALAMT, 字段 NF_DEAL_AMT）。',
         `替代触发原因：${reason}`,
       ]
       const out = {
@@ -197,7 +180,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
         meta: {
           fetchedAt: new Date().toISOString(),
           dataDate: last?.date ?? null,
-          source: `eastmoney:http + yield.chinabond.com.cn${tushareToken ? ' + tushare' : ''}`,
+          source: 'eastmoney:http + csindex + eastmoney:datacenter + yield.chinabond.com.cn',
           notes,
         },
         data: {

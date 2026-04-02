@@ -1,0 +1,8 @@
+- [ ] CSIndex PE：可在指定日期范围内拉取并解析成功，输出 trade_date 对齐正确
+- [ ] HKEX 北向净流入：可在指定日期范围内拉取并解析成功，输出 trade_date 对齐正确
+- [ ] 大盘流动性V5：股债利差与股债分位恢复（不依赖 financedata/Tushare/Python）
+- [ ] 大盘流动性V5：北向资金与北向分位恢复（不依赖 financedata/Tushare/Python）
+- [ ] 无推测值：缺失字段保持 null，notes 明确解释缺失原因与数据来源
+- [ ] 前端显示：顶部数据来源提示与表格单位无误导，调试信息不含敏感信息
+- [ ] 工程质量：`npm run check` 与 `npm run lint` 无新增 error
+
