@@ -419,22 +419,6 @@ router.post('/market/insight', async (req: Request, res: Response) => {
     windowDays: 720,
   })
 
-  const buildDateRange = (ymd: string | null) => {
-    const s = typeof ymd === 'string' ? ymd.trim() : ''
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return { from: null, to: null }
-    const year = Number(s.slice(0, 4))
-    const month = Number(s.slice(5, 7))
-    const day = Number(s.slice(8, 10))
-    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return { from: null, to: null }
-    const toMs = Date.UTC(year, month - 1, day, 0, 0, 0, 0)
-    const fromMs = toMs - 14 * 24 * 60 * 60 * 1000
-    const to = new Date(toMs).toISOString().slice(0, 10)
-    const from = new Date(fromMs).toISOString().slice(0, 10)
-    return { from, to }
-  }
-
-  const searchWindow = buildDateRange(context?.meta?.dataDate ?? null)
-
   const notes = metaObj && Array.isArray((metaObj as Record<string, unknown>).notes) ? (metaObj as Record<string, unknown>).notes : null
   const source = metaObj && typeof (metaObj as Record<string, unknown>).source === 'string' ? String((metaObj as Record<string, unknown>).source) : null
 
@@ -453,7 +437,6 @@ router.post('/market/insight', async (req: Request, res: Response) => {
 
   const user = JSON.stringify(
     {
-      searchWindow,
       market: context,
       marketNotes: notes,
       marketSource: source,
@@ -484,7 +467,6 @@ router.post('/market/insight', async (req: Request, res: Response) => {
       stream: true,
       outputReasoningContent: true,
     },
-    search: searchWindow,
     prompts: {
       developer,
       user,
