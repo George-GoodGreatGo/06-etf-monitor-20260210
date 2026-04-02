@@ -61,36 +61,38 @@ async function fetchOnce(url: string): Promise<Record<string, unknown>[]> {
     const dStr = typeof dRaw === 'string' ? dRaw.slice(0, 10) : ''
     const ymd8 = normalizeYmd8(dStr)
     if (!ymd8) continue
-    const v = toNum((r as Record<string, unknown>).NET_INFLOW_BOTH)
+    const vRaw = toNum((r as Record<string, unknown>).DEAL_AMT)
+    const v = vRaw == null ? null : vRaw / 100
     out.push({ trade_date: ymd8, north_money: v })
   }
   return out
 }
 
-export async function fetchNorthboundNetInflowSeries(args: { startDate: string; endDate: string }): Promise<Record<string, unknown>[]> {
+export async function fetchNorthboundTotalTurnoverSeries(args: {
+  startDate: string
+  endDate: string
+}): Promise<Record<string, unknown>[]> {
   const startDate = normalizeYmd8(args.startDate)
   const endDate = normalizeYmd8(args.endDate)
   if (!startDate || !endDate) return []
 
-  const key = `northbound:netinflow_both:${startDate}:${endDate}`
+  const key = `northbound:deal_amt_total:${startDate}:${endDate}`
   const now = Date.now()
   const hit = cache.get(key)
   if (hit && hit.expiresAt > now) return hit.value
 
   const start10 = ymd8ToYmd10(startDate)
   const end10 = ymd8ToYmd10(endDate)
-  const url = new URL('https://datacenter-web.eastmoney.com/securities/api/data/v1/get')
-  url.searchParams.set('reportName', 'RPT_MUTUAL_NETINFLOW_DETAILS')
-  url.searchParams.set('columns', 'DIRECTION_TYPE,TRADE_DATE,NET_INFLOW_SH,NET_INFLOW_SZ,NET_INFLOW_BOTH,TIME_TYPE')
+  const url = new URL('https://datacenter-web.eastmoney.com/api/data/v1/get')
+  url.searchParams.set('reportName', 'RPT_MUTUAL_DEAL_HISTORY')
+  url.searchParams.set('columns', 'TRADE_DATE,MUTUAL_TYPE,DEAL_AMT')
   url.searchParams.set('pageNumber', '1')
   url.searchParams.set('pageSize', '600')
   url.searchParams.set('sortTypes', '1')
   url.searchParams.set('sortColumns', 'TRADE_DATE')
+  url.searchParams.set('source', 'WEB')
   url.searchParams.set('client', 'WEB')
-  url.searchParams.set(
-    'filter',
-    `(DIRECTION_TYPE="2")(TIME_TYPE="1")(TRADE_DATE>='${start10}')(TRADE_DATE<='${end10}')`,
-  )
+  url.searchParams.set('filter', `(MUTUAL_TYPE="005")(TRADE_DATE>='${start10}')(TRADE_DATE<='${end10}')`)
 
   let lastErr: unknown = null
   for (let i = 0; i < 2; i += 1) {

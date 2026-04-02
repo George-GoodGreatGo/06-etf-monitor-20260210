@@ -149,7 +149,7 @@ export default function MarketLiquidityTable({ series, equityBond, className }: 
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">成交额分位(%)</th>
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">换手率(均,%)</th>
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">换手率分位(%)</th>
-              <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">北向资金(净流入,百万元)</th>
+              <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">北向资金总成交额(亿元)</th>
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">北向分位(%)</th>
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">流动性指数(无量纲)</th>
 
@@ -180,7 +180,7 @@ export default function MarketLiquidityTable({ series, equityBond, className }: 
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(p.amountPct, 1)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(p.tr, 2)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(p.trPct, 1)}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(p.northMoney, 0)}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(p.northMoney, 2)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(p.northPct, 1)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(p.v5, 1)}</td>
 

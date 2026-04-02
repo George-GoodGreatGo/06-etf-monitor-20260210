@@ -4,13 +4,35 @@ import { buildEquityBondValuePctSeries } from './equityBondValue.js'
 import { fetchGovBond10yYieldPctByDate } from './chinamoneyGovBond.js'
 import { runAkshare } from './akshare.js'
 import { fetchCsindexHs300PeSeries } from './csindex.js'
-import { fetchNorthboundNetInflowSeries } from './hkex.js'
+import { fetchNorthboundTotalTurnoverSeries } from './hkex.js'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
 type CacheEntry<T> = { expiresAt: number; value: T }
 const cache = new Map<string, CacheEntry<unknown>>()
 const diskCacheFile = path.join(process.cwd(), 'server', '.cache', 'market-liquidity-v5.json')
+
+function normalizeMarketAmountToKyuan(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  const values: number[] = []
+  for (const r of rows) {
+    const x = (r as Record<string, unknown>).amount
+    const n = typeof x === 'number' ? x : x == null ? NaN : Number(x)
+    if (Number.isFinite(n)) values.push(n)
+  }
+  if (values.length === 0) return rows
+  values.sort((a, b) => a - b)
+  const med = values[Math.floor(values.length / 2)]
+  const scale = med >= 1e9 ? 1 / 1000 : med <= 1e7 ? 100000 : 1
+  if (scale === 1) return rows
+  return rows.map((r) => {
+    const x = (r as Record<string, unknown>).amount
+    const n = typeof x === 'number' ? x : x == null ? NaN : Number(x)
+    return {
+      ...r,
+      amount: Number.isFinite(n) ? n * scale : null,
+    }
+  })
+}
 
 function ymdToday(): string {
   const d = new Date()
@@ -127,7 +149,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       const sh = shRaw.map((r) => ({ trade_date: r.trade_date, amount: r.amount, tr: r.tr }))
       const sz = szRaw.map((r) => ({ trade_date: r.trade_date, amount: r.amount, tr: r.tr }))
       const [north, hs300Pe] = await Promise.all([
-        fetchNorthboundNetInflowSeries({ startDate: liquidityStart, endDate: end }),
+        fetchNorthboundTotalTurnoverSeries({ startDate: liquidityStart, endDate: end }),
         fetchCsindexHs300PeSeries({ startDate: start, endDate: end }),
       ])
 
@@ -172,7 +194,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
         '已使用 Eastmoney HTTP 替代数据源（无 Python 依赖），缺失字段保持 null，不做推测补值。',
         `成交额口径：来自 Eastmoney kline 成交额，已换算为“千元”（与表格视图一致）。`,
         '沪深300PE数据源：中证指数（csindex）。',
-        '北向资金净流入数据源：东方财富数据中心（reportName=RPT_MUTUAL_NETINFLOW_DETAILS, 字段 NET_INFLOW_BOTH，单位=百万元）。',
+        '北向资金总成交额数据源：东方财富数据中心（reportName=RPT_MUTUAL_DEAL_HISTORY, MUTUAL_TYPE=005, 字段 DEAL_AMT；本服务端输出单位为“亿元”）。',
         `替代触发原因：${reason}`,
       ]
       const out = {
@@ -227,10 +249,15 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
     const hs300 = Array.isArray(data.hs300) ? (data.hs300 as Record<string, unknown>[]) : []
     const sh = Array.isArray(data.sh) ? (data.sh as Record<string, unknown>[]) : []
     const sz = Array.isArray(data.sz) ? (data.sz as Record<string, unknown>[]) : []
-    const north = Array.isArray(data.north) ? (data.north as Record<string, unknown>[]) : []
     const hs300Pe = Array.isArray(data.hs300Pe) ? (data.hs300Pe as Record<string, unknown>[]) : []
 
-    const series = buildLiquidityV5Series({ hs300, sh, sz, north })
+    const [north] = await Promise.all([fetchNorthboundTotalTurnoverSeries({ startDate: liquidityStart, endDate: end })])
+    const series = buildLiquidityV5Series({
+      hs300,
+      sh: normalizeMarketAmountToKyuan(sh),
+      sz: normalizeMarketAmountToKyuan(sz),
+      north,
+    })
     if (series.length === 0) {
       return { ok: false as const, err: 'AkShare 返回数据不足以构建流动性序列' }
     }
@@ -268,6 +295,8 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       '独家流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为360日滚动，最小有效180日。',
       '股债利差=1/沪深300PE-中国10Y国债收益率，value再取720日滚动分位（最小有效360日），分位越高代表股票相对于国债更有性价比。',
       '已使用 AkShare 替代数据源；缺失字段保持 null，不做推测补值。',
+      '成交额展示口径统一为“千元”；若 AkShare 返回口径不同，会在服务端进行单位归一化。',
+      '北向资金展示口径统一为“总成交额(亿元)”；本分支北向数据使用东方财富数据中心替代源。',
       ...(primaryFailReason ? [`主源失败原因：${primaryFailReason}`] : []),
     ]
 
@@ -276,7 +305,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       meta: {
         fetchedAt: new Date().toISOString(),
         dataDate: last?.date ?? null,
-        source: 'akshare:eastmoney + yield.chinabond.com.cn',
+        source: 'akshare:eastmoney + eastmoney:datacenter + yield.chinabond.com.cn',
         notes,
       },
       data: {
@@ -357,11 +386,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
         params: { ts_code: 'SZ_MARKET', start_date: liquidityStart, end_date: end },
         fields: 'trade_date,amount,tr',
       }),
-      fetchFinanceData({
-        apiName: 'moneyflow_hsgt',
-        params: { start_date: liquidityStart, end_date: end },
-        fields: 'trade_date,north_money',
-      }),
+      fetchNorthboundTotalTurnoverSeries({ startDate: liquidityStart, endDate: end }),
       fetchFinanceData({
         apiName: 'index_dailybasic',
         params: { ts_code: '000300.SH', start_date: start, end_date: end },
@@ -369,7 +394,12 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       }),
     ])
 
-    const series = buildLiquidityV5Series({ hs300, sh, sz, north })
+    const series = buildLiquidityV5Series({
+      hs300,
+      sh: normalizeMarketAmountToKyuan(sh),
+      sz: normalizeMarketAmountToKyuan(sz),
+      north,
+    })
     if (series.length === 0) {
       throw new Error('未获取到有效的指数和成交数据，可能数据源（如Tushare）限流或暂无数据。')
     }
@@ -409,6 +439,8 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       '股债性价比PE数据源：codebuddy:financedata(index_dailybasic)',
       '股债性价比10Y数据源：chinabond(yield.chinabond.com.cn, 整年标准期限xlsx)',
       '股债性价比对齐：以沪深300交易日为基准，缺失使用前值填充。',
+      '成交额展示口径统一为“千元”；若主源返回口径不同，会在服务端进行单位归一化。',
+      '北向资金展示口径统一为“总成交额(亿元)”；本分支北向数据使用东方财富数据中心替代源。',
     ]
 
     const out = {
@@ -416,7 +448,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       meta: {
         fetchedAt: new Date().toISOString(),
         dataDate: last?.date ?? null,
-        source: 'codebuddy:financedata + yield.chinabond.com.cn',
+        source: 'codebuddy:financedata + eastmoney:datacenter + yield.chinabond.com.cn',
         notes,
       },
       data: {
