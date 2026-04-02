@@ -4,10 +4,9 @@ import { getTop100InsightStatusDetail } from '../lib/top100Insight.js'
 import { cozeStreamRunToSseEvents } from '../lib/coze.js'
 import { buildWeeklyChartVercel } from './etf.js'
 import { runAkshare } from '../lib/akshare.js'
-import { aihubmixChatCompletionsToSseEvents } from '../lib/aihubmix.js'
 import { getMarketLiquidityV5 } from '../lib/marketLiquidityV5Service.js'
 import { buildMarketBoardInsightContextV2 } from '../lib/marketBoardInsightContextV2.js'
-import { searchNewsBySerpApi } from '../lib/newsSearch.js'
+import { volcAgentChatToSseEvents } from '../lib/volcAgent.js'
 import type { LiquidityV5Point } from '../lib/liquidityV5.js'
 import type { EquityBondPoint } from '../lib/equityBondValue.js'
 
@@ -361,47 +360,29 @@ router.post('/market/insight', async (req: Request, res: Response) => {
   const enableWebSearch = typeof b.enableWebSearch === 'boolean' ? b.enableWebSearch : true
   const continueFrom = typeof b.continueFrom === 'string' ? b.continueFrom : ''
 
-  const baseUrl = String(process.env.AIHUBMIX_BASE_URL || 'https://aihubmix.com/v1').trim()
-  const apiKey = String(process.env.AIHUBMIX_API_KEY || '').trim()
-  const serpApiKey = String(process.env.SERPAPI_API_KEY || '').trim()
-  const useExternalNews = enableWebSearch && Boolean(serpApiKey)
-  const baseModel = String(process.env.AIHUBMIX_MODEL || 'doubao-seed-2-0-pro').trim()
-  const buildModelConfig = (bm: string) => {
-    const isWebSearchOptionsModel = bm.startsWith('gemini-') || bm.startsWith('gpt-')
-    const baseExtraBody =
-      bm === 'qwen3-max-thinking'
-        ? { enable_thinking: true }
-        : bm === 'doubao-seed-2-0-pro' || bm.startsWith('doubao-')
-          ? { thinking: { type: 'enabled' } }
-        : bm.includes('glm-5')
-          ? { thinking: { type: 'enabled' } }
-        : bm.startsWith('mimo-')
-          ? { thinking: { type: 'true' } }
-          : undefined
-    const modelWebSearchEnabled = enableWebSearch && !useExternalNews
-    const searchMode = useExternalNews ? 'external_serpapi' : modelWebSearchEnabled ? (isWebSearchOptionsModel ? 'web_search_options' : 'surfing') : 'none'
-    const model = modelWebSearchEnabled && !isWebSearchOptionsModel ? `${bm}:surfing` : bm
-    const extraBody =
-      modelWebSearchEnabled && isWebSearchOptionsModel
-        ? { ...(baseExtraBody || {}), web_search_options: {} }
-        : baseExtraBody || undefined
-    const maxCompletionTokens = bm.startsWith('mimo-') ? 2600 : undefined
-    return { baseModel: bm, model, searchMode, extraBody, maxCompletionTokens }
-  }
-
-  const modelCfg0 = buildModelConfig(baseModel)
+  const baseUrl = String(process.env.VOLCENGINE_AGENT_API_URL || 'https://open.feedcoopapi.com/agent_api/agent/chat/completion').trim()
+  const apiKey = String(process.env.VOLCENGINE_AGENT_API_KEY || process.env.VOLCENGINE_API_KEY || '').trim()
+  const botId = String(process.env.VOLCENGINE_AGENT_BOT_ID || '').trim()
+  const model = 'thinking'
+  const searchMode = enableWebSearch ? 'volc_agent_builtin' : 'none'
 
   writeEvent({
     type: 'meta',
-    provider: 'aihubmix',
+    provider: 'volcengine_agent',
     enableWebSearch,
-    model: modelCfg0.model,
-    baseModel: modelCfg0.baseModel,
-    searchMode: modelCfg0.searchMode,
+    model,
+    baseUrl,
+    searchMode,
+    hasBotId: Boolean(botId),
   })
 
   if (!apiKey) {
-    writeEvent({ type: 'end', status: 'error', message: '缺少服务端环境变量：AIHUBMIX_API_KEY' })
+    writeEvent({ type: 'end', status: 'error', message: '缺少服务端环境变量：VOLCENGINE_AGENT_API_KEY' })
+    res.end()
+    return
+  }
+  if (!botId) {
+    writeEvent({ type: 'end', status: 'error', message: '缺少服务端环境变量：VOLCENGINE_AGENT_BOT_ID' })
     res.end()
     return
   }
@@ -516,51 +497,29 @@ router.post('/market/insight', async (req: Request, res: Response) => {
   addQ(`外资 机构 观点 北向资金 A股 ${timeHint}`)
   const searchQueries = queries.slice(0, 8)
 
-  let externalNews: { provider: string; items: unknown[] } | null = null
-  if (useExternalNews) {
-    try {
-      externalNews = await searchNewsBySerpApi({
-        apiKey: serpApiKey,
-        queries: searchQueries,
-        from: range.from,
-        to: range.to,
-        maxItems: 12,
-        signal: ac.signal,
-      })
-    } catch {
-      externalNews = { provider: 'serpapi', items: [] }
-    }
-  }
-
   const notes = metaObj && Array.isArray((metaObj as Record<string, unknown>).notes) ? (metaObj as Record<string, unknown>).notes : null
   const source = metaObj && typeof (metaObj as Record<string, unknown>).source === 'string' ? String((metaObj as Record<string, unknown>).source) : null
 
   const developer = [
     '总是用中文回复。',
-    '你是“沪深市场大盘看板”的AI解读助手，目标是帮助用户冷静决策：解释市场情绪、机会/风险、估值与流动性。',
-    '请先思考再回答，但不要输出思考过程或推理草稿，只输出最终结论与可核查的引用。',
-    '必须以用户提供的结构化数据为准；对不确定内容要说“不确定/暂无数据”，不要编造。',
-    '你会收到 indicatorDictionary（字段含义与单位/口径）。必须在解读中尊重单位与口径，不得混用；需要换算时要说明（例如比率与%p）。',
-    '输出为 Markdown，结构固定包含：概览、短线视角（明确使用的周期：近7日、5日、20日）、中线视角（明确使用的周期：60日、120日）、长线视角（明确使用的周期：252日）、流动性与资金面、估值与股债、近期资讯/关键事件、观察清单、风险提示、免责声明。',
-    '当且仅当 enableWebSearch=true 时，你必须结合检索信息进行解读；你会收到 search.queries（由多周期摘要与近20日变化提取趋势要素生成，含趋势强弱、波动收敛/扩张、流动性指数、股债分位区间）。',
-    '若 externalNews.items 非空，必须优先使用 externalNews 作为资讯证据来源；不得虚构不存在的来源或链接。',
-    '在“近期资讯/关键事件”部分给出最近7-14天内与A股大盘相关的要点摘要，且每条要点必须附带可追溯 URL 与日期范围说明。',
-    '在“归因总结”中把“指标信号”与“资讯证据”分开写清楚：每条归因必须说明是由哪些指标信号触发、并引用哪些来源链接支持。',
-    '检索与观点来源需包含：机构、券商、知名投资者等对近期（7-14天）的市场研判与观点；引用时同样必须带 URL。',
-    '短线/中线/长线的解读必须分别使用对应周期的指标汇总数据，并覆盖表格视图字段：沪深300点位、EMA20、EMA60、BOLL120（MB/UB/LB/BW）、成交额及分位、换手率及分位、北向资金净流入及分位、流动性指数及区间、股债（PE、1/PE、10Y、股债利差 value 与分位）。不得遗漏字段；若某字段缺失必须说明“暂无数据”。',
-    '优先采用权威信源：交易所/监管与官方机构（上交所、深交所、证监会、央行、国家统计局等）、主流财经媒体（证券时报、中证报、上证报等）与权威门户的原文链接；避免使用无来源自媒体断言。',
-    '若 enableWebSearch=true 但仍找不到可靠来源，必须明确说明“已联网检索但未获得足够可靠来源”，并给出你尝试过的2-4个检索关键词/查询方向。',
-    '若 enableWebSearch=false，则“近期资讯/关键事件”必须写明“未启用联网检索，未接入新闻/事件数据”。',
-    '不得给出具体买卖建议或保证性判断；必须包含“仅供参考，不构成投资建议”。',
-    '尽量简洁：总长度控制在约 1200-1800 个中文字；如内容较多，优先保留结论与观察清单。',
+    '你是“沪深市场大盘看板”的专业市场解读助手，目标是帮助用户进行理性决策。',
+    '你会收到结构化市场数据（含字段定义、单位、720天窗口数据、短中长期汇总）与可选新闻检索结果。',
+    '任务1：先完成数据总结，明确短期（7/20日）、中期（60/120日）、长期（252日）规律，覆盖关键指标并说明变化方向与幅度。',
+    '任务2：基于短期与中期趋势，结合智能体联网搜索结果（search）做归因总结。资讯结论必须给出可追溯 URL；若证据不足要明确说明不足点。',
+    '任务3：站在专业投资者、理性交易者视角，对数据总结与归因进行审视，给出市场机会识别、风险识别与情势建议（非个股买卖指令）。',
+    '必须严格区分“指标信号结论”和“资讯证据结论”，不得把二者混为单一断言。',
+    '输出为 Markdown，结构固定包含：概览、短期趋势、中期趋势、长期趋势、归因总结（证据链接）、机会识别、风险识别、情势建议、免责声明。',
+    '不得编造新闻、机构观点或链接；若无可靠来源，明确说明“暂无可靠来源”。',
+    '必须包含“仅供参考，不构成投资建议”。',
   ].join('\n')
 
   const user = JSON.stringify(
     {
       request: {
         enableWebSearch,
-        model: modelCfg0.model,
-        searchMode: modelCfg0.searchMode,
+        model,
+        searchMode,
+        botId,
       },
       search: {
         range,
@@ -574,7 +533,6 @@ router.post('/market/insight', async (req: Request, res: Response) => {
           equityBondPctDelta20d: ebPctDelta20,
         },
       },
-      externalNews,
       market: context,
       marketNotes: notes,
       marketSource: source,
@@ -583,8 +541,8 @@ router.post('/market/insight', async (req: Request, res: Response) => {
     2,
   )
 
-  const messages: Array<{ role: 'system' | 'developer' | 'user' | 'assistant'; content: string }> = [
-    { role: 'developer', content: developer },
+  const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+    { role: 'system', content: developer },
     { role: 'user', content: user },
   ]
   if (continueFrom.trim()) {
@@ -598,13 +556,13 @@ router.post('/market/insight', async (req: Request, res: Response) => {
     request: {
       enableWebSearch,
       baseUrl,
-      model: modelCfg0.model,
-      searchMode: modelCfg0.searchMode,
+      model,
+      searchMode,
+      botId,
       temperature: 0.4,
       maxTokens: 2600,
-      ...(modelCfg0.maxCompletionTokens ? { maxCompletionTokens: modelCfg0.maxCompletionTokens } : {}),
-      ...(modelCfg0.extraBody ? { extraBody: modelCfg0.extraBody } : {}),
       stream: true,
+      outputReasoningContent: true,
     },
     search: {
       range,
@@ -618,10 +576,6 @@ router.post('/market/insight', async (req: Request, res: Response) => {
         equityBondPctDelta20d: ebPctDelta20,
       },
     },
-    externalNewsMeta: {
-      provider: externalNews?.provider ?? null,
-      count: Array.isArray(externalNews?.items) ? externalNews.items.length : 0,
-    },
     prompts: {
       developer,
       user,
@@ -629,65 +583,16 @@ router.post('/market/insight', async (req: Request, res: Response) => {
   })
 
   try {
-    const runOnce = async (cfg: ReturnType<typeof buildModelConfig>) => {
-      return aihubmixChatCompletionsToSseEvents({
-        baseUrl,
-        apiKey,
-        model: cfg.model,
-        messages,
-        temperature: 0.4,
-        maxTokens: 2600,
-        ...(cfg.maxCompletionTokens ? { maxCompletionTokens: cfg.maxCompletionTokens } : {}),
-        ...(cfg.extraBody ? { extraBody: cfg.extraBody } : {}),
-        signal: ac.signal,
-        onEvent: writeEvent,
-      })
-    }
-
-    try {
-      await runOnce(modelCfg0)
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      const isModelAccessError =
-        msg.includes('Incorrect model ID') ||
-        msg.includes('do not have permission') ||
-        msg.includes('no permission') ||
-        msg.includes('permission')
-
-      if (!isModelAccessError) throw e
-
-      const fallbackBaseModel = 'gemini-3-flash-preview-free'
-      const modelCfg1 = buildModelConfig(fallbackBaseModel)
-
-      writeEvent({
-        type: 'meta',
-        provider: 'aihubmix',
-        enableWebSearch,
-        model: modelCfg1.model,
-        baseModel: modelCfg1.baseModel,
-        searchMode: modelCfg1.searchMode,
-        fallbackFrom: modelCfg0.model,
-        fallbackReason: msg,
-      })
-
-      writeEvent({
-        type: 'debug',
-        request: {
-          enableWebSearch,
-          baseUrl,
-          model: modelCfg1.model,
-          searchMode: modelCfg1.searchMode,
-          temperature: 0.4,
-          maxTokens: 2600,
-          ...(modelCfg1.maxCompletionTokens ? { maxCompletionTokens: modelCfg1.maxCompletionTokens } : {}),
-          ...(modelCfg1.extraBody ? { extraBody: modelCfg1.extraBody } : {}),
-          stream: true,
-          fallbackFrom: modelCfg0.model,
-        },
-      })
-
-      await runOnce(modelCfg1)
-    }
+    await volcAgentChatToSseEvents({
+      apiKey,
+      botId,
+      endpoint: baseUrl,
+      messages: messages.map((m) => ({ role: m.role as 'system' | 'user' | 'assistant', content: m.content })),
+      model: 'thinking',
+      stream: true,
+      signal: ac.signal,
+      onEvent: writeEvent,
+    })
   } catch (e) {
     const name = e instanceof Error ? e.name : ''
     if (name === 'AbortError') {

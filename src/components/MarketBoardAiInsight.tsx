@@ -16,11 +16,12 @@ export default function MarketBoardAiInsight({ className }: { className?: string
   const [finishReason, setFinishReason] = useState<string | null>(null)
   const [truncated, setTruncated] = useState(false)
   const [debugModel, setDebugModel] = useState<string | null>(null)
-  const [debugUseSurfing, setDebugUseSurfing] = useState<boolean | null>(null)
+  const [debugSearchMode, setDebugSearchMode] = useState<string | null>(null)
   const [debugRequest, setDebugRequest] = useState<string | null>(null)
   const [debugSearch, setDebugSearch] = useState<string | null>(null)
   const [debugDeveloperPrompt, setDebugDeveloperPrompt] = useState<string | null>(null)
   const [debugUserPrompt, setDebugUserPrompt] = useState<string | null>(null)
+  const [reasoningText, setReasoningText] = useState('')
   const abortRef = useRef<AbortController | null>(null)
 
   const mdComponents = useMemo<Components>(
@@ -57,11 +58,12 @@ export default function MarketBoardAiInsight({ className }: { className?: string
       setFinishReason(null)
       setTruncated(false)
       setDebugModel(null)
-      setDebugUseSurfing(null)
+      setDebugSearchMode(null)
       setDebugRequest(null)
       setDebugSearch(null)
       setDebugDeveloperPrompt(null)
       setDebugUserPrompt(null)
+      setReasoningText('')
       if (!opts?.continueFrom) setText('')
 
       try {
@@ -97,7 +99,7 @@ export default function MarketBoardAiInsight({ className }: { className?: string
           const type = typeof o.type === 'string' ? o.type : ''
           if (type === 'meta') {
             if (typeof o.model === 'string') setDebugModel(o.model)
-            if (typeof o.useSurfing === 'boolean') setDebugUseSurfing(o.useSurfing)
+            if (typeof o.searchMode === 'string') setDebugSearchMode(o.searchMode)
             return { done: false }
           }
           if (type === 'debug') {
@@ -125,6 +127,10 @@ export default function MarketBoardAiInsight({ className }: { className?: string
                 ? String((c as Record<string, unknown>).answer)
                 : ''
             if (answer) setText((prev) => prev + answer)
+            return { done: false }
+          }
+          if (type === 'reasoning' && typeof o.content === 'string') {
+            setReasoningText((prev) => prev + o.content)
             return { done: false }
           }
           if (type === 'end') {
@@ -269,7 +275,7 @@ export default function MarketBoardAiInsight({ className }: { className?: string
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                 <div>enableWebSearch: {String(enableWebSearch)}</div>
                 <div>model: {debugModel ?? '—'}</div>
-                <div>surfing: {debugUseSurfing == null ? '—' : String(debugUseSurfing)}</div>
+                <div>searchMode: {debugSearchMode ?? '—'}</div>
                 {finishReason ? <div>finish_reason: {finishReason}</div> : null}
               </div>
 
@@ -308,6 +314,15 @@ export default function MarketBoardAiInsight({ className }: { className?: string
           <div className="mb-3 rounded-md border border-white/10 bg-black/20 px-3 py-2 text-xs text-[#A9B6CC]">
             当前输出可能达到长度上限（finish_reason=length），可点击“继续生成”补全剩余内容。
           </div>
+        ) : null}
+
+        {reasoningText ? (
+          <details className="mb-3 rounded-md border border-white/10 bg-black/20 px-3 py-2">
+            <summary className="cursor-pointer select-none text-xs text-[#A9B6CC]">模型推理内容（reasoning_content）</summary>
+            <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded border border-white/10 bg-black/30 p-2 text-xs text-[#E2E8F0]">
+              {reasoningText}
+            </pre>
+          </details>
         ) : null}
 
         {text ? (
