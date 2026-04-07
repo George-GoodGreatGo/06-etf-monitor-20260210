@@ -90,7 +90,12 @@ router.post('/refresh', async (req: Request, res: Response<JsonOk | JsonErr>) =>
 router.post('/market/refresh', async (req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'no-store')
   const token = String(req.header('x-admin-token') || '').trim()
-  if (!token || token !== String(process.env.ADMIN_TOKEN || '').trim()) {
+  const expected = String(process.env.ADMIN_ACCESS_TOKEN || process.env.ADMIN_TOKEN || '').trim()
+  if (!expected) {
+    res.status(500).json({ success: false, error: 'missing_env', message: 'missing ADMIN_ACCESS_TOKEN (or ADMIN_TOKEN)' })
+    return
+  }
+  if (!token || token !== expected) {
     res.status(401).json({ success: false, error: 'unauthorized' })
     return
   }
