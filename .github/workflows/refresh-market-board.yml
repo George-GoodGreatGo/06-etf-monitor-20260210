@@ -12,14 +12,14 @@ jobs:
       - name: Call refresh endpoint
         env:
           URL: ${{ secrets.REFRESH_URL_MARKET_BOARD }}
-          TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          TOKEN: ${{ secrets.ADMIN_ACCESS_TOKEN }}
         run: |
           if [ -z "$URL" ]; then
             echo "missing REFRESH_URL_MARKET_BOARD secret" >&2
             exit 1
           fi
           if [ -z "$TOKEN" ]; then
-            echo "missing ADMIN_TOKEN secret" >&2
+            echo "missing ADMIN_ACCESS_TOKEN secret" >&2
             exit 1
           fi
           http_code=$(curl -sS -o response.json -w "%{http_code}" -X POST "$URL" \
