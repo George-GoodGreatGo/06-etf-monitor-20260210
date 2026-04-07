@@ -1,0 +1,30 @@
+name: Refresh Market Board Snapshot
+
+on:
+  schedule:
+    - cron: "0 14 * * 1-5"
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call refresh endpoint
+        env:
+          URL: ${{ secrets.REFRESH_URL_MARKET_BOARD }}
+          TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: |
+          if [ -z "$URL" ]; then
+            echo "missing REFRESH_URL_MARKET_BOARD secret" >&2
+            exit 1
+          fi
+          if [ -z "$TOKEN" ]; then
+            echo "missing ADMIN_TOKEN secret" >&2
+            exit 1
+          fi
+          curl -sS -X POST "$URL" \
+            -H "x-admin-token: $TOKEN" \
+            -H "content-type: application/json" \
+            --data '{}' \
+            --fail
+

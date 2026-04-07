@@ -36,6 +36,16 @@ export type EtfWeeklyInsightRow = {
   created_at: string
 }
 
+export type MarketBoardDailyRow = {
+  data_date: string
+  fetched_at: string
+  source_type: string | null
+  source: string | null
+  notes: unknown
+  payload: unknown
+  updated_at: string
+}
+
 export async function readTop100LatestSnapshot(): Promise<Top100LatestRow | null> {
   const supabaseUrl = String(process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '')
   const anonKey = String(process.env.SUPABASE_ANON_KEY || '').trim()
@@ -248,5 +258,93 @@ export async function upsertEtfWeeklyInsight(code: string, insightText: string):
   if (!res.ok) {
     const body = await res.text().catch(() => '')
     console.error(`supabase write etf_weekly_insight failed: HTTP ${res.status} ${body}`)
+  }
+}
+
+export async function readLatestMarketBoardSnapshot(): Promise<MarketBoardDailyRow | null> {
+  const supabaseUrl = String(process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '')
+  const anonKey = String(process.env.SUPABASE_ANON_KEY || '').trim()
+  if (!supabaseUrl || !anonKey) return null
+
+  const url = `${supabaseUrl}/rest/v1/market_board_daily?select=*&order=data_date.desc&limit=1`
+  const res = await fetch(url, {
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+    },
+  })
+  if (!res.ok) return null
+  const j = (await res.json().catch(() => null)) as unknown
+  if (!Array.isArray(j) || j.length === 0) return null
+  const first = j[0]
+  if (!first || typeof first !== 'object') return null
+  return first as MarketBoardDailyRow
+}
+
+export async function readMarketBoardSnapshotByDate(dataDate: string): Promise<MarketBoardDailyRow | null> {
+  const supabaseUrl = String(process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '')
+  const anonKey = String(process.env.SUPABASE_ANON_KEY || '').trim()
+  const d = String(dataDate || '').trim()
+  if (!supabaseUrl || !anonKey || !d) return null
+
+  const url = `${supabaseUrl}/rest/v1/market_board_daily?data_date=eq.${encodeURIComponent(d)}&select=*`
+  const res = await fetch(url, {
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+    },
+  })
+  if (!res.ok) return null
+  const j = (await res.json().catch(() => null)) as unknown
+  if (!Array.isArray(j) || j.length === 0) return null
+  const first = j[0]
+  if (!first || typeof first !== 'object') return null
+  return first as MarketBoardDailyRow
+}
+
+export async function upsertMarketBoardSnapshot(payload: {
+  data_date: string
+  fetched_at: string
+  source_type?: string | null
+  source?: string | null
+  notes?: unknown
+  payload: unknown
+  updated_at?: string
+}): Promise<void> {
+  const supabaseUrl = mustEnv('SUPABASE_URL').replace(/\/+$/, '')
+  const serviceKey = mustEnv('SUPABASE_SERVICE_ROLE_KEY')
+  const p = payload && typeof payload === 'object' ? payload : null
+  if (!p) throw new Error('bad payload')
+
+  const dataDate = String(p.data_date || '').trim()
+  const fetchedAt = String(p.fetched_at || '').trim()
+  if (!dataDate) throw new Error('missing data_date')
+  if (!fetchedAt) throw new Error('missing fetched_at')
+
+  const row = {
+    data_date: dataDate,
+    fetched_at: fetchedAt,
+    source_type: p.source_type ?? null,
+    source: p.source ?? null,
+    notes: p.notes ?? [],
+    payload: p.payload,
+    updated_at: p.updated_at ? String(p.updated_at) : new Date().toISOString(),
+  }
+
+  const url = `${supabaseUrl}/rest/v1/market_board_daily?on_conflict=data_date`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates,return=minimal',
+    },
+    body: JSON.stringify(row),
+  })
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`supabase write market_board_daily failed: HTTP ${res.status} ${body}`)
   }
 }

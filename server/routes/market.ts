@@ -9,7 +9,8 @@ router.get('/liquidity/v5', async (req: Request, res: Response) => {
   try {
     const startDate = typeof req.query.startDate === 'string' ? req.query.startDate.trim() : undefined
     const endDate = typeof req.query.endDate === 'string' ? req.query.endDate.trim() : undefined
-    const out = await getMarketLiquidityV5({ startDate, endDate })
+    const forceRefresh = String(req.query.forceRefresh || '').trim() === '1'
+    const out = await getMarketLiquidityV5({ startDate, endDate, forceRefresh })
     res.status(200).json(out)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)

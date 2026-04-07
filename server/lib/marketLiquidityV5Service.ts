@@ -5,6 +5,7 @@ import { fetchGovBond10yYieldPctByDate } from './chinamoneyGovBond.js'
 import { runAkshare } from './akshare.js'
 import { fetchCsindexHs300PeSeries } from './csindex.js'
 import { fetchNorthboundTotalTurnoverSeries } from './hkex.js'
+import { readLatestMarketBoardSnapshot, upsertMarketBoardSnapshot } from './supabaseRest.js'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
@@ -124,7 +125,7 @@ async function writeDiskCache(value: Record<string, unknown>) {
   }
 }
 
-export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?: string }) {
+export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?: string; forceRefresh?: boolean }) {
   const start = typeof args?.startDate === 'string' && args.startDate.trim() ? args.startDate.trim() : '20150101'
   const end = typeof args?.endDate === 'string' && args.endDate.trim() ? args.endDate.trim() : ymdToday()
   const liquidityStart = start < '20200101' ? '20200101' : start
@@ -133,6 +134,30 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
   const now = Date.now()
   const hit = cache.get(cacheKey)
   if (hit && hit.expiresAt > now) return hit.value as Record<string, unknown>
+  const forceRefresh = args?.forceRefresh === true
+  const isDefaultRange = start === '20150101' && end === ymdToday()
+
+  if (!forceRefresh && isDefaultRange) {
+    try {
+      const snap = await readLatestMarketBoardSnapshot()
+      const payload = snap && typeof snap === 'object' ? (snap.payload as Record<string, unknown> | null) : null
+      const meta = payload && typeof payload.meta === 'object' && payload.meta ? (payload.meta as Record<string, unknown>) : null
+      if (payload && meta && payload.success === true) {
+        const merged = {
+          ...payload,
+          meta: {
+            ...meta,
+            sourceType: 'supabase-snapshot',
+            cachedAt: snap.updated_at,
+          },
+        }
+        cache.set(cacheKey, { expiresAt: now + 60_000, value: merged })
+        return merged
+      }
+    } catch {
+      void 0
+    }
+  }
   const noPythonRuntime = Boolean(process.env.VERCEL) || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME)
   const defaultPolicy = noPythonRuntime ? 'eastmoney-http' : 'akshare-first'
   const sourcePolicy = String(process.env.MARKET_DATA_SOURCE || defaultPolicy).trim().toLowerCase()
@@ -202,6 +227,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
         meta: {
           fetchedAt: new Date().toISOString(),
           dataDate: last?.date ?? null,
+          sourceType: 'fallback-realtime',
           source: 'eastmoney:http + csindex + eastmoney:datacenter + yield.chinabond.com.cn',
           notes,
         },
@@ -214,6 +240,21 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       }
       cache.set(cacheKey, { expiresAt: now + 5 * 60_000, value: out })
       await writeDiskCache(out)
+      try {
+        const dataDate = typeof out.meta.dataDate === 'string' ? out.meta.dataDate : ''
+        if (dataDate) {
+          await upsertMarketBoardSnapshot({
+            data_date: dataDate,
+            fetched_at: out.meta.fetchedAt,
+            source_type: out.meta.sourceType,
+            source: out.meta.source,
+            notes: out.meta.notes,
+            payload: out,
+          })
+        }
+      } catch {
+        void 0
+      }
       return { ok: true as const, out }
     } catch (e) {
       return { ok: false as const, err: e instanceof Error ? e.message : String(e) }
@@ -448,6 +489,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       meta: {
         fetchedAt: new Date().toISOString(),
         dataDate: last?.date ?? null,
+        sourceType: 'primary-realtime',
         source: 'codebuddy:financedata + eastmoney:datacenter + yield.chinabond.com.cn',
         notes,
       },
@@ -461,6 +503,21 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
 
     cache.set(cacheKey, { expiresAt: now + 10 * 60_000, value: out })
     await writeDiskCache(out)
+    try {
+      const dataDate = typeof out.meta.dataDate === 'string' ? out.meta.dataDate : ''
+      if (dataDate) {
+        await upsertMarketBoardSnapshot({
+          data_date: dataDate,
+          fetched_at: out.meta.fetchedAt,
+          source_type: out.meta.sourceType,
+          source: out.meta.source,
+          notes: out.meta.notes,
+          payload: out,
+        })
+      }
+    } catch {
+      void 0
+    }
     return out
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -479,6 +536,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
         meta: {
           ...meta,
           fetchedAt: new Date().toISOString(),
+          sourceType: 'fallback-realtime',
           source: 'stale-cache-from-last-success',
           notes: [...oldNotes, `本次实时拉取失败，已回退上次成功快照：主源=${msg}; AkShare=${akAfterFail.err}; Eastmoney=${emAfterFail.err}`],
         },

@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from 'express'
+import { getMarketLiquidityV5 } from '../lib/marketLiquidityV5Service.js'
 
 const router = Router()
 
@@ -86,5 +87,24 @@ router.post('/refresh', async (req: Request, res: Response<JsonOk | JsonErr>) =>
   })
 })
 
-export default router
+router.post('/market/refresh', async (req: Request, res: Response) => {
+  res.setHeader('Cache-Control', 'no-store')
+  const token = String(req.header('x-admin-token') || '').trim()
+  if (!token || token !== String(process.env.ADMIN_TOKEN || '').trim()) {
+    res.status(401).json({ success: false, error: 'unauthorized' })
+    return
+  }
+  try {
+    const startDate = typeof (req.body as Record<string, unknown> | undefined)?.startDate === 'string' ? String((req.body as Record<string, unknown>).startDate).trim() : undefined
+    const endDate = typeof (req.body as Record<string, unknown> | undefined)?.endDate === 'string' ? String((req.body as Record<string, unknown>).endDate).trim() : undefined
+    const out = await getMarketLiquidityV5({ startDate, endDate, forceRefresh: true })
+    const meta = out && typeof out === 'object' ? ((out as Record<string, unknown>).meta as Record<string, unknown> | undefined) : undefined
+    const dataDate = meta && typeof meta.dataDate === 'string' ? meta.dataDate : null
+    res.status(200).json({ success: true, dataDate, meta })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    res.status(500).json({ success: false, error: msg })
+  }
+})
 
+export default router

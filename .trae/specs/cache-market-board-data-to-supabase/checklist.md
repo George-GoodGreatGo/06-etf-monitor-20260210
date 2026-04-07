@@ -1,0 +1,7 @@
+- [x] Supabase 表已创建：存在 data_date 唯一约束，能防止重复日期数据
+- [x] 后端封装已完成：可读最新快照、可按 data_date upsert 写入
+- [x] 默认读取快照：大盘看板 API 优先返回 Supabase 快照；缺失回源并回写
+- [x] meta 标注完整：sourceType/source/notes/dataDate 可用于状态栏显示
+- [x] 定时刷新可用：工作日 22:00（北京时间）触发刷新并写入 Supabase
+- [x] 幂等性验证：同一 dataDate 重复执行不会产生重复行
+- [x] 工程质量：`npm run check` 与 `npm run lint` 无新增 error
