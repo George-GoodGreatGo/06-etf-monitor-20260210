@@ -38,8 +38,11 @@ export type LowVolH30269Point = {
   biasPct3y: number | null
   dividendYieldPct: number | null
   yield10yPct: number | null
+  spreadRawPct: number | null
+  spreadSmoothPct: number | null
   spreadPct: number | null
   spreadPctRank3y: number | null
+  spreadPctRank10y: number | null
 }
 
 export type LowVolH30269Data = {

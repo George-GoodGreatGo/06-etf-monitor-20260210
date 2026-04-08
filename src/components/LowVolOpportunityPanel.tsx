@@ -52,8 +52,8 @@ export default function LowVolOpportunityPanel() {
         { key: 'close' as const, label: '指数点位' },
         { key: 'bias' as const, label: 'BIAS(250)' },
         { key: 'biasPct' as const, label: 'BIAS分位(3年)' },
-        { key: 'spread' as const, label: '股息收益率(3Y年化)-10Y利差' },
-        { key: 'spreadPct' as const, label: '利差分位(3年)' },
+        { key: 'spread' as const, label: '利差（平滑）' },
+        { key: 'spreadPct' as const, label: '利差分位(10年)' },
       ] satisfies Array<{ key: ViewKey; label: string }>,
     [],
   )
@@ -66,6 +66,9 @@ export default function LowVolOpportunityPanel() {
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="text-sm font-semibold text-white">低波指数机会识别 · 红利低波（H30269）</div>
+      </div>
+      <div className="mb-3 text-xs text-[#94A3B8]">
+        股息收益率=滚动1年（PRI/TRI推算）；利差（平滑）=spreadRaw 的 EWMA（半衰期6个月）；利差分位基于 raw 的10年滚动分位。
       </div>
 
       <div className="mb-3 flex flex-wrap gap-2">

@@ -69,9 +69,9 @@ export default function LowVolH30269Chart({ series, view, className }: Props) {
       } else if (view === 'biasPct') {
         v = p.biasPct3y
       } else if (view === 'spread') {
-        v = p.spreadPct
+        v = p.spreadSmoothPct
       } else if (view === 'spreadPct') {
-        v = p.spreadPctRank3y
+        v = p.spreadPctRank10y
       }
       if (typeof v === 'number' && Number.isFinite(v)) a.push({ time: t, value: v })
       if (typeof v2 === 'number' && Number.isFinite(v2)) b.push({ time: t, value: v2 })
@@ -146,8 +146,8 @@ export default function LowVolH30269Chart({ series, view, className }: Props) {
         : view === 'biasPct'
           ? 'BIAS分位(3年)'
           : view === 'spread'
-            ? '股息收益率(3Y年化)-10Y利差'
-            : '利差分位(3年)'
+            ? '利差（平滑）'
+            : '利差分位(10年)'
 
   const unit =
     view === 'close'

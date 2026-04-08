@@ -1,4 +1,3 @@
-import * as XLSX from 'xlsx'
 import { fetchGovBond10yYieldPctByDate } from './chinamoneyGovBond.js'
 
 type CacheEntry<T> = { expiresAt: number; value: T }
@@ -36,8 +35,11 @@ export type LowVolDailyPoint = {
   biasPct3y: number | null
   dividendYieldPct: number | null
   yield10yPct: number | null
+  spreadRawPct: number | null
+  spreadSmoothPct: number | null
   spreadPct: number | null
   spreadPctRank3y: number | null
+  spreadPctRank10y: number | null
 }
 
 async function fetchJson(url: string): Promise<unknown> {
@@ -52,15 +54,6 @@ async function fetchJson(url: string): Promise<unknown> {
     throw new Error(`csindex failed: HTTP ${res.status} ${text}`)
   }
   return res.json().catch(() => null)
-}
-
-async function fetchBinary(url: string): Promise<Buffer> {
-  const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', Accept: '*/*' } })
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`download failed: HTTP ${res.status} ${text}`)
-  }
-  return Buffer.from(await res.arrayBuffer())
 }
 
 async function fetchCsindexIndexCloseSeries(args: {
@@ -104,41 +97,6 @@ async function fetchCsindexIndexCloseSeries(args: {
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr))
-}
-
-async function fetchCsindexDividendYieldRecentDp2(args: { indexCode: string }): Promise<Map<string, number>> {
-  const indexCode = String(args.indexCode || '').trim()
-  if (!indexCode) return new Map()
-
-  const key = `csindex:indicator-xls:dp2:${indexCode}`
-  const now = Date.now()
-  const hit = cache.get(key)
-  if (hit && hit.expiresAt > now) return hit.value as Map<string, number>
-
-  const detailUrl = new URL('https://www.csindex.com.cn/csindex-home/indexInfo/index-details-data')
-  detailUrl.searchParams.set('fileLang', '2')
-  detailUrl.searchParams.set('indexCode', indexCode)
-  const j = (await fetchJson(detailUrl.toString())) as Record<string, unknown>
-  const row0 = Array.isArray(j?.data) ? ((j.data as Record<string, unknown>[])[0] as Record<string, unknown> | undefined) : undefined
-  const fileUrl = row0 && typeof row0.indicator === 'string' ? String(row0.indicator).trim() : ''
-  if (!fileUrl) return new Map()
-
-  const buf = await fetchBinary(fileUrl)
-  const wb = XLSX.read(buf, { type: 'buffer' })
-  const sheetName = wb.SheetNames[0]
-  const ws = sheetName ? wb.Sheets[sheetName] : null
-  if (!ws) return new Map()
-  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true }) as unknown[]
-  const out = new Map<string, number>()
-  for (const r of rows.slice(1)) {
-    if (!Array.isArray(r)) continue
-    const d = normalizeYmd10(r[0])
-    const dp2 = toNum(r[5])
-    if (!d || dp2 == null) continue
-    out.set(d, dp2)
-  }
-  cache.set(key, { expiresAt: now + 10 * 60_000, value: out })
-  return out
 }
 
 function buildSma(values: number[], period: number): Array<number | null> {
@@ -216,7 +174,7 @@ export async function getLowVolH30269Series(args?: {
   }
 
   const dividendYieldPct: Array<number | null> = closeSeries.map((p, i) => {
-    const lookback = i - 756
+    const lookback = i - 252
     if (lookback < 0) return null
     const priNow = p.close
     const priThen = closeSeries[lookback]?.close
@@ -228,19 +186,25 @@ export async function getLowVolH30269Series(args?: {
     const totalFactor = triNow / triThen
     const divFactor = totalFactor / priceFactor
     const divReturn = divFactor - 1
-    const base = 1 + divReturn
-    if (!(base > 0) || !Number.isFinite(base)) return null
-    const ann = Math.pow(base, 1 / 3) - 1
-    return Number.isFinite(ann) ? ann * 100 : null
+    return Number.isFinite(divReturn) ? divReturn * 100 : null
   })
   const yield10yPct: Array<number | null> = closeSeries.map((p) => y10ByDate.get(p.date) ?? null)
-  const spreadPct: Array<number | null> = closeSeries.map((p, i) => {
+  const spreadRawPct: Array<number | null> = closeSeries.map((p, i) => {
     const dy = dividendYieldPct[i]
     const y = yield10yPct[i]
     if (dy == null || y == null) return null
     return dy - y
   })
-  const spreadPctRank3y = buildRollingPercentile(spreadPct, 756, 252)
+  const alpha = 1 - Math.exp(Math.log(0.5) / 126)
+  let prevSmooth: number | null = null
+  const spreadSmoothPct: Array<number | null> = spreadRawPct.map((x) => {
+    if (x == null) return null
+    prevSmooth = prevSmooth == null ? x : alpha * x + (1 - alpha) * prevSmooth
+    return prevSmooth
+  })
+  const spreadPct = spreadRawPct
+  const spreadPctRank3y = buildRollingPercentile(spreadRawPct, 756, 252)
+  const spreadPctRank10y = buildRollingPercentile(spreadRawPct, 2520, 252)
 
   const series: LowVolDailyPoint[] = closeSeries.map((p, i) => ({
     date: p.date,
@@ -250,8 +214,11 @@ export async function getLowVolH30269Series(args?: {
     biasPct3y: biasPct3y[i],
     dividendYieldPct: dividendYieldPct[i],
     yield10yPct: yield10yPct[i],
+    spreadRawPct: spreadRawPct[i],
+    spreadSmoothPct: spreadSmoothPct[i],
     spreadPct: spreadPct[i],
     spreadPctRank3y: spreadPctRank3y[i],
+    spreadPctRank10y: spreadPctRank10y[i],
   }))
 
   const last = series.length ? series[series.length - 1] : null
@@ -261,7 +228,9 @@ export async function getLowVolH30269Series(args?: {
     source: 'csindex + chinamoney',
     notes: [
       '指数点位数据源：csindex（index-perf）。',
-      '股息收益率口径：使用价格指数 H30269 与全收益指数 H20269 的滚动3年“股息收益率”推算，并做年化：DividendReturn(3Y)= (TRI_t/TRI_{t-756}) / (PRI_t/PRI_{t-756}) - 1；Annualized=(1+DividendReturn)^(1/3)-1。',
+      '股息收益率口径：使用价格指数 H30269 与全收益指数 H20269 的滚动1年（252交易日）“股息收益率”推算：DividendReturn(1Y)= (TRI_t/TRI_{t-252}) / (PRI_t/PRI_{t-252}) - 1。',
+      '利差口径：spreadRaw=股息收益率(1Y)-10Y；spreadSmooth=对spreadRaw做EWMA平滑（半衰期6个月≈126交易日）。',
+      '利差分位：10年滚动分位基于spreadRaw（不使用平滑值）。',
       '乖离率BIAS口径：250日简单移动平均，BIAS=(close-ma250)/ma250。',
       '滚动分位数窗口：3年≈756个交易日（最小有效252个样本）。',
       '10Y国债收益率数据源：chinamoney。',
