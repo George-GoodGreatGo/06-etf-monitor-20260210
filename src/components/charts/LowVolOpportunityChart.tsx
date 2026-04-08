@@ -47,9 +47,7 @@ function fmt(v: number | null | undefined, digits = 2): string {
   return s.replace(/\.00$/, '')
 }
 
-type SubView = 'bias' | 'biasPct' | 'spreadSmooth' | 'spreadPctRank10y'
-
-type Hover = {
+type HoverState = {
   t: UTCTimestamp
   date: string
   close?: number
@@ -66,19 +64,45 @@ type Props = {
 }
 
 export default function LowVolOpportunityChart({ series, className }: Props) {
-  const [subView, setSubView] = useState<SubView>('spreadSmooth')
-  const [hover, setHover] = useState<Hover | null>(null)
+  const [hover, setHover] = useState<HoverState | null>(null)
 
   const mainElRef = useRef<HTMLDivElement | null>(null)
-  const subElRef = useRef<HTMLDivElement | null>(null)
+  const biasElRef = useRef<HTMLDivElement | null>(null)
+  const biasPctElRef = useRef<HTMLDivElement | null>(null)
+  const spreadElRef = useRef<HTMLDivElement | null>(null)
+  const spreadPctElRef = useRef<HTMLDivElement | null>(null)
 
-  const chartsRef = useRef<{ main: IChartApi | null; sub: IChartApi | null }>({ main: null, sub: null })
+  const chartsRef = useRef<{
+    main: IChartApi | null
+    bias: IChartApi | null
+    biasPct: IChartApi | null
+    spread: IChartApi | null
+    spreadPct: IChartApi | null
+  }>({ main: null, bias: null, biasPct: null, spread: null, spreadPct: null })
+
   const seriesRef = useRef<{
     mainClose: ISeriesApi<'Line', Time> | null
     mainMa: ISeriesApi<'Line', Time> | null
-    subMetric: ISeriesApi<'Line', Time> | null
-    subAlign: ISeriesApi<'Line', Time> | null
-  }>({ mainClose: null, mainMa: null, subMetric: null, subAlign: null })
+    bias: ISeriesApi<'Line', Time> | null
+    biasAlign: ISeriesApi<'Line', Time> | null
+    biasPct: ISeriesApi<'Line', Time> | null
+    biasPctAlign: ISeriesApi<'Line', Time> | null
+    spread: ISeriesApi<'Line', Time> | null
+    spreadAlign: ISeriesApi<'Line', Time> | null
+    spreadPct: ISeriesApi<'Line', Time> | null
+    spreadPctAlign: ISeriesApi<'Line', Time> | null
+  }>({
+    mainClose: null,
+    mainMa: null,
+    bias: null,
+    biasAlign: null,
+    biasPct: null,
+    biasPctAlign: null,
+    spread: null,
+    spreadAlign: null,
+    spreadPct: null,
+    spreadPctAlign: null,
+  })
 
   const syncingRef = useRef(false)
   const initViewKeyRef = useRef('')
@@ -90,7 +114,7 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
     const biasPct: LineData<Time>[] = []
     const spreadSmooth: LineData<Time>[] = []
     const spreadPctRank10y: LineData<Time>[] = []
-    const map = new Map<UTCTimestamp, Hover>()
+    const map = new Map<UTCTimestamp, HoverState>()
 
     for (const p of series) {
       const t = ymdToUtcSeconds(p.date)
@@ -191,8 +215,203 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
   }, [])
 
   useEffect(() => {
-    const el = subElRef.current
-    if (!el || chartsRef.current.sub) return
+    const el = biasElRef.current
+    if (!el || chartsRef.current.bias) return
+
+    const chart = createChart(el, {
+      autoSize: true,
+      handleScroll: {
+        mouseWheel: false,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
+      handleScale: {
+        mouseWheel: false,
+        pinch: false,
+      },
+      layout: {
+        background: { type: ColorType.Solid, color: '#111B2E' },
+        textColor: '#A9B6CC',
+        fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif',
+      },
+      grid: {
+        vertLines: { color: 'rgba(255,255,255,0.06)' },
+        horzLines: { color: 'rgba(255,255,255,0.06)' },
+      },
+      rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)', minimumWidth: SCALE_MIN_WIDTH },
+      timeScale: {
+        borderColor: 'rgba(255,255,255,0.10)',
+        visible: false,
+        fixLeftEdge: true,
+        fixRightEdge: true,
+        rightOffset: 0,
+      },
+      crosshair: { mode: CrosshairMode.Normal },
+    })
+
+    const metric = chart.addSeries(LineSeries, {
+      color: '#60A5FA',
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: true,
+      priceFormat: { type: 'custom', formatter: (v) => fmt(v, 4) },
+    })
+
+    const align = chart.addSeries(LineSeries, {
+      color: 'rgba(255,255,255,0)',
+      lineWidth: 1,
+      priceLineVisible: false,
+      lastValueVisible: false,
+    })
+    align.applyOptions({ visible: false })
+
+    chartsRef.current.bias = chart
+    seriesRef.current.bias = metric
+    seriesRef.current.biasAlign = align
+
+    return () => {
+      chart.remove()
+      if (chartsRef.current.bias === chart) chartsRef.current.bias = null
+      seriesRef.current.bias = null
+      seriesRef.current.biasAlign = null
+    }
+  }, [])
+
+  useEffect(() => {
+    const el = biasPctElRef.current
+    if (!el || chartsRef.current.biasPct) return
+
+    const chart = createChart(el, {
+      autoSize: true,
+      handleScroll: {
+        mouseWheel: false,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
+      handleScale: {
+        mouseWheel: false,
+        pinch: false,
+      },
+      layout: {
+        background: { type: ColorType.Solid, color: '#111B2E' },
+        textColor: '#A9B6CC',
+        fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif',
+      },
+      grid: {
+        vertLines: { color: 'rgba(255,255,255,0.06)' },
+        horzLines: { color: 'rgba(255,255,255,0.06)' },
+      },
+      rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)', minimumWidth: SCALE_MIN_WIDTH },
+      timeScale: {
+        borderColor: 'rgba(255,255,255,0.10)',
+        visible: false,
+        fixLeftEdge: true,
+        fixRightEdge: true,
+        rightOffset: 0,
+      },
+      crosshair: { mode: CrosshairMode.Normal },
+    })
+
+    const metric = chart.addSeries(LineSeries, {
+      color: '#60A5FA',
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: true,
+      priceFormat: { type: 'custom', formatter: (v) => fmt(v, 1) },
+      autoscaleInfoProvider: () => ({
+        priceRange: { minValue: 0, maxValue: 100 },
+      }),
+    })
+
+    const align = chart.addSeries(LineSeries, {
+      color: 'rgba(255,255,255,0)',
+      lineWidth: 1,
+      priceLineVisible: false,
+      lastValueVisible: false,
+    })
+    align.applyOptions({ visible: false })
+
+    chartsRef.current.biasPct = chart
+    seriesRef.current.biasPct = metric
+    seriesRef.current.biasPctAlign = align
+
+    return () => {
+      chart.remove()
+      if (chartsRef.current.biasPct === chart) chartsRef.current.biasPct = null
+      seriesRef.current.biasPct = null
+      seriesRef.current.biasPctAlign = null
+    }
+  }, [])
+
+  useEffect(() => {
+    const el = spreadElRef.current
+    if (!el || chartsRef.current.spread) return
+
+    const chart = createChart(el, {
+      autoSize: true,
+      handleScroll: {
+        mouseWheel: false,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
+      handleScale: {
+        mouseWheel: false,
+        pinch: false,
+      },
+      layout: {
+        background: { type: ColorType.Solid, color: '#111B2E' },
+        textColor: '#A9B6CC',
+        fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif',
+      },
+      grid: {
+        vertLines: { color: 'rgba(255,255,255,0.06)' },
+        horzLines: { color: 'rgba(255,255,255,0.06)' },
+      },
+      rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)', minimumWidth: SCALE_MIN_WIDTH },
+      timeScale: {
+        borderColor: 'rgba(255,255,255,0.10)',
+        visible: false,
+        fixLeftEdge: true,
+        fixRightEdge: true,
+        rightOffset: 0,
+      },
+      crosshair: { mode: CrosshairMode.Normal },
+    })
+
+    const metric = chart.addSeries(LineSeries, {
+      color: '#A78BFA',
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: true,
+      priceFormat: { type: 'custom', formatter: (v) => fmt(v, 2) },
+    })
+
+    const align = chart.addSeries(LineSeries, {
+      color: 'rgba(255,255,255,0)',
+      lineWidth: 1,
+      priceLineVisible: false,
+      lastValueVisible: false,
+    })
+    align.applyOptions({ visible: false })
+
+    chartsRef.current.spread = chart
+    seriesRef.current.spread = metric
+    seriesRef.current.spreadAlign = align
+
+    return () => {
+      chart.remove()
+      if (chartsRef.current.spread === chart) chartsRef.current.spread = null
+      seriesRef.current.spread = null
+      seriesRef.current.spreadAlign = null
+    }
+  }, [])
+
+  useEffect(() => {
+    const el = spreadPctElRef.current
+    if (!el || chartsRef.current.spreadPct) return
 
     const chart = createChart(el, {
       autoSize: true,
@@ -231,7 +450,10 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
       lineWidth: 2,
       priceLineVisible: false,
       lastValueVisible: true,
-      priceFormat: { type: 'custom', formatter: (v) => fmt(v, 2) },
+      priceFormat: { type: 'custom', formatter: (v) => fmt(v, 1) },
+      autoscaleInfoProvider: () => ({
+        priceRange: { minValue: 0, maxValue: 100 },
+      }),
     })
 
     const align = chart.addSeries(LineSeries, {
@@ -242,24 +464,27 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
     })
     align.applyOptions({ visible: false })
 
-    chartsRef.current.sub = chart
-    seriesRef.current.subMetric = metric
-    seriesRef.current.subAlign = align
+    chartsRef.current.spreadPct = chart
+    seriesRef.current.spreadPct = metric
+    seriesRef.current.spreadPctAlign = align
 
     return () => {
       chart.remove()
-      if (chartsRef.current.sub === chart) chartsRef.current.sub = null
-      seriesRef.current.subMetric = null
-      seriesRef.current.subAlign = null
+      if (chartsRef.current.spreadPct === chart) chartsRef.current.spreadPct = null
+      seriesRef.current.spreadPct = null
+      seriesRef.current.spreadPctAlign = null
     }
   }, [])
 
   useEffect(() => {
     const main = chartsRef.current.main
-    const sub = chartsRef.current.sub
-    if (!main || !sub) return
+    const bias = chartsRef.current.bias
+    const biasPct = chartsRef.current.biasPct
+    const spread = chartsRef.current.spread
+    const spreadPct = chartsRef.current.spreadPct
+    if (!main || !bias || !biasPct || !spread || !spreadPct) return
 
-    const charts: IChartApi[] = [main, sub]
+    const charts: IChartApi[] = [main, bias, biasPct, spread, spreadPct]
 
     const onVisibleLogicalRange = (src: IChartApi) => (range: LogicalRange | null) => {
       if (syncingRef.current) return
@@ -290,23 +515,24 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
       setHover(h)
 
       const mainClose = seriesRef.current.mainClose
-      const subMetric = seriesRef.current.subMetric
-      const v =
-        subView === 'bias'
-          ? h?.bias
-          : subView === 'biasPct'
-            ? h?.biasPct
-            : subView === 'spreadSmooth'
-              ? h?.spreadSmooth
-              : h?.spreadPctRank10y
+      const biasSeries = seriesRef.current.bias
+      const biasPctSeries = seriesRef.current.biasPct
+      const spreadSeries = seriesRef.current.spread
+      const spreadPctSeries = seriesRef.current.spreadPct
 
       syncingRef.current = true
       for (const c of charts) {
         if (c === src) continue
         if (c === main && mainClose && typeof h?.close === 'number') {
           c.setCrosshairPosition(h.close, t, mainClose)
-        } else if (c === sub && subMetric && typeof v === 'number') {
-          c.setCrosshairPosition(v, t, subMetric)
+        } else if (c === bias && biasSeries && typeof h?.bias === 'number') {
+          c.setCrosshairPosition(h.bias, t, biasSeries)
+        } else if (c === biasPct && biasPctSeries && typeof h?.biasPct === 'number') {
+          c.setCrosshairPosition(h.biasPct, t, biasPctSeries)
+        } else if (c === spread && spreadSeries && typeof h?.spreadSmooth === 'number') {
+          c.setCrosshairPosition(h.spreadSmooth, t, spreadSeries)
+        } else if (c === spreadPct && spreadPctSeries && typeof h?.spreadPctRank10y === 'number') {
+          c.setCrosshairPosition(h.spreadPctRank10y, t, spreadPctSeries)
         } else {
           c.clearCrosshairPosition()
         }
@@ -324,46 +550,26 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
       for (const { chart, fn } of rangeHandlers) chart.timeScale().unsubscribeVisibleLogicalRangeChange(fn)
       for (const { chart, fn } of crossHandlers) chart.unsubscribeCrosshairMove(fn)
     }
-  }, [data.map, subView])
+  }, [data.map])
 
   useEffect(() => {
     seriesRef.current.mainClose?.setData(data.close)
     seriesRef.current.mainMa?.setData(data.ma)
-
-    const metricSeries = seriesRef.current.subMetric
-    if (metricSeries) {
-      if (subView === 'bias') metricSeries.setData(data.bias)
-      else if (subView === 'biasPct') metricSeries.setData(data.biasPct)
-      else if (subView === 'spreadSmooth') metricSeries.setData(data.spreadSmooth)
-      else metricSeries.setData(data.spreadPctRank10y)
-    }
-    seriesRef.current.subAlign?.setData(data.close)
-
-    const subChart = chartsRef.current.sub
-    if (subChart) {
-      if (subView === 'biasPct' || subView === 'spreadPctRank10y') {
-        metricSeries?.applyOptions({
-          autoscaleInfoProvider: () => ({
-            priceRange: { minValue: 0, maxValue: 100 },
-          }),
-          priceFormat: { type: 'custom', formatter: (v) => fmt(v, 1) },
-        })
-      } else if (subView === 'bias') {
-        metricSeries?.applyOptions({
-          autoscaleInfoProvider: undefined,
-          priceFormat: { type: 'custom', formatter: (v) => fmt(v, 4) },
-        })
-      } else {
-        metricSeries?.applyOptions({
-          autoscaleInfoProvider: undefined,
-          priceFormat: { type: 'custom', formatter: (v) => fmt(v, 2) },
-        })
-      }
-    }
+    seriesRef.current.bias?.setData(data.bias)
+    seriesRef.current.biasAlign?.setData(data.close)
+    seriesRef.current.biasPct?.setData(data.biasPct)
+    seriesRef.current.biasPctAlign?.setData(data.close)
+    seriesRef.current.spread?.setData(data.spreadSmooth)
+    seriesRef.current.spreadAlign?.setData(data.close)
+    seriesRef.current.spreadPct?.setData(data.spreadPctRank10y)
+    seriesRef.current.spreadPctAlign?.setData(data.close)
 
     const main = chartsRef.current.main
-    const sub = chartsRef.current.sub
-    if (!main || !sub) return
+    const bias = chartsRef.current.bias
+    const biasPct = chartsRef.current.biasPct
+    const spread = chartsRef.current.spread
+    const spreadPct = chartsRef.current.spreadPct
+    if (!main || !bias || !biasPct || !spread || !spreadPct) return
 
     const key = data.close.length ? `${data.close.length}:${String(data.close[data.close.length - 1]?.time ?? '')}` : ''
     if (key && initViewKeyRef.current !== key) {
@@ -375,19 +581,13 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
     }
 
     const range = main.timeScale().getVisibleLogicalRange()
-    if (range) sub.timeScale().setVisibleLogicalRange(range)
-  }, [data, subView])
-
-  const subTitle = subView === 'bias' ? 'BIAS(250)' : subView === 'biasPct' ? 'BIAS分位(3年)' : subView === 'spreadSmooth' ? '利差（平滑）' : '利差分位(10年)'
-  const subUnit = subView === 'bias' ? '' : subView === 'biasPct' ? '%' : subView === 'spreadSmooth' ? '%' : '%'
-  const subValue =
-    subView === 'bias'
-      ? hover?.bias
-      : subView === 'biasPct'
-        ? hover?.biasPct
-        : subView === 'spreadSmooth'
-          ? hover?.spreadSmooth
-          : hover?.spreadPctRank10y
+    if (range) {
+      bias.timeScale().setVisibleLogicalRange(range)
+      biasPct.timeScale().setVisibleLogicalRange(range)
+      spread.timeScale().setVisibleLogicalRange(range)
+      spreadPct.timeScale().setVisibleLogicalRange(range)
+    }
+  }, [data])
 
   return (
     <div className={cn('relative overflow-hidden rounded border border-white/10 bg-[#111B2E]', className)}>
@@ -399,36 +599,29 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
       </div>
       <div ref={mainElRef} className="h-[300px] w-full" />
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 px-3 py-2">
-        <div className="flex flex-wrap items-center gap-2 text-xs text-[#A9B6CC]">
-          {(
-            [
-              { k: 'bias', label: 'BIAS(250)', dot: '#60A5FA' },
-              { k: 'biasPct', label: 'BIAS分位', dot: '#60A5FA' },
-              { k: 'spreadSmooth', label: '利差(平滑)', dot: '#A78BFA' },
-              { k: 'spreadPctRank10y', label: '利差分位', dot: '#A78BFA' },
-            ] as Array<{ k: SubView; label: string; dot: string }>
-          ).map((b) => (
-            <button
-              key={b.k}
-              type="button"
-              onClick={() => setSubView(b.k)}
-              className={cn(
-                'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
-                subView === b.k ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
-              )}
-            >
-              <span className="h-2 w-2 rounded-full" style={{ background: b.dot }} />
-              {b.label}
-            </button>
-          ))}
-        </div>
-        <div className="text-xs text-[#A9B6CC]">
-          {subTitle} · {fmt(subValue ?? null, subView === 'bias' ? 4 : 2)}
-          {subUnit ? ` ${subUnit}` : ''}
-        </div>
+      <div className="flex items-center justify-between gap-2 border-t border-white/10 px-3 py-2">
+        <div className="text-xs font-semibold text-white">BIAS(250)</div>
+        <div className="text-xs text-[#A9B6CC]">{fmt(hover?.bias ?? null, 4)}</div>
       </div>
-      <div ref={subElRef} className="h-[160px] w-full" />
+      <div ref={biasElRef} className="h-[140px] w-full" />
+
+      <div className="flex items-center justify-between gap-2 border-t border-white/10 px-3 py-2">
+        <div className="text-xs font-semibold text-white">BIAS分位(3年)</div>
+        <div className="text-xs text-[#A9B6CC]">{fmt(hover?.biasPct ?? null, 1)} %</div>
+      </div>
+      <div ref={biasPctElRef} className="h-[140px] w-full" />
+
+      <div className="flex items-center justify-between gap-2 border-t border-white/10 px-3 py-2">
+        <div className="text-xs font-semibold text-white">利差（平滑）</div>
+        <div className="text-xs text-[#A9B6CC]">{fmt(hover?.spreadSmooth ?? null, 2)} %</div>
+      </div>
+      <div ref={spreadElRef} className="h-[140px] w-full" />
+
+      <div className="flex items-center justify-between gap-2 border-t border-white/10 px-3 py-2">
+        <div className="text-xs font-semibold text-white">利差分位(10年)</div>
+        <div className="text-xs text-[#A9B6CC]">{fmt(hover?.spreadPctRank10y ?? null, 1)} %</div>
+      </div>
+      <div ref={spreadPctElRef} className="h-[140px] w-full" />
     </div>
   )
 }
