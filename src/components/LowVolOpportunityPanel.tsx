@@ -1,8 +1,32 @@
 import { useEffect, useState } from 'react'
 import DataStatusBanner from '@/components/DataStatusBanner'
 import LowVolOpportunityChart from '@/components/charts/LowVolOpportunityChart'
+import { cn } from '@/lib/utils'
 import { fetchLowVolH30269, type LowVolH30269Point } from '@/utils/marketApi'
 import type { Top100Meta } from '@/utils/etfApi'
+
+function fmt(v: number | null | undefined, digits: number): string {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return '—'
+  return v.toFixed(digits).replace(/\.0+$/, '')
+}
+
+function calcSuggestion(args: {
+  spreadPctRank10y: number | null | undefined
+  biasPct3y: number | null | undefined
+}): { label: string; cls: string } {
+  const spread = args.spreadPctRank10y
+  const bias = args.biasPct3y
+  if (typeof spread !== 'number' || !Number.isFinite(spread)) return { label: '—', cls: 'text-[#94A3B8]' }
+  const cheap = spread >= 80
+  const expensive = spread <= 20
+  const lowBias = typeof bias === 'number' && Number.isFinite(bias) ? bias <= 30 : false
+  const highBias = typeof bias === 'number' && Number.isFinite(bias) ? bias >= 70 : false
+  if (cheap && lowBias) return { label: '偏配置', cls: 'text-[#34D399]' }
+  if (expensive && highBias) return { label: '偏减仓', cls: 'text-[#F87171]' }
+  if (cheap) return { label: '偏配置', cls: 'text-[#FBBF24]' }
+  if (expensive) return { label: '偏观望', cls: 'text-[#FBBF24]' }
+  return { label: '偏观望', cls: 'text-[#94A3B8]' }
+}
 
 export default function LowVolOpportunityPanel() {
   const [loading, setLoading] = useState(true)
@@ -42,22 +66,64 @@ export default function LowVolOpportunityPanel() {
     void run()
   }, [])
 
+  const latest = series.length ? series[series.length - 1] : null
+  const suggestion = calcSuggestion({ spreadPctRank10y: latest?.spreadPctRank10y, biasPct3y: latest?.biasPct3y })
+
   return (
     <div className="mx-auto w-full max-w-6xl px-3 pb-10 pt-5 sm:px-4">
-      <div className="mb-3">
-        <DataStatusBanner loading={loading} error={error} meta={meta} incompleteCount={0} onRetry={run} />
-      </div>
+      <section className="mt-4 overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <div className="text-xl font-semibold tracking-tight text-white">低波指数机会识别</div>
+            <div className="mt-2 space-y-1 text-[13px] leading-relaxed text-[#94A3B8]">
+              <p>
+                <span className="font-medium text-[#CBD5E1]">红利低波（H30269）</span>：以红利与低波动特征构建的指数序列，用于跟踪“类债权益”机会。
+              </p>
+              <p>
+                <span className="font-medium text-[#CBD5E1]">股息收益率</span>：滚动1年（252交易日），由 PRI/TRI 推算的分红贡献（回溯口径）。
+              </p>
+              <p>
+                <span className="font-medium text-[#CBD5E1]">利差（平滑）</span>：spreadRaw=股息收益率(1Y)-10Y；spreadSmooth=对 spreadRaw 做 EWMA 平滑（半衰期6个月≈126交易日）。
+              </p>
+              <p>
+                <span className="font-medium text-[#CBD5E1]">利差分位(10年)</span>：基于 spreadRaw 的 10 年滚动分位（window≈2520，minPeriods=252）。
+              </p>
+            </div>
+          </div>
 
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="text-sm font-semibold text-white">低波指数机会识别 · 红利低波（H30269）</div>
-      </div>
-      <div className="mb-3 text-xs text-[#94A3B8]">
-        股息收益率=滚动1年（PRI/TRI推算）；利差（平滑）=spreadRaw 的 EWMA（半衰期6个月）；利差分位基于 raw 的10年滚动分位。
-      </div>
+          <div className="flex flex-col items-end gap-2">
+            <div className="min-w-[240px] rounded-lg border border-[#1E293B] bg-[#0F172A] px-3 py-2 text-xs">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-[#94A3B8]">数据日期</div>
+                <div className="font-mono text-[11px] text-[#A9B6CC]">{latest?.date ?? '—'}</div>
+              </div>
 
-      <div className="rounded-xl border border-white/10 bg-[#0B1020] p-3 sm:p-4">
-        <LowVolOpportunityChart series={series} />
-      </div>
+              <div className="mt-2 space-y-1">
+                <div className="flex items-baseline justify-between gap-4">
+                  <div className="text-[#94A3B8]">指数点位</div>
+                  <div className="font-mono text-sm font-semibold text-[#F8FAFC]">{fmt(latest?.close, 2)}</div>
+                </div>
+                <div className="flex items-baseline justify-between gap-4">
+                  <div className="text-[#94A3B8]">利差分位(10年)</div>
+                  <div className="font-mono text-sm font-semibold text-[#F8FAFC]">{fmt(latest?.spreadPctRank10y, 1)}</div>
+                </div>
+                <div className="flex items-baseline justify-between gap-4">
+                  <div className="text-[#94A3B8]">建议</div>
+                  <div className={cn('text-xs font-medium', suggestion.cls)}>{suggestion.label}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3">
+          <DataStatusBanner loading={loading} error={error} meta={meta} incompleteCount={0} onRetry={run} />
+        </div>
+
+        <div className="mt-4">
+          <LowVolOpportunityChart series={series} />
+        </div>
+      </section>
     </div>
   )
 }
