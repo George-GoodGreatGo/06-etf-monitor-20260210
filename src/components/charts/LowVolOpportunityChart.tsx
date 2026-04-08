@@ -76,6 +76,8 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
   const biasPctElRef = useRef<HTMLDivElement | null>(null)
   const spreadElRef = useRef<HTMLDivElement | null>(null)
   const spreadPctElRef = useRef<HTMLDivElement | null>(null)
+  const spreadPctCheapBgRef = useRef<HTMLDivElement | null>(null)
+  const spreadPctExpBgRef = useRef<HTMLDivElement | null>(null)
 
   const chartsRef = useRef<{
     main: IChartApi | null
@@ -111,6 +113,50 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
 
   const syncingRef = useRef(false)
   const initViewKeyRef = useRef('')
+
+  const signal = useMemo(() => {
+    const spreadPctRank10y = hover?.spreadPctRank10y
+    const biasPct3y = hover?.biasPct
+    if (typeof spreadPctRank10y !== 'number' || !Number.isFinite(spreadPctRank10y)) return null
+
+    const cheap = spreadPctRank10y >= 80
+    const expensive = spreadPctRank10y <= 20
+    const lowBias = typeof biasPct3y === 'number' && Number.isFinite(biasPct3y) ? biasPct3y <= 30 : false
+    const highBias = typeof biasPct3y === 'number' && Number.isFinite(biasPct3y) ? biasPct3y >= 70 : false
+
+    if (cheap && lowBias) return { label: '偏配置', tone: 'good' as const }
+    if (expensive && highBias) return { label: '偏减仓', tone: 'bad' as const }
+    if (cheap) return { label: '偏配置（等待更好位置）', tone: 'mid' as const }
+    if (expensive) return { label: '偏观望（性价比偏低）', tone: 'mid' as const }
+    return { label: '偏观望', tone: 'neutral' as const }
+  }, [hover?.biasPct, hover?.spreadPctRank10y])
+
+  const updateSpreadPctZones = () => {
+    if (!showSpreadPctPane) return
+    const chart = chartsRef.current.spreadPct
+    const cheapBg = spreadPctCheapBgRef.current
+    const expBg = spreadPctExpBgRef.current
+    const metric = seriesRef.current.spreadPct as unknown as { priceToCoordinate?: (price: number) => number | null } | null
+    if (!chart || !cheapBg || !expBg || !metric?.priceToCoordinate) return
+
+    const y100 = metric.priceToCoordinate(100)
+    const y80 = metric.priceToCoordinate(80)
+    const y20 = metric.priceToCoordinate(20)
+    const y0 = metric.priceToCoordinate(0)
+    if (y100 == null || y80 == null || y20 == null || y0 == null) return
+
+    const cheapTop = Math.min(y100, y80)
+    const cheapBottom = Math.max(y100, y80)
+    cheapBg.style.top = `${cheapTop}px`
+    cheapBg.style.height = `${Math.max(0, cheapBottom - cheapTop)}px`
+    cheapBg.style.right = `${SCALE_MIN_WIDTH}px`
+
+    const expTop = Math.min(y20, y0)
+    const expBottom = Math.max(y20, y0)
+    expBg.style.top = `${expTop}px`
+    expBg.style.height = `${Math.max(0, expBottom - expTop)}px`
+    expBg.style.right = `${SCALE_MIN_WIDTH}px`
+  }
 
   const data = useMemo(() => {
     const close: LineData<Time>[] = []
@@ -609,7 +655,21 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
       if (showSpreadPane) spread.timeScale().setVisibleLogicalRange(range)
       if (showSpreadPctPane) spreadPct.timeScale().setVisibleLogicalRange(range)
     }
+    requestAnimationFrame(updateSpreadPctZones)
   }, [data, showBiasPane, showBiasPctPane, showMa250, showSpreadPane, showSpreadPctPane])
+
+  useEffect(() => {
+    if (!showSpreadPctPane || !spreadPctElRef.current) return
+    const ro =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(() => {
+            requestAnimationFrame(updateSpreadPctZones)
+          })
+    if (ro) ro.observe(spreadPctElRef.current)
+    requestAnimationFrame(updateSpreadPctZones)
+    return () => ro?.disconnect()
+  }, [showSpreadPctPane])
 
   return (
     <div className={cn('relative', className)}>
@@ -676,6 +736,27 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
         <div className="pointer-events-none absolute right-3 top-10 z-10 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-[#E6EDF7] backdrop-blur">
           <div className="font-mono text-[11px] text-[#A9B6CC]">{hover.date}</div>
           <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
+            {signal ? (
+              <>
+                <div className="text-[#A9B6CC]">建议</div>
+                <div className="text-right">
+                  <span
+                    className={cn(
+                      'rounded px-2 py-[2px] font-mono text-[11px]',
+                      signal.tone === 'good'
+                        ? 'bg-[rgba(16,185,129,0.22)] text-[#34D399]'
+                        : signal.tone === 'bad'
+                          ? 'bg-[rgba(239,68,68,0.22)] text-[#F87171]'
+                          : signal.tone === 'mid'
+                            ? 'bg-[rgba(245,158,11,0.18)] text-[#FBBF24]'
+                            : 'bg-white/10 text-[#E6EDF7]',
+                    )}
+                  >
+                    {signal.label}
+                  </span>
+                </div>
+              </>
+            ) : null}
             <div className="text-[#A9B6CC]">红利低波</div>
             <div className="text-right font-mono">{fmt(hover.close, 2)}</div>
             {showMa250 ? (
@@ -769,6 +850,18 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
           <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
             利差分位(10年)
           </div>
+          <div
+            ref={spreadPctCheapBgRef}
+            className="pointer-events-none absolute left-0 z-0 bg-[rgba(16,185,129,0.10)]"
+            style={{ right: SCALE_MIN_WIDTH }}
+            aria-hidden="true"
+          />
+          <div
+            ref={spreadPctExpBgRef}
+            className="pointer-events-none absolute left-0 z-0 bg-[rgba(239,68,68,0.10)]"
+            style={{ right: SCALE_MIN_WIDTH }}
+            aria-hidden="true"
+          />
           <div ref={spreadPctElRef} className="relative z-10 h-full w-full" />
         </div>
       </div>
