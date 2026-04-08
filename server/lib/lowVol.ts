@@ -216,7 +216,7 @@ export async function getLowVolH30269Series(args?: {
   }
 
   const dividendYieldPct: Array<number | null> = closeSeries.map((p, i) => {
-    const lookback = i - 252
+    const lookback = i - 756
     if (lookback < 0) return null
     const priNow = p.close
     const priThen = closeSeries[lookback]?.close
@@ -228,7 +228,10 @@ export async function getLowVolH30269Series(args?: {
     const totalFactor = triNow / triThen
     const divFactor = totalFactor / priceFactor
     const divReturn = divFactor - 1
-    return Number.isFinite(divReturn) ? divReturn * 100 : null
+    const base = 1 + divReturn
+    if (!(base > 0) || !Number.isFinite(base)) return null
+    const ann = Math.pow(base, 1 / 3) - 1
+    return Number.isFinite(ann) ? ann * 100 : null
   })
   const yield10yPct: Array<number | null> = closeSeries.map((p) => y10ByDate.get(p.date) ?? null)
   const spreadPct: Array<number | null> = closeSeries.map((p, i) => {
@@ -258,7 +261,7 @@ export async function getLowVolH30269Series(args?: {
     source: 'csindex + chinamoney',
     notes: [
       '指数点位数据源：csindex（index-perf）。',
-      '股息率口径：使用价格指数 H30269 与全收益指数 H20269 的滚动1年“股息收益率”推算：DividendReturn(1Y)= (TRI_t/TRI_{t-252}) / (PRI_t/PRI_{t-252}) - 1。',
+      '股息收益率口径：使用价格指数 H30269 与全收益指数 H20269 的滚动3年“股息收益率”推算，并做年化：DividendReturn(3Y)= (TRI_t/TRI_{t-756}) / (PRI_t/PRI_{t-756}) - 1；Annualized=(1+DividendReturn)^(1/3)-1。',
       '乖离率BIAS口径：250日简单移动平均，BIAS=(close-ma250)/ma250。',
       '滚动分位数窗口：3年≈756个交易日（最小有效252个样本）。',
       '10Y国债收益率数据源：chinamoney。',

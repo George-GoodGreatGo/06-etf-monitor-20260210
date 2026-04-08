@@ -146,7 +146,7 @@ export default function LowVolH30269Chart({ series, view, className }: Props) {
         : view === 'biasPct'
           ? 'BIAS分位(3年)'
           : view === 'spread'
-            ? '股息收益率(1Y)-10Y利差'
+            ? '股息收益率(3Y年化)-10Y利差'
             : '利差分位(3年)'
 
   const unit =
