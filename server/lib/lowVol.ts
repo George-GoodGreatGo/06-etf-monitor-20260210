@@ -186,7 +186,9 @@ export async function getLowVolH30269Series(args?: {
   const end8 = /^\d{8}$/.test(end) ? end : '20991231'
 
   const closeSeries = await fetchCsindexIndexCloseSeries({ indexCode: 'H30269', startDate: start8, endDate: end8 })
-  const dp2ByDate = await fetchCsindexDividendYieldRecentDp2({ indexCode: 'H30269' })
+  const triSeries = await fetchCsindexIndexCloseSeries({ indexCode: 'H20269', startDate: start8, endDate: end8 })
+  const triByDate = new Map<string, number>()
+  for (const p of triSeries) triByDate.set(p.date, p.close)
 
   const closes = closeSeries.map((p) => p.close)
   const ma250 = buildSma(closes, 250)
@@ -213,7 +215,21 @@ export async function getLowVolH30269Series(args?: {
     }
   }
 
-  const dividendYieldPct: Array<number | null> = closeSeries.map((p) => dp2ByDate.get(p.date) ?? null)
+  const dividendYieldPct: Array<number | null> = closeSeries.map((p, i) => {
+    const lookback = i - 252
+    if (lookback < 0) return null
+    const priNow = p.close
+    const priThen = closeSeries[lookback]?.close
+    const triNow = triByDate.get(p.date)
+    const triThen = triByDate.get(closeSeries[lookback]?.date)
+    if (priThen == null || priThen === 0) return null
+    if (triNow == null || triThen == null || triThen === 0) return null
+    const priceFactor = priNow / priThen
+    const totalFactor = triNow / triThen
+    const divFactor = totalFactor / priceFactor
+    const divReturn = divFactor - 1
+    return Number.isFinite(divReturn) ? divReturn * 100 : null
+  })
   const yield10yPct: Array<number | null> = closeSeries.map((p) => y10ByDate.get(p.date) ?? null)
   const spreadPct: Array<number | null> = closeSeries.map((p, i) => {
     const dy = dividendYieldPct[i]
@@ -242,9 +258,9 @@ export async function getLowVolH30269Series(args?: {
     source: 'csindex + chinamoney',
     notes: [
       '指数点位数据源：csindex（index-perf）。',
+      '股息率口径：使用价格指数 H30269 与全收益指数 H20269 的滚动1年“股息收益率”推算：DividendReturn(1Y)= (TRI_t/TRI_{t-252}) / (PRI_t/PRI_{t-252}) - 1。',
       '乖离率BIAS口径：250日简单移动平均，BIAS=(close-ma250)/ma250。',
       '滚动分位数窗口：3年≈756个交易日（最小有效252个样本）。',
-      '股息率口径：使用 csindex 指标自动文件 D/P2（目前仅覆盖最近可获取区间）。',
       '10Y国债收益率数据源：chinamoney。',
     ],
   }

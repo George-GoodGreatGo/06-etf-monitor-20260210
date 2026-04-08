@@ -52,7 +52,7 @@ export default function LowVolOpportunityPanel() {
         { key: 'close' as const, label: '指数点位' },
         { key: 'bias' as const, label: 'BIAS(250)' },
         { key: 'biasPct' as const, label: 'BIAS分位(3年)' },
-        { key: 'spread' as const, label: '股息率-10Y利差' },
+        { key: 'spread' as const, label: '股息收益率(1Y)-10Y利差' },
         { key: 'spreadPct' as const, label: '利差分位(3年)' },
       ] satisfies Array<{ key: ViewKey; label: string }>,
     [],

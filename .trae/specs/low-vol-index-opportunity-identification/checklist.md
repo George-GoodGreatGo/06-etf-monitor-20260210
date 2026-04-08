@@ -1,6 +1,5 @@
-- [ ] 首页同级 Tab 已新增：可通过 `?tab=lowvol` 进入且按钮可切换
-- [ ] 后端 API 可用：`/api/lowvol/h30269` 返回完整序列与 meta.notes
-- [ ] 指标计算正确：ma250、bias250、3年滚动分位、利差与利差分位均符合定义
-- [ ] 图表视图完整：点位/BIAS/BIAS分位/利差/利差分位 5 视图可切换且单位正确
-- [ ] 工程质量：`npm run check` 与 `npm run lint` 无新增 error
-
+- [x] 首页同级 Tab 已新增：可通过 `?tab=lowvol` 进入且按钮可切换
+- [x] 后端 API 可用：`/api/lowvol/h30269` 返回完整序列与 meta.notes
+- [x] 指标计算正确：ma250、bias250、3年滚动分位、利差与利差分位均符合定义
+- [x] 图表视图完整：点位/BIAS/BIAS分位/利差/利差分位 5 视图可切换且单位正确
+- [x] 工程质量：`npm run check` 与 `npm run lint` 无新增 error
