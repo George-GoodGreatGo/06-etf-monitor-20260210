@@ -55,7 +55,9 @@ export default function LowVolOpportunityPanel() {
         股息收益率=滚动1年（PRI/TRI推算）；利差（平滑）=spreadRaw 的 EWMA（半衰期6个月）；利差分位基于 raw 的10年滚动分位。
       </div>
 
-      <LowVolOpportunityChart series={series} />
+      <div className="rounded-xl border border-white/10 bg-[#0B1020] p-3 sm:p-4">
+        <LowVolOpportunityChart series={series} />
+      </div>
     </div>
   )
 }

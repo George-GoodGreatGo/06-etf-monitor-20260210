@@ -65,6 +65,7 @@ type Props = {
 
 export default function LowVolOpportunityChart({ series, className }: Props) {
   const [hover, setHover] = useState<HoverState | null>(null)
+  const [showInfo, setShowInfo] = useState(true)
   const [showMa250, setShowMa250] = useState(true)
   const [showBiasPane, setShowBiasPane] = useState(true)
   const [showBiasPctPane, setShowBiasPctPane] = useState(true)
@@ -518,8 +519,13 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
     chartsRef.current.spreadPct = chart
     seriesRef.current.spreadPct = metric
     seriesRef.current.spreadPctAlign = align
+    const onRange = () => {
+      requestAnimationFrame(updateSpreadPctZones)
+    }
+    chart.timeScale().subscribeVisibleLogicalRangeChange(onRange)
 
     return () => {
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRange)
       chart.remove()
       if (chartsRef.current.spreadPct === chart) chartsRef.current.spreadPct = null
       seriesRef.current.spreadPct = null
@@ -676,6 +682,17 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
       <div className="flex flex-wrap items-center gap-2 text-xs text-[#A9B6CC]">
         <button
           type="button"
+          onClick={() => setShowInfo((v) => !v)}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+            showInfo ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+          )}
+        >
+          <span className="h-2 w-2 rounded-full bg-[#A9B6CC]" />
+          说明
+        </button>
+        <button
+          type="button"
           onClick={() => setShowMa250((v) => !v)}
           className={cn(
             'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
@@ -732,8 +749,30 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
         </button>
       </div>
 
+      {showInfo ? (
+        <div className="mt-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-[#A9B6CC]">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <div className="text-[#E6EDF7]">建议规则</div>
+            <div>
+              <span className="mr-2 rounded bg-[rgba(16,185,129,0.18)] px-2 py-[2px] font-mono text-[11px] text-[#34D399]">偏配置</span>
+              利差分位(10年) ≥ 80 且 BIAS分位(3年) ≤ 30
+            </div>
+            <div>
+              <span className="mr-2 rounded bg-[rgba(239,68,68,0.18)] px-2 py-[2px] font-mono text-[11px] text-[#F87171]">偏减仓</span>
+              利差分位(10年) ≤ 20 且 BIAS分位(3年) ≥ 70
+            </div>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+            <div className="text-[#E6EDF7]">指标定义</div>
+            <div>股息收益率：滚动1年（252交易日，PRI/TRI推算）</div>
+            <div>利差（平滑）：spreadRaw 的 EWMA（半衰期6个月≈126交易日）</div>
+            <div>利差分位：spreadRaw 的10年滚动分位（window≈2520，minPeriods=252）</div>
+          </div>
+        </div>
+      ) : null}
+
       {hover ? (
-        <div className="pointer-events-none absolute right-3 top-10 z-10 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-[#E6EDF7] backdrop-blur">
+        <div className="pointer-events-none absolute right-3 top-[92px] z-10 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-[#E6EDF7] backdrop-blur">
           <div className="font-mono text-[11px] text-[#A9B6CC]">{hover.date}</div>
           <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
             {signal ? (
@@ -852,13 +891,13 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
           </div>
           <div
             ref={spreadPctCheapBgRef}
-            className="pointer-events-none absolute left-0 z-0 bg-[rgba(16,185,129,0.10)]"
+            className="pointer-events-none absolute left-0 z-20 bg-[rgba(16,185,129,0.14)]"
             style={{ right: SCALE_MIN_WIDTH }}
             aria-hidden="true"
           />
           <div
             ref={spreadPctExpBgRef}
-            className="pointer-events-none absolute left-0 z-0 bg-[rgba(239,68,68,0.10)]"
+            className="pointer-events-none absolute left-0 z-20 bg-[rgba(239,68,68,0.14)]"
             style={{ right: SCALE_MIN_WIDTH }}
             aria-hidden="true"
           />
