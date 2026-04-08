@@ -1,14 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import DataStatusBanner from '@/components/DataStatusBanner'
-import LowVolH30269Chart from '@/components/charts/LowVolH30269Chart'
-import { cn } from '@/lib/utils'
+import LowVolOpportunityChart from '@/components/charts/LowVolOpportunityChart'
 import { fetchLowVolH30269, type LowVolH30269Point } from '@/utils/marketApi'
 import type { Top100Meta } from '@/utils/etfApi'
 
-type ViewKey = 'close' | 'bias' | 'biasPct' | 'spread' | 'spreadPct'
-
 export default function LowVolOpportunityPanel() {
-  const [view, setView] = useState<ViewKey>('close')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [meta, setMeta] = useState<Top100Meta | null>(null)
@@ -46,18 +42,6 @@ export default function LowVolOpportunityPanel() {
     void run()
   }, [])
 
-  const buttons = useMemo(
-    () =>
-      [
-        { key: 'close' as const, label: '指数点位' },
-        { key: 'bias' as const, label: 'BIAS(250)' },
-        { key: 'biasPct' as const, label: 'BIAS分位(3年)' },
-        { key: 'spread' as const, label: '利差（平滑）' },
-        { key: 'spreadPct' as const, label: '利差分位(10年)' },
-      ] satisfies Array<{ key: ViewKey; label: string }>,
-    [],
-  )
-
   return (
     <div className="mx-auto w-full max-w-6xl px-3 pb-10 pt-5 sm:px-4">
       <div className="mb-3">
@@ -71,25 +55,7 @@ export default function LowVolOpportunityPanel() {
         股息收益率=滚动1年（PRI/TRI推算）；利差（平滑）=spreadRaw 的 EWMA（半衰期6个月）；利差分位基于 raw 的10年滚动分位。
       </div>
 
-      <div className="mb-3 flex flex-wrap gap-2">
-        {buttons.map((b) => (
-          <button
-            key={b.key}
-            type="button"
-            onClick={() => setView(b.key)}
-            className={cn(
-              'h-8 rounded-[8px] px-3 text-xs font-semibold transition',
-              view === b.key
-                ? 'bg-white text-black'
-                : 'border border-white/10 bg-[rgba(255,255,255,0.03)] text-[#E5E7EB] hover:bg-[rgba(255,255,255,0.06)]',
-            )}
-          >
-            {b.label}
-          </button>
-        ))}
-      </div>
-
-      <LowVolH30269Chart series={series} view={view} />
+      <LowVolOpportunityChart series={series} />
     </div>
   )
 }
