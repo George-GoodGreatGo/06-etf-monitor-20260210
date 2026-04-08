@@ -65,6 +65,11 @@ type Props = {
 
 export default function LowVolOpportunityChart({ series, className }: Props) {
   const [hover, setHover] = useState<HoverState | null>(null)
+  const [showMa250, setShowMa250] = useState(true)
+  const [showBiasPane, setShowBiasPane] = useState(true)
+  const [showBiasPctPane, setShowBiasPctPane] = useState(true)
+  const [showSpreadPane, setShowSpreadPane] = useState(true)
+  const [showSpreadPctPane, setShowSpreadPctPane] = useState(true)
 
   const mainElRef = useRef<HTMLDivElement | null>(null)
   const biasElRef = useRef<HTMLDivElement | null>(null)
@@ -482,9 +487,14 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
     const biasPct = chartsRef.current.biasPct
     const spread = chartsRef.current.spread
     const spreadPct = chartsRef.current.spreadPct
-    if (!main || !bias || !biasPct || !spread || !spreadPct) return
+    if (!main) return
 
-    const charts: IChartApi[] = [main, bias, biasPct, spread, spreadPct]
+    const charts: IChartApi[] = [main]
+    if (showBiasPane && bias) charts.push(bias)
+    if (showBiasPctPane && biasPct) charts.push(biasPct)
+    if (showSpreadPane && spread) charts.push(spread)
+    if (showSpreadPctPane && spreadPct) charts.push(spreadPct)
+    if (charts.length <= 1) return
 
     const onVisibleLogicalRange = (src: IChartApi) => (range: LogicalRange | null) => {
       if (syncingRef.current) return
@@ -550,18 +560,18 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
       for (const { chart, fn } of rangeHandlers) chart.timeScale().unsubscribeVisibleLogicalRangeChange(fn)
       for (const { chart, fn } of crossHandlers) chart.unsubscribeCrosshairMove(fn)
     }
-  }, [data.map])
+  }, [data.map, showBiasPane, showBiasPctPane, showSpreadPane, showSpreadPctPane])
 
   useEffect(() => {
     seriesRef.current.mainClose?.setData(data.close)
-    seriesRef.current.mainMa?.setData(data.ma)
-    seriesRef.current.bias?.setData(data.bias)
+    seriesRef.current.mainMa?.setData(showMa250 ? data.ma : [])
+    seriesRef.current.bias?.setData(showBiasPane ? data.bias : [])
     seriesRef.current.biasAlign?.setData(data.close)
-    seriesRef.current.biasPct?.setData(data.biasPct)
+    seriesRef.current.biasPct?.setData(showBiasPctPane ? data.biasPct : [])
     seriesRef.current.biasPctAlign?.setData(data.close)
-    seriesRef.current.spread?.setData(data.spreadSmooth)
+    seriesRef.current.spread?.setData(showSpreadPane ? data.spreadSmooth : [])
     seriesRef.current.spreadAlign?.setData(data.close)
-    seriesRef.current.spreadPct?.setData(data.spreadPctRank10y)
+    seriesRef.current.spreadPct?.setData(showSpreadPctPane ? data.spreadPctRank10y : [])
     seriesRef.current.spreadPctAlign?.setData(data.close)
 
     const main = chartsRef.current.main
@@ -570,6 +580,18 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
     const spread = chartsRef.current.spread
     const spreadPct = chartsRef.current.spreadPct
     if (!main || !bias || !biasPct || !spread || !spreadPct) return
+
+    const visiblePanes: Array<'bias' | 'biasPct' | 'spread' | 'spreadPct'> = []
+    if (showBiasPane) visiblePanes.push('bias')
+    if (showBiasPctPane) visiblePanes.push('biasPct')
+    if (showSpreadPane) visiblePanes.push('spread')
+    if (showSpreadPctPane) visiblePanes.push('spreadPct')
+    const lastPane = visiblePanes.length ? visiblePanes[visiblePanes.length - 1] : null
+    main.applyOptions({ timeScale: { visible: lastPane == null } })
+    bias.applyOptions({ timeScale: { visible: lastPane === 'bias' } })
+    biasPct.applyOptions({ timeScale: { visible: lastPane === 'biasPct' } })
+    spread.applyOptions({ timeScale: { visible: lastPane === 'spread' } })
+    spreadPct.applyOptions({ timeScale: { visible: lastPane === 'spreadPct' } })
 
     const key = data.close.length ? `${data.close.length}:${String(data.close[data.close.length - 1]?.time ?? '')}` : ''
     if (key && initViewKeyRef.current !== key) {
@@ -582,46 +604,174 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
 
     const range = main.timeScale().getVisibleLogicalRange()
     if (range) {
-      bias.timeScale().setVisibleLogicalRange(range)
-      biasPct.timeScale().setVisibleLogicalRange(range)
-      spread.timeScale().setVisibleLogicalRange(range)
-      spreadPct.timeScale().setVisibleLogicalRange(range)
+      if (showBiasPane) bias.timeScale().setVisibleLogicalRange(range)
+      if (showBiasPctPane) biasPct.timeScale().setVisibleLogicalRange(range)
+      if (showSpreadPane) spread.timeScale().setVisibleLogicalRange(range)
+      if (showSpreadPctPane) spreadPct.timeScale().setVisibleLogicalRange(range)
     }
-  }, [data])
+  }, [data, showBiasPane, showBiasPctPane, showMa250, showSpreadPane, showSpreadPctPane])
 
   return (
-    <div className={cn('relative overflow-hidden rounded border border-white/10 bg-[#111B2E]', className)}>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
-        <div className="text-xs font-semibold text-white">指数点位</div>
-        <div className="text-xs text-[#A9B6CC]">
-          {hover ? hover.date : '—'} · {fmt(hover?.close ?? null, 2)} 点 · MA250 {fmt(hover?.ma250 ?? null, 2)}
+    <div className={cn('relative', className)}>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-[#A9B6CC]">
+        <button
+          type="button"
+          onClick={() => setShowMa250((v) => !v)}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+            showMa250 ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+          )}
+        >
+          <span className="h-2 w-2 rounded-full bg-[#94A3B8]" />
+          MA250
+        </button>
+        <div className="mx-2 h-4 w-px bg-white/10" />
+        <button
+          type="button"
+          onClick={() => setShowBiasPane((v) => !v)}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+            showBiasPane ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+          )}
+        >
+          <span className="h-2 w-2 rounded-full bg-[#60A5FA]" />
+          BIAS
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowBiasPctPane((v) => !v)}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+            showBiasPctPane ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+          )}
+        >
+          <span className="h-2 w-2 rounded-full bg-[#60A5FA]" />
+          BIAS分位
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowSpreadPane((v) => !v)}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+            showSpreadPane ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+          )}
+        >
+          <span className="h-2 w-2 rounded-full bg-[#A78BFA]" />
+          利差(平滑)
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowSpreadPctPane((v) => !v)}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+            showSpreadPctPane ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+          )}
+        >
+          <span className="h-2 w-2 rounded-full bg-[#A78BFA]" />
+          利差分位
+        </button>
+      </div>
+
+      {hover ? (
+        <div className="pointer-events-none absolute right-3 top-10 z-10 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-[#E6EDF7] backdrop-blur">
+          <div className="font-mono text-[11px] text-[#A9B6CC]">{hover.date}</div>
+          <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
+            <div className="text-[#A9B6CC]">红利低波</div>
+            <div className="text-right font-mono">{fmt(hover.close, 2)}</div>
+            {showMa250 ? (
+              <>
+                <div className="text-[#A9B6CC]">MA250</div>
+                <div className="text-right font-mono">{fmt(hover.ma250, 2)}</div>
+              </>
+            ) : null}
+            {showBiasPane ? (
+              <>
+                <div className="text-[#A9B6CC]">BIAS(250)</div>
+                <div className="text-right font-mono">{fmt(hover.bias, 4)}</div>
+              </>
+            ) : null}
+            {showBiasPctPane ? (
+              <>
+                <div className="text-[#A9B6CC]">BIAS分位(3年)</div>
+                <div className="text-right font-mono">{fmt(hover.biasPct, 1)}</div>
+              </>
+            ) : null}
+            {showSpreadPane ? (
+              <>
+                <div className="text-[#A9B6CC]">利差（平滑）</div>
+                <div className="text-right font-mono">{fmt(hover.spreadSmooth, 2)}</div>
+              </>
+            ) : null}
+            {showSpreadPctPane ? (
+              <>
+                <div className="text-[#A9B6CC]">利差分位(10年)</div>
+                <div className="text-right font-mono">{fmt(hover.spreadPctRank10y, 1)}</div>
+              </>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-3 space-y-2">
+        <div className="relative rounded-lg border border-white/10 bg-[#111B2E] pt-6">
+          <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
+            红利低波（主图）{showMa250 ? ' + MA250' : ''}
+          </div>
+          <div ref={mainElRef} className="h-[300px] w-full" />
+        </div>
+
+        <div
+          className={cn(
+            'relative rounded-lg border border-white/10 bg-[#111B2E] transition-[height,opacity]',
+            showBiasPane ? 'opacity-100' : 'pointer-events-none opacity-0',
+          )}
+          style={{ height: showBiasPane ? 140 : 1 }}
+        >
+          <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
+            BIAS(250)
+          </div>
+          <div ref={biasElRef} className="relative z-10 h-full w-full" />
+        </div>
+
+        <div
+          className={cn(
+            'relative rounded-lg border border-white/10 bg-[#111B2E] transition-[height,opacity]',
+            showBiasPctPane ? 'opacity-100' : 'pointer-events-none opacity-0',
+          )}
+          style={{ height: showBiasPctPane ? 140 : 1 }}
+        >
+          <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
+            BIAS分位(3年)
+          </div>
+          <div ref={biasPctElRef} className="relative z-10 h-full w-full" />
+        </div>
+
+        <div
+          className={cn(
+            'relative rounded-lg border border-white/10 bg-[#111B2E] transition-[height,opacity]',
+            showSpreadPane ? 'opacity-100' : 'pointer-events-none opacity-0',
+          )}
+          style={{ height: showSpreadPane ? 140 : 1 }}
+        >
+          <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
+            利差（平滑）
+          </div>
+          <div ref={spreadElRef} className="relative z-10 h-full w-full" />
+        </div>
+
+        <div
+          className={cn(
+            'relative rounded-lg border border-white/10 bg-[#111B2E] transition-[height,opacity]',
+            showSpreadPctPane ? 'opacity-100' : 'pointer-events-none opacity-0',
+          )}
+          style={{ height: showSpreadPctPane ? 140 : 1 }}
+        >
+          <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
+            利差分位(10年)
+          </div>
+          <div ref={spreadPctElRef} className="relative z-10 h-full w-full" />
         </div>
       </div>
-      <div ref={mainElRef} className="h-[300px] w-full" />
-
-      <div className="flex items-center justify-between gap-2 border-t border-white/10 px-3 py-2">
-        <div className="text-xs font-semibold text-white">BIAS(250)</div>
-        <div className="text-xs text-[#A9B6CC]">{fmt(hover?.bias ?? null, 4)}</div>
-      </div>
-      <div ref={biasElRef} className="h-[140px] w-full" />
-
-      <div className="flex items-center justify-between gap-2 border-t border-white/10 px-3 py-2">
-        <div className="text-xs font-semibold text-white">BIAS分位(3年)</div>
-        <div className="text-xs text-[#A9B6CC]">{fmt(hover?.biasPct ?? null, 1)} %</div>
-      </div>
-      <div ref={biasPctElRef} className="h-[140px] w-full" />
-
-      <div className="flex items-center justify-between gap-2 border-t border-white/10 px-3 py-2">
-        <div className="text-xs font-semibold text-white">利差（平滑）</div>
-        <div className="text-xs text-[#A9B6CC]">{fmt(hover?.spreadSmooth ?? null, 2)} %</div>
-      </div>
-      <div ref={spreadElRef} className="h-[140px] w-full" />
-
-      <div className="flex items-center justify-between gap-2 border-t border-white/10 px-3 py-2">
-        <div className="text-xs font-semibold text-white">利差分位(10年)</div>
-        <div className="text-xs text-[#A9B6CC]">{fmt(hover?.spreadPctRank10y ?? null, 1)} %</div>
-      </div>
-      <div ref={spreadPctElRef} className="h-[140px] w-full" />
     </div>
   )
 }
