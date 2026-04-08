@@ -112,6 +112,8 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
     spreadPctAlign: null,
   })
 
+  const mainSegRef = useRef<Array<ISeriesApi<'Line', Time>>>([])
+
   const syncingRef = useRef(false)
   const initViewKeyRef = useRef('')
 
@@ -166,12 +168,25 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
     const biasPct: LineData<Time>[] = []
     const spreadSmooth: LineData<Time>[] = []
     const spreadPctRank10y: LineData<Time>[] = []
+    const segBase: Array<{ time: UTCTimestamp; close: number; spreadPctRank10y?: number; biasPct3y?: number }> = []
+    const allocStrongSegments: Array<LineData<Time>[]> = []
+    const reduceStrongSegments: Array<LineData<Time>[]> = []
+    const allocWeakSegments: Array<LineData<Time>[]> = []
+    const expensiveWeakSegments: Array<LineData<Time>[]> = []
     const map = new Map<UTCTimestamp, HoverState>()
 
     for (const p of series) {
       const t = ymdToUtcSeconds(p.date)
       if (!t) continue
-      if (typeof p.close === 'number' && Number.isFinite(p.close)) close.push({ time: t, value: p.close })
+      if (typeof p.close === 'number' && Number.isFinite(p.close)) {
+        close.push({ time: t, value: p.close })
+        segBase.push({
+          time: t,
+          close: p.close,
+          spreadPctRank10y: typeof p.spreadPctRank10y === 'number' && Number.isFinite(p.spreadPctRank10y) ? p.spreadPctRank10y : undefined,
+          biasPct3y: typeof p.biasPct3y === 'number' && Number.isFinite(p.biasPct3y) ? p.biasPct3y : undefined,
+        })
+      }
       if (typeof p.ma250 === 'number' && Number.isFinite(p.ma250)) ma.push({ time: t, value: p.ma250 })
       if (typeof p.bias250 === 'number' && Number.isFinite(p.bias250)) bias.push({ time: t, value: p.bias250 })
       if (typeof p.biasPct3y === 'number' && Number.isFinite(p.biasPct3y)) biasPct.push({ time: t, value: p.biasPct3y })
@@ -199,7 +214,54 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
     spreadSmooth.sort((a, b) => (a.time as number) - (b.time as number))
     spreadPctRank10y.sort((a, b) => (a.time as number) - (b.time as number))
 
-    return { close, ma, bias, biasPct, spreadSmooth, spreadPctRank10y, map }
+    segBase.sort((a, b) => a.time - b.time)
+
+    type SegState = 'allocStrong' | 'reduceStrong' | 'allocWeak' | 'expensiveWeak' | null
+    const classify = (p: { spreadPctRank10y?: number; biasPct3y?: number }): SegState => {
+      const spread = p.spreadPctRank10y
+      if (typeof spread !== 'number' || !Number.isFinite(spread)) return null
+      const bias = p.biasPct3y
+      const cheap = spread >= 80
+      const expensive = spread <= 20
+      const lowBias = typeof bias === 'number' && Number.isFinite(bias) ? bias <= 30 : false
+      const highBias = typeof bias === 'number' && Number.isFinite(bias) ? bias >= 70 : false
+      if (cheap && lowBias) return 'allocStrong'
+      if (expensive && highBias) return 'reduceStrong'
+      if (cheap) return 'allocWeak'
+      if (expensive) return 'expensiveWeak'
+      return null
+    }
+
+    let buf: LineData<Time>[] = []
+    let bufState: SegState = null
+    const flush = () => {
+      if (!buf.length || !bufState) {
+        buf = []
+        bufState = null
+        return
+      }
+      if (bufState === 'allocStrong') allocStrongSegments.push(buf)
+      else if (bufState === 'reduceStrong') reduceStrongSegments.push(buf)
+      else if (bufState === 'allocWeak') allocWeakSegments.push(buf)
+      else if (bufState === 'expensiveWeak') expensiveWeakSegments.push(buf)
+      buf = []
+      bufState = null
+    }
+
+    for (const p of segBase) {
+      const st = classify(p)
+      if (!st) {
+        flush()
+        continue
+      }
+      const pt: LineData<Time> = { time: p.time, value: p.close }
+      if (bufState && bufState !== st) flush()
+      bufState = st
+      buf.push(pt)
+    }
+    flush()
+
+    return { close, ma, bias, biasPct, spreadSmooth, spreadPctRank10y, allocStrongSegments, reduceStrongSegments, allocWeakSegments, expensiveWeakSegments, map }
   }, [series])
 
   useEffect(() => {
@@ -632,6 +694,24 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
     const spread = chartsRef.current.spread
     const spreadPct = chartsRef.current.spreadPct
     if (!main || !bias || !biasPct || !spread || !spreadPct) return
+
+    for (const s of mainSegRef.current) main.removeSeries(s)
+    mainSegRef.current = []
+    const addSeg = (seg: LineData<Time>[], color: string) => {
+      const s = main.addSeries(LineSeries, {
+        color,
+        lineWidth: 3,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      })
+      s.setData(seg)
+      mainSegRef.current.push(s)
+    }
+    for (const seg of data.allocStrongSegments) addSeg(seg, '#34D399')
+    for (const seg of data.reduceStrongSegments) addSeg(seg, '#F87171')
+    for (const seg of data.allocWeakSegments) addSeg(seg, '#FBBF24')
+    for (const seg of data.expensiveWeakSegments) addSeg(seg, '#FB923C')
 
     const visiblePanes: Array<'bias' | 'biasPct' | 'spread' | 'spreadPct'> = []
     if (showBiasPane) visiblePanes.push('bias')
