@@ -82,10 +82,10 @@ export default function LowVolOpportunityPanel() {
               <span className="font-medium text-[#CBD5E1]">股息收益率</span>：滚动1年（252交易日），由 PRI/TRI 推算的分红贡献（回溯口径）。
             </p>
             <p>
-              <span className="font-medium text-[#CBD5E1]">利差（平滑）</span>：spreadRaw=股息收益率(1Y)-10Y；spreadSmooth=对 spreadRaw 做 EWMA 平滑（半衰期6个月≈126交易日）。
+              <span className="font-medium text-[#CBD5E1]">利差（核心）</span>：对“分红点数”做250日SMA（minPeriods=126）后，计算 股息收益率(修正)-10Y。
             </p>
             <p>
-              <span className="font-medium text-[#CBD5E1]">利差分位(10年)</span>：基于 spreadRaw 的 10 年滚动分位（window≈2520，minPeriods=252）。
+              <span className="font-medium text-[#CBD5E1]">利差分位(10年)</span>：基于 核心利差 的 10 年滚动分位（window≈2520，minPeriods=252）。
             </p>
           </div>
         </div>

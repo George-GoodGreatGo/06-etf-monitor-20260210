@@ -844,9 +844,9 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
             <div className="text-[#E6EDF7]">指标定义</div>
-            <div>股息收益率：滚动1年（252交易日，PRI/TRI推算）</div>
-            <div>利差（平滑）：spreadRaw 的 EWMA（半衰期6个月≈126交易日）</div>
-            <div>利差分位：spreadRaw 的10年滚动分位（window≈2520，minPeriods=252）</div>
+            <div>股息收益率（修正）：滚动1年推算分红点数D，对D做250日SMA后除以PRI</div>
+            <div>利差（核心）：股息收益率(修正)-10Y</div>
+            <div>利差分位：核心利差的10年滚动分位（window≈2520，minPeriods=252）</div>
           </div>
         </div>
       ) : null}
@@ -898,7 +898,7 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
             ) : null}
             {showSpreadPane ? (
               <>
-                <div className="text-[#A9B6CC]">利差（平滑）</div>
+                <div className="text-[#A9B6CC]">利差（核心）</div>
                 <div className="text-right font-mono">{fmt(hover.spreadSmooth, 2)}</div>
               </>
             ) : null}
@@ -954,7 +954,7 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
           style={{ height: showSpreadPane ? 140 : 1 }}
         >
           <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
-            利差（平滑）
+            利差（核心）
           </div>
           <div ref={spreadElRef} className="relative z-10 h-full w-full" />
         </div>

@@ -111,6 +111,30 @@ function buildSma(values: number[], period: number): Array<number | null> {
   return out
 }
 
+function buildSmaNullable(values: Array<number | null>, period: number, minPeriods: number): Array<number | null> {
+  const out: Array<number | null> = new Array(values.length).fill(null)
+  if (!values.length || period <= 0) return out
+  const minP = Math.max(1, Math.min(period, minPeriods))
+  let sum = 0
+  let cnt = 0
+  for (let i = 0; i < values.length; i += 1) {
+    const vAdd = values[i]
+    if (typeof vAdd === 'number' && Number.isFinite(vAdd)) {
+      sum += vAdd
+      cnt += 1
+    }
+    if (i >= period) {
+      const vDrop = values[i - period]
+      if (typeof vDrop === 'number' && Number.isFinite(vDrop)) {
+        sum -= vDrop
+        cnt -= 1
+      }
+    }
+    if (i >= period - 1 && cnt >= minP) out[i] = sum / cnt
+  }
+  return out
+}
+
 function buildRollingPercentile(values: Array<number | null>, window: number, minPeriods: number): Array<number | null> {
   const out: Array<number | null> = new Array(values.length).fill(null)
   if (!values.length || window <= 0) return out
@@ -173,7 +197,7 @@ export async function getLowVolH30269Series(args?: {
     }
   }
 
-  const dividendYieldPct: Array<number | null> = closeSeries.map((p, i) => {
+  const dividendPointsRaw: Array<number | null> = closeSeries.map((p, i) => {
     const lookback = i - 252
     if (lookback < 0) return null
     const priNow = p.close
@@ -186,25 +210,29 @@ export async function getLowVolH30269Series(args?: {
     const totalFactor = triNow / triThen
     const divFactor = totalFactor / priceFactor
     const divReturn = divFactor - 1
-    return Number.isFinite(divReturn) ? divReturn * 100 : null
+    if (!(typeof divReturn === 'number' && Number.isFinite(divReturn))) return null
+    const d = priNow * divReturn
+    return typeof d === 'number' && Number.isFinite(d) ? d : null
+  })
+  const dividendPointsSma = buildSmaNullable(dividendPointsRaw, 250, 126)
+  const dividendYieldPct: Array<number | null> = closeSeries.map((p, i) => {
+    const d = dividendPointsSma[i]
+    if (d == null || p.close === 0) return null
+    const y = (d / p.close) * 100
+    return Number.isFinite(y) ? y : null
   })
   const yield10yPct: Array<number | null> = closeSeries.map((p) => y10ByDate.get(p.date) ?? null)
-  const spreadRawPct: Array<number | null> = closeSeries.map((p, i) => {
+  const spreadCorePct: Array<number | null> = closeSeries.map((p, i) => {
     const dy = dividendYieldPct[i]
     const y = yield10yPct[i]
     if (dy == null || y == null) return null
     return dy - y
   })
-  const alpha = 1 - Math.exp(Math.log(0.5) / 126)
-  let prevSmooth: number | null = null
-  const spreadSmoothPct: Array<number | null> = spreadRawPct.map((x) => {
-    if (x == null) return null
-    prevSmooth = prevSmooth == null ? x : alpha * x + (1 - alpha) * prevSmooth
-    return prevSmooth
-  })
-  const spreadPct = spreadRawPct
-  const spreadPctRank3y = buildRollingPercentile(spreadRawPct, 756, 252)
-  const spreadPctRank10y = buildRollingPercentile(spreadRawPct, 2520, 252)
+  const spreadRawPct = spreadCorePct
+  const spreadSmoothPct = spreadCorePct
+  const spreadPct = spreadCorePct
+  const spreadPctRank3y = buildRollingPercentile(spreadCorePct, 756, 252)
+  const spreadPctRank10y = buildRollingPercentile(spreadCorePct, 2520, 252)
 
   const series: LowVolDailyPoint[] = closeSeries.map((p, i) => ({
     date: p.date,
@@ -228,9 +256,9 @@ export async function getLowVolH30269Series(args?: {
     source: 'csindex + chinamoney',
     notes: [
       '指数点位数据源：csindex（index-perf）。',
-      '股息收益率口径：使用价格指数 H30269 与全收益指数 H20269 的滚动1年（252交易日）“股息收益率”推算：DividendReturn(1Y)= (TRI_t/TRI_{t-252}) / (PRI_t/PRI_{t-252}) - 1。',
-      '利差口径：spreadRaw=股息收益率(1Y)-10Y；spreadSmooth=对spreadRaw做EWMA平滑（半衰期6个月≈126交易日）。',
-      '利差分位：10年滚动分位基于spreadRaw（不使用平滑值）。',
+      '股息收益率口径（修正）：先用价格指数 H30269 与全收益指数 H20269 的滚动1年（252交易日）推算分红回报 DividendReturn(1Y)= (TRI_t/TRI_{t-252}) / (PRI_t/PRI_{t-252}) - 1，再换算分红点数 D_t=PRI_t*DividendReturn(1Y)，对 D_t 做250日SMA（minPeriods=126），最后用 股息率_t = D_SMA_t / PRI_t。',
+      '利差口径（核心）：spreadCore=股息收益率(修正)-10Y。',
+      '利差分位：基于spreadCore做10年滚动分位（window≈2520，minPeriods=252）。',
       '乖离率BIAS口径：250日简单移动平均，BIAS=(close-ma250)/ma250。',
       '滚动分位数窗口：3年≈756个交易日（最小有效252个样本）。',
       '10Y国债收益率数据源：chinamoney。',
