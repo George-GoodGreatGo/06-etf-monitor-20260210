@@ -40,6 +40,7 @@ function toneToNavPillCls(tone: LowVolSuggestionTone): string {
   if (tone === 'good') return 'border-[rgba(16,185,129,0.25)] bg-[rgba(16,185,129,0.12)] text-[#34D399]'
   if (tone === 'bad') return 'border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.12)] text-[#F87171]'
   if (tone === 'warn') return 'border-[rgba(251,191,36,0.25)] bg-[rgba(251,191,36,0.12)] text-[#FBBF24]'
+  if (tone === 'neutral') return 'border-[rgba(96,165,250,0.25)] bg-[rgba(96,165,250,0.12)] text-[#60A5FA]'
   return 'border-white/10 bg-white/5 text-[#94A3B8]'
 }
 
