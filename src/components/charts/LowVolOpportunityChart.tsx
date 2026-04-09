@@ -13,7 +13,7 @@ import {
 } from 'lightweight-charts'
 import { cn } from '@/lib/utils'
 import type { LowVolH30269Point } from '@/utils/marketApi'
-import { LOWVOL_THRESH } from '@/utils/lowVolSignal'
+import { calcLowVolSuggestion, getLowVolThresh } from '@/utils/lowVolSignal'
 
 const SCALE_MIN_WIDTH = 110
 
@@ -61,10 +61,11 @@ type HoverState = {
 
 type Props = {
   series: LowVolH30269Point[]
+  indexCode?: string
   className?: string
 }
 
-export default function LowVolOpportunityChart({ series, className }: Props) {
+export default function LowVolOpportunityChart({ series, indexCode, className }: Props) {
   const [hover, setHover] = useState<HoverState | null>(null)
   const [showInfo, setShowInfo] = useState(true)
   const [showMa250, setShowMa250] = useState(true)
@@ -72,6 +73,8 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
   const [showBiasPctPane, setShowBiasPctPane] = useState(true)
   const [showSpreadPane, setShowSpreadPane] = useState(true)
   const [showSpreadPctPane, setShowSpreadPctPane] = useState(true)
+
+  const thresh = useMemo(() => getLowVolThresh(indexCode), [indexCode])
 
   const mainElRef = useRef<HTMLDivElement | null>(null)
   const biasElRef = useRef<HTMLDivElement | null>(null)
@@ -119,21 +122,13 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
   const initViewKeyRef = useRef('')
 
   const signal = useMemo(() => {
-    const spreadPctRank10y = hover?.spreadPctRank10y
-    const biasPct3y = hover?.biasPct
-    if (typeof spreadPctRank10y !== 'number' || !Number.isFinite(spreadPctRank10y)) return null
-
-    const cheap = spreadPctRank10y >= LOWVOL_THRESH.spreadCheapPctRank10y
-    const lowBias =
-      typeof biasPct3y === 'number' && Number.isFinite(biasPct3y) ? biasPct3y <= LOWVOL_THRESH.biasLowPct3y : false
-    const highBias =
-      typeof biasPct3y === 'number' && Number.isFinite(biasPct3y) ? biasPct3y >= LOWVOL_THRESH.biasHighPct3y : false
-
-    if (highBias) return { label: '偏减仓', tone: 'bad' as const }
-    if (cheap && lowBias) return { label: '偏配置', tone: 'good' as const }
-    if (cheap) return { label: '偏配置（等待更好位置）', tone: 'mid' as const }
-    return { label: '偏观望', tone: 'neutral' as const }
-  }, [hover?.biasPct, hover?.spreadPctRank10y])
+    if (!hover) return null
+    return calcLowVolSuggestion({
+      spreadPctRank10y: hover.spreadPctRank10y,
+      biasPct3y: hover.biasPct,
+      thresh,
+    })
+  }, [hover?.biasPct, hover?.spreadPctRank10y, thresh])
 
   const updateSpreadPctZones = () => {
     if (!showSpreadPctPane) return
@@ -144,8 +139,8 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
     if (!chart || !cheapBg || !expBg || !metric?.priceToCoordinate) return
 
     const y100 = metric.priceToCoordinate(100)
-    const y80 = metric.priceToCoordinate(80)
-    const y20 = metric.priceToCoordinate(20)
+    const y80 = metric.priceToCoordinate(thresh.spreadCheapPctRank10y)
+    const y20 = metric.priceToCoordinate(thresh.spreadExpensivePctRank10y)
     const y0 = metric.priceToCoordinate(0)
     if (y100 == null || y80 == null || y20 == null || y0 == null) return
 
@@ -222,9 +217,9 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
       const spread = p.spreadPctRank10y
       if (typeof spread !== 'number' || !Number.isFinite(spread)) return null
       const bias = p.biasPct3y
-      const cheap = spread >= LOWVOL_THRESH.spreadCheapPctRank10y
-      const lowBias = typeof bias === 'number' && Number.isFinite(bias) ? bias <= LOWVOL_THRESH.biasLowPct3y : false
-      const highBias = typeof bias === 'number' && Number.isFinite(bias) ? bias >= LOWVOL_THRESH.biasHighPct3y : false
+      const cheap = spread >= thresh.spreadCheapPctRank10y
+      const lowBias = typeof bias === 'number' && Number.isFinite(bias) ? bias <= thresh.biasLowPct3y : false
+      const highBias = typeof bias === 'number' && Number.isFinite(bias) ? bias >= thresh.biasHighPct3y : false
       if (highBias) return 'reduceStrong'
       if (cheap && lowBias) return 'allocStrong'
       if (cheap) return 'allocWeak'
@@ -261,7 +256,7 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
     flush()
 
     return { close, ma, bias, biasPct, spreadSmooth, spreadPctRank10y, allocStrongSegments, reduceStrongSegments, allocWeakSegments, neutralSegments, map }
-  }, [series])
+  }, [series, thresh])
 
   useEffect(() => {
     const el = mainElRef.current
@@ -833,12 +828,24 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <div className="text-[#E6EDF7]">建议规则</div>
             <div>
-              <span className="mr-2 rounded bg-[rgba(16,185,129,0.18)] px-2 py-[2px] font-mono text-[11px] text-[#34D399]">偏配置</span>
-              利差分位(10年) ≥ 80 且 BIAS分位(3年) ≤ 20
+              <span className="mr-2 rounded bg-white/10 px-2 py-[2px] font-mono text-[11px] text-[#E6EDF7]">—</span>
+              数据缺失：利差分位(10年) 缺失/非数字
+            </div>
+            <div>
+              <span className="mr-2 rounded bg-[rgba(16,185,129,0.18)] px-2 py-[2px] font-mono text-[11px] text-[#34D399]">偏加仓</span>
+              利差分位(10年) ≥ {thresh.spreadCheapPctRank10y} 且 BIAS分位(3年) ≤ {thresh.biasLowPct3y}
             </div>
             <div>
               <span className="mr-2 rounded bg-[rgba(239,68,68,0.18)] px-2 py-[2px] font-mono text-[11px] text-[#F87171]">偏减仓</span>
-              BIAS分位(3年) ≥ 79
+              BIAS分位(3年) ≥ {thresh.biasHighPct3y}
+            </div>
+            <div>
+              <span className="mr-2 rounded bg-[rgba(245,158,11,0.18)] px-2 py-[2px] font-mono text-[11px] text-[#FBBF24]">偏持有</span>
+              利差分位(10年) ≥ {thresh.spreadCheapPctRank10y} 且 未触发偏加仓 且 未触发偏减仓
+            </div>
+            <div>
+              <span className="mr-2 rounded bg-[rgba(96,165,250,0.18)] px-2 py-[2px] font-mono text-[11px] text-[#60A5FA]">偏观望</span>
+              除以上其他情况
             </div>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -865,9 +872,11 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
                         ? 'bg-[rgba(16,185,129,0.22)] text-[#34D399]'
                         : signal.tone === 'bad'
                           ? 'bg-[rgba(239,68,68,0.22)] text-[#F87171]'
-                          : signal.tone === 'mid'
+                          : signal.tone === 'warn'
                             ? 'bg-[rgba(245,158,11,0.18)] text-[#FBBF24]'
-                            : 'bg-[rgba(96,165,250,0.18)] text-[#60A5FA]',
+                            : signal.tone === 'neutral'
+                              ? 'bg-[rgba(96,165,250,0.18)] text-[#60A5FA]'
+                              : 'bg-white/10 text-[#E6EDF7]',
                     )}
                   >
                     {signal.label}

@@ -157,7 +157,11 @@ export default function Home() {
             }
             const series = (r.data?.series || []) as Array<{ spreadPctRank10y?: number | null; biasPct3y?: number | null }>
             const last = series.length ? series[series.length - 1] : null
-            const s = calcLowVolSuggestion({ spreadPctRank10y: last?.spreadPctRank10y, biasPct3y: last?.biasPct3y })
+            const s = calcLowVolSuggestion({
+              spreadPctRank10y: last?.spreadPctRank10y,
+              biasPct3y: last?.biasPct3y,
+              indexCode: opt.code,
+            })
             next[opt.code] = s
           } catch {
             next[opt.code] = { label: '—', tone: 'unknown' }
