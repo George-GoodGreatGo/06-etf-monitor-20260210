@@ -248,8 +248,10 @@ export default function Top100InsightPanel({
 
         const nextStatus = dataObj.status as InsightGenerateStatus
         if (nextStatus === 'ready') {
-          // Status changed to ready! Trigger a reload of the content
+          setStatus('ready')
+          setStatusError(null)
           setReloadSeq((v) => v + 1)
+          if (timer) window.clearInterval(timer)
         } else if (nextStatus === 'failed') {
           setStatus('failed')
           setStatusError(String(dataObj.lastError || '未知错误'))
