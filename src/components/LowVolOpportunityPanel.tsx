@@ -20,11 +20,10 @@ function calcSuggestion(args: {
   const cheap = spread >= 80
   const expensive = spread <= 20
   const lowBias = typeof bias === 'number' && Number.isFinite(bias) ? bias <= 20 : false
-  const highBias = typeof bias === 'number' && Number.isFinite(bias) ? bias >= 80 : false
+  const highBias = typeof bias === 'number' && Number.isFinite(bias) ? bias >= 85 : false
   if (highBias) return { label: '偏减仓', cls: 'text-[#F87171]' }
   if (cheap && lowBias) return { label: '偏配置', cls: 'text-[#34D399]' }
   if (cheap) return { label: '偏配置', cls: 'text-[#FBBF24]' }
-  if (expensive) return { label: '偏观望', cls: 'text-[#FBBF24]' }
   return { label: '偏观望', cls: 'text-[#94A3B8]' }
 }
 

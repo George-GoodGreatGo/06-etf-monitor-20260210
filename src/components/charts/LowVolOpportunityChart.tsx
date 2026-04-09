@@ -125,12 +125,11 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
     const cheap = spreadPctRank10y >= 80
     const expensive = spreadPctRank10y <= 20
     const lowBias = typeof biasPct3y === 'number' && Number.isFinite(biasPct3y) ? biasPct3y <= 20 : false
-    const highBias = typeof biasPct3y === 'number' && Number.isFinite(biasPct3y) ? biasPct3y >= 80 : false
+    const highBias = typeof biasPct3y === 'number' && Number.isFinite(biasPct3y) ? biasPct3y >= 85 : false
 
     if (highBias) return { label: '偏减仓', tone: 'bad' as const }
     if (cheap && lowBias) return { label: '偏配置', tone: 'good' as const }
     if (cheap) return { label: '偏配置（等待更好位置）', tone: 'mid' as const }
-    if (expensive) return { label: '偏观望（性价比偏低）', tone: 'mid' as const }
     return { label: '偏观望', tone: 'neutral' as const }
   }, [hover?.biasPct, hover?.spreadPctRank10y])
 
@@ -224,7 +223,7 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
       const cheap = spread >= 80
       const expensive = spread <= 20
       const lowBias = typeof bias === 'number' && Number.isFinite(bias) ? bias <= 20 : false
-      const highBias = typeof bias === 'number' && Number.isFinite(bias) ? bias >= 80 : false
+      const highBias = typeof bias === 'number' && Number.isFinite(bias) ? bias >= 85 : false
       if (highBias) return 'reduceStrong'
       if (cheap && lowBias) return 'allocStrong'
       if (cheap) return 'allocWeak'
@@ -839,7 +838,7 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
             </div>
             <div>
               <span className="mr-2 rounded bg-[rgba(239,68,68,0.18)] px-2 py-[2px] font-mono text-[11px] text-[#F87171]">偏减仓</span>
-              BIAS分位(3年) ≥ 80
+              BIAS分位(3年) ≥ 85
             </div>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
