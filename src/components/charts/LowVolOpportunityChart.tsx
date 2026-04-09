@@ -835,7 +835,7 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
             </div>
             <div>
               <span className="mr-2 rounded bg-[rgba(239,68,68,0.18)] px-2 py-[2px] font-mono text-[11px] text-[#F87171]">偏减仓</span>
-              BIAS分位(3年) ≥ 85
+              BIAS分位(3年) ≥ 79
             </div>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">

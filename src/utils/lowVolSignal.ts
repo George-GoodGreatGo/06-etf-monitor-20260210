@@ -2,7 +2,7 @@ export const LOWVOL_THRESH = {
   spreadCheapPctRank10y: 80,
   spreadExpensivePctRank10y: 20,
   biasLowPct3y: 20,
-  biasHighPct3y: 85,
+  biasHighPct3y: 79,
 } as const
 
 export type LowVolSuggestionTone = 'good' | 'warn' | 'bad' | 'neutral' | 'unknown'
