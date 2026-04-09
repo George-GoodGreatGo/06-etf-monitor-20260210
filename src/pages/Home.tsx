@@ -26,6 +26,14 @@ const defaultSort: { key: Top100SortKey; dir: SortDir } = {
 
 type HomeTab = 'list' | 'insight' | 'liquidity' | 'lowvol'
 
+const LOWVOL_INDEX_OPTIONS = [
+  { code: 'H30269', label: '红利低波' },
+  { code: '932365', label: '自由现金流' },
+  { code: '932315', label: '红利质量' },
+] as const
+
+type LowVolIndexCode = (typeof LOWVOL_INDEX_OPTIONS)[number]['code']
+
 export default function Home() {
   const [searchParams, setSearchParams] = useSearchParams()
   const nav = useNavigate()
@@ -36,6 +44,8 @@ export default function Home() {
   const rawTab = searchParams.get('tab')
   const tab: HomeTab =
     rawTab === 'insight' || rawTab === 'list' || rawTab === 'liquidity' || rawTab === 'lowvol' ? rawTab : 'list'
+
+  const [lowVolIndexCode, setLowVolIndexCode] = useState<LowVolIndexCode>('H30269')
 
   const [sortKey, setSortKey] = useState<Top100SortKey>(
     (searchParams.get('sort') as Top100SortKey) ?? defaultSort.key,
@@ -608,12 +618,39 @@ export default function Home() {
           </div>
         </div>
 
+        {tab === 'lowvol' ? (
+          <div className="mt-1 flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-[#111B2E] px-3 py-2">
+            <div className="mr-1 text-xs font-medium text-[#A9B6CC]">指数切换</div>
+            {LOWVOL_INDEX_OPTIONS.map((opt) => (
+              <button
+                key={opt.code}
+                type="button"
+                onClick={() => {
+                  if (opt.code === lowVolIndexCode) return
+                  setLowVolIndexCode(opt.code)
+                }}
+                className={cn(
+                  'inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition',
+                  opt.code === lowVolIndexCode
+                    ? 'border-white/15 bg-white/10 text-[#E6EDF7]'
+                    : 'border-white/10 bg-transparent text-[#A9B6CC] hover:border-white/15 hover:bg-white/5',
+                )}
+              >
+                {opt.label}（{opt.code}）
+              </button>
+            ))}
+          </div>
+        ) : null}
+
         {tab === 'insight' ? (
           <Top100InsightPanel meta={meta} rows={rows} isHomeLoading={loading} />
         ) : tab === 'liquidity' ? (
           <MarketLiquidityPanel />
         ) : tab === 'lowvol' ? (
-          <LowVolOpportunityPanel />
+          <LowVolOpportunityPanel
+            indexCode={lowVolIndexCode}
+            indexLabel={LOWVOL_INDEX_OPTIONS.find((x) => x.code === lowVolIndexCode)?.label ?? lowVolIndexCode}
+          />
         ) : (
           <Top100Table
             rows={rows}
