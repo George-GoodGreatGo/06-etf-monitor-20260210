@@ -75,7 +75,7 @@ export default function LowVolOpportunityPanel(props: { indexCode: string; index
     <section className="mt-3 overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <div className="text-xl font-semibold tracking-tight text-white">低波指数机会识别</div>
+          <div className="text-xl font-semibold tracking-tight text-white">{indexLabel}择时分析</div>
           <div className="mt-2 space-y-1 text-[13px] leading-relaxed text-[#94A3B8]">
             <p>
               <span className="font-medium text-[#CBD5E1]">
