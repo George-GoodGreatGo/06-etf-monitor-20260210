@@ -124,11 +124,11 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
 
     const cheap = spreadPctRank10y >= 80
     const expensive = spreadPctRank10y <= 20
-    const lowBias = typeof biasPct3y === 'number' && Number.isFinite(biasPct3y) ? biasPct3y <= 30 : false
-    const highBias = typeof biasPct3y === 'number' && Number.isFinite(biasPct3y) ? biasPct3y >= 70 : false
+    const lowBias = typeof biasPct3y === 'number' && Number.isFinite(biasPct3y) ? biasPct3y <= 20 : false
+    const highBias = typeof biasPct3y === 'number' && Number.isFinite(biasPct3y) ? biasPct3y >= 80 : false
 
+    if (highBias) return { label: '偏减仓', tone: 'bad' as const }
     if (cheap && lowBias) return { label: '偏配置', tone: 'good' as const }
-    if (expensive && highBias) return { label: '偏减仓', tone: 'bad' as const }
     if (cheap) return { label: '偏配置（等待更好位置）', tone: 'mid' as const }
     if (expensive) return { label: '偏观望（性价比偏低）', tone: 'mid' as const }
     return { label: '偏观望', tone: 'neutral' as const }
@@ -223,10 +223,10 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
       const bias = p.biasPct3y
       const cheap = spread >= 80
       const expensive = spread <= 20
-      const lowBias = typeof bias === 'number' && Number.isFinite(bias) ? bias <= 30 : false
-      const highBias = typeof bias === 'number' && Number.isFinite(bias) ? bias >= 70 : false
+      const lowBias = typeof bias === 'number' && Number.isFinite(bias) ? bias <= 20 : false
+      const highBias = typeof bias === 'number' && Number.isFinite(bias) ? bias >= 80 : false
+      if (highBias) return 'reduceStrong'
       if (cheap && lowBias) return 'allocStrong'
-      if (expensive && highBias) return 'reduceStrong'
       if (cheap) return 'allocWeak'
       if (expensive) return 'expensiveWeak'
       return null
@@ -835,11 +835,11 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
             <div className="text-[#E6EDF7]">建议规则</div>
             <div>
               <span className="mr-2 rounded bg-[rgba(16,185,129,0.18)] px-2 py-[2px] font-mono text-[11px] text-[#34D399]">偏配置</span>
-              利差分位(10年) ≥ 80 且 BIAS分位(3年) ≤ 30
+              利差分位(10年) ≥ 80 且 BIAS分位(3年) ≤ 20
             </div>
             <div>
               <span className="mr-2 rounded bg-[rgba(239,68,68,0.18)] px-2 py-[2px] font-mono text-[11px] text-[#F87171]">偏减仓</span>
-              利差分位(10年) ≤ 20 且 BIAS分位(3年) ≥ 70
+              BIAS分位(3年) ≥ 80
             </div>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
