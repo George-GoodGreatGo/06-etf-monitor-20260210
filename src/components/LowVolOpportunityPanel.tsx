@@ -3,6 +3,7 @@ import DataStatusBanner from '@/components/DataStatusBanner'
 import LowVolOpportunityChart from '@/components/charts/LowVolOpportunityChart'
 import { cn } from '@/lib/utils'
 import { fetchLowVolIndex, type LowVolH30269Point } from '@/utils/marketApi'
+import { calcLowVolSuggestion } from '@/utils/lowVolSignal'
 import type { Top100Meta } from '@/utils/etfApi'
 
 function fmt(v: number | null | undefined, digits: number): string {
@@ -10,21 +11,11 @@ function fmt(v: number | null | undefined, digits: number): string {
   return v.toFixed(digits).replace(/\.0+$/, '')
 }
 
-function calcSuggestion(args: {
-  spreadPctRank10y: number | null | undefined
-  biasPct3y: number | null | undefined
-}): { label: string; cls: string } {
-  const spread = args.spreadPctRank10y
-  const bias = args.biasPct3y
-  if (typeof spread !== 'number' || !Number.isFinite(spread)) return { label: '—', cls: 'text-[#94A3B8]' }
-  const cheap = spread >= 80
-  const expensive = spread <= 20
-  const lowBias = typeof bias === 'number' && Number.isFinite(bias) ? bias <= 20 : false
-  const highBias = typeof bias === 'number' && Number.isFinite(bias) ? bias >= 85 : false
-  if (highBias) return { label: '偏减仓', cls: 'text-[#F87171]' }
-  if (cheap && lowBias) return { label: '偏配置', cls: 'text-[#34D399]' }
-  if (cheap) return { label: '偏配置', cls: 'text-[#FBBF24]' }
-  return { label: '偏观望', cls: 'text-[#94A3B8]' }
+function suggestionToneToTextCls(tone: ReturnType<typeof calcLowVolSuggestion>['tone']): string {
+  if (tone === 'bad') return 'text-[#F87171]'
+  if (tone === 'good') return 'text-[#34D399]'
+  if (tone === 'warn') return 'text-[#FBBF24]'
+  return 'text-[#94A3B8]'
 }
 
 export default function LowVolOpportunityPanel(props: { indexCode: string; indexLabel: string }) {
@@ -69,7 +60,8 @@ export default function LowVolOpportunityPanel(props: { indexCode: string; index
   }, [indexCode])
 
   const latest = series.length ? series[series.length - 1] : null
-  const suggestion = calcSuggestion({ spreadPctRank10y: latest?.spreadPctRank10y, biasPct3y: latest?.biasPct3y })
+  const suggestion = calcLowVolSuggestion({ spreadPctRank10y: latest?.spreadPctRank10y, biasPct3y: latest?.biasPct3y })
+  const suggestionCls = suggestionToneToTextCls(suggestion.tone)
 
   return (
     <section className="mt-3 overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
@@ -119,7 +111,7 @@ export default function LowVolOpportunityPanel(props: { indexCode: string; index
               </div>
               <div className="flex items-baseline justify-between gap-4">
                 <div className="text-[#94A3B8]">建议</div>
-                <div className={cn('text-xs font-medium', suggestion.cls)}>{suggestion.label}</div>
+                <div className={cn('text-xs font-medium', suggestionCls)}>{suggestion.label}</div>
               </div>
             </div>
           </div>
@@ -131,7 +123,17 @@ export default function LowVolOpportunityPanel(props: { indexCode: string; index
       </div>
 
       <div className="mt-4">
-        <LowVolOpportunityChart series={series} />
+        <div className="relative">
+          <LowVolOpportunityChart series={series} />
+          {loading && !error ? (
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-black/10 backdrop-blur-[1px]">
+              <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-black/30 px-4 py-3 text-sm text-[#E6EDF7]">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
+                正在加载图表数据…
+              </div>
+            </div>
+          ) : null}
+        </div>
       </div>
     </section>
   )

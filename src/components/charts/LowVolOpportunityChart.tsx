@@ -13,6 +13,7 @@ import {
 } from 'lightweight-charts'
 import { cn } from '@/lib/utils'
 import type { LowVolH30269Point } from '@/utils/marketApi'
+import { LOWVOL_THRESH } from '@/utils/lowVolSignal'
 
 const SCALE_MIN_WIDTH = 110
 
@@ -122,10 +123,11 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
     const biasPct3y = hover?.biasPct
     if (typeof spreadPctRank10y !== 'number' || !Number.isFinite(spreadPctRank10y)) return null
 
-    const cheap = spreadPctRank10y >= 80
-    const expensive = spreadPctRank10y <= 20
-    const lowBias = typeof biasPct3y === 'number' && Number.isFinite(biasPct3y) ? biasPct3y <= 20 : false
-    const highBias = typeof biasPct3y === 'number' && Number.isFinite(biasPct3y) ? biasPct3y >= 85 : false
+    const cheap = spreadPctRank10y >= LOWVOL_THRESH.spreadCheapPctRank10y
+    const lowBias =
+      typeof biasPct3y === 'number' && Number.isFinite(biasPct3y) ? biasPct3y <= LOWVOL_THRESH.biasLowPct3y : false
+    const highBias =
+      typeof biasPct3y === 'number' && Number.isFinite(biasPct3y) ? biasPct3y >= LOWVOL_THRESH.biasHighPct3y : false
 
     if (highBias) return { label: '偏减仓', tone: 'bad' as const }
     if (cheap && lowBias) return { label: '偏配置', tone: 'good' as const }
@@ -220,10 +222,10 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
       const spread = p.spreadPctRank10y
       if (typeof spread !== 'number' || !Number.isFinite(spread)) return null
       const bias = p.biasPct3y
-      const cheap = spread >= 80
-      const expensive = spread <= 20
-      const lowBias = typeof bias === 'number' && Number.isFinite(bias) ? bias <= 20 : false
-      const highBias = typeof bias === 'number' && Number.isFinite(bias) ? bias >= 85 : false
+      const cheap = spread >= LOWVOL_THRESH.spreadCheapPctRank10y
+      const expensive = spread <= LOWVOL_THRESH.spreadExpensivePctRank10y
+      const lowBias = typeof bias === 'number' && Number.isFinite(bias) ? bias <= LOWVOL_THRESH.biasLowPct3y : false
+      const highBias = typeof bias === 'number' && Number.isFinite(bias) ? bias >= LOWVOL_THRESH.biasHighPct3y : false
       if (highBias) return 'reduceStrong'
       if (cheap && lowBias) return 'allocStrong'
       if (cheap) return 'allocWeak'
