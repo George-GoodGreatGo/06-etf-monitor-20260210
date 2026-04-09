@@ -1,0 +1,5 @@
+- [x] 932365 与 932315 均配置了可用的 triCode（可通过 index-perf 拉取）
+- [x] `GET /api/lowvol/index/932365` 与 `/api/lowvol/index/932315` 返回的股息率/核心利差/分位不再整体为空
+- [x] TRI 拉取失败时 API 显式报错（而非静默返回空指标），前端可见错误状态
+- [x] `meta.notes` 明确包含 priCode/triCode 与口径说明
+- [x] `npm run check` 通过

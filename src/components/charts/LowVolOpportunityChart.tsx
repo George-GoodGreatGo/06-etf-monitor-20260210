@@ -875,7 +875,7 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
                 </div>
               </>
             ) : null}
-            <div className="text-[#A9B6CC]">红利低波</div>
+            <div className="text-[#A9B6CC]">指数</div>
             <div className="text-right font-mono">{fmt(hover.close, 2)}</div>
             {showMa250 ? (
               <>
@@ -914,7 +914,7 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
       <div className="mt-3 space-y-2">
         <div className="relative rounded-lg border border-white/10 bg-[#111B2E] pt-6">
           <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
-            红利低波（主图）{showMa250 ? ' + MA250' : ''}
+            指数（主图）{showMa250 ? ' + MA250' : ''}
           </div>
           <div ref={mainElRef} className="h-[300px] w-full" />
         </div>

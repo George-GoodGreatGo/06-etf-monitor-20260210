@@ -47,6 +47,8 @@ async function fetchJson(url: string): Promise<unknown> {
     headers: {
       'User-Agent': 'Mozilla/5.0',
       Accept: 'application/json,text/plain,*/*',
+      Referer: 'https://www.csindex.com.cn/',
+      'X-Requested-With': 'XMLHttpRequest',
     },
   })
   if (!res.ok) {
@@ -155,22 +157,48 @@ function buildRollingPercentile(values: Array<number | null>, window: number, mi
   return out
 }
 
-export async function getLowVolH30269Series(args?: {
+type LowVolIndexConfig = {
+  code: string
+  name: string
+  priCode: string
+  triCode: string | null
+}
+
+const LOWVOL_INDEXES: Record<string, LowVolIndexConfig> = {
+  H30269: { code: 'H30269', name: '红利低波', priCode: 'H30269', triCode: 'H20269' },
+  '932365': { code: '932365', name: '中证全指自由现金流', priCode: '932365', triCode: '932365CNY010' },
+  '932315': { code: '932315', name: '中证全指红利质量', priCode: '932315', triCode: '932315CNY010' },
+}
+
+export function getLowVolSupportedIndexCodes(): string[] {
+  return Object.keys(LOWVOL_INDEXES)
+}
+
+export async function getLowVolIndexSeries(args: {
+  code: string
   startDate?: string
   endDate?: string
 }): Promise<{
   meta: { fetchedAt: string; dataDate: string | null; source: string; notes: string[] }
   data: { series: LowVolDailyPoint[] }
 }> {
-  const start = typeof args?.startDate === 'string' ? args.startDate.trim() : ''
-  const end = typeof args?.endDate === 'string' ? args.endDate.trim() : ''
+  const cfg = LOWVOL_INDEXES[String(args.code || '').trim().toUpperCase()]
+  if (!cfg) throw new Error(`unsupported index code: ${String(args.code || '').trim()}`)
+
+  const start = typeof args.startDate === 'string' ? args.startDate.trim() : ''
+  const end = typeof args.endDate === 'string' ? args.endDate.trim() : ''
   const start8 = /^\d{8}$/.test(start) ? start : '20051230'
   const end8 = /^\d{8}$/.test(end) ? end : '20991231'
 
-  const closeSeries = await fetchCsindexIndexCloseSeries({ indexCode: 'H30269', startDate: start8, endDate: end8 })
-  const triSeries = await fetchCsindexIndexCloseSeries({ indexCode: 'H20269', startDate: start8, endDate: end8 })
+  const closeSeries = await fetchCsindexIndexCloseSeries({ indexCode: cfg.priCode, startDate: start8, endDate: end8 })
+  if (!cfg.triCode) throw new Error(`TRI 数据未配置，无法计算股息率/利差：${cfg.code}`)
+  const triSeries = await fetchCsindexIndexCloseSeries({ indexCode: cfg.triCode, startDate: start8, endDate: end8 })
   const triByDate = new Map<string, number>()
   for (const p of triSeries) triByDate.set(p.date, p.close)
+  if (!triSeries.length) throw new Error(`TRI 数据为空，无法计算股息率/利差：${cfg.code}`)
+  let overlap = 0
+  for (const p of closeSeries) if (triByDate.has(p.date)) overlap += 1
+  if (overlap < 253) throw new Error(`TRI 数据不足或无法对齐，无法计算股息率/利差：${cfg.code}`)
 
   const closes = closeSeries.map((p) => p.close)
   const ma250 = buildSma(closes, 250)
@@ -255,16 +283,22 @@ export async function getLowVolH30269Series(args?: {
     dataDate: last?.date ?? null,
     source: 'csindex + chinamoney',
     notes: [
-      '指数点位数据源：csindex（index-perf）。',
-      '股息收益率口径（修正）：先用价格指数 H30269 与全收益指数 H20269 的滚动1年（252交易日）推算分红回报 DividendReturn(1Y)= (TRI_t/TRI_{t-252}) / (PRI_t/PRI_{t-252}) - 1，再换算分红点数 D_t=PRI_t*DividendReturn(1Y)，对 D_t 做250日SMA（minPeriods=126），最后用 股息率_t = D_SMA_t / PRI_t。',
+      `指数：${cfg.name}（${cfg.code}）。`,
+      `指数点位数据源：csindex（index-perf，priCode=${cfg.priCode}）。`,
+      `全收益指数数据源：csindex（index-perf，triCode=${cfg.triCode}）。`,
+      '股息收益率口径（修正）：先用价格指数PRI与全收益指数TRI的滚动1年（252交易日）推算分红回报 DividendReturn(1Y)= (TRI_t/TRI_{t-252}) / (PRI_t/PRI_{t-252}) - 1，再换算分红点数 D_t=PRI_t*DividendReturn(1Y)，对 D_t 做250日SMA（minPeriods=126），最后用 股息率_t = D_SMA_t / PRI_t。',
       '利差口径（核心）：spreadCore=股息收益率(修正)-10Y。',
       '利差分位：基于spreadCore做10年滚动分位（window≈2520，minPeriods=252）。',
       '乖离率BIAS口径：250日简单移动平均，BIAS=(close-ma250)/ma250。',
       '滚动分位数窗口：3年≈756个交易日（最小有效252个样本）。',
       '10Y国债收益率数据源：chinamoney。',
-    ],
+    ].filter(Boolean),
   }
 
   return { meta, data: { series } }
+}
+
+export async function getLowVolH30269Series(args?: { startDate?: string; endDate?: string }) {
+  return getLowVolIndexSeries({ code: 'H30269', startDate: args?.startDate, endDate: args?.endDate })
 }
 
