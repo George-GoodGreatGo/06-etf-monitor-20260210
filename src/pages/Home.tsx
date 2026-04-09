@@ -619,8 +619,7 @@ export default function Home() {
         </div>
 
         {tab === 'lowvol' ? (
-          <div className="mt-1 flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-[#111B2E] px-3 py-2">
-            <div className="mr-1 text-xs font-medium text-[#A9B6CC]">指数切换</div>
+          <div className="mt-1 flex flex-wrap items-center gap-6 border-b border-white/10 pb-1">
             {LOWVOL_INDEX_OPTIONS.map((opt) => (
               <button
                 key={opt.code}
@@ -630,13 +629,19 @@ export default function Home() {
                   setLowVolIndexCode(opt.code)
                 }}
                 className={cn(
-                  'inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition',
+                  'relative inline-flex items-baseline gap-2 pb-2 text-sm font-semibold transition',
                   opt.code === lowVolIndexCode
-                    ? 'border-white/15 bg-white/10 text-[#E6EDF7]'
-                    : 'border-white/10 bg-transparent text-[#A9B6CC] hover:border-white/15 hover:bg-white/5',
+                    ? 'text-[#E6EDF7]'
+                    : 'text-[#94A3B8] hover:text-white',
                 )}
               >
-                {opt.label}（{opt.code}）
+                <span>{opt.label}</span>
+                <span className={cn('font-mono text-[11px]', opt.code === lowVolIndexCode ? 'text-[#CBD5E1]' : 'text-[#64748B]')}>
+                  {opt.code}
+                </span>
+                {opt.code === lowVolIndexCode ? (
+                  <span className="absolute -bottom-[1px] left-0 right-0 h-[2px] bg-[#FF5722]" />
+                ) : null}
               </button>
             ))}
           </div>
