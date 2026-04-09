@@ -63,6 +63,13 @@ export default function Home() {
     for (const opt of LOWVOL_INDEX_OPTIONS) out[opt.code] = { label: '—', tone: 'unknown' }
     return out
   })
+  const [lowVolIndexSuggestionLoadingByCode, setLowVolIndexSuggestionLoadingByCode] = useState<
+    Record<LowVolIndexCode, boolean>
+  >(() => {
+    const out = {} as Record<LowVolIndexCode, boolean>
+    for (const opt of LOWVOL_INDEX_OPTIONS) out[opt.code] = false
+    return out
+  })
 
   const [sortKey, setSortKey] = useState<Top100SortKey>(
     (searchParams.get('sort') as Top100SortKey) ?? defaultSort.key,
@@ -133,6 +140,11 @@ export default function Home() {
   useEffect(() => {
     if (tab !== 'lowvol') return
     const ac = new AbortController()
+    setLowVolIndexSuggestionLoadingByCode((prev) => {
+      const next = { ...prev }
+      for (const opt of LOWVOL_INDEX_OPTIONS) next[opt.code] = true
+      return next
+    })
     ;(async () => {
       const next = { ...lowVolIndexSuggestionByCode }
       await Promise.all(
@@ -153,8 +165,20 @@ export default function Home() {
         }),
       )
       setLowVolIndexSuggestionByCode(next)
+      setLowVolIndexSuggestionLoadingByCode((prev) => {
+        const after = { ...prev }
+        for (const opt of LOWVOL_INDEX_OPTIONS) after[opt.code] = false
+        return after
+      })
     })()
-    return () => ac.abort()
+    return () => {
+      ac.abort()
+      setLowVolIndexSuggestionLoadingByCode((prev) => {
+        const after = { ...prev }
+        for (const opt of LOWVOL_INDEX_OPTIONS) after[opt.code] = false
+        return after
+      })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab])
 
@@ -664,42 +688,48 @@ export default function Home() {
         </div>
 
         {tab === 'lowvol' ? (
-          <div className="mt-1 flex flex-wrap items-center gap-6 border-b border-white/10 pb-1">
-            {LOWVOL_INDEX_OPTIONS.map((opt) => {
-              const sug = lowVolIndexSuggestionByCode[opt.code]
-              return (
-                <button
-                  key={opt.code}
-                  type="button"
-                  onClick={() => {
-                    if (opt.code === lowVolIndexCode) return
-                    setLowVolIndexCode(opt.code)
-                  }}
-                  className={cn(
-                    'relative inline-flex items-baseline gap-2 pb-2 text-sm font-semibold transition',
-                    opt.code === lowVolIndexCode ? 'text-[#E6EDF7]' : 'text-[#94A3B8] hover:text-white',
-                  )}
-                >
-                  <span>{opt.label}</span>
-                  <span
-                    className={cn('font-mono text-[11px]', opt.code === lowVolIndexCode ? 'text-[#CBD5E1]' : 'text-[#64748B]')}
-                  >
-                    {opt.code}
-                  </span>
-                  <span
+          <div className="mt-2 flex flex-wrap items-center border-b border-white/10 pb-2">
+            <div className="inline-flex flex-wrap items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1">
+              {LOWVOL_INDEX_OPTIONS.map((opt) => {
+                const sug = lowVolIndexSuggestionByCode[opt.code]
+                const sugLoading = lowVolIndexSuggestionLoadingByCode[opt.code]
+                return (
+                  <button
+                    key={opt.code}
+                    type="button"
+                    onClick={() => {
+                      if (opt.code === lowVolIndexCode) return
+                      setLowVolIndexCode(opt.code)
+                    }}
                     className={cn(
-                      'ml-1 inline-flex items-center rounded border px-2 py-[2px] text-[11px] font-medium leading-none',
-                      toneToNavPillCls(sug?.tone ?? 'unknown'),
+                      'inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold transition',
+                      opt.code === lowVolIndexCode
+                        ? 'bg-white/10 text-[#E6EDF7] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]'
+                        : 'text-[#94A3B8] hover:bg-white/5 hover:text-white',
                     )}
                   >
-                    {sug?.label ?? '—'}
-                  </span>
-                  {opt.code === lowVolIndexCode ? (
-                    <span className="absolute -bottom-[1px] left-0 right-0 h-[2px] bg-[#FF5722]" />
-                  ) : null}
-                </button>
-              )
-            })}
+                    <span>{opt.label}</span>
+                    <span
+                      className={cn(
+                        'font-mono text-[11px]',
+                        opt.code === lowVolIndexCode ? 'text-[#CBD5E1]' : 'text-[#64748B]',
+                      )}
+                    >
+                      {opt.code}
+                    </span>
+                    <span
+                      className={cn(
+                        'ml-1 inline-flex items-center gap-2 rounded-full border px-2 py-[2px] text-[11px] font-medium leading-none',
+                        toneToNavPillCls(sugLoading ? 'unknown' : (sug?.tone ?? 'unknown')),
+                      )}
+                    >
+                      {sugLoading ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/20 border-t-white/70" /> : null}
+                      {sugLoading ? '—' : (sug?.label ?? '—')}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         ) : null}
 
