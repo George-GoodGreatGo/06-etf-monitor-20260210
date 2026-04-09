@@ -79,6 +79,28 @@ export default function LowVolOpportunityPanel() {
 
   return (
     <section className="mt-4 overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
+      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-[#111B2E] px-3 py-2">
+        <div className="mr-1 text-xs font-medium text-[#A9B6CC]">指数切换</div>
+        {INDEX_OPTIONS.map((opt) => (
+          <button
+            key={opt.code}
+            type="button"
+            onClick={() => {
+              if (opt.code === indexCode) return
+              setIndexCode(opt.code)
+            }}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition',
+              opt.code === indexCode
+                ? 'border-white/15 bg-white/10 text-[#E6EDF7]'
+                : 'border-white/10 bg-transparent text-[#A9B6CC] hover:border-white/15 hover:bg-white/5',
+            )}
+          >
+            {opt.label}（{opt.code}）
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <div className="text-xl font-semibold tracking-tight text-white">低波指数机会识别</div>
@@ -134,28 +156,6 @@ export default function LowVolOpportunityPanel() {
 
       <div className="mt-3">
         <DataStatusBanner loading={loading} error={error} meta={meta} incompleteCount={0} onRetry={run} />
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-[#111B2E] px-3 py-2">
-        <div className="mr-1 text-xs font-medium text-[#A9B6CC]">指数切换</div>
-        {INDEX_OPTIONS.map((opt) => (
-          <button
-            key={opt.code}
-            type="button"
-            onClick={() => {
-              if (opt.code === indexCode) return
-              setIndexCode(opt.code)
-            }}
-            className={cn(
-              'inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition',
-              opt.code === indexCode
-                ? 'border-white/15 bg-white/10 text-[#E6EDF7]'
-                : 'border-white/10 bg-transparent text-[#A9B6CC] hover:border-white/15 hover:bg-white/5',
-            )}
-          >
-            {opt.label}（{opt.code}）
-          </button>
-        ))}
       </div>
 
       <div className="mt-4">
