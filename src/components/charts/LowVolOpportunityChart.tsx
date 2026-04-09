@@ -300,7 +300,7 @@ export default function LowVolOpportunityChart({ series, className }: Props) {
     })
 
     const closeSeries = chart.addSeries(LineSeries, {
-      color: '#94A3B8',
+      color: '#60A5FA',
       lineWidth: 2,
       priceLineVisible: false,
       lastValueVisible: true,
