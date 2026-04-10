@@ -701,7 +701,7 @@ export default function Home() {
 
         {tab === 'lowvol' ? (
           <>
-            <div className="mt-2 border-b border-white/10 pb-3">
+            <div className="mt-2 pb-3">
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                 {LOWVOL_INDEX_OPTIONS.map((opt) => {
                   const sug = lowVolIndexSuggestionByCode[opt.code]
@@ -743,12 +743,6 @@ export default function Home() {
                           {sugLoading ? '—' : (sug?.label ?? '—')}
                         </span>
                       </div>
-                      <div
-                        className={cn(
-                          'h-[2px] w-full rounded-full',
-                          active ? 'bg-[#FF5722]' : 'bg-white/10 group-hover:bg-white/15',
-                        )}
-                      />
                     </button>
                   )
                 })}
