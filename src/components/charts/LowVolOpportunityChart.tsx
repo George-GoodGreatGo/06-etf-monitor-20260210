@@ -66,11 +66,10 @@ type Props = {
   series: LowVolH30269Point[]
   indexCode?: string
   biasBasis: 'sma250' | 'sma60'
-  onChangeBiasBasis: (next: 'sma250' | 'sma60') => void
   className?: string
 }
 
-export default function LowVolOpportunityChart({ series, indexCode, biasBasis, onChangeBiasBasis, className }: Props) {
+export default function LowVolOpportunityChart({ series, indexCode, biasBasis, className }: Props) {
   const [hover, setHover] = useState<HoverState | null>(null)
   const [showInfo, setShowInfo] = useState(true)
   const [showSma60, setShowSma60] = useState(true)
@@ -846,29 +845,6 @@ export default function LowVolOpportunityChart({ series, indexCode, biasBasis, o
           <span className="h-2 w-2 rounded-full bg-[#94A3B8]" />
           SMA250
         </button>
-        <div className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 p-1">
-          <span className="px-1 text-[11px] text-[#94A3B8]">BIAS基准</span>
-          <button
-            type="button"
-            onClick={() => onChangeBiasBasis('sma250')}
-            className={cn(
-              'rounded px-2 py-[2px] text-[11px] font-semibold transition',
-              biasBasis === 'sma250' ? 'bg-white/10 text-[#E6EDF7]' : 'text-[#94A3B8] hover:bg-white/5 hover:text-white',
-            )}
-          >
-            SMA250
-          </button>
-          <button
-            type="button"
-            onClick={() => onChangeBiasBasis('sma60')}
-            className={cn(
-              'rounded px-2 py-[2px] text-[11px] font-semibold transition',
-              biasBasis === 'sma60' ? 'bg-white/10 text-[#E6EDF7]' : 'text-[#94A3B8] hover:bg-white/5 hover:text-white',
-            )}
-          >
-            SMA60
-          </button>
-        </div>
         <div className="mx-2 h-4 w-px bg-white/10" />
         <button
           type="button"

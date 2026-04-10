@@ -698,7 +698,7 @@ export default function Home() {
         </div>
 
         {tab === 'lowvol' ? (
-          <div className="mt-2 flex flex-wrap items-center border-b border-white/10 pb-2">
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2">
             <div className="inline-flex flex-wrap items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1">
               {LOWVOL_INDEX_OPTIONS.map((opt) => {
                 const sug = lowVolIndexSuggestionByCode[opt.code]
@@ -740,6 +740,27 @@ export default function Home() {
                 )
               })}
             </div>
+            <div className="flex items-center gap-2">
+              <div className="text-xs font-semibold text-[#E6EDF7]">BIAS基准</div>
+              <div className="font-mono text-[11px] text-[#94A3B8]">{lowVolBiasBasis === 'sma60' ? 'SMA60' : 'SMA250'}</div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={lowVolBiasBasis === 'sma60'}
+                onClick={() => setLowVolBiasBasis((v) => (v === 'sma60' ? 'sma250' : 'sma60'))}
+                className={cn(
+                  'relative inline-flex h-5 w-9 flex-none items-center rounded-full border transition focus:outline-none focus:ring-2 focus:ring-[#60A5FA]/60',
+                  lowVolBiasBasis === 'sma60' ? 'border-[#22C55E]/60 bg-[#22C55E]' : 'border-white/15 bg-white/15',
+                )}
+              >
+                <span
+                  className={cn(
+                    'inline-block h-4 w-4 rounded-full bg-white shadow transition',
+                    lowVolBiasBasis === 'sma60' ? 'translate-x-4' : 'translate-x-1',
+                  )}
+                />
+              </button>
+            </div>
           </div>
         ) : null}
 
@@ -752,7 +773,6 @@ export default function Home() {
             indexCode={lowVolIndexCode}
             indexLabel={LOWVOL_INDEX_OPTIONS.find((x) => x.code === lowVolIndexCode)?.label ?? lowVolIndexCode}
             biasBasis={lowVolBiasBasis}
-            onChangeBiasBasis={setLowVolBiasBasis}
           />
         ) : (
           <Top100Table

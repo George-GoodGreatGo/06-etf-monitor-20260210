@@ -22,12 +22,10 @@ export default function LowVolOpportunityPanel(props: {
   indexCode: string
   indexLabel: string
   biasBasis: 'sma250' | 'sma60'
-  onChangeBiasBasis: (next: 'sma250' | 'sma60') => void
 }) {
   const indexCode = props.indexCode
   const indexLabel = props.indexLabel
   const biasBasis = props.biasBasis
-  const onChangeBiasBasis = props.onChangeBiasBasis
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [meta, setMeta] = useState<Top100Meta | null>(null)
@@ -136,12 +134,7 @@ export default function LowVolOpportunityPanel(props: {
 
       <div className="mt-4">
         <div className="relative">
-          <LowVolOpportunityChart
-            series={series}
-            indexCode={indexCode}
-            biasBasis={biasBasis}
-            onChangeBiasBasis={onChangeBiasBasis}
-          />
+          <LowVolOpportunityChart series={series} indexCode={indexCode} biasBasis={biasBasis} />
           {loading && !error ? (
             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-black/10 backdrop-blur-[1px]">
               <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-black/30 px-4 py-3 text-sm text-[#E6EDF7]">
