@@ -29,11 +29,27 @@ const defaultSort: { key: Top100SortKey; dir: SortDir } = {
 type HomeTab = 'list' | 'insight' | 'liquidity' | 'lowvol'
 
 const LOWVOL_INDEX_OPTIONS = [
-  { code: 'H30269', label: '红利低波' },
-  { code: '932365', label: '自由现金流' },
-  { code: '932315', label: '红利质量' },
-  { code: '930955', label: '红利低波100' },
-  { code: '980081', label: '国证价值100' },
+  {
+    code: 'H30269',
+    label: '红利低波',
+    desc: '从高股息股票中筛选低波动、流动性较好标的，定期调样，兼顾收益与波动控制。',
+  },
+  {
+    code: '932365',
+    label: '自由现金流',
+    desc: '聚焦自由现金流率较高、现金流质量较好的公司，兼顾规模与流动性，定期调样。',
+  },
+  {
+    code: '932315',
+    label: '红利质量',
+    desc: '在高股息基础上叠加盈利、财务健康等质量筛选，降低“高分红陷阱”，定期调样。',
+  },
+  { code: '930955', label: '红利低波100', desc: '以高股息为基础，综合低波动与流动性筛选，选取100只成分，定期调样。' },
+  {
+    code: '980081',
+    label: '国证价值100',
+    desc: '以估值因子为核心（如低PB/PE等），筛选价值特征突出且流动性较好的100只成分，定期调样。',
+  },
 ] as const
 
 type LowVolIndexCode = (typeof LOWVOL_INDEX_OPTIONS)[number]['code']
@@ -730,6 +746,7 @@ export default function Home() {
                           <div className={cn('mt-0.5 font-mono text-[11px]', active ? 'text-[#FFD6C8]' : 'text-[#64748B]')}>
                             {opt.code}
                           </div>
+                          <div className="mt-1 text-[11px] leading-4 text-[#94A3B8]">{opt.desc}</div>
                         </div>
                         <span
                           className={cn(
