@@ -33,8 +33,11 @@ export type MarketLiquidityV5 = {
 export type LowVolH30269Point = {
   date: string
   close: number
+  ma60: number | null
   ma250: number | null
+  bias60: number | null
   bias250: number | null
+  biasPct3y60: number | null
   biasPct3y: number | null
   dividendYieldPct: number | null
   yield10yPct: number | null

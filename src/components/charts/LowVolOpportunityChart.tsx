@@ -54,8 +54,10 @@ type HoverState = {
   close?: number
   sma60?: number
   ma250?: number
-  bias?: number
-  biasPct?: number
+  bias60?: number
+  bias250?: number
+  biasPct3y60?: number
+  biasPct3y250?: number
   spreadSmooth?: number
   spreadPctRank10y?: number
 }
@@ -63,10 +65,12 @@ type HoverState = {
 type Props = {
   series: LowVolH30269Point[]
   indexCode?: string
+  biasBasis: 'sma250' | 'sma60'
+  onChangeBiasBasis: (next: 'sma250' | 'sma60') => void
   className?: string
 }
 
-export default function LowVolOpportunityChart({ series, indexCode, className }: Props) {
+export default function LowVolOpportunityChart({ series, indexCode, biasBasis, onChangeBiasBasis, className }: Props) {
   const [hover, setHover] = useState<HoverState | null>(null)
   const [showInfo, setShowInfo] = useState(true)
   const [showSma60, setShowSma60] = useState(true)
@@ -127,12 +131,13 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
 
   const signal = useMemo(() => {
     if (!hover) return null
+    const biasPct = biasBasis === 'sma60' ? hover.biasPct3y60 : hover.biasPct3y250
     return calcLowVolSuggestion({
       spreadPctRank10y: hover.spreadPctRank10y,
-      biasPct3y: hover.biasPct,
+      biasPct3y: biasPct,
       thresh,
     })
-  }, [hover?.biasPct, hover?.spreadPctRank10y, thresh])
+  }, [biasBasis, hover?.biasPct3y250, hover?.biasPct3y60, hover?.spreadPctRank10y, thresh])
 
   const updateSpreadPctZones = () => {
     if (!showSpreadPctPane) return
@@ -165,8 +170,10 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
     const close: LineData<Time>[] = []
     const sma60: LineData<Time>[] = []
     const ma: LineData<Time>[] = []
-    const bias: LineData<Time>[] = []
-    const biasPct: LineData<Time>[] = []
+    const bias60: LineData<Time>[] = []
+    const bias250: LineData<Time>[] = []
+    const biasPct3y60: LineData<Time>[] = []
+    const biasPct3y250: LineData<Time>[] = []
     const spreadSmooth: LineData<Time>[] = []
     const spreadPctRank10y: LineData<Time>[] = []
     const segBase: Array<{ time: UTCTimestamp; close: number; spreadPctRank10y?: number; biasPct3y?: number }> = []
@@ -181,16 +188,27 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
       if (!t) continue
       if (typeof p.close === 'number' && Number.isFinite(p.close)) {
         close.push({ time: t, value: p.close })
+        const bp =
+          biasBasis === 'sma60'
+            ? typeof p.biasPct3y60 === 'number' && Number.isFinite(p.biasPct3y60)
+              ? p.biasPct3y60
+              : undefined
+            : typeof p.biasPct3y === 'number' && Number.isFinite(p.biasPct3y)
+              ? p.biasPct3y
+              : undefined
         segBase.push({
           time: t,
           close: p.close,
           spreadPctRank10y: typeof p.spreadPctRank10y === 'number' && Number.isFinite(p.spreadPctRank10y) ? p.spreadPctRank10y : undefined,
-          biasPct3y: typeof p.biasPct3y === 'number' && Number.isFinite(p.biasPct3y) ? p.biasPct3y : undefined,
+          biasPct3y: bp,
         })
       }
+      if (typeof p.ma60 === 'number' && Number.isFinite(p.ma60)) sma60.push({ time: t, value: p.ma60 })
       if (typeof p.ma250 === 'number' && Number.isFinite(p.ma250)) ma.push({ time: t, value: p.ma250 })
-      if (typeof p.bias250 === 'number' && Number.isFinite(p.bias250)) bias.push({ time: t, value: p.bias250 })
-      if (typeof p.biasPct3y === 'number' && Number.isFinite(p.biasPct3y)) biasPct.push({ time: t, value: p.biasPct3y })
+      if (typeof p.bias60 === 'number' && Number.isFinite(p.bias60)) bias60.push({ time: t, value: p.bias60 })
+      if (typeof p.bias250 === 'number' && Number.isFinite(p.bias250)) bias250.push({ time: t, value: p.bias250 })
+      if (typeof p.biasPct3y60 === 'number' && Number.isFinite(p.biasPct3y60)) biasPct3y60.push({ time: t, value: p.biasPct3y60 })
+      if (typeof p.biasPct3y === 'number' && Number.isFinite(p.biasPct3y)) biasPct3y250.push({ time: t, value: p.biasPct3y })
       if (typeof p.spreadSmoothPct === 'number' && Number.isFinite(p.spreadSmoothPct)) spreadSmooth.push({ time: t, value: p.spreadSmoothPct })
       if (typeof p.spreadPctRank10y === 'number' && Number.isFinite(p.spreadPctRank10y))
         spreadPctRank10y.push({ time: t, value: p.spreadPctRank10y })
@@ -199,9 +217,12 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
         t,
         date: p.date,
         close: typeof p.close === 'number' && Number.isFinite(p.close) ? p.close : undefined,
+        sma60: typeof p.ma60 === 'number' && Number.isFinite(p.ma60) ? p.ma60 : undefined,
         ma250: typeof p.ma250 === 'number' && Number.isFinite(p.ma250) ? p.ma250 : undefined,
-        bias: typeof p.bias250 === 'number' && Number.isFinite(p.bias250) ? p.bias250 : undefined,
-        biasPct: typeof p.biasPct3y === 'number' && Number.isFinite(p.biasPct3y) ? p.biasPct3y : undefined,
+        bias60: typeof p.bias60 === 'number' && Number.isFinite(p.bias60) ? p.bias60 : undefined,
+        bias250: typeof p.bias250 === 'number' && Number.isFinite(p.bias250) ? p.bias250 : undefined,
+        biasPct3y60: typeof p.biasPct3y60 === 'number' && Number.isFinite(p.biasPct3y60) ? p.biasPct3y60 : undefined,
+        biasPct3y250: typeof p.biasPct3y === 'number' && Number.isFinite(p.biasPct3y) ? p.biasPct3y : undefined,
         spreadSmooth: typeof p.spreadSmoothPct === 'number' && Number.isFinite(p.spreadSmoothPct) ? p.spreadSmoothPct : undefined,
         spreadPctRank10y:
           typeof p.spreadPctRank10y === 'number' && Number.isFinite(p.spreadPctRank10y) ? p.spreadPctRank10y : undefined,
@@ -209,28 +230,14 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
     }
 
     close.sort((a, b) => (a.time as number) - (b.time as number))
+    sma60.sort((a, b) => (a.time as number) - (b.time as number))
     ma.sort((a, b) => (a.time as number) - (b.time as number))
-    bias.sort((a, b) => (a.time as number) - (b.time as number))
-    biasPct.sort((a, b) => (a.time as number) - (b.time as number))
+    bias60.sort((a, b) => (a.time as number) - (b.time as number))
+    bias250.sort((a, b) => (a.time as number) - (b.time as number))
+    biasPct3y60.sort((a, b) => (a.time as number) - (b.time as number))
+    biasPct3y250.sort((a, b) => (a.time as number) - (b.time as number))
     spreadSmooth.sort((a, b) => (a.time as number) - (b.time as number))
     spreadPctRank10y.sort((a, b) => (a.time as number) - (b.time as number))
-
-    const win: number[] = []
-    let sum = 0
-    for (const pt of close) {
-      const v = pt.value
-      if (typeof v !== 'number' || !Number.isFinite(v)) continue
-      win.push(v)
-      sum += v
-      if (win.length > 60) sum -= win.shift() ?? 0
-      if (win.length === 60) {
-        const t = pt.time as UTCTimestamp
-        const m = sum / 60
-        sma60.push({ time: t, value: m })
-        const h = map.get(t)
-        if (h) h.sma60 = m
-      }
-    }
 
     segBase.sort((a, b) => a.time - b.time)
 
@@ -281,8 +288,10 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
       close,
       sma60,
       ma,
-      bias,
-      biasPct,
+      bias60,
+      bias250,
+      biasPct3y60,
+      biasPct3y250,
       spreadSmooth,
       spreadPctRank10y,
       allocStrongSegments,
@@ -291,7 +300,7 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
       neutralSegments,
       map,
     }
-  }, [series, thresh])
+  }, [biasBasis, series, thresh])
 
   useEffect(() => {
     const el = mainElRef.current
@@ -682,16 +691,18 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
       const biasPctSeries = seriesRef.current.biasPct
       const spreadSeries = seriesRef.current.spread
       const spreadPctSeries = seriesRef.current.spreadPct
+      const hvBias = biasBasis === 'sma60' ? h?.bias60 : h?.bias250
+      const hvBiasPct = biasBasis === 'sma60' ? h?.biasPct3y60 : h?.biasPct3y250
 
       syncingRef.current = true
       for (const c of charts) {
         if (c === src) continue
         if (c === main && mainClose && typeof h?.close === 'number') {
           c.setCrosshairPosition(h.close, t, mainClose)
-        } else if (c === bias && biasSeries && typeof h?.bias === 'number') {
-          c.setCrosshairPosition(h.bias, t, biasSeries)
-        } else if (c === biasPct && biasPctSeries && typeof h?.biasPct === 'number') {
-          c.setCrosshairPosition(h.biasPct, t, biasPctSeries)
+        } else if (c === bias && biasSeries && typeof hvBias === 'number') {
+          c.setCrosshairPosition(hvBias, t, biasSeries)
+        } else if (c === biasPct && biasPctSeries && typeof hvBiasPct === 'number') {
+          c.setCrosshairPosition(hvBiasPct, t, biasPctSeries)
         } else if (c === spread && spreadSeries && typeof h?.spreadSmooth === 'number') {
           c.setCrosshairPosition(h.spreadSmooth, t, spreadSeries)
         } else if (c === spreadPct && spreadPctSeries && typeof h?.spreadPctRank10y === 'number') {
@@ -713,15 +724,17 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
       for (const { chart, fn } of rangeHandlers) chart.timeScale().unsubscribeVisibleLogicalRangeChange(fn)
       for (const { chart, fn } of crossHandlers) chart.unsubscribeCrosshairMove(fn)
     }
-  }, [data.map, showBiasPane, showBiasPctPane, showSpreadPane, showSpreadPctPane])
+  }, [biasBasis, data.map, showBiasPane, showBiasPctPane, showSpreadPane, showSpreadPctPane])
 
   useEffect(() => {
     seriesRef.current.mainClose?.setData(data.close)
     seriesRef.current.mainSma60?.setData(showSma60 ? data.sma60 : [])
     seriesRef.current.mainMa?.setData(showMa250 ? data.ma : [])
-    seriesRef.current.bias?.setData(showBiasPane ? data.bias : [])
+    seriesRef.current.bias?.setData(showBiasPane ? (biasBasis === 'sma60' ? data.bias60 : data.bias250) : [])
     seriesRef.current.biasAlign?.setData(data.close)
-    seriesRef.current.biasPct?.setData(showBiasPctPane ? data.biasPct : [])
+    seriesRef.current.biasPct?.setData(
+      showBiasPctPane ? (biasBasis === 'sma60' ? data.biasPct3y60 : data.biasPct3y250) : [],
+    )
     seriesRef.current.biasPctAlign?.setData(data.close)
     seriesRef.current.spread?.setData(showSpreadPane ? data.spreadSmooth : [])
     seriesRef.current.spreadAlign?.setData(data.close)
@@ -782,7 +795,7 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
       if (showSpreadPctPane) spreadPct.timeScale().setVisibleLogicalRange(range)
     }
     requestAnimationFrame(updateSpreadPctZones)
-  }, [data, showBiasPane, showBiasPctPane, showMa250, showSma60, showSpreadPane, showSpreadPctPane])
+  }, [biasBasis, data, showBiasPane, showBiasPctPane, showMa250, showSma60, showSpreadPane, showSpreadPctPane])
 
   useEffect(() => {
     if (!showSpreadPctPane || !spreadPctElRef.current) return
@@ -833,6 +846,29 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
           <span className="h-2 w-2 rounded-full bg-[#94A3B8]" />
           SMA250
         </button>
+        <div className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 p-1">
+          <span className="px-1 text-[11px] text-[#94A3B8]">BIAS基准</span>
+          <button
+            type="button"
+            onClick={() => onChangeBiasBasis('sma250')}
+            className={cn(
+              'rounded px-2 py-[2px] text-[11px] font-semibold transition',
+              biasBasis === 'sma250' ? 'bg-white/10 text-[#E6EDF7]' : 'text-[#94A3B8] hover:bg-white/5 hover:text-white',
+            )}
+          >
+            SMA250
+          </button>
+          <button
+            type="button"
+            onClick={() => onChangeBiasBasis('sma60')}
+            className={cn(
+              'rounded px-2 py-[2px] text-[11px] font-semibold transition',
+              biasBasis === 'sma60' ? 'bg-white/10 text-[#E6EDF7]' : 'text-[#94A3B8] hover:bg-white/5 hover:text-white',
+            )}
+          >
+            SMA60
+          </button>
+        </div>
         <div className="mx-2 h-4 w-px bg-white/10" />
         <button
           type="button"
@@ -957,14 +993,14 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
             ) : null}
             {showBiasPane ? (
               <>
-                <div className="text-[#A9B6CC]">BIAS(250)</div>
-                <div className="text-right font-mono">{fmt(hover.bias, 4)}</div>
+                <div className="text-[#A9B6CC]">BIAS({biasBasis === 'sma60' ? '60' : '250'})</div>
+                <div className="text-right font-mono">{fmt(biasBasis === 'sma60' ? hover.bias60 : hover.bias250, 4)}</div>
               </>
             ) : null}
             {showBiasPctPane ? (
               <>
-                <div className="text-[#A9B6CC]">BIAS分位(3年)</div>
-                <div className="text-right font-mono">{fmt(hover.biasPct, 1)}</div>
+                <div className="text-[#A9B6CC]">BIAS分位(3年, {biasBasis === 'sma60' ? 'SMA60' : 'SMA250'})</div>
+                <div className="text-right font-mono">{fmt(biasBasis === 'sma60' ? hover.biasPct3y60 : hover.biasPct3y250, 1)}</div>
               </>
             ) : null}
             {showSpreadPane ? (
@@ -999,7 +1035,7 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
           style={{ height: showBiasPane ? 140 : 1 }}
         >
           <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
-            BIAS(250)
+            BIAS({biasBasis === 'sma60' ? '60' : '250'})
           </div>
           <div ref={biasElRef} className="relative z-10 h-full w-full" />
         </div>
@@ -1012,7 +1048,7 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
           style={{ height: showBiasPctPane ? 140 : 1 }}
         >
           <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
-            BIAS分位(3年)
+            BIAS分位(3年, {biasBasis === 'sma60' ? 'SMA60' : 'SMA250'})
           </div>
           <div ref={biasPctElRef} className="relative z-10 h-full w-full" />
         </div>

@@ -30,8 +30,11 @@ function toNum(v: unknown): number | null {
 export type LowVolDailyPoint = {
   date: string
   close: number
+  ma60: number | null
   ma250: number | null
+  bias60: number | null
   bias250: number | null
+  biasPct3y60: number | null
   biasPct3y: number | null
   dividendYieldPct: number | null
   yield10yPct: number | null
@@ -201,6 +204,13 @@ export async function getLowVolIndexSeries(args: {
   if (overlap < 253) throw new Error(`TRI 数据不足或无法对齐，无法计算股息率/利差：${cfg.code}`)
 
   const closes = closeSeries.map((p) => p.close)
+  const ma60 = buildSma(closes, 60)
+  const bias60: Array<number | null> = closeSeries.map((p, i) => {
+    const ma = ma60[i]
+    if (ma == null || ma === 0) return null
+    return (p.close - ma) / ma
+  })
+  const biasPct3y60 = buildRollingPercentile(bias60, 756, 252)
   const ma250 = buildSma(closes, 250)
   const bias250: Array<number | null> = closeSeries.map((p, i) => {
     const ma = ma250[i]
@@ -265,8 +275,11 @@ export async function getLowVolIndexSeries(args: {
   const series: LowVolDailyPoint[] = closeSeries.map((p, i) => ({
     date: p.date,
     close: p.close,
+    ma60: ma60[i],
     ma250: ma250[i],
+    bias60: bias60[i],
     bias250: bias250[i],
+    biasPct3y60: biasPct3y60[i],
     biasPct3y: biasPct3y[i],
     dividendYieldPct: dividendYieldPct[i],
     yield10yPct: yield10yPct[i],
@@ -289,7 +302,7 @@ export async function getLowVolIndexSeries(args: {
       '股息收益率口径（修正）：先用价格指数PRI与全收益指数TRI的滚动1年（252交易日）推算分红回报 DividendReturn(1Y)= (TRI_t/TRI_{t-252}) / (PRI_t/PRI_{t-252}) - 1，再换算分红点数 D_t=PRI_t*DividendReturn(1Y)，对 D_t 做250日SMA（minPeriods=126），最后用 股息率_t = D_SMA_t / PRI_t。',
       '利差口径（核心）：spreadCore=股息收益率(修正)-10Y。',
       '利差分位：基于spreadCore做10年滚动分位（window≈2520，minPeriods=252）。',
-      '乖离率BIAS口径：250日简单移动平均，BIAS=(close-ma250)/ma250。',
+      '乖离率BIAS口径：60日/250日简单移动平均，BIAS=(close-ma)/ma。',
       '滚动分位数窗口：3年≈756个交易日（最小有效252个样本）。',
       '10Y国债收益率数据源：chinamoney。',
     ].filter(Boolean),

@@ -1,0 +1,6 @@
+- [x] lowVol API series 点新增字段：ma60 / bias60 / biasPct3y60（允许为 null）
+- [x] 低波机会提供“BIAS 基准”切换：SMA250（默认）/ SMA60
+- [x] 切换基准时，BIAS/BIAS分位副图曲线与标题、hover 数值同步切换
+- [x] 切换基准时，操作建议与二级导航建议标签同步切换且彼此一致
+- [x] SMA60 数据不足区间不展示 bias60/biasPct3y60，避免伪值
+- [x] TypeScript 类型检查通过（按项目现有命令）

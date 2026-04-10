@@ -35,6 +35,7 @@ const LOWVOL_INDEX_OPTIONS = [
 ] as const
 
 type LowVolIndexCode = (typeof LOWVOL_INDEX_OPTIONS)[number]['code']
+type LowVolBiasBasis = 'sma250' | 'sma60'
 
 function toneToNavPillCls(tone: LowVolSuggestionTone): string {
   if (tone === 'good') return 'border-[rgba(16,185,129,0.25)] bg-[rgba(16,185,129,0.12)] text-[#34D399]'
@@ -56,6 +57,7 @@ export default function Home() {
     rawTab === 'insight' || rawTab === 'list' || rawTab === 'liquidity' || rawTab === 'lowvol' ? rawTab : 'list'
 
   const [lowVolIndexCode, setLowVolIndexCode] = useState<LowVolIndexCode>('H30269')
+  const [lowVolBiasBasis, setLowVolBiasBasis] = useState<LowVolBiasBasis>('sma250')
   const [lowVolIndexSuggestionByCode, setLowVolIndexSuggestionByCode] = useState<
     Record<LowVolIndexCode, { label: string; tone: LowVolSuggestionTone }>
   >(() => {
@@ -155,12 +157,16 @@ export default function Home() {
               next[opt.code] = { label: '—', tone: 'unknown' }
               return
             }
-            const series = (r.data?.series || []) as Array<{ spreadPctRank10y?: number | null; biasPct3y?: number | null }>
+            const series = (r.data?.series || []) as Array<{
+              spreadPctRank10y?: number | null
+              biasPct3y?: number | null
+              biasPct3y60?: number | null
+            }>
             const last = series.length ? series[series.length - 1] : null
+            const biasPct = lowVolBiasBasis === 'sma60' ? last?.biasPct3y60 : last?.biasPct3y
             const s = calcLowVolSuggestion({
               spreadPctRank10y: last?.spreadPctRank10y,
-              biasPct3y: last?.biasPct3y,
-              indexCode: opt.code,
+              biasPct3y: biasPct,
             })
             next[opt.code] = s
           } catch {
@@ -184,7 +190,7 @@ export default function Home() {
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab])
+  }, [lowVolBiasBasis, tab])
 
   useEffect(() => {
     const next = new URLSearchParams(searchParams)
@@ -745,6 +751,8 @@ export default function Home() {
           <LowVolOpportunityPanel
             indexCode={lowVolIndexCode}
             indexLabel={LOWVOL_INDEX_OPTIONS.find((x) => x.code === lowVolIndexCode)?.label ?? lowVolIndexCode}
+            biasBasis={lowVolBiasBasis}
+            onChangeBiasBasis={setLowVolBiasBasis}
           />
         ) : (
           <Top100Table

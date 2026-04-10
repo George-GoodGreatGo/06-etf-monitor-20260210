@@ -18,9 +18,16 @@ function suggestionToneToTextCls(tone: ReturnType<typeof calcLowVolSuggestion>['
   return 'text-[#94A3B8]'
 }
 
-export default function LowVolOpportunityPanel(props: { indexCode: string; indexLabel: string }) {
+export default function LowVolOpportunityPanel(props: {
+  indexCode: string
+  indexLabel: string
+  biasBasis: 'sma250' | 'sma60'
+  onChangeBiasBasis: (next: 'sma250' | 'sma60') => void
+}) {
   const indexCode = props.indexCode
   const indexLabel = props.indexLabel
+  const biasBasis = props.biasBasis
+  const onChangeBiasBasis = props.onChangeBiasBasis
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [meta, setMeta] = useState<Top100Meta | null>(null)
@@ -60,9 +67,10 @@ export default function LowVolOpportunityPanel(props: { indexCode: string; index
   }, [indexCode])
 
   const latest = series.length ? series[series.length - 1] : null
+  const biasPct = biasBasis === 'sma60' ? latest?.biasPct3y60 : latest?.biasPct3y
   const suggestion = calcLowVolSuggestion({
     spreadPctRank10y: latest?.spreadPctRank10y,
-    biasPct3y: latest?.biasPct3y,
+    biasPct3y: biasPct,
     indexCode,
   })
   const suggestionCls = suggestionToneToTextCls(suggestion.tone)
@@ -128,7 +136,12 @@ export default function LowVolOpportunityPanel(props: { indexCode: string; index
 
       <div className="mt-4">
         <div className="relative">
-          <LowVolOpportunityChart series={series} indexCode={indexCode} />
+          <LowVolOpportunityChart
+            series={series}
+            indexCode={indexCode}
+            biasBasis={biasBasis}
+            onChangeBiasBasis={onChangeBiasBasis}
+          />
           {loading && !error ? (
             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-black/10 backdrop-blur-[1px]">
               <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-black/30 px-4 py-3 text-sm text-[#E6EDF7]">
