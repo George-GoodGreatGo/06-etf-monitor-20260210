@@ -171,6 +171,7 @@ const LOWVOL_INDEXES: Record<string, LowVolIndexConfig> = {
   H30269: { code: 'H30269', name: '红利低波', priCode: 'H30269', triCode: 'H20269' },
   '932365': { code: '932365', name: '中证全指自由现金流', priCode: '932365', triCode: '932365CNY010' },
   '932315': { code: '932315', name: '中证全指红利质量', priCode: '932315', triCode: '932315CNY010' },
+  '930955': { code: '930955', name: '中证红利低波动100', priCode: '930955', triCode: '930955CNY010' },
 }
 
 export function getLowVolSupportedIndexCodes(): string[] {
@@ -198,10 +199,11 @@ export async function getLowVolIndexSeries(args: {
   const triSeries = await fetchCsindexIndexCloseSeries({ indexCode: cfg.triCode, startDate: start8, endDate: end8 })
   const triByDate = new Map<string, number>()
   for (const p of triSeries) triByDate.set(p.date, p.close)
-  if (!triSeries.length) throw new Error(`TRI 数据为空，无法计算股息率/利差：${cfg.code}`)
+  const allowTriMissing = cfg.code === '930955'
+  if (!triSeries.length && !allowTriMissing) throw new Error(`TRI 数据为空，无法计算股息率/利差：${cfg.code}`)
   let overlap = 0
   for (const p of closeSeries) if (triByDate.has(p.date)) overlap += 1
-  if (overlap < 253) throw new Error(`TRI 数据不足或无法对齐，无法计算股息率/利差：${cfg.code}`)
+  if (overlap < 253 && !allowTriMissing) throw new Error(`TRI 数据不足或无法对齐，无法计算股息率/利差：${cfg.code}`)
 
   const closes = closeSeries.map((p) => p.close)
   const ma60 = buildSma(closes, 60)
@@ -299,6 +301,7 @@ export async function getLowVolIndexSeries(args: {
       `指数：${cfg.name}（${cfg.code}）。`,
       `指数点位数据源：csindex（index-perf，priCode=${cfg.priCode}）。`,
       `全收益指数数据源：csindex（index-perf，triCode=${cfg.triCode}）。`,
+      allowTriMissing && !triSeries.length ? '提示：全收益指数（TRI）数据不可用，本指数将无法计算股息率/利差相关指标，操作建议可能为“—”。' : '',
       '股息收益率口径（修正）：先用价格指数PRI与全收益指数TRI的滚动1年（252交易日）推算分红回报 DividendReturn(1Y)= (TRI_t/TRI_{t-252}) / (PRI_t/PRI_{t-252}) - 1，再换算分红点数 D_t=PRI_t*DividendReturn(1Y)，对 D_t 做250日SMA（minPeriods=126），最后用 股息率_t = D_SMA_t / PRI_t。',
       '利差口径（核心）：spreadCore=股息收益率(修正)-10Y。',
       '利差分位：基于spreadCore做10年滚动分位（window≈2520，minPeriods=252）。',
