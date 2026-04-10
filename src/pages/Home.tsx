@@ -537,6 +537,8 @@ export default function Home() {
     void runFetch(seq, { refreshToken: String(startedAt), mode: 'refetch' })
   }
 
+  const lowVolActiveOpt = LOWVOL_INDEX_OPTIONS.find((x) => x.code === lowVolIndexCode) ?? null
+
   return (
     <div className="min-h-screen bg-[#050A0B] text-[#E6EDF7]">
       <NavBar
@@ -812,7 +814,8 @@ export default function Home() {
         ) : tab === 'lowvol' ? (
           <LowVolOpportunityPanel
             indexCode={lowVolIndexCode}
-            indexLabel={LOWVOL_INDEX_OPTIONS.find((x) => x.code === lowVolIndexCode)?.label ?? lowVolIndexCode}
+            indexLabel={lowVolActiveOpt?.label ?? lowVolIndexCode}
+            indexDesc={lowVolActiveOpt?.desc}
             biasBasis={lowVolBiasBasis}
           />
         ) : (

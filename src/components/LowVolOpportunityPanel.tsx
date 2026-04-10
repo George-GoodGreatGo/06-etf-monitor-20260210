@@ -21,10 +21,12 @@ function suggestionToneToTextCls(tone: ReturnType<typeof calcLowVolSuggestion>['
 export default function LowVolOpportunityPanel(props: {
   indexCode: string
   indexLabel: string
+  indexDesc?: string
   biasBasis: 'sma250' | 'sma60'
 }) {
   const indexCode = props.indexCode
   const indexLabel = props.indexLabel
+  const indexDesc = props.indexDesc
   const biasBasis = props.biasBasis
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -83,7 +85,7 @@ export default function LowVolOpportunityPanel(props: {
               <span className="font-medium text-[#CBD5E1]">
                 {indexLabel}（{indexCode}）
               </span>
-              ：以红利/现金流等因子构建的指数序列，用于跟踪“类债权益”机会。
+              ：{indexDesc ?? '以红利/现金流等因子构建的指数序列，用于跟踪“类债权益”机会。'}
             </p>
             <p>
               <span className="font-medium text-[#CBD5E1]">股息收益率</span>：滚动1年（252交易日），由 PRI/TRI 推算的分红贡献（回溯口径）。
