@@ -701,51 +701,60 @@ export default function Home() {
 
         {tab === 'lowvol' ? (
           <>
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2">
-              <div className="inline-flex flex-wrap items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1">
+            <div className="mt-2 border-b border-white/10 pb-3">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                 {LOWVOL_INDEX_OPTIONS.map((opt) => {
                   const sug = lowVolIndexSuggestionByCode[opt.code]
                   const sugLoading = lowVolIndexSuggestionLoadingByCode[opt.code]
+                  const active = opt.code === lowVolIndexCode
                   return (
                     <button
                       key={opt.code}
                       type="button"
                       onClick={() => {
-                        if (opt.code === lowVolIndexCode) return
+                        if (active) return
                         setLowVolIndexCode(opt.code)
                       }}
                       className={cn(
-                        'inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold transition',
-                        opt.code === lowVolIndexCode
-                          ? 'bg-white/10 text-[#E6EDF7] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]'
-                          : 'text-[#94A3B8] hover:bg-white/5 hover:text-white',
+                        'group flex flex-col gap-2 rounded-2xl border px-3 py-2.5 text-left transition',
+                        active
+                          ? 'border-[rgba(255,87,34,0.55)] bg-[rgba(255,87,34,0.10)] shadow-[0_0_0_1px_rgba(255,87,34,0.18),0_10px_30px_rgba(0,0,0,0.25)]'
+                          : 'border-white/10 bg-white/5 hover:bg-white/7',
                       )}
                     >
-                      <span>{opt.label}</span>
-                      <span
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className={cn('truncate text-sm font-semibold', active ? 'text-white' : 'text-[#E6EDF7]')}>
+                            {opt.label}
+                          </div>
+                          <div className={cn('mt-0.5 font-mono text-[11px]', active ? 'text-[#FFD6C8]' : 'text-[#64748B]')}>
+                            {opt.code}
+                          </div>
+                        </div>
+                        <span
+                          className={cn(
+                            'inline-flex shrink-0 items-center gap-2 rounded-full border px-2 py-[2px] text-[11px] font-medium leading-none',
+                            toneToNavPillCls(sugLoading ? 'unknown' : (sug?.tone ?? 'unknown')),
+                          )}
+                        >
+                          {sugLoading ? (
+                            <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
+                          ) : null}
+                          {sugLoading ? '—' : (sug?.label ?? '—')}
+                        </span>
+                      </div>
+                      <div
                         className={cn(
-                          'font-mono text-[11px]',
-                          opt.code === lowVolIndexCode ? 'text-[#CBD5E1]' : 'text-[#64748B]',
+                          'h-[2px] w-full rounded-full',
+                          active ? 'bg-[#FF5722]' : 'bg-white/10 group-hover:bg-white/15',
                         )}
-                      >
-                        {opt.code}
-                      </span>
-                      <span
-                        className={cn(
-                          'ml-1 inline-flex items-center gap-2 rounded-full border px-2 py-[2px] text-[11px] font-medium leading-none',
-                          toneToNavPillCls(sugLoading ? 'unknown' : (sug?.tone ?? 'unknown')),
-                        )}
-                      >
-                        {sugLoading ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/20 border-t-white/70" /> : null}
-                        {sugLoading ? '—' : (sug?.label ?? '—')}
-                      </span>
+                      />
                     </button>
                   )
                 })}
               </div>
             </div>
 
-            {/* 悬浮的 BIAS基准切换开关 */}
             <div className="fixed right-4 sm:right-8 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-[#050A0B]/80 backdrop-blur-md p-1.5 shadow-2xl shadow-black/50">
               <div className="text-[11px] font-medium text-[#94A3B8] pt-1">BIAS基准</div>
               <div className="flex flex-col gap-1 w-full rounded-xl bg-white/5 p-1">
@@ -753,10 +762,10 @@ export default function Home() {
                   type="button"
                   onClick={() => setLowVolBiasBasis('sma250')}
                   className={cn(
-                    'rounded-lg px-3 py-2 text-xs font-semibold transition w-full text-center',
+                    'w-full rounded-lg border px-3 py-2 text-center text-xs font-semibold transition',
                     lowVolBiasBasis === 'sma250'
-                      ? 'bg-white/10 text-[#E6EDF7] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]'
-                      : 'text-[#94A3B8] hover:bg-white/5 hover:text-white',
+                      ? 'border-[rgba(255,87,34,0.65)] bg-[rgba(255,87,34,0.18)] text-white shadow-[0_0_0_1px_rgba(255,87,34,0.35),0_0_20px_rgba(255,87,34,0.25)]'
+                      : 'border-white/10 text-[#94A3B8] hover:bg-white/5 hover:text-white',
                   )}
                 >
                   SMA250
@@ -765,10 +774,10 @@ export default function Home() {
                   type="button"
                   onClick={() => setLowVolBiasBasis('sma60')}
                   className={cn(
-                    'rounded-lg px-3 py-2 text-xs font-semibold transition w-full text-center',
+                    'w-full rounded-lg border px-3 py-2 text-center text-xs font-semibold transition',
                     lowVolBiasBasis === 'sma60'
-                      ? 'bg-white/10 text-[#E6EDF7] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]'
-                      : 'text-[#94A3B8] hover:bg-white/5 hover:text-white',
+                      ? 'border-[rgba(255,87,34,0.65)] bg-[rgba(255,87,34,0.18)] text-white shadow-[0_0_0_1px_rgba(255,87,34,0.35),0_0_20px_rgba(255,87,34,0.25)]'
+                      : 'border-white/10 text-[#94A3B8] hover:bg-white/5 hover:text-white',
                   )}
                 >
                   SMA60
