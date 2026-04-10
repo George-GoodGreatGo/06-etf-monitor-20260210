@@ -52,6 +52,7 @@ type HoverState = {
   t: UTCTimestamp
   date: string
   close?: number
+  sma60?: number
   ma250?: number
   bias?: number
   biasPct?: number
@@ -68,6 +69,7 @@ type Props = {
 export default function LowVolOpportunityChart({ series, indexCode, className }: Props) {
   const [hover, setHover] = useState<HoverState | null>(null)
   const [showInfo, setShowInfo] = useState(true)
+  const [showSma60, setShowSma60] = useState(true)
   const [showMa250, setShowMa250] = useState(true)
   const [showBiasPane, setShowBiasPane] = useState(true)
   const [showBiasPctPane, setShowBiasPctPane] = useState(true)
@@ -94,6 +96,7 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
 
   const seriesRef = useRef<{
     mainClose: ISeriesApi<'Line', Time> | null
+    mainSma60: ISeriesApi<'Line', Time> | null
     mainMa: ISeriesApi<'Line', Time> | null
     bias: ISeriesApi<'Line', Time> | null
     biasAlign: ISeriesApi<'Line', Time> | null
@@ -105,6 +108,7 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
     spreadPctAlign: ISeriesApi<'Line', Time> | null
   }>({
     mainClose: null,
+    mainSma60: null,
     mainMa: null,
     bias: null,
     biasAlign: null,
@@ -159,6 +163,7 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
 
   const data = useMemo(() => {
     const close: LineData<Time>[] = []
+    const sma60: LineData<Time>[] = []
     const ma: LineData<Time>[] = []
     const bias: LineData<Time>[] = []
     const biasPct: LineData<Time>[] = []
@@ -210,6 +215,23 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
     spreadSmooth.sort((a, b) => (a.time as number) - (b.time as number))
     spreadPctRank10y.sort((a, b) => (a.time as number) - (b.time as number))
 
+    const win: number[] = []
+    let sum = 0
+    for (const pt of close) {
+      const v = pt.value
+      if (typeof v !== 'number' || !Number.isFinite(v)) continue
+      win.push(v)
+      sum += v
+      if (win.length > 60) sum -= win.shift() ?? 0
+      if (win.length === 60) {
+        const t = pt.time as UTCTimestamp
+        const m = sum / 60
+        sma60.push({ time: t, value: m })
+        const h = map.get(t)
+        if (h) h.sma60 = m
+      }
+    }
+
     segBase.sort((a, b) => a.time - b.time)
 
     type SegState = 'allocStrong' | 'reduceStrong' | 'allocWeak' | 'neutral' | null
@@ -255,7 +277,20 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
     }
     flush()
 
-    return { close, ma, bias, biasPct, spreadSmooth, spreadPctRank10y, allocStrongSegments, reduceStrongSegments, allocWeakSegments, neutralSegments, map }
+    return {
+      close,
+      sma60,
+      ma,
+      bias,
+      biasPct,
+      spreadSmooth,
+      spreadPctRank10y,
+      allocStrongSegments,
+      reduceStrongSegments,
+      allocWeakSegments,
+      neutralSegments,
+      map,
+    }
   }, [series, thresh])
 
   useEffect(() => {
@@ -302,6 +337,14 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
       priceFormat: { type: 'custom', formatter: (v) => fmt(v, 2) },
     })
 
+    const sma60Series = chart.addSeries(LineSeries, {
+      color: 'rgba(147,197,253,0.95)',
+      lineWidth: 1,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    })
+
     const maSeries = chart.addSeries(LineSeries, {
       color: 'rgba(255,255,255,0.65)',
       lineWidth: 1,
@@ -312,12 +355,14 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
 
     chartsRef.current.main = chart
     seriesRef.current.mainClose = closeSeries
+    seriesRef.current.mainSma60 = sma60Series
     seriesRef.current.mainMa = maSeries
 
     return () => {
       chart.remove()
       if (chartsRef.current.main === chart) chartsRef.current.main = null
       seriesRef.current.mainClose = null
+      seriesRef.current.mainSma60 = null
       seriesRef.current.mainMa = null
     }
   }, [])
@@ -672,6 +717,7 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
 
   useEffect(() => {
     seriesRef.current.mainClose?.setData(data.close)
+    seriesRef.current.mainSma60?.setData(showSma60 ? data.sma60 : [])
     seriesRef.current.mainMa?.setData(showMa250 ? data.ma : [])
     seriesRef.current.bias?.setData(showBiasPane ? data.bias : [])
     seriesRef.current.biasAlign?.setData(data.close)
@@ -736,7 +782,7 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
       if (showSpreadPctPane) spreadPct.timeScale().setVisibleLogicalRange(range)
     }
     requestAnimationFrame(updateSpreadPctZones)
-  }, [data, showBiasPane, showBiasPctPane, showMa250, showSpreadPane, showSpreadPctPane])
+  }, [data, showBiasPane, showBiasPctPane, showMa250, showSma60, showSpreadPane, showSpreadPctPane])
 
   useEffect(() => {
     if (!showSpreadPctPane || !spreadPctElRef.current) return
@@ -767,6 +813,17 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
         </button>
         <button
           type="button"
+          onClick={() => setShowSma60((v) => !v)}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+            showSma60 ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+          )}
+        >
+          <span className="h-2 w-2 rounded-full bg-[#93C5FD]" />
+          SMA60
+        </button>
+        <button
+          type="button"
           onClick={() => setShowMa250((v) => !v)}
           className={cn(
             'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
@@ -774,7 +831,7 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
           )}
         >
           <span className="h-2 w-2 rounded-full bg-[#94A3B8]" />
-          MA250
+          SMA250
         </button>
         <div className="mx-2 h-4 w-px bg-white/10" />
         <button
@@ -886,9 +943,15 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
             ) : null}
             <div className="text-[#A9B6CC]">指数</div>
             <div className="text-right font-mono">{fmt(hover.close, 2)}</div>
+            {showSma60 ? (
+              <>
+                <div className="text-[#A9B6CC]">SMA60</div>
+                <div className="text-right font-mono">{fmt(hover.sma60, 2)}</div>
+              </>
+            ) : null}
             {showMa250 ? (
               <>
-                <div className="text-[#A9B6CC]">MA250</div>
+                <div className="text-[#A9B6CC]">SMA250</div>
                 <div className="text-right font-mono">{fmt(hover.ma250, 2)}</div>
               </>
             ) : null}
@@ -923,7 +986,7 @@ export default function LowVolOpportunityChart({ series, indexCode, className }:
       <div className="mt-3 space-y-2">
         <div className="relative rounded-lg border border-white/10 bg-[#111B2E] pt-6">
           <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
-            指数（主图）{showMa250 ? ' + MA250' : ''}
+            指数（主图）{showSma60 ? ' + SMA60' : ''}{showMa250 ? ' + SMA250' : ''}
           </div>
           <div ref={mainElRef} className="h-[300px] w-full" />
         </div>
