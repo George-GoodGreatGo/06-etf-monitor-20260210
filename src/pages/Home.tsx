@@ -33,6 +33,7 @@ const LOWVOL_INDEX_OPTIONS = [
   { code: '932365', label: '自由现金流' },
   { code: '932315', label: '红利质量' },
   { code: '930955', label: '红利低波100' },
+  { code: '980081', label: '国证价值100' },
 ] as const
 
 type LowVolIndexCode = (typeof LOWVOL_INDEX_OPTIONS)[number]['code']

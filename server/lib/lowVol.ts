@@ -165,6 +165,49 @@ type LowVolIndexConfig = {
   name: string
   priCode: string
   triCode: string | null
+  dataSource?: 'csindex' | 'cnindex'
+}
+
+function ymd8ToDash(ymd8: string): string {
+  const s = String(ymd8 || '').trim()
+  if (!/^\d{8}$/.test(s)) throw new Error(`invalid ymd8: ${s}`)
+  return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`
+}
+
+async function fetchCnindexIndexCloseSeries(args: {
+  indexCode: string
+  startDate8: string
+  endDate8: string
+}): Promise<Array<{ date: string; close: number }>> {
+  const indexCode = String(args.indexCode || '').trim()
+  const startDate = ymd8ToDash(args.startDate8)
+  const endDate = ymd8ToDash(args.endDate8)
+  if (!indexCode) return []
+
+  const qs = new URLSearchParams({ indexCode, startDate, endDate })
+  const url = `https://hq.cnindex.com.cn/market/market/getIndexDailyData?${qs.toString()}`
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0',
+      Accept: 'application/json,text/plain,*/*',
+      Referer: 'https://www.cnindex.com.cn/',
+    },
+  })
+  const json = (await res.json().catch(() => null)) as any
+  if (res.ok !== true) throw new Error(`cnindex hq request failed: ${res.status}`)
+  if (json?.code !== 200) throw new Error(`cnindex hq response not ok: ${json?.code ?? 'unknown'}`)
+
+  const rows = Array.isArray(json?.data?.data) ? json.data.data : []
+  const out: Array<{ date: string; close: number }> = []
+  for (const row of rows) {
+    const ms = Array.isArray(row) ? row[0] : null
+    const close = Array.isArray(row) ? row[1] : null
+    if (typeof ms !== 'number' || !Number.isFinite(ms)) continue
+    if (typeof close !== 'number' || !Number.isFinite(close)) continue
+    const date = new Date(ms).toISOString().slice(0, 10)
+    out.push({ date, close })
+  }
+  return out
 }
 
 const LOWVOL_INDEXES: Record<string, LowVolIndexConfig> = {
@@ -172,6 +215,7 @@ const LOWVOL_INDEXES: Record<string, LowVolIndexConfig> = {
   '932365': { code: '932365', name: '中证全指自由现金流', priCode: '932365', triCode: '932365CNY010' },
   '932315': { code: '932315', name: '中证全指红利质量', priCode: '932315', triCode: '932315CNY010' },
   '930955': { code: '930955', name: '中证红利低波动100', priCode: '930955', triCode: 'H20955' },
+  '980081': { code: '980081', name: '国证价值100', priCode: '980081', triCode: '480081', dataSource: 'cnindex' },
 }
 
 export function getLowVolSupportedIndexCodes(): string[] {
@@ -194,9 +238,16 @@ export async function getLowVolIndexSeries(args: {
   const start8 = /^\d{8}$/.test(start) ? start : '20051230'
   const end8 = /^\d{8}$/.test(end) ? end : '20991231'
 
-  const closeSeries = await fetchCsindexIndexCloseSeries({ indexCode: cfg.priCode, startDate: start8, endDate: end8 })
+  const dataSource = cfg.dataSource ?? 'csindex'
+  const closeSeries =
+    dataSource === 'cnindex'
+      ? await fetchCnindexIndexCloseSeries({ indexCode: cfg.priCode, startDate8: start8, endDate8: end8 })
+      : await fetchCsindexIndexCloseSeries({ indexCode: cfg.priCode, startDate: start8, endDate: end8 })
   if (!cfg.triCode) throw new Error(`TRI 数据未配置，无法计算股息率/利差：${cfg.code}`)
-  const triSeries = await fetchCsindexIndexCloseSeries({ indexCode: cfg.triCode, startDate: start8, endDate: end8 })
+  const triSeries =
+    dataSource === 'cnindex'
+      ? await fetchCnindexIndexCloseSeries({ indexCode: cfg.triCode, startDate8: start8, endDate8: end8 })
+      : await fetchCsindexIndexCloseSeries({ indexCode: cfg.triCode, startDate: start8, endDate: end8 })
   const triByDate = new Map<string, number>()
   for (const p of triSeries) triByDate.set(p.date, p.close)
   if (!triSeries.length) throw new Error(`TRI 数据为空，无法计算股息率/利差：${cfg.code}`)
@@ -295,11 +346,15 @@ export async function getLowVolIndexSeries(args: {
   const meta = {
     fetchedAt: new Date().toISOString(),
     dataDate: last?.date ?? null,
-    source: 'csindex + chinamoney',
+    source: `${dataSource} + chinamoney`,
     notes: [
       `指数：${cfg.name}（${cfg.code}）。`,
-      `指数点位数据源：csindex（index-perf，priCode=${cfg.priCode}）。`,
-      `全收益指数数据源：csindex（index-perf，triCode=${cfg.triCode}）。`,
+      dataSource === 'cnindex'
+        ? `指数点位数据源：cnindex（hq.cnindex.com.cn getIndexDailyData，priCode=${cfg.priCode}）。`
+        : `指数点位数据源：csindex（index-perf，priCode=${cfg.priCode}）。`,
+      dataSource === 'cnindex'
+        ? `全收益指数数据源：cnindex（hq.cnindex.com.cn getIndexDailyData，triCode=${cfg.triCode}）。`
+        : `全收益指数数据源：csindex（index-perf，triCode=${cfg.triCode}）。`,
       '股息收益率口径（修正）：先用价格指数PRI与全收益指数TRI的滚动1年（252交易日）推算分红回报 DividendReturn(1Y)= (TRI_t/TRI_{t-252}) / (PRI_t/PRI_{t-252}) - 1，再换算分红点数 D_t=PRI_t*DividendReturn(1Y)，对 D_t 做250日SMA（minPeriods=126），最后用 股息率_t = D_SMA_t / PRI_t。',
       '利差口径（核心）：spreadCore=股息收益率(修正)-10Y。',
       '利差分位：基于spreadCore做10年滚动分位（window≈2520，minPeriods=252）。',

@@ -1,0 +1,38 @@
+# 低波机会新增指数：国证价值100（980081）Spec
+
+## Why
+低波机会需要扩展覆盖范围。在指数切换 Tab 中新增“国证价值100指数（980081）”（简称“国证价值100”），以便用同一套低波机会框架进行图表展示、BIAS 评估与操作建议。
+
+## What Changes
+- 在低波机会指数切换中新增一个选项：国证价值100（980081）
+- 该指数的加载、图表、BIAS 基准切换（SMA250/SMA60）、操作建议、二级导航建议标签等行为与现有指数保持一致
+- 服务端 lowVol 数据源配置新增 980081 的 PRI/TRI 指数代码映射（PRI=980081，TRI=480081），确保可计算股息率/利差/分位/BIAS 等指标
+
+## Impact
+- Affected specs: 低波机会指数切换与数据加载、服务端 lowVol 指数配置
+- Affected code:
+  - src/pages/Home.tsx
+  - server/lib/lowVol.ts
+  - （可选）server/scripts/checkLowVolIndex.ts（用于验证）
+
+## ADDED Requirements
+### Requirement: 新增指数入口
+系统 SHALL 在低波机会指数切换处展示“国证价值100（980081）”选项。
+
+#### Scenario: 正常加载
+- **WHEN** 用户在低波机会 Tab 点击“国证价值100（980081）”
+- **THEN** 系统加载该指数数据并渲染图表与建议，行为与其他指数一致
+
+### Requirement: 980081 数据可计算
+系统 SHALL 为 980081 配置可用的 PRI 与 TRI 数据源，以便计算股息率/利差/分位与 BIAS 指标。
+
+#### Scenario: TRI 配置有效
+- **WHEN** 服务端拉取 980081 的 PRI 与 TRI 序列
+- **THEN** TRI 与 PRI 可对齐且覆盖不少于 253 个交易日，且接口返回成功
+
+## MODIFIED Requirements
+（无）
+
+## REMOVED Requirements
+（无）
+
