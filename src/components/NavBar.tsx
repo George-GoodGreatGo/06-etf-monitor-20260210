@@ -11,7 +11,7 @@ export default function NavBar({
 }) {
   return (
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-[rgba(255,255,255,0.06)] bg-[rgba(0,0,0,0.60)] backdrop-blur">
-      <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-6 px-6 py-4">
+      <div className="flex w-full items-center justify-between gap-6 px-4 py-4 md:pl-7 md:pr-6">
         <div className="flex items-center gap-3">
           {onOpenMenu ? (
             <button
