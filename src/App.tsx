@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Home from '@/pages/Home'
 import EtfDetail from '@/pages/EtfDetail'
 import Methodology from '@/pages/Methodology'
-import Quotes from '@/pages/Quotes'
 import Login from '@/pages/Login'
 import RequireAuth from '@/components/RequireAuth'
 import AppShell from '@/components/AppShell'
@@ -25,7 +24,6 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/etf/:code" element={<EtfDetail />} />
             <Route path="/methodology" element={<Methodology />} />
-            <Route path="/quotes" element={<Quotes />} />
           </Route>
         </Routes>
       </Router>
