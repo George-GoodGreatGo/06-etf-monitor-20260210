@@ -7,6 +7,7 @@ import { apiUrl } from '@/utils/apiBase'
 export default function AppShell() {
   const nav = useNavigate()
   const [username, setUsername] = useState<string | null>(null)
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   useEffect(() => {
     const ac = new AbortController()
@@ -26,10 +27,20 @@ export default function AppShell() {
     return () => ac.abort()
   }, [])
 
+  useEffect(() => {
+    if (!drawerOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDrawerOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [drawerOpen])
+
   return (
     <div className="min-h-screen bg-[#050A0B] text-[#E6EDF7]">
       <NavBar
         username={username}
+        onOpenMenu={() => setDrawerOpen(true)}
         onLogout={() => {
           void (async () => {
             try {
@@ -48,11 +59,28 @@ export default function AppShell() {
         }}
       />
 
-      <div className="mx-auto flex w-full max-w-[1440px]">
-        <SideNav />
-        <main className="min-w-0 flex-1 px-8 pb-14 pt-6">
+      <div className="hidden md:block">
+        <SideNav className="fixed left-0 top-0 h-screen w-[240px] pt-[72px]" />
+      </div>
+
+      <div className="md:hidden">
+        <div
+          className={`fixed inset-0 z-40 bg-black/50 transition-opacity ${drawerOpen ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+          onClick={() => setDrawerOpen(false)}
+          aria-hidden="true"
+        />
+        <SideNav
+          className={`fixed left-0 top-0 z-50 h-screen w-[260px] pt-[72px] transition-transform duration-200 ease-out ${
+            drawerOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+          onNavigate={() => setDrawerOpen(false)}
+        />
+      </div>
+
+      <div className="pt-[72px] md:pl-[240px]">
+        <div className="mx-auto w-full max-w-[1440px] px-4 pb-14 pt-6 sm:px-8">
           <Outlet />
-        </main>
+        </div>
       </div>
     </div>
   )
