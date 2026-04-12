@@ -88,7 +88,7 @@ export default function AppShell() {
 
       <div className="hidden md:block">
         <SideNav
-          className="fixed left-0 top-0 h-screen w-[var(--sidebar-w)] pt-[72px] transition-[width] duration-200 ease-out"
+          className="fixed left-0 top-0 h-screen w-[var(--sidebar-w)] transition-[width] duration-200 ease-out"
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
         />

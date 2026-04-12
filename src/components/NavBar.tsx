@@ -10,7 +10,7 @@ export default function NavBar({
   onLogout?: () => void
 }) {
   return (
-    <header className="fixed left-0 right-0 top-0 z-50 border-b border-[rgba(255,255,255,0.06)] bg-[rgba(0,0,0,0.60)] backdrop-blur md:pl-[var(--sidebar-w)] transition-[padding] duration-200 ease-out">
+    <header className="fixed left-0 right-0 top-0 z-50 border-b border-[rgba(255,255,255,0.06)] bg-[rgba(0,0,0,0.60)] backdrop-blur md:left-[var(--sidebar-w)] transition-[left] duration-200 ease-out">
       <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-6 px-4 py-4 sm:px-8">
         <div className="flex items-center gap-3">
           {onOpenMenu ? (
@@ -23,8 +23,8 @@ export default function NavBar({
               <Menu className="h-5 w-5" />
             </button>
           ) : null}
-          <img src="/figma/login/login_logo.svg" alt="" className="h-7 w-7 select-none" aria-hidden="true" />
-          <div className="text-xs font-black uppercase tracking-[0.12em] text-white sm:text-sm">
+          <img src="/figma/login/login_logo.svg" alt="" className="h-7 w-7 select-none md:hidden" aria-hidden="true" />
+          <div className="text-xs font-black uppercase tracking-[0.12em] text-white sm:text-sm md:hidden">
             ETF MONITOR <span className="text-[#FF5722]">AI</span>
           </div>
         </div>

@@ -79,7 +79,30 @@ export default function SideNav({
   return (
     <aside className={cn('shrink-0 border-r border-[rgba(255,255,255,0.06)] bg-[rgba(0,0,0,0.55)] backdrop-blur', className)}>
       <div className="flex h-full flex-col px-4 py-4">
-        <div className={cn('text-[11px] font-semibold tracking-wide text-[#94A3B8]', collapsedValue ? 'text-center' : '')}>
+        <button
+          type="button"
+          onClick={() => {
+            const next = new URLSearchParams(searchParams)
+            next.set('tab', 'list')
+            nav({ pathname: '/', search: `?${next.toString()}` })
+            onNavigate?.()
+          }}
+          className={cn(
+            'flex h-10 items-center gap-3 rounded-xl px-2 transition-all hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/50',
+            collapsedValue ? 'justify-center' : 'justify-start',
+          )}
+          aria-label="返回首页"
+          title={collapsedValue ? 'ETF MONITOR AI' : undefined}
+        >
+          <img src="/figma/login/login_logo.svg" alt="" className="h-7 w-7 select-none" aria-hidden="true" />
+          {collapsedValue ? null : (
+            <div className="text-xs font-black uppercase tracking-[0.12em] text-white sm:text-sm">
+              ETF MONITOR <span className="text-[#FF5722]">AI</span>
+            </div>
+          )}
+        </button>
+
+        <div className={cn('mt-4 text-[11px] font-semibold tracking-wide text-[#94A3B8]', collapsedValue ? 'text-center' : '')}>
           导航
         </div>
         <div ref={listRef} className="relative mt-2 flex flex-1 flex-col gap-1 overflow-auto pr-1">
