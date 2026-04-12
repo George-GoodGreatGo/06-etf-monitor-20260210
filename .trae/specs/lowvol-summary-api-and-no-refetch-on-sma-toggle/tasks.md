@@ -9,11 +9,11 @@
   - [x] 在 `Home` 的 lowvol tab 中，使用 summary 一次性填充每个指数的 latest 数据
   - [x] 在 SMA250/SMA60 切换时，不再触发 summary/index 请求，仅基于缓存 latest 重算建议
 
-- [ ] Task 3: 回归与验证
-  - [ ] 进入低波 tab 时仅产生 1 次 summary 请求（不再对每个指数调用全量 index 接口）
-  - [ ] 切换 SMA250/SMA60 时网络请求数不增加，且二级导航建议即时更新
-  - [ ] 任一指数 latest 失败时，不影响其它指数显示（失败指数显示 “—”）
-  - [ ] `npm run check` 通过
+- [x] Task 3: 回归与验证
+  - [x] 进入低波 tab 时仅产生 1 次 summary 请求（不再对每个指数调用全量 index 接口）
+  - [x] 切换 SMA250/SMA60 时网络请求数不增加，且二级导航建议即时更新
+  - [x] 任一指数 latest 失败时，不影响其它指数显示（失败指数显示 “—”）
+  - [x] `npm run check` 通过
 
 # Task Dependencies
 - Task 2 depends on Task 1

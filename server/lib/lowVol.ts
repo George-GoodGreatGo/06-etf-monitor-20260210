@@ -56,7 +56,17 @@ async function fetchJson(url: string): Promise<unknown> {
   })
   if (!res.ok) {
     const text = await res.text().catch(() => '')
-    throw new Error(`csindex failed: HTTP ${res.status} ${text}`)
+    const normalized = String(text || '').replace(/\s+/g, ' ').trim()
+    const isWaf =
+      normalized.includes('attack.jinxibei.com') ||
+      normalized.includes('您的访问被阻断') ||
+      normalized.includes('应用防火墙') ||
+      normalized.includes('访问被阻断')
+    if (isWaf) {
+      throw new Error(`csindex blocked by WAF: HTTP ${res.status}（建议稍后重试或更换网络/出口IP）`)
+    }
+    const brief = normalized ? normalized.slice(0, 240) : ''
+    throw new Error(`csindex failed: HTTP ${res.status}${brief ? ` ${brief}` : ''}`)
   }
   return res.json().catch(() => null)
 }
