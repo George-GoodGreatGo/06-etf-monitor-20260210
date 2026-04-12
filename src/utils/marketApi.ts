@@ -52,6 +52,24 @@ export type LowVolH30269Data = {
   series: LowVolH30269Point[]
 }
 
+export type LowVolLatestSummary = {
+  date: string
+  spreadPctRank10y: number | null
+  biasPct3y: number | null
+  biasPct3y60: number | null
+}
+
+export type LowVolSummaryItem = {
+  code: string
+  latest: LowVolLatestSummary | null
+  error?: string
+  message?: string
+}
+
+export type LowVolSummaryData = {
+  items: LowVolSummaryItem[]
+}
+
 export async function fetchLowVolIndex(args: { code: string; signal?: AbortSignal }): Promise<ApiOk<LowVolH30269Data> | ApiErr> {
   const code = String(args.code || '').trim()
   let res: Response
@@ -85,6 +103,40 @@ export async function fetchLowVolIndex(args: { code: string; signal?: AbortSigna
     return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
   }
   return json as ApiOk<LowVolH30269Data> | ApiErr
+}
+
+export async function fetchLowVolSummary(args?: { signal?: AbortSignal }): Promise<ApiOk<LowVolSummaryData> | ApiErr> {
+  let res: Response
+  try {
+    res = await fetch(apiUrl('/api/lowvol/summary'), {
+      ...(args?.signal ? { signal: args.signal } : {}),
+      credentials: 'include',
+      headers: {
+        ...adminAuthHeaders(),
+      },
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    const name = e instanceof Error ? e.name : ''
+    const aborted = name === 'AbortError' || msg.toLowerCase().includes('aborted')
+    return { success: false, error: 'api_error', message: aborted ? '请求已取消' : msg || '网络异常或 API 不可用' }
+  }
+
+  const text = await res.text()
+  let json: unknown = null
+  try {
+    json = text ? (JSON.parse(text) as unknown) : null
+  } catch {
+    json = null
+  }
+  if (!res.ok) {
+    const msg =
+      json && typeof json === 'object' && json && 'message' in (json as Record<string, unknown>) && typeof (json as Record<string, unknown>).message === 'string'
+        ? String((json as Record<string, unknown>).message)
+        : `HTTP ${res.status}`
+    return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
+  }
+  return json as ApiOk<LowVolSummaryData> | ApiErr
 }
 
 export async function fetchMarketLiquidityV5(signal?: AbortSignal): Promise<ApiOk<MarketLiquidityV5> | ApiErr> {

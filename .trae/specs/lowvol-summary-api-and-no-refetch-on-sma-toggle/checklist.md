@@ -1,0 +1,7 @@
+- [ ] 新增 `GET /api/lowvol/summary`，响应结构包含 `data.items[].code` 与 `latest`（含 date/spreadPctRank10y/biasPct3y/biasPct3y60）
+- [ ] summary 支持缓存与 in-flight 去重：连续多次请求不会重复触发重计算
+- [ ] Home 的低波二级导航建议不再并发请求多个 `/api/lowvol/index/:code`，而改为 1 次 summary
+- [ ] SMA250/SMA60 切换时不发生任何网络请求，且建议标签即时更新
+- [ ] 单个指数 latest 失败时仅该指数显示 “—”，其它指数正常
+- [ ] `npm run check` 通过
+

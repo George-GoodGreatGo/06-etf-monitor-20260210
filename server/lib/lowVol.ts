@@ -234,6 +234,103 @@ export function getLowVolSupportedIndexCodes(): string[] {
   return Object.keys(LOWVOL_INDEXES)
 }
 
+type LowVolLatestSummary = {
+  date: string
+  spreadPctRank10y: number | null
+  biasPct3y: number | null
+  biasPct3y60: number | null
+}
+
+export type LowVolSummaryItem = {
+  code: string
+  latest: LowVolLatestSummary | null
+  error?: string
+  message?: string
+}
+
+let lowVolSummaryCache: { expiresAt: number; value: { meta: { fetchedAt: string; dataDate: string | null; source: string; notes: string[] }; data: { items: LowVolSummaryItem[] } } } | null =
+  null
+let lowVolSummaryInflight: Promise<{
+  meta: { fetchedAt: string; dataDate: string | null; source: string; notes: string[] }
+  data: { items: LowVolSummaryItem[] }
+}> | null = null
+
+function pad2(n: number): string {
+  return n < 10 ? `0${n}` : String(n)
+}
+
+function ymd8Of(d: Date): string {
+  return `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}`
+}
+
+function ymd8YearsAgoJan1(years: number): string {
+  const y = new Date().getUTCFullYear() - years
+  return `${y}0101`
+}
+
+export async function getLowVolSummary(): Promise<{
+  meta: { fetchedAt: string; dataDate: string | null; source: string; notes: string[] }
+  data: { items: LowVolSummaryItem[] }
+}> {
+  const now = Date.now()
+  if (lowVolSummaryCache && lowVolSummaryCache.expiresAt > now) return lowVolSummaryCache.value
+  if (lowVolSummaryInflight) return lowVolSummaryInflight
+
+  lowVolSummaryInflight = (async () => {
+    const fetchedAt = new Date().toISOString()
+    const startDate = ymd8YearsAgoJan1(15)
+    const endDate = ymd8Of(new Date())
+    const codes = getLowVolSupportedIndexCodes()
+    const items: LowVolSummaryItem[] = []
+    let ok = 0
+    let fail = 0
+    let dataDate: string | null = null
+    for (const code of codes) {
+      try {
+        const out = await getLowVolIndexSeries({ code, startDate, endDate })
+        const series = out?.data?.series ?? []
+        const last = series.length ? series[series.length - 1] : null
+        if (!last) {
+          items.push({ code, latest: null, error: 'no_data', message: '序列为空' })
+          fail += 1
+          continue
+        }
+        if (!dataDate || last.date > dataDate) dataDate = last.date
+        items.push({
+          code,
+          latest: {
+            date: last.date,
+            spreadPctRank10y: last.spreadPctRank10y ?? null,
+            biasPct3y: last.biasPct3y ?? null,
+            biasPct3y60: last.biasPct3y60 ?? null,
+          },
+        })
+        ok += 1
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        items.push({ code, latest: null, error: 'upstream_error', message: msg })
+        fail += 1
+      }
+    }
+
+    const value = {
+      meta: {
+        fetchedAt,
+        dataDate,
+        source: 'lowvol_summary',
+        notes: [`ok=${ok}`, `fail=${fail}`, `startDate=${startDate}`, `endDate=${endDate}`],
+      },
+      data: { items },
+    }
+    lowVolSummaryCache = { expiresAt: now + 2 * 60_000, value }
+    return value
+  })().finally(() => {
+    lowVolSummaryInflight = null
+  })
+
+  return lowVolSummaryInflight
+}
+
 export async function getLowVolIndexSeries(args: {
   code: string
   startDate?: string

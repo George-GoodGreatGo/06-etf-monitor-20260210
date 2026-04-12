@@ -18,7 +18,7 @@ import {
 } from '@/utils/etfApi'
 import { apiUrl } from '@/utils/apiBase'
 import { adminAuthHeaders } from '@/utils/adminAccess'
-import { fetchLowVolIndex } from '@/utils/marketApi'
+import { fetchLowVolSummary } from '@/utils/marketApi'
 import { calcLowVolSuggestion, type LowVolSuggestionTone } from '@/utils/lowVolSignal'
 
 const defaultSort: { key: Top100SortKey; dir: SortDir } = {
@@ -91,6 +91,19 @@ export default function Home() {
 
   const [lowVolIndexCode, setLowVolIndexCode] = useState<LowVolIndexCode>('H30269')
   const [lowVolBiasBasis, setLowVolBiasBasis] = useState<LowVolBiasBasis>('sma250')
+  const [lowVolLatestByCode, setLowVolLatestByCode] = useState<
+    Record<
+      LowVolIndexCode,
+      { spreadPctRank10y?: number | null; biasPct3y?: number | null; biasPct3y60?: number | null } | null
+    >
+  >(() => {
+    const out = {} as Record<
+      LowVolIndexCode,
+      { spreadPctRank10y?: number | null; biasPct3y?: number | null; biasPct3y60?: number | null } | null
+    >
+    for (const opt of LOWVOL_INDEX_OPTIONS) out[opt.code] = null
+    return out
+  })
   const [lowVolIndexSuggestionByCode, setLowVolIndexSuggestionByCode] = useState<
     Record<LowVolIndexCode, { label: string; tone: LowVolSuggestionTone }>
   >(() => {
@@ -181,33 +194,40 @@ export default function Home() {
       return next
     })
     ;(async () => {
-      const next = { ...lowVolIndexSuggestionByCode }
-      await Promise.all(
-        LOWVOL_INDEX_OPTIONS.map(async (opt) => {
-          try {
-            const r = await fetchLowVolIndex({ code: opt.code, signal: ac.signal })
-            if (r.success !== true) {
-              next[opt.code] = { label: '—', tone: 'unknown' }
-              return
-            }
-            const series = (r.data?.series || []) as Array<{
-              spreadPctRank10y?: number | null
-              biasPct3y?: number | null
-              biasPct3y60?: number | null
-            }>
-            const last = series.length ? series[series.length - 1] : null
-            const biasPct = lowVolBiasBasis === 'sma60' ? last?.biasPct3y60 : last?.biasPct3y
-            const s = calcLowVolSuggestion({
-              spreadPctRank10y: last?.spreadPctRank10y,
-              biasPct3y: biasPct,
-            })
-            next[opt.code] = s
-          } catch {
-            next[opt.code] = { label: '—', tone: 'unknown' }
-          }
-        }),
-      )
-      setLowVolIndexSuggestionByCode(next)
+      const r = await fetchLowVolSummary({ signal: ac.signal })
+      const latestNext = { ...lowVolLatestByCode }
+      const sugNext = { ...lowVolIndexSuggestionByCode }
+      const items = r.success === true && Array.isArray(r.data?.items) ? r.data.items : []
+      const byCode = new Map<string, { spreadPctRank10y?: number | null; biasPct3y?: number | null; biasPct3y60?: number | null } | null>()
+      for (const it of items) {
+        const code = it && typeof it === 'object' ? (it as { code?: unknown }).code : null
+        if (typeof code !== 'string') continue
+        const latest = it && typeof it === 'object' ? (it as { latest?: unknown }).latest : null
+        if (!latest || typeof latest !== 'object') {
+          byCode.set(code, null)
+          continue
+        }
+        const o = latest as Record<string, unknown>
+        byCode.set(code, {
+          spreadPctRank10y: typeof o.spreadPctRank10y === 'number' ? o.spreadPctRank10y : null,
+          biasPct3y: typeof o.biasPct3y === 'number' ? o.biasPct3y : null,
+          biasPct3y60: typeof o.biasPct3y60 === 'number' ? o.biasPct3y60 : null,
+        })
+      }
+
+      for (const opt of LOWVOL_INDEX_OPTIONS) {
+        const last = byCode.has(opt.code) ? byCode.get(opt.code)! : null
+        latestNext[opt.code] = last
+        const biasPct = lowVolBiasBasis === 'sma60' ? last?.biasPct3y60 : last?.biasPct3y
+        const s = calcLowVolSuggestion({
+          spreadPctRank10y: last?.spreadPctRank10y,
+          biasPct3y: biasPct,
+        })
+        sugNext[opt.code] = s
+      }
+
+      setLowVolLatestByCode(latestNext)
+      setLowVolIndexSuggestionByCode(sugNext)
       setLowVolIndexSuggestionLoadingByCode((prev) => {
         const after = { ...prev }
         for (const opt of LOWVOL_INDEX_OPTIONS) after[opt.code] = false
@@ -223,7 +243,22 @@ export default function Home() {
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lowVolBiasBasis, tab])
+  }, [tab])
+
+  useEffect(() => {
+    if (tab !== 'lowvol') return
+    const next = { ...lowVolIndexSuggestionByCode }
+    for (const opt of LOWVOL_INDEX_OPTIONS) {
+      const last = lowVolLatestByCode[opt.code]
+      const biasPct = lowVolBiasBasis === 'sma60' ? last?.biasPct3y60 : last?.biasPct3y
+      next[opt.code] = calcLowVolSuggestion({
+        spreadPctRank10y: last?.spreadPctRank10y,
+        biasPct3y: biasPct,
+      })
+    }
+    setLowVolIndexSuggestionByCode(next)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lowVolBiasBasis])
 
   useEffect(() => {
     const next = new URLSearchParams(searchParams)
