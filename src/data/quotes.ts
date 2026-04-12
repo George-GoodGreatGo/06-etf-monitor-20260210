@@ -8,6 +8,12 @@ export type QuoteItem = {
   source: string
 }
 
+export const AUTHOR_META: Record<QuoteAuthor, { avatarText: string; displayName: string }> = {
+  'Warren Buffett': { avatarText: 'WB', displayName: 'Warren Buffett' },
+  'Charlie Munger': { avatarText: 'CM', displayName: 'Charlie Munger' },
+  'Howard Marks': { avatarText: 'HM', displayName: 'Howard Marks' },
+}
+
 export const QUOTES: QuoteItem[] = [
   {
     id: 'buffett-1986-fearful-greedy',

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Pause, Play, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { QuoteItem } from '@/data/quotes'
+import { AUTHOR_META, type QuoteItem } from '@/data/quotes'
+import AuthorAvatar from '@/components/AuthorAvatar'
 
 export default function QuoteCarousel({ items }: { items: QuoteItem[] }) {
   const safeItems = useMemo(() => (Array.isArray(items) ? items.filter(Boolean) : []), [items])
@@ -50,16 +51,25 @@ export default function QuoteCarousel({ items }: { items: QuoteItem[] }) {
 
   if (!safeItems.length) return null
 
+  const meta = current ? AUTHOR_META[current.author] : null
+
   return (
     <section className="relative group">
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[rgba(7,12,14,0.55)] p-8 shadow-[0_28px_80px_rgba(0,0,0,0.45)] backdrop-blur-[18px] sm:p-10">
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[rgba(7,12,14,0.55)] p-8 shadow-[0_28px_80px_rgba(0,0,0,0.45)] backdrop-blur-[18px] sm:p-12">
         <div className="pointer-events-none absolute -left-24 top-10 h-56 w-56 rounded-full bg-[rgba(255,255,255,0.08)] blur-[90px]" />
         <div className="pointer-events-none absolute -right-24 bottom-10 h-56 w-56 rounded-full bg-[rgba(255,87,34,0.14)] blur-[90px]" />
         <div className="pointer-events-none absolute inset-0 opacity-[0.07]" aria-hidden="true" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.25) 1px, transparent 0)', backgroundSize: '18px 18px' }} />
 
         <div className="flex items-center justify-between gap-4">
-          <div className="text-xs font-semibold tracking-wide text-[#94A3B8]">Quotes</div>
-          <div className="flex items-center gap-2 opacity-90 transition-opacity group-hover:opacity-100">
+          <div className="flex items-center gap-3">
+            {current && meta ? <AuthorAvatar author={current.author} text={meta.avatarText} /> : null}
+            <div className="min-w-0">
+              <div className="text-xs font-semibold tracking-wide text-[#94A3B8]">Investment Notes</div>
+              <div className="mt-1 truncate text-sm font-semibold text-white">{current?.author}</div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 opacity-60 transition-opacity group-hover:opacity-100">
             <button
               type="button"
               onClick={() => goto(idx - 1)}
@@ -90,24 +100,23 @@ export default function QuoteCarousel({ items }: { items: QuoteItem[] }) {
 
         <div
           className={cn(
-            'mt-8 space-y-6 transition-all duration-200 ease-out will-change-transform',
+            'mt-10 space-y-7 transition-all duration-220 ease-out will-change-transform',
             entered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
           )}
         >
-          <div className="text-[26px] font-semibold leading-[1.28] tracking-tight text-white sm:text-[34px]">
+          <div className="text-[26px] font-semibold leading-[1.28] tracking-tight text-white sm:text-[38px]">
             {current?.quoteZh}
           </div>
-          <div className="text-sm leading-7 text-[#9AA8BF] sm:text-base">
+          <div className="text-sm leading-7 text-[#9AA8BF] sm:text-[15px]">
             {current?.quoteEn}
           </div>
 
-          <div className="flex flex-col gap-1 pt-2 text-xs text-[#94A3B8] sm:flex-row sm:items-center sm:justify-between">
-            <div className="font-semibold text-[#E6EDF7]">{current?.author}</div>
-            <div className="sm:text-right">{current?.source}</div>
+          <div className="pt-1 text-xs text-[#94A3B8]">
+            {current?.source}
           </div>
         </div>
 
-        <div className="mt-7 flex flex-wrap items-center gap-2">
+        <div className="mt-8 flex flex-wrap items-center gap-2 opacity-60 transition-opacity group-hover:opacity-100">
           {safeItems.map((it, i) => {
             const active = i === ((idx % safeItems.length) + safeItems.length) % safeItems.length
             return (
