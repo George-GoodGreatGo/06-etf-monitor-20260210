@@ -104,6 +104,15 @@ async function fetchCsindexIndexCloseSeries(args: {
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr))
 }
 
+function normalizeCsindexIndexCode(raw: string): string {
+  const s = String(raw || '').trim()
+  if (!s) return ''
+  const dot = s.indexOf('.')
+  if (dot <= 0) return s
+  const head = s.slice(0, dot)
+  return /^\d+$/.test(head) ? head : s
+}
+
 function buildSma(values: number[], period: number): Array<number | null> {
   const out: Array<number | null> = new Array(values.length).fill(null)
   if (!values.length || period <= 0) return out
@@ -212,6 +221,9 @@ async function fetchCnindexIndexCloseSeries(args: {
 
 const LOWVOL_INDEXES: Record<string, LowVolIndexConfig> = {
   H30269: { code: 'H30269', name: '红利低波', priCode: 'H30269', triCode: 'H20269' },
+  '930740.CSI': { code: '930740.CSI', name: '沪深300红利低波动', priCode: '930740', triCode: 'H20740' },
+  '931847.CSI': { code: '931847.CSI', name: '中证500红利低波动', priCode: '931847', triCode: '931847CNY010' },
+  '931848.CSI': { code: '931848.CSI', name: '中证800红利低波动', priCode: '931848', triCode: '931848CNY010' },
   '932365': { code: '932365', name: '中证全指自由现金流', priCode: '932365', triCode: '932365CNY010' },
   '932315': { code: '932315', name: '中证全指红利质量', priCode: '932315', triCode: '932315CNY010' },
   '930955': { code: '930955', name: '中证红利低波动100', priCode: '930955', triCode: 'H20955' },
@@ -242,12 +254,20 @@ export async function getLowVolIndexSeries(args: {
   const closeSeries =
     dataSource === 'cnindex'
       ? await fetchCnindexIndexCloseSeries({ indexCode: cfg.priCode, startDate8: start8, endDate8: end8 })
-      : await fetchCsindexIndexCloseSeries({ indexCode: cfg.priCode, startDate: start8, endDate: end8 })
+      : await fetchCsindexIndexCloseSeries({
+          indexCode: normalizeCsindexIndexCode(cfg.priCode),
+          startDate: start8,
+          endDate: end8,
+        })
   if (!cfg.triCode) throw new Error(`TRI 数据未配置，无法计算股息率/利差：${cfg.code}`)
   const triSeries =
     dataSource === 'cnindex'
       ? await fetchCnindexIndexCloseSeries({ indexCode: cfg.triCode, startDate8: start8, endDate8: end8 })
-      : await fetchCsindexIndexCloseSeries({ indexCode: cfg.triCode, startDate: start8, endDate: end8 })
+      : await fetchCsindexIndexCloseSeries({
+          indexCode: normalizeCsindexIndexCode(cfg.triCode),
+          startDate: start8,
+          endDate: end8,
+        })
   const triByDate = new Map<string, number>()
   for (const p of triSeries) triByDate.set(p.date, p.close)
   if (!triSeries.length) throw new Error(`TRI 数据为空，无法计算股息率/利差：${cfg.code}`)
