@@ -99,12 +99,12 @@ export default function QuoteCarousel({
           )}
         </div>
 
-        <div className="mt-7 flex items-center justify-between gap-4">
+        <div className="mt-8 flex items-center justify-between gap-4">
           <button
             type="button"
             onClick={() => commitIndex(index - 1)}
             disabled={!count}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white transition hover:border-white/20 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-transparent text-white/90 transition hover:border-white/20 hover:bg-white/5 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/50 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="上一条"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -119,8 +119,8 @@ export default function QuoteCarousel({
                   type="button"
                   onClick={() => commitIndex(i)}
                   className={cn(
-                    'h-2.5 w-2.5 rounded-full transition-all duration-200',
-                    active ? 'bg-[#FF5722] shadow-[0_0_0_4px_rgba(255,87,34,0.20)]' : 'bg-white/20 hover:bg-white/30',
+                    'h-2 w-2 rounded-full transition-all duration-200',
+                    active ? 'bg-[#FF5722] shadow-[0_0_0_3px_rgba(255,87,34,0.16)]' : 'bg-white/14 hover:bg-white/22',
                   )}
                   aria-label={`切换到第 ${i + 1} 条`}
                 />
@@ -132,7 +132,7 @@ export default function QuoteCarousel({
             type="button"
             onClick={() => commitIndex(index + 1)}
             disabled={!count}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white transition hover:border-white/20 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-transparent text-white/90 transition hover:border-white/20 hover:bg-white/5 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/50 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="下一条"
           >
             <ChevronRight className="h-5 w-5" />
