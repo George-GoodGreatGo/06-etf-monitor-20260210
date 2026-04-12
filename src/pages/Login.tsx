@@ -5,7 +5,7 @@ import { apiUrl } from '@/utils/apiBase'
 export default function Login() {
   const nav = useNavigate()
   const [sp] = useSearchParams()
-  const next = sp.get('next') || '/'
+  const next = sp.get('next') || '/home'
 
   const [remember, setRemember] = useState(true)
   const [loading, setLoading] = useState(false)
