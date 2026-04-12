@@ -11,7 +11,7 @@ const HOME_TABS: Array<{ tab: HomeTab; label: string; icon: typeof List }> = [
   { tab: 'list', label: 'ETF200 列表', icon: List },
   { tab: 'insight', label: 'AI 解读', icon: Sparkles },
   { tab: 'liquidity', label: '大盘看板', icon: LineChart },
-  { tab: 'lowvol', label: '低波机会', icon: Activity },
+  { tab: 'lowvol', label: '红利择时', icon: Activity },
 ]
 
 export default function SideNav({
