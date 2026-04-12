@@ -3,30 +3,36 @@ import { QUOTES } from '@/data/quotes'
 
 export default function QuoteHome() {
   return (
-    <div className="mx-auto w-full max-w-[1100px]">
-      <div className="mb-8">
-        <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">投资之前，先把心态摆正</h1>
-        <div className="mt-2 text-sm leading-7 text-[#94A3B8]">
-          用理性与耐心对抗噪声。用风险意识保护复利。让决策从“正确的原则”开始，而不是从“短期的情绪”开始。
+    <div className="mx-auto w-full max-w-[1200px]">
+      <div className="mb-8 grid gap-10 lg:grid-cols-[420px_1fr] lg:items-start">
+        <div>
+          <div className="text-xs font-semibold tracking-wide text-[#94A3B8]">Home</div>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">投资备忘录</h1>
+          <div className="mt-3 text-sm leading-7 text-[#94A3B8]">
+            让决策先回到原则：风险、概率、边界与耐心。不是每一次波动都需要回应。
+          </div>
+
+          <div className="mt-7 space-y-2 text-sm text-[#A9B6CC]">
+            <div className="flex items-start gap-3">
+              <div className="mt-2 h-1.5 w-1.5 rounded-full bg-white/25" aria-hidden="true" />
+              <div>先谈风险，再谈收益。</div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="mt-2 h-1.5 w-1.5 rounded-full bg-white/25" aria-hidden="true" />
+              <div>优先避免大错，其它交给时间。</div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="mt-2 h-1.5 w-1.5 rounded-full bg-white/25" aria-hidden="true" />
+              <div>不做无把握的交易，允许空仓与等待。</div>
+            </div>
+          </div>
         </div>
+
+        <QuoteCarousel items={QUOTES} />
       </div>
 
-      <QuoteCarousel items={QUOTES} />
-
-      <div className="mt-10 grid gap-4 sm:grid-cols-3">
-        {[
-          { title: '理性', desc: '先定义风险与边界，再讨论收益与机会。' },
-          { title: '耐心', desc: '等待高胜率时刻，而不是每天都要做决定。' },
-          { title: '纪律', desc: '遵守流程与原则，避免“当下情绪”主导操作。' },
-        ].map((x) => (
-          <div
-            key={x.title}
-            className="rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.03)] p-5 shadow-[0_18px_40px_rgba(0,0,0,0.25)] backdrop-blur"
-          >
-            <div className="text-sm font-semibold text-white">{x.title}</div>
-            <div className="mt-2 text-sm leading-6 text-[#A9B6CC]">{x.desc}</div>
-          </div>
-        ))}
+      <div className="mt-8 text-xs leading-6 text-[#94A3B8]">
+        语录用于自我提醒，不构成投资建议。出处字段为公开材料的常见引用描述；如需更严格溯源，可继续补充校对。
       </div>
     </div>
   )

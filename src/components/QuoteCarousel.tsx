@@ -7,6 +7,7 @@ export default function QuoteCarousel({ items }: { items: QuoteItem[] }) {
   const safeItems = useMemo(() => (Array.isArray(items) ? items.filter(Boolean) : []), [items])
   const [idx, setIdx] = useState(0)
   const [paused, setPaused] = useState(false)
+  const [entered, setEntered] = useState(false)
   const intervalRef = useRef<number | null>(null)
 
   const current = safeItems.length ? safeItems[(idx + safeItems.length) % safeItems.length] : null
@@ -18,6 +19,19 @@ export default function QuoteCarousel({ items }: { items: QuoteItem[] }) {
       return next < 0 ? next + safeItems.length : next
     })
   }
+
+  useEffect(() => {
+    if (!safeItems.length) return
+    if (typeof window === 'undefined') return
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false
+    if (reduce) {
+      setEntered(true)
+      return
+    }
+    setEntered(false)
+    const raf = window.requestAnimationFrame(() => setEntered(true))
+    return () => window.cancelAnimationFrame(raf)
+  }, [current?.id, safeItems.length])
 
   useEffect(() => {
     if (!safeItems.length) return
@@ -37,18 +51,19 @@ export default function QuoteCarousel({ items }: { items: QuoteItem[] }) {
   if (!safeItems.length) return null
 
   return (
-    <section className="relative">
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[rgba(13,26,28,0.72)] p-8 shadow-[0_0_60px_-20px_rgba(255,87,34,0.30)] backdrop-blur-[18px] sm:p-10">
-        <div className="pointer-events-none absolute -left-24 top-10 h-56 w-56 rounded-full bg-[rgba(255,87,34,0.25)] blur-[90px]" />
-        <div className="pointer-events-none absolute -right-24 bottom-10 h-56 w-56 rounded-full bg-[rgba(255,255,255,0.08)] blur-[90px]" />
+    <section className="relative group">
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[rgba(7,12,14,0.55)] p-8 shadow-[0_28px_80px_rgba(0,0,0,0.45)] backdrop-blur-[18px] sm:p-10">
+        <div className="pointer-events-none absolute -left-24 top-10 h-56 w-56 rounded-full bg-[rgba(255,255,255,0.08)] blur-[90px]" />
+        <div className="pointer-events-none absolute -right-24 bottom-10 h-56 w-56 rounded-full bg-[rgba(255,87,34,0.14)] blur-[90px]" />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.07]" aria-hidden="true" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.25) 1px, transparent 0)', backgroundSize: '18px 18px' }} />
 
         <div className="flex items-center justify-between gap-4">
-          <div className="text-xs font-semibold tracking-wide text-[#94A3B8]">理性与耐心</div>
-          <div className="flex items-center gap-2">
+          <div className="text-xs font-semibold tracking-wide text-[#94A3B8]">Quotes</div>
+          <div className="flex items-center gap-2 opacity-90 transition-opacity group-hover:opacity-100">
             <button
               type="button"
               onClick={() => goto(idx - 1)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/50"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/0 text-white transition hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/40"
               aria-label="上一条"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -56,7 +71,7 @@ export default function QuoteCarousel({ items }: { items: QuoteItem[] }) {
             <button
               type="button"
               onClick={() => setPaused((v) => !v)}
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 text-xs font-semibold text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/50"
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/0 px-4 text-xs font-semibold text-white transition hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/40"
               aria-label={paused ? '播放' : '暂停'}
             >
               {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
@@ -65,7 +80,7 @@ export default function QuoteCarousel({ items }: { items: QuoteItem[] }) {
             <button
               type="button"
               onClick={() => goto(idx + 1)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/50"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/0 text-white transition hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/40"
               aria-label="下一条"
             >
               <ChevronRight className="h-4 w-4" />
@@ -73,11 +88,16 @@ export default function QuoteCarousel({ items }: { items: QuoteItem[] }) {
           </div>
         </div>
 
-        <div key={current?.id} className="mt-8 space-y-6 transition-all duration-300 ease-out will-change-transform">
+        <div
+          className={cn(
+            'mt-8 space-y-6 transition-all duration-200 ease-out will-change-transform',
+            entered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
+          )}
+        >
           <div className="text-[26px] font-semibold leading-[1.28] tracking-tight text-white sm:text-[34px]">
             {current?.quoteZh}
           </div>
-          <div className="text-sm leading-7 text-[#A9B6CC] sm:text-base">
+          <div className="text-sm leading-7 text-[#9AA8BF] sm:text-base">
             {current?.quoteEn}
           </div>
 
@@ -97,7 +117,7 @@ export default function QuoteCarousel({ items }: { items: QuoteItem[] }) {
                 onClick={() => goto(i)}
                 className={cn(
                   'h-2.5 rounded-full transition-all duration-200',
-                  active ? 'w-8 bg-[#FF5722]' : 'w-2.5 bg-white/15 hover:bg-white/25',
+                  active ? 'w-7 bg-[#FF5722]' : 'w-2.5 bg-white/10 hover:bg-white/20',
                 )}
                 aria-label={`第 ${i + 1} 条`}
               />
