@@ -16,7 +16,6 @@ import {
   Target,
   TrendingUp,
 } from 'lucide-react'
-import NavBar from '@/components/NavBar'
 import DataStatusBanner from '@/components/DataStatusBanner'
 import EtfWeeklyChart from '@/components/charts/EtfWeeklyChart'
 import ZBadge from '@/components/ZBadge'
@@ -347,19 +346,7 @@ export default function EtfDetail() {
   }, [code])
 
   return (
-    <div>
-      <NavBar
-        rightMeta={
-          meta
-            ? {
-                fetchedAt: meta.cachedAt || meta.fetchedAt,
-                dataDate: meta.dataDate,
-              }
-            : undefined
-        }
-      />
-
-      <main className="mx-auto w-full max-w-[1200px] px-4 pb-10 pt-6">
+    <div className="mx-auto w-full max-w-[1200px]">
         <div className="mb-4 flex items-center justify-between">
           <Link
             to={backUrl}
@@ -750,7 +737,6 @@ export default function EtfDetail() {
         </section>
 
 
-      </main>
     </div>
   )
 }

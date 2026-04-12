@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import NavBar from '@/components/NavBar'
 import DataStatusBanner from '@/components/DataStatusBanner'
 import { type SortDir } from '@/components/SortableTh'
 import Top100FilterBar from '@/components/Top100FilterBar'
@@ -8,6 +7,7 @@ import Top100Table from '@/components/Top100Table'
 import Top100InsightPanel from '@/components/Top100InsightPanel'
 import MarketLiquidityPanel from '@/components/MarketLiquidityPanel'
 import LowVolOpportunityPanel from '@/components/LowVolOpportunityPanel'
+import { Loader2 } from 'lucide-react'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { cn } from '@/lib/utils'
 import {
@@ -18,6 +18,7 @@ import {
 } from '@/utils/etfApi'
 import { apiUrl } from '@/utils/apiBase'
 import { adminAuthHeaders } from '@/utils/adminAccess'
+import { formatYmd, parseIsoToLocal } from '@/utils/format'
 import { fetchLowVolSummary } from '@/utils/marketApi'
 import { calcLowVolSuggestion, type LowVolSuggestionTone } from '@/utils/lowVolSignal'
 
@@ -588,184 +589,91 @@ export default function Home() {
   }
 
   const lowVolActiveOpt = LOWVOL_INDEX_OPTIONS.find((x) => x.code === lowVolIndexCode) ?? null
+  const showTop200Header = tab === 'list' || tab === 'insight'
+  const top200Refetching = adminRefreshing || (loading && (loadingMode === 'refetch' || treatAsRefetch))
+  const top200RightMeta = meta
+    ? {
+        fetchedAt: meta.cachedAt || meta.fetchedAt,
+        dataDate: meta.dataDate,
+      }
+    : null
 
   return (
-    <div className="min-h-screen bg-[#050A0B] text-[#E6EDF7]">
-      <NavBar
-        rightMeta={
-          meta
-            ? {
-                fetchedAt: meta.cachedAt || meta.fetchedAt,
-                dataDate: meta.dataDate,
-              }
-            : undefined
-        }
-        onRefetch={onRefetch}
-        refetching={adminRefreshing || (loading && (loadingMode === 'refetch' || treatAsRefetch))}
-        onLogout={() => {
-          void (async () => {
-            try {
-              ;(window as unknown as { google?: { accounts?: { id?: { disableAutoSelect?: () => void } } } })
-                .google?.accounts?.id?.disableAutoSelect?.()
-              await fetch(apiUrl('/api/auth/logout'), {
-                method: 'POST',
-                credentials: 'include',
-              })
-            } catch {
-              void 0
-            } finally {
-              nav(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`, { replace: true })
+    <div className="mx-auto w-full max-w-[1280px]">
+      {showTop200Header ? (
+        <>
+          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-white">Top200 ETF 异动监测</h1>
+              <div className="mt-1.5 text-[13px] text-[#94A3B8]">仅展示最近一个完整交易日数据；缺失/失败会明确提示且不展示推测值。</div>
+            </div>
+
+            <div className="flex flex-col items-end gap-2">
+              <div className="text-right text-xs text-[#A9B6CC]">
+                {top200Refetching ? (
+                  <div className="space-y-0.5">
+                    <div>
+                      数据交易日： <span className="text-[#E6EDF7]">查询中</span>
+                    </div>
+                    <div>
+                      快照时间： <span className="text-[#E6EDF7]">查询中</span>
+                    </div>
+                  </div>
+                ) : top200RightMeta ? (
+                  <div className="space-y-0.5">
+                    <div>
+                      数据交易日： <span className="text-[#E6EDF7]">{formatYmd(top200RightMeta.dataDate)}</span>
+                    </div>
+                    <div>
+                      快照时间： <span className="text-[#E6EDF7]">{parseIsoToLocal(top200RightMeta.fetchedAt)}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div>仅展示完整交易日数据</div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={onRefetch}
+                disabled={top200Refetching}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-[6px] bg-[#FF5722] px-4 text-xs font-semibold text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.35),0px_10px_15px_-3px_rgba(0,0,0,0.35)] transition hover:brightness-110 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {top200Refetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <img src="/figma/list/refetch_icon.svg" alt="" className="h-4 w-4 select-none" aria-hidden="true" />}
+                重新获取
+              </button>
+            </div>
+          </div>
+
+          <DataStatusBanner
+            loading={loading}
+            error={error}
+            notice={adminNotice}
+            meta={meta}
+            incompleteCount={incompleteCount}
+            loadingMode={
+              loading
+                ? treatAsRefetch
+                  ? 'refetch'
+                  : loadingMode
+                : 'fetch'
             }
-          })()
-        }}
-      />
+            loadingProgressPct={treatAsRefetch || loadingMode === 'cold' ? refetchProgressPct : null}
+            loadingEtaSeconds={treatAsRefetch || loadingMode === 'cold' ? refetchEtaSeconds : undefined}
+            backendProgressText={backendProgressText}
+            onRetry={() => {
+              const seq = ++reqSeqRef.current
+              void runFetch(seq)
+            }}
+          />
 
-      <main className="mx-auto w-full max-w-[1280px] px-8 pb-14 pt-6">
-        <div className="mb-3">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">Top200 ETF 异动监测</h1>
-          <div className="mt-1.5 text-[13px] text-[#94A3B8]">
-            仅展示最近一个完整交易日数据；缺失/失败会明确提示且不展示推测值。
-          </div>
-        </div>
-
-        <DataStatusBanner
-          loading={loading}
-          error={error}
-          notice={adminNotice}
-          meta={meta}
-          incompleteCount={incompleteCount}
-          loadingMode={
-            loading
-              ? treatAsRefetch
-                ? 'refetch'
-                : loadingMode
-              : 'fetch'
-          }
-          loadingProgressPct={treatAsRefetch || loadingMode === 'cold' ? refetchProgressPct : null}
-          loadingEtaSeconds={treatAsRefetch || loadingMode === 'cold' ? refetchEtaSeconds : undefined}
-          backendProgressText={backendProgressText}
-          onRetry={() => {
-            const seq = ++reqSeqRef.current
-            void runFetch(seq)
-          }}
-        />
-
-        <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
-          <div role="tablist" aria-label="首页视图切换" className="flex items-center gap-8">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'list'}
-              onClick={() => {
-                if (tab === 'list') return
-                const next = new URLSearchParams(searchParams)
-                next.set('tab', 'list')
-                setSearchParams(next, { replace: true })
-              }}
-              className={cn(
-                'relative inline-flex items-center gap-2 pb-2 text-sm font-semibold transition',
-                tab === 'list' ? 'text-[#FF5722]' : 'text-[#94A3B8] hover:text-white',
-              )}
-            >
-              <img
-                src={tab === 'list' ? '/figma/list/list_tab_icon.svg' : '/figma/list/list_tab_icon_muted.svg'}
-                alt=""
-                className="h-4 w-auto select-none"
-                aria-hidden="true"
-              />
-              TOP200 列表
-              {tab === 'list' ? (
-                <span className="absolute -bottom-[10px] left-0 right-0 h-[2px] bg-[#FF5722]" />
-              ) : null}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'insight'}
-              onClick={() => {
-                if (tab === 'insight') return
-                const next = new URLSearchParams(searchParams)
-                next.set('tab', 'insight')
-                setSearchParams(next, { replace: true })
-              }}
-              className={cn(
-                'relative inline-flex items-center gap-2 pb-2 text-sm font-semibold transition',
-                tab === 'insight' ? 'text-[#FF5722]' : 'text-[#94A3B8] hover:text-white',
-              )}
-            >
-              <img
-                src={tab === 'insight' ? '/figma/list/insight_tab_icon_active.svg' : '/figma/list/insight_tab_icon.svg'}
-                alt=""
-                className="h-4 w-auto select-none"
-                aria-hidden="true"
-              />
-              AI 解读
-              {tab === 'insight' ? (
-                <span className="absolute -bottom-[10px] left-0 right-0 h-[2px] bg-[#FF5722]" />
-              ) : null}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'liquidity'}
-              onClick={() => {
-                if (tab === 'liquidity') return
-                const next = new URLSearchParams(searchParams)
-                next.set('tab', 'liquidity')
-                setSearchParams(next, { replace: true })
-              }}
-              className={cn(
-                'relative inline-flex items-center gap-2 pb-2 text-sm font-semibold transition',
-                tab === 'liquidity' ? 'text-[#FF5722]' : 'text-[#94A3B8] hover:text-white',
-              )}
-            >
-              <img
-                src={tab === 'liquidity' ? '/figma/list/market_tab_icon.svg' : '/figma/list/market_tab_icon_muted.svg'}
-                alt=""
-                className="h-4 w-auto select-none"
-                aria-hidden="true"
-              />
-              大盘看板
-              {tab === 'liquidity' ? (
-                <span className="absolute -bottom-[10px] left-0 right-0 h-[2px] bg-[#FF5722]" />
-              ) : null}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'lowvol'}
-              onClick={() => {
-                if (tab === 'lowvol') return
-                const next = new URLSearchParams(searchParams)
-                next.set('tab', 'lowvol')
-                setSearchParams(next, { replace: true })
-              }}
-              className={cn(
-                'relative inline-flex items-center gap-2 pb-2 text-sm font-semibold transition',
-                tab === 'lowvol' ? 'text-[#FF5722]' : 'text-[#94A3B8] hover:text-white',
-              )}
-            >
-              <img
-                src={tab === 'lowvol' ? '/figma/list/market_tab_icon.svg' : '/figma/list/market_tab_icon_muted.svg'}
-                alt=""
-                className="h-4 w-auto select-none"
-                aria-hidden="true"
-              />
-              低波机会
-              {tab === 'lowvol' ? (
-                <span className="absolute -bottom-[10px] left-0 right-0 h-[2px] bg-[#FF5722]" />
-              ) : null}
-            </button>
-          </div>
-
-          <div className="sm:min-h-10 sm:flex sm:items-center">
-            {tab === 'list' ? (
+          {tab === 'list' ? (
+            <div className="mt-4">
               <Top100FilterBar keyword={keyword} onChangeKeyword={setKeyword} onReset={onReset} />
-            ) : (
-              <div className="hidden h-10 sm:block" aria-hidden="true" />
-            )}
-          </div>
-        </div>
+            </div>
+          ) : null}
+        </>
+      ) : null}
 
         {tab === 'lowvol' ? (
           <>
@@ -857,18 +765,19 @@ export default function Home() {
           </>
         ) : null}
 
-        {tab === 'insight' ? (
-          <Top100InsightPanel meta={meta} rows={rows} isHomeLoading={loading} />
-        ) : tab === 'liquidity' ? (
-          <MarketLiquidityPanel />
-        ) : tab === 'lowvol' ? (
-          <LowVolOpportunityPanel
-            indexCode={lowVolIndexCode}
-            indexLabel={lowVolActiveOpt?.label ?? lowVolIndexCode}
-            indexDesc={lowVolActiveOpt?.desc}
-            biasBasis={lowVolBiasBasis}
-          />
-        ) : (
+      {tab === 'insight' ? (
+        <Top100InsightPanel meta={meta} rows={rows} isHomeLoading={loading} />
+      ) : tab === 'liquidity' ? (
+        <MarketLiquidityPanel />
+      ) : tab === 'lowvol' ? (
+        <LowVolOpportunityPanel
+          indexCode={lowVolIndexCode}
+          indexLabel={lowVolActiveOpt?.label ?? lowVolIndexCode}
+          indexDesc={lowVolActiveOpt?.desc}
+          biasBasis={lowVolBiasBasis}
+        />
+      ) : (
+        <div className={cn(showTop200Header ? 'mt-4' : '')}>
           <Top100Table
             rows={rows}
             loading={loading}
@@ -878,8 +787,8 @@ export default function Home() {
             sortDir={sortDir}
             onToggleSort={onToggleSort}
           />
-        )}
-      </main>
+        </div>
+      )}
     </div>
   )
 }

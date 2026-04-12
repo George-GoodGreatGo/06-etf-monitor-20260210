@@ -1,10 +1,6 @@
-import NavBar from '@/components/NavBar'
-
 export default function Methodology() {
   return (
-    <div>
-      <NavBar />
-      <main className="mx-auto w-full max-w-[900px] px-4 pb-10 pt-6">
+    <div className="mx-auto w-full max-w-[900px]">
         <h1 className="text-lg font-semibold tracking-tight">数据与方法说明</h1>
         <div className="mt-2 text-sm leading-6 text-[#A9B6CC]">
           本站所有数据均通过 API 获取并以真实返回为准；当数据缺失或拉取失败时，会明确提示且不展示任何推测值。
@@ -47,8 +43,6 @@ export default function Methodology() {
             本站仅提供信息展示与数据工具，不构成任何投资建议。
           </div>
         </section>
-      </main>
     </div>
   )
 }
-
