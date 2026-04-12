@@ -4,10 +4,13 @@ import NavBar from '@/components/NavBar'
 import SideNav from '@/components/SideNav'
 import { apiUrl } from '@/utils/apiBase'
 
+const SIDEBAR_COLLAPSE_KEY = 'etf_monitor_sidebar_collapsed'
+
 export default function AppShell() {
   const nav = useNavigate()
   const [username, setUsername] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   useEffect(() => {
     const ac = new AbortController()
@@ -28,6 +31,23 @@ export default function AppShell() {
   }, [])
 
   useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SIDEBAR_COLLAPSE_KEY)
+      setSidebarCollapsed(raw === '1')
+    } catch {
+      setSidebarCollapsed(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_COLLAPSE_KEY, sidebarCollapsed ? '1' : '0')
+    } catch {
+      void 0
+    }
+  }, [sidebarCollapsed])
+
+  useEffect(() => {
     if (!drawerOpen) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setDrawerOpen(false)
@@ -37,7 +57,14 @@ export default function AppShell() {
   }, [drawerOpen])
 
   return (
-    <div className="min-h-screen bg-[#050A0B] text-[#E6EDF7]">
+    <div
+      className="min-h-screen bg-[#050A0B] text-[#E6EDF7]"
+      style={
+        {
+          ['--sidebar-w' as string]: sidebarCollapsed ? '72px' : '240px',
+        } as React.CSSProperties
+      }
+    >
       <NavBar
         username={username}
         onOpenMenu={() => setDrawerOpen(true)}
@@ -60,7 +87,11 @@ export default function AppShell() {
       />
 
       <div className="hidden md:block">
-        <SideNav className="fixed left-0 top-0 h-screen w-[240px] pt-[72px]" />
+        <SideNav
+          className="fixed left-0 top-0 h-screen w-[var(--sidebar-w)] pt-[72px] transition-[width] duration-200 ease-out"
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
+        />
       </div>
 
       <div className="md:hidden">
@@ -74,10 +105,11 @@ export default function AppShell() {
             drawerOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
           onNavigate={() => setDrawerOpen(false)}
+          collapsed={false}
         />
       </div>
 
-      <div className="pt-[72px] md:pl-[240px]">
+      <div className="pt-[72px] md:pl-[var(--sidebar-w)] transition-[padding] duration-200 ease-out">
         <div className="mx-auto w-full max-w-[1440px] px-4 pb-14 pt-6 sm:px-8">
           <Outlet />
         </div>

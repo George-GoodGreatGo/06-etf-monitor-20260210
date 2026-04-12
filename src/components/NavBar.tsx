@@ -10,7 +10,7 @@ export default function NavBar({
   onLogout?: () => void
 }) {
   return (
-    <header className="fixed left-0 right-0 top-0 z-50 border-b border-[rgba(255,255,255,0.06)] bg-[rgba(0,0,0,0.60)] backdrop-blur">
+    <header className="fixed left-0 right-0 top-0 z-50 border-b border-[rgba(255,255,255,0.06)] bg-[rgba(0,0,0,0.60)] backdrop-blur md:pl-[var(--sidebar-w)] transition-[padding] duration-200 ease-out">
       <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-6 px-8 py-4">
         <div className="flex items-center gap-3">
           {onOpenMenu ? (
