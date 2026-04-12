@@ -1,140 +1,144 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Pause, Play, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { AUTHOR_META, type QuoteItem } from '@/data/quotes'
-import AuthorAvatar from '@/components/AuthorAvatar'
+import type { InvestorQuote } from '@/data/investorQuotes'
 
-export default function QuoteCarousel({ items }: { items: QuoteItem[] }) {
-  const safeItems = useMemo(() => (Array.isArray(items) ? items.filter(Boolean) : []), [items])
-  const [idx, setIdx] = useState(0)
+export default function QuoteCarousel({
+  quotes,
+  autoplayMs = 8000,
+  className,
+}: {
+  quotes: InvestorQuote[]
+  autoplayMs?: number
+  className?: string
+}) {
+  const safeQuotes = useMemo(() => quotes.filter(Boolean), [quotes])
+  const [index, setIndex] = useState(0)
   const [paused, setPaused] = useState(false)
-  const [entered, setEntered] = useState(false)
-  const intervalRef = useRef<number | null>(null)
+  const [present, setPresent] = useState(true)
+  const pendingRef = useRef<number | null>(null)
+  const rootRef = useRef<HTMLDivElement | null>(null)
 
-  const current = safeItems.length ? safeItems[(idx + safeItems.length) % safeItems.length] : null
+  const count = safeQuotes.length
+  const current = count ? safeQuotes[index % count] : null
 
-  const goto = (n: number) => {
-    if (!safeItems.length) return
-    setIdx((prev) => {
-      const next = n % safeItems.length
-      return next < 0 ? next + safeItems.length : next
-    })
+  const commitIndex = (next: number) => {
+    if (!count) return
+    const normalized = ((next % count) + count) % count
+    pendingRef.current = normalized
+    setPresent(false)
   }
 
   useEffect(() => {
-    if (!safeItems.length) return
-    if (typeof window === 'undefined') return
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false
-    if (reduce) {
-      setEntered(true)
-      return
-    }
-    setEntered(false)
-    const raf = window.requestAnimationFrame(() => setEntered(true))
-    return () => window.cancelAnimationFrame(raf)
-  }, [current?.id, safeItems.length])
+    if (!count) return
+    if (present) return
+    const t = window.setTimeout(() => {
+      if (pendingRef.current == null) return
+      setIndex(pendingRef.current)
+      pendingRef.current = null
+      setPresent(false)
+      window.requestAnimationFrame(() => setPresent(true))
+    }, 180)
+    return () => window.clearTimeout(t)
+  }, [count, present])
 
   useEffect(() => {
-    if (!safeItems.length) return
+    if (!count) return
     if (paused) return
-    if (typeof window === 'undefined') return
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false
-    if (reduce) return
-    if (intervalRef.current) window.clearInterval(intervalRef.current)
-    intervalRef.current = window.setInterval(() => goto(idx + 1), 8000)
-    return () => {
-      if (intervalRef.current) window.clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paused, idx, safeItems.length])
+    const id = window.setInterval(() => {
+      commitIndex(index + 1)
+    }, autoplayMs)
+    return () => window.clearInterval(id)
+  }, [autoplayMs, count, index, paused])
 
-  if (!safeItems.length) return null
-
-  const meta = current ? AUTHOR_META[current.author] : null
+  useEffect(() => {
+    setIndex(0)
+    setPresent(true)
+    pendingRef.current = null
+  }, [count])
 
   return (
-    <section className="relative group">
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[rgba(7,12,14,0.55)] p-8 shadow-[0_28px_80px_rgba(0,0,0,0.45)] backdrop-blur-[18px] sm:p-12">
-        <div className="pointer-events-none absolute -left-24 top-10 h-56 w-56 rounded-full bg-[rgba(255,255,255,0.08)] blur-[90px]" />
-        <div className="pointer-events-none absolute -right-24 bottom-10 h-56 w-56 rounded-full bg-[rgba(255,87,34,0.14)] blur-[90px]" />
-        <div className="pointer-events-none absolute inset-0 opacity-[0.07]" aria-hidden="true" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.25) 1px, transparent 0)', backgroundSize: '18px 18px' }} />
-
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            {current && meta ? <AuthorAvatar author={current.author} text={meta.avatarText} /> : null}
-            <div className="min-w-0">
-              <div className="text-xs font-semibold tracking-wide text-[#94A3B8]">Investment Notes</div>
-              <div className="mt-1 truncate text-sm font-semibold text-white">{current?.author}</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 opacity-60 transition-opacity group-hover:opacity-100">
-            <button
-              type="button"
-              onClick={() => goto(idx - 1)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/0 text-white transition hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/40"
-              aria-label="上一条"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setPaused((v) => !v)}
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/0 px-4 text-xs font-semibold text-white transition hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/40"
-              aria-label={paused ? '播放' : '暂停'}
-            >
-              {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-              {paused ? '播放' : '暂停'}
-            </button>
-            <button
-              type="button"
-              onClick={() => goto(idx + 1)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/0 text-white transition hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/40"
-              aria-label="下一条"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
+    <div
+      ref={rootRef}
+      className={cn('relative', className)}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={() => {
+        window.requestAnimationFrame(() => {
+          const root = rootRef.current
+          if (!root) return
+          const active = document.activeElement
+          if (active && root.contains(active)) return
+          setPaused(false)
+        })
+      }}
+    >
+      <div className={cn('ui-glass-card px-6 py-7 sm:px-10 sm:py-10', 'transition-all duration-200')}>
         <div
           className={cn(
-            'mt-10 space-y-7 transition-all duration-220 ease-out will-change-transform',
-            entered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
+            'transition-[opacity,transform,filter] duration-200 ease-out',
+            present ? 'opacity-100 translate-y-0 scale-100 blur-0' : 'opacity-0 translate-y-2 scale-[0.985] blur-[1px]',
           )}
         >
-          <div className="text-[26px] font-semibold leading-[1.28] tracking-tight text-white sm:text-[38px]">
-            {current?.quoteZh}
-          </div>
-          <div className="text-sm leading-7 text-[#9AA8BF] sm:text-[15px]">
-            {current?.quoteEn}
-          </div>
-
-          <div className="pt-1 text-xs text-[#94A3B8]">
-            {current?.source}
-          </div>
+          {current ? (
+            <>
+              <div className="text-[11px] font-semibold tracking-wide text-[#94A3B8]">{current.author}</div>
+              <div className="mt-3 text-balance text-[28px] font-semibold leading-[1.18] tracking-tight text-white sm:text-[40px]">
+                {current.quoteZh}
+              </div>
+              <div className="mt-4 text-balance text-[14px] leading-7 text-[#C7D2E5] sm:text-[16px]">
+                {current.quoteEn}
+              </div>
+              <div className="mt-6 text-xs text-[#94A3B8]">
+                出处：<span className="text-[#A9B6CC]">{current.source}</span>
+              </div>
+            </>
+          ) : (
+            <div className="text-sm text-[#A9B6CC]">暂无语录</div>
+          )}
         </div>
 
-        <div className="mt-8 flex flex-wrap items-center gap-2 opacity-60 transition-opacity group-hover:opacity-100">
-          {safeItems.map((it, i) => {
-            const active = i === ((idx % safeItems.length) + safeItems.length) % safeItems.length
-            return (
-              <button
-                key={it.id}
-                type="button"
-                onClick={() => goto(i)}
-                className={cn(
-                  'h-2.5 rounded-full transition-all duration-200',
-                  active ? 'w-7 bg-[#FF5722]' : 'w-2.5 bg-white/10 hover:bg-white/20',
-                )}
-                aria-label={`第 ${i + 1} 条`}
-              />
-            )
-          })}
+        <div className="mt-7 flex items-center justify-between gap-4">
+          <button
+            type="button"
+            onClick={() => commitIndex(index - 1)}
+            disabled={!count}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white transition hover:border-white/20 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/50 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="上一条"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+
+          <div className="flex items-center gap-2">
+            {new Array(count).fill(0).map((_, i) => {
+              const active = i === index
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => commitIndex(i)}
+                  className={cn(
+                    'h-2.5 w-2.5 rounded-full transition-all duration-200',
+                    active ? 'bg-[#FF5722] shadow-[0_0_0_4px_rgba(255,87,34,0.20)]' : 'bg-white/20 hover:bg-white/30',
+                  )}
+                  aria-label={`切换到第 ${i + 1} 条`}
+                />
+              )
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => commitIndex(index + 1)}
+            disabled={!count}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white transition hover:border-white/20 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/50 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="下一条"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
         </div>
       </div>
-    </section>
+    </div>
   )
 }
-

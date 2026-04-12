@@ -2,11 +2,11 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Home from '@/pages/Home'
 import EtfDetail from '@/pages/EtfDetail'
 import Methodology from '@/pages/Methodology'
+import Quotes from '@/pages/Quotes'
 import Login from '@/pages/Login'
 import RequireAuth from '@/components/RequireAuth'
 import AppShell from '@/components/AppShell'
 import BackToTopButton from '@/components/BackToTopButton'
-import QuoteHome from '@/pages/QuoteHome'
 
 export default function App() {
   return (
@@ -22,10 +22,10 @@ export default function App() {
               </RequireAuth>
             }
           >
-            <Route path="/home" element={<QuoteHome />} />
             <Route path="/" element={<Home />} />
             <Route path="/etf/:code" element={<EtfDetail />} />
             <Route path="/methodology" element={<Methodology />} />
+            <Route path="/quotes" element={<Quotes />} />
           </Route>
         </Routes>
       </Router>

@@ -1,17 +1,15 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { Activity, BookOpen, ChevronLeft, ChevronRight, Home, LineChart, List, Sparkles } from 'lucide-react'
+import { Activity, BookOpen, ChevronLeft, ChevronRight, LineChart, List, Quote, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type HomeTab = 'list' | 'insight' | 'liquidity' | 'lowvol'
-
-const HOME_ENTRY = { to: '/home', label: '首页', icon: Home }
 
 const HOME_TABS: Array<{ tab: HomeTab; label: string; icon: typeof List }> = [
   { tab: 'list', label: 'ETF200 列表', icon: List },
   { tab: 'insight', label: 'AI 解读', icon: Sparkles },
   { tab: 'liquidity', label: '大盘看板', icon: LineChart },
-  { tab: 'lowvol', label: '红利择时', icon: Activity },
+  { tab: 'lowvol', label: '低波机会', icon: Activity },
 ]
 
 export default function SideNav({
@@ -29,13 +27,13 @@ export default function SideNav({
   const loc = useLocation()
   const [searchParams] = useSearchParams()
 
-  const isQuoteHome = loc.pathname === '/home'
   const isHome = loc.pathname === '/'
   const isMethod = loc.pathname === '/methodology'
+  const isQuotes = loc.pathname === '/quotes'
   const rawTab = searchParams.get('tab')
   const tab: HomeTab =
     rawTab === 'list' || rawTab === 'insight' || rawTab === 'liquidity' || rawTab === 'lowvol' ? rawTab : 'list'
-  const activeKey = isQuoteHome ? 'quote_home' : isMethod ? 'methodology' : `home:${tab}`
+  const activeKey = isMethod ? 'methodology' : isQuotes ? 'quotes' : `home:${tab}`
 
   const listRef = useRef<HTMLDivElement | null>(null)
   const itemRefs = useRef<Record<string, HTMLElement | null>>({})
@@ -97,44 +95,6 @@ export default function SideNav({
             }}
             aria-hidden="true"
           />
-          <NavLink
-            to={HOME_ENTRY.to}
-            className={({ isActive }) =>
-              cn(
-                'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/50',
-                isActive ? 'text-white' : 'text-[#A9B6CC] hover:-translate-y-[1px] hover:bg-white/5 hover:text-white hover:shadow-[0_10px_30px_rgba(0,0,0,0.25)] active:translate-y-0',
-                collapsedValue ? 'justify-start' : 'justify-between',
-              )
-            }
-            onClick={() => onNavigate?.()}
-            ref={(el) => {
-              itemRefs.current['quote_home'] = el as unknown as HTMLElement | null
-            }}
-            title={collapsedValue ? HOME_ENTRY.label : undefined}
-            aria-label={collapsedValue ? HOME_ENTRY.label : undefined}
-          >
-            <span className={cn('inline-flex items-center gap-3', collapsedValue ? 'justify-center' : 'min-w-0')}>
-              <HOME_ENTRY.icon
-                className={cn(
-                  'h-4 w-4 shrink-0',
-                  isQuoteHome ? 'text-[#FF8A66]' : 'text-[#94A3B8] group-hover:text-[#E6EDF7]',
-                )}
-              />
-              {collapsedValue ? null : <span className="truncate">{HOME_ENTRY.label}</span>}
-            </span>
-            {collapsedValue ? null : (
-              <span
-                className={cn(
-                  'h-1.5 w-1.5 rounded-full bg-[#FF5722] transition-all duration-200',
-                  isQuoteHome ? 'opacity-100 scale-100' : 'opacity-0 scale-50 group-hover:opacity-60 group-hover:scale-90',
-                )}
-                aria-hidden="true"
-              />
-            )}
-          </NavLink>
-
-          <div className="my-2 h-px w-full bg-white/10" aria-hidden="true" />
-
           {HOME_TABS.map((x) => {
             const active = isHome && tab === x.tab
             const Icon = x.icon
@@ -177,6 +137,31 @@ export default function SideNav({
               </button>
             )
           })}
+
+          <NavLink
+            to="/quotes"
+            className={({ isActive }) =>
+              cn(
+                'group mt-2 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/50',
+                isActive ? 'text-white' : 'text-[#A9B6CC] hover:-translate-y-[1px] hover:bg-white/5 hover:text-white hover:shadow-[0_10px_30px_rgba(0,0,0,0.25)] active:translate-y-0',
+                collapsedValue ? 'justify-start' : 'justify-between',
+              )
+            }
+            onClick={() => onNavigate?.()}
+            ref={(el) => {
+              itemRefs.current['quotes'] = el as unknown as HTMLElement | null
+            }}
+            title={collapsedValue ? '语录首页' : undefined}
+            aria-label={collapsedValue ? '语录首页' : undefined}
+          >
+            <span className={cn('inline-flex items-center gap-3', collapsedValue ? 'justify-center' : 'min-w-0')}>
+              <Quote className={cn('h-4 w-4 shrink-0', isQuotes ? 'text-[#FF8A66]' : 'text-[#94A3B8] group-hover:text-[#E6EDF7]')} />
+              {collapsedValue ? null : <span className="truncate">语录首页</span>}
+            </span>
+            {collapsedValue ? null : (
+              <span className="h-1.5 w-1.5 rounded-full bg-[#FF5722] opacity-0 transition-opacity duration-200 group-hover:opacity-60" aria-hidden="true" />
+            )}
+          </NavLink>
 
           <NavLink
             to="/methodology"
