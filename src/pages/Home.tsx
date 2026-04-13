@@ -729,48 +729,51 @@ export default function Home() {
                           : 'border-white/10 bg-white/5 hover:-translate-y-[1px] hover:border-white/20 hover:bg-white/7 hover:shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_16px_40px_rgba(0,0,0,0.35)]',
                       )}
                     >
-                      <div className="flex w-full items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <div
-                            className={cn(
-                              'truncate text-sm font-semibold',
-                              active ? 'text-white' : 'text-[#E6EDF7] group-hover:text-white',
-                            )}
-                          >
-                            {opt.label}
-                          </div>
-                          <div
-                            className={cn(
-                              'mt-0.5 font-mono text-[11px]',
-                              active ? 'text-[#FFD6C8]' : 'text-[#64748B]',
-                            )}
-                          >
-                            {opt.code}
-                          </div>
-                          {isCardsExpanded && (
-                            <div className="mt-1 text-[11px] leading-4 text-[#94A3B8] group-hover:text-[#CBD5E1]">
-                              {opt.desc}
+                      <div className="flex w-full flex-col gap-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div
+                              className={cn(
+                                'truncate text-sm font-semibold',
+                                active ? 'text-white' : 'text-[#E6EDF7] group-hover:text-white',
+                              )}
+                            >
+                              {opt.label}
                             </div>
-                          )}
-                        </div>
-                        <div className="flex shrink-0 flex-col items-end gap-1">
-                          {last?.dividendYieldPct != null && (
-                            <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2 py-[2px] text-[11px] font-medium leading-none text-[#A9B6CC] font-sans">
-                              股息率 {last.dividendYieldPct.toFixed(2)}%
+                            <div
+                              className={cn(
+                                'mt-0.5 font-mono text-[11px]',
+                                active ? 'text-[#FFD6C8]' : 'text-[#64748B]',
+                              )}
+                            >
+                              {opt.code}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end gap-1">
+                            <span
+                              className={cn(
+                                'inline-flex items-center gap-2 rounded-full border px-2 py-[2px] text-[11px] font-medium leading-none',
+                                toneToNavPillCls(sugLoading ? 'unknown' : (sug?.tone ?? 'unknown')),
+                              )}
+                            >
+                              {sugLoading ? (
+                                <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
+                              ) : null}
+                              {sugLoading ? '—' : (sug?.label ?? '—')}
                             </span>
-                          )}
-                          <span
-                            className={cn(
-                              'inline-flex items-center gap-2 rounded-full border px-2 py-[2px] text-[11px] font-medium leading-none',
-                              toneToNavPillCls(sugLoading ? 'unknown' : (sug?.tone ?? 'unknown')),
+                            {last?.dividendYieldPct != null && (
+                              <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2 py-[2px] text-[11px] font-medium leading-none text-[#A9B6CC] font-sans">
+                                股息率 {last.dividendYieldPct.toFixed(2)}%
+                              </span>
                             )}
-                          >
-                            {sugLoading ? (
-                              <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
-                            ) : null}
-                            {sugLoading ? '—' : (sug?.label ?? '—')}
-                          </span>
+                          </div>
                         </div>
+
+                        {isCardsExpanded && (
+                          <div className="text-[11px] leading-4 text-[#94A3B8] group-hover:text-[#CBD5E1]">
+                            {opt.desc}
+                          </div>
+                        )}
                       </div>
                     </button>
                   )
