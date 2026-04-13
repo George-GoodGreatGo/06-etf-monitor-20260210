@@ -33,6 +33,9 @@ function logEvent(event: Record<string, unknown>) {
   process.stdout.write(`${JSON.stringify({ ts: new Date().toISOString(), ...event })}\n`)
 }
 
+const yieldYearCache = new Map<number, Map<string, number>>()
+const yieldYearFailed = new Set<number>()
+
 function dateFromYmd10(ymd10: string): Date | null {
   const s = String(ymd10 || '').trim()
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null
@@ -191,8 +194,21 @@ async function refreshOneIncrementalCompute(args: {
   }
   const yieldByDate = new Map<string, number>()
   for (const y of Array.from(years.values()).sort((a, b) => a - b)) {
-    const m = await fetchGovBond10yYieldPctByDate({ year: y })
-    for (const [k, v] of m.entries()) yieldByDate.set(k, v)
+    if (yieldYearFailed.has(y)) continue
+    const cached = yieldYearCache.get(y)
+    if (cached) {
+      for (const [k, v] of cached.entries()) yieldByDate.set(k, v)
+      continue
+    }
+    try {
+      const m = await fetchGovBond10yYieldPctByDate({ year: y })
+      yieldYearCache.set(y, m)
+      for (const [k, v] of m.entries()) yieldByDate.set(k, v)
+    } catch (e) {
+      yieldYearFailed.add(y)
+      const msg = e instanceof Error ? e.message : String(e)
+      logEvent({ type: 'yield_year_failed', code, year: y, error: msg })
+    }
   }
 
   const dividendPointsRaw: Array<number | null> = new Array(allDates.length).fill(null)
@@ -295,13 +311,18 @@ async function refreshOneIncrementalCompute(args: {
 
     base.biasPct3y60 = percentileInWindow(biasHist60, bias60[i], biasWindow, minPeriods)
     base.biasPct3y = percentileInWindow(biasHist250, bias250[i], biasWindow, minPeriods)
-    base.dividendYieldPct = dividendYieldPct[i]
-    base.yield10yPct = yieldByDate.get(d) ?? null
-    base.spreadRawPct = spreadCorePct[i]
-    base.spreadSmoothPct = spreadCorePct[i]
-    base.spreadPct = spreadCorePct[i]
-    base.spreadPctRank3y = percentileInWindow(spreadHist3y, spreadCorePct[i], spreadWindow3y, minPeriods)
-    base.spreadPctRank10y = percentileInWindow(spreadHist, spreadCorePct[i], spreadWindow, minPeriods)
+    const dy = dividendYieldPct[i]
+    if (dy != null) base.dividendYieldPct = dy
+    const y10 = yieldByDate.get(d)
+    if (y10 != null) base.yield10yPct = y10
+    const sp = spreadCorePct[i]
+    if (sp != null) {
+      base.spreadRawPct = sp
+      base.spreadSmoothPct = sp
+      base.spreadPct = sp
+      base.spreadPctRank3y = percentileInWindow(spreadHist3y, sp, spreadWindow3y, minPeriods)
+      base.spreadPctRank10y = percentileInWindow(spreadHist, sp, spreadWindow, minPeriods)
+    }
 
     updatedByDate.set(d, base)
   }
