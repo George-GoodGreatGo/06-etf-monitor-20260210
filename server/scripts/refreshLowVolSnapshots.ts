@@ -28,6 +28,10 @@ function isWafError(e: unknown): boolean {
   return msg.includes('csindex blocked by WAF') || msg.includes('熔断中')
 }
 
+function logEvent(event: Record<string, unknown>) {
+  process.stdout.write(`${JSON.stringify({ ts: new Date().toISOString(), ...event })}\n`)
+}
+
 async function refreshOne(code: string, startDate: string, endDate: string): Promise<void> {
   const out = await getLowVolIndexSeries({ code, startDate, endDate })
   const dataDate = out.meta?.dataDate || null
@@ -57,36 +61,48 @@ async function main() {
   const codes = getLowVolSupportedIndexCodes()
   const startDate = ymd8YearsAgoJan1(15)
   const endDate = ymd8Of(new Date())
+  const startedAt = Date.now()
+
+  logEvent({ type: 'start', codes: codes.length, startDate, endDate, ignoreWindow })
 
   const results: Array<{ code: string; ok: boolean; error?: string }> = []
-  for (const code of codes) {
+  for (let idx = 0; idx < codes.length; idx += 1) {
+    const code = codes[idx]
+    const t0 = Date.now()
+    logEvent({ type: 'index_start', idx: idx + 1, total: codes.length, code })
     try {
       await refreshOne(code, startDate, endDate)
       results.push({ code, ok: true })
+      logEvent({ type: 'index_done', idx: idx + 1, total: codes.length, code, ok: true, ms: Date.now() - t0 })
       await sleep(350 + Math.floor(Math.random() * 450))
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       if (!isWafError(e)) {
+        logEvent({ type: 'index_retry', idx: idx + 1, total: codes.length, code, ok: false, error: msg })
         await sleep(900 + Math.floor(Math.random() * 800))
         try {
           await refreshOne(code, startDate, endDate)
           results.push({ code, ok: true })
+          logEvent({ type: 'index_done', idx: idx + 1, total: codes.length, code, ok: true, ms: Date.now() - t0, retried: true })
           await sleep(350 + Math.floor(Math.random() * 450))
           continue
         } catch (e2) {
           const msg2 = e2 instanceof Error ? e2.message : String(e2)
           results.push({ code, ok: false, error: msg2 })
+          logEvent({ type: 'index_done', idx: idx + 1, total: codes.length, code, ok: false, error: msg2, ms: Date.now() - t0, retried: true })
           if (isWafError(e2)) break
           continue
         }
       }
       results.push({ code, ok: false, error: msg })
+      logEvent({ type: 'index_done', idx: idx + 1, total: codes.length, code, ok: false, error: msg, ms: Date.now() - t0 })
       break
     }
   }
 
   const ok = results.filter((x) => x.ok).length
   const fail = results.length - ok
+  logEvent({ type: 'finish', ok, fail, ms: Date.now() - startedAt })
   process.stdout.write(JSON.stringify({ success: fail === 0, ok, fail, startDate, endDate, results }, null, 2))
 }
 
@@ -95,4 +111,3 @@ main().catch((e) => {
   process.stderr.write(msg)
   process.exit(1)
 })
-
