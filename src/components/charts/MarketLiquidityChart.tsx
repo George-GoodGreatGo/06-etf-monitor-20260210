@@ -342,7 +342,11 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
         vertLines: { color: 'rgba(255,255,255,0.06)' },
         horzLines: { color: 'rgba(255,255,255,0.06)' },
       },
-      rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)', minimumWidth: SCALE_MIN_WIDTH },
+      rightPriceScale: {
+        borderColor: 'rgba(255,255,255,0.10)',
+        minimumWidth: SCALE_MIN_WIDTH,
+        scaleMargins: { top: 0, bottom: 0 },
+      },
       timeScale: {
         borderColor: 'rgba(255,255,255,0.10)',
         visible: false,
@@ -541,7 +545,11 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
         vertLines: { color: 'rgba(255,255,255,0.06)' },
         horzLines: { color: 'rgba(255,255,255,0.06)' },
       },
-      rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)', minimumWidth: SCALE_MIN_WIDTH },
+      rightPriceScale: {
+        borderColor: 'rgba(255,255,255,0.10)',
+        minimumWidth: SCALE_MIN_WIDTH,
+        scaleMargins: { top: 0, bottom: 0 },
+      },
       timeScale: {
         borderColor: 'rgba(255,255,255,0.10)',
         visible: true,
@@ -605,7 +613,11 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
         vertLines: { color: 'rgba(255,255,255,0.06)' },
         horzLines: { color: 'rgba(255,255,255,0.06)' },
       },
-      rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)', minimumWidth: SCALE_MIN_WIDTH },
+      rightPriceScale: {
+        borderColor: 'rgba(255,255,255,0.10)',
+        minimumWidth: SCALE_MIN_WIDTH,
+        scaleMargins: { top: 0, bottom: 0 },
+      },
       timeScale: {
         borderColor: 'rgba(255,255,255,0.10)',
         visible: false,
