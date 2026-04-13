@@ -329,7 +329,7 @@ export default function QuotesHome() {
     <div className="relative h-[calc(100dvh-72px)] overflow-hidden">
       <div className="pointer-events-none absolute inset-0 ui-ambient" aria-hidden="true" />
       <div className="relative mx-auto flex h-full w-full max-w-[1440px] flex-col px-4 py-6 sm:px-8 sm:py-8">
-        <header className="mx-auto w-full max-w-[980px] shrink-0 pb-6 pt-2 sm:pb-8 sm:pt-4">
+        <header className="mx-auto w-full max-w-[980px] shrink-0 pb-4 pt-2 sm:pb-6 sm:pt-4">
           <div className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[11px] font-semibold tracking-[0.18em] text-[#A9B6CC]">
             INVESTMENT MENTAL MODEL
           </div>
@@ -343,7 +343,7 @@ export default function QuotesHome() {
           </p>
         </header>
 
-        <div className="flex min-h-0 flex-1 items-center">
+        <div className="flex min-h-0 flex-1 items-start pt-1 sm:pt-2">
           <QuoteCarousel quotes={quotes} />
         </div>
       </div>

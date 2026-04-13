@@ -1,0 +1,5 @@
+- [x] BIAS 分位滚动窗口已调整为 5 年（window≈1260，minPeriods=252）
+- [x] 利差分位滚动窗口已调整为 5 年（window≈1260，minPeriods=252）
+- [x] 前端文案与标签已改为 “5年分位”，无 “3年/10年” 残留
+- [x] `meta.notes` 口径说明与实现一致
+- [x] `npm run check` 通过

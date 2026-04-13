@@ -1,0 +1,9 @@
+- [x] 夜间刷新脚本会先读取 Supabase 最新快照（含 data_date 与 payload.series），且仅提供 service role key 时也能读取
+- [x] 有快照时走增量：从 max(lastDataDate-5天, 10年前01-01) 到 endDate 拉取，并与历史合并写回
+- [x] 无快照时走冷启动：拉取 10 年并写回首份快照
+- [x] 合并规则正确：按 date 去重（增量覆盖），最终按 date 升序
+- [x] data_date(YYYY-MM-DD) 能正确转换为回源请求参数 YYYYMMDD，并用于计算增量窗口
+- [x] 写回 Supabase 的 data_date 取序列最新交易日（不强行等于自然日）
+- [x] WAF/熔断触发会终止本轮，非 WAF 失败最多重试 1 次（带抖动）
+- [x] 日志逐指数输出进度，Actions 可观察
+- [x] `npm run check` 通过

@@ -47,6 +47,7 @@ export type MarketBoardDailyRow = {
 }
 
 export type LowVolIndexDailyRow = {
+  id: string
   code: string
   data_date: string
   snapshot_at: string
@@ -363,14 +364,16 @@ export async function upsertMarketBoardSnapshot(payload: {
 export async function readLatestLowVolIndexSnapshot(code: string): Promise<LowVolIndexDailyRow | null> {
   const supabaseUrl = String(process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '')
   const anonKey = String(process.env.SUPABASE_ANON_KEY || '').trim()
+  const serviceKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
   const c = String(code || '').trim()
-  if (!supabaseUrl || !anonKey || !c) return null
+  const readKey = anonKey || serviceKey
+  if (!supabaseUrl || !readKey || !c) return null
 
   const url = `${supabaseUrl}/rest/v1/lowvol_index_daily?code=eq.${encodeURIComponent(c)}&select=*&order=data_date.desc&limit=1`
   const res = await fetch(url, {
     headers: {
-      apikey: anonKey,
-      Authorization: `Bearer ${anonKey}`,
+      apikey: readKey,
+      Authorization: `Bearer ${readKey}`,
     },
   })
   if (!res.ok) return null
@@ -384,16 +387,18 @@ export async function readLatestLowVolIndexSnapshot(code: string): Promise<LowVo
 export async function readLatestLowVolIndexSnapshots(codes: string[]): Promise<Map<string, LowVolIndexDailyRow>> {
   const supabaseUrl = String(process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '')
   const anonKey = String(process.env.SUPABASE_ANON_KEY || '').trim()
+  const serviceKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
   const list = Array.isArray(codes) ? codes.map((x) => String(x || '').trim()).filter(Boolean) : []
   const out = new Map<string, LowVolIndexDailyRow>()
-  if (!supabaseUrl || !anonKey || list.length === 0) return out
+  const readKey = anonKey || serviceKey
+  if (!supabaseUrl || !readKey || list.length === 0) return out
 
   const inList = list.map((x) => encodeURIComponent(x)).join(',')
   const url = `${supabaseUrl}/rest/v1/lowvol_index_daily?code=in.(${inList})&select=*&order=code.asc,data_date.desc`
   const res = await fetch(url, {
     headers: {
-      apikey: anonKey,
-      Authorization: `Bearer ${anonKey}`,
+      apikey: readKey,
+      Authorization: `Bearer ${readKey}`,
     },
   })
   if (!res.ok) return out

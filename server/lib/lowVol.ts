@@ -469,14 +469,14 @@ export async function getLowVolIndexSeries(args: {
     if (ma == null || ma === 0) return null
     return (p.close - ma) / ma
   })
-  const biasPct3y60 = buildRollingPercentile(bias60, 756, 252)
+  const biasPct3y60 = buildRollingPercentile(bias60, 1260, 252)
   const ma250 = buildSma(closes, 250)
   const bias250: Array<number | null> = closeSeries.map((p, i) => {
     const ma = ma250[i]
     if (ma == null || ma === 0) return null
     return (p.close - ma) / ma
   })
-  const biasPct3y = buildRollingPercentile(bias250, 756, 252)
+  const biasPct3y = buildRollingPercentile(bias250, 1260, 252)
 
   const y10ByDate = new Map<string, number>()
   if (closeSeries.length) {
@@ -529,7 +529,7 @@ export async function getLowVolIndexSeries(args: {
   const spreadSmoothPct = spreadCorePct
   const spreadPct = spreadCorePct
   const spreadPctRank3y = buildRollingPercentile(spreadCorePct, 756, 252)
-  const spreadPctRank10y = buildRollingPercentile(spreadCorePct, 2520, 252)
+  const spreadPctRank10y = buildRollingPercentile(spreadCorePct, 1260, 252)
 
   const series: LowVolDailyPoint[] = closeSeries.map((p, i) => ({
     date: p.date,
@@ -564,9 +564,9 @@ export async function getLowVolIndexSeries(args: {
         : `全收益指数数据源：csindex（index-perf，triCode=${cfg.triCode}）。`,
       '股息收益率口径（修正）：先用价格指数PRI与全收益指数TRI的滚动1年（252交易日）推算分红回报 DividendReturn(1Y)= (TRI_t/TRI_{t-252}) / (PRI_t/PRI_{t-252}) - 1，再换算分红点数 D_t=PRI_t*DividendReturn(1Y)，对 D_t 做250日SMA（minPeriods=126），最后用 股息率_t = D_SMA_t / PRI_t。',
       '利差口径（核心）：spreadCore=股息收益率(修正)-10Y。',
-      '利差分位：基于spreadCore做10年滚动分位（window≈2520，minPeriods=252）。',
+      '利差分位：基于spreadCore做5年滚动分位（window≈1260，minPeriods=252）。',
       '乖离率BIAS口径：60日/250日简单移动平均，BIAS=(close-ma)/ma。',
-      '滚动分位数窗口：3年≈756个交易日（最小有效252个样本）。',
+      '滚动分位数窗口：BIAS分位与利差分位均为5年≈1260个交易日（最小有效252个样本）。',
       '10Y国债收益率数据源：chinamoney。',
     ].filter(Boolean),
   }

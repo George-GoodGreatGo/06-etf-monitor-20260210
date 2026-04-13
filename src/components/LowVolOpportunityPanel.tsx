@@ -105,7 +105,7 @@ export default function LowVolOpportunityPanel(props: {
               <span className="font-medium text-[#CBD5E1]">利差（核心）</span>：对“分红点数”做250日SMA（minPeriods=126）后，计算 股息收益率(修正)-10Y。
             </p>
             <p>
-              <span className="font-medium text-[#CBD5E1]">利差分位(10年)</span>：基于 核心利差 的 10 年滚动分位（window≈2520，minPeriods=252）。
+              <span className="font-medium text-[#CBD5E1]">利差分位(5年)</span>：基于 核心利差 的 5 年滚动分位（window≈1260，minPeriods=252）。
             </p>
           </div>
         </div>
@@ -129,7 +129,7 @@ export default function LowVolOpportunityPanel(props: {
                 <div className="font-mono text-sm font-semibold text-[#F8FAFC]">{fmt(latest?.close, 2)}</div>
               </div>
               <div className="flex items-baseline justify-between gap-4">
-                <div className="text-[#94A3B8]">利差分位(10年)</div>
+                <div className="text-[#94A3B8]">利差分位(5年)</div>
                 <div className="font-mono text-sm font-semibold text-[#F8FAFC]">{fmt(latest?.spreadPctRank10y, 1)}</div>
               </div>
               <div className="flex items-baseline justify-between gap-4">

@@ -898,19 +898,19 @@ export default function LowVolOpportunityChart({ series, indexCode, biasBasis, c
             <div className="text-[#E6EDF7]">建议规则</div>
             <div>
               <span className="mr-2 rounded bg-white/10 px-2 py-[2px] font-mono text-[11px] text-[#E6EDF7]">—</span>
-              数据缺失：利差分位(10年) 缺失/非数字
+              数据缺失：利差分位(5年) 缺失/非数字
             </div>
             <div>
               <span className="mr-2 rounded bg-[rgba(16,185,129,0.18)] px-2 py-[2px] font-mono text-[11px] text-[#34D399]">偏加仓</span>
-              利差分位(10年) ≥ {thresh.spreadCheapPctRank10y} 且 BIAS分位(3年) ≤ {thresh.biasLowPct3y}
+              利差分位(5年) ≥ {thresh.spreadCheapPctRank10y} 且 BIAS分位(5年) ≤ {thresh.biasLowPct3y}
             </div>
             <div>
               <span className="mr-2 rounded bg-[rgba(239,68,68,0.18)] px-2 py-[2px] font-mono text-[11px] text-[#F87171]">偏减仓</span>
-              BIAS分位(3年) ≥ {thresh.biasHighPct3y}
+              BIAS分位(5年) ≥ {thresh.biasHighPct3y}
             </div>
             <div>
               <span className="mr-2 rounded bg-[rgba(245,158,11,0.18)] px-2 py-[2px] font-mono text-[11px] text-[#FBBF24]">偏持有</span>
-              利差分位(10年) ≥ {thresh.spreadCheapPctRank10y} 且 未触发偏加仓 且 未触发偏减仓
+              利差分位(5年) ≥ {thresh.spreadCheapPctRank10y} 且 未触发偏加仓 且 未触发偏减仓
             </div>
             <div>
               <span className="mr-2 rounded bg-[rgba(96,165,250,0.18)] px-2 py-[2px] font-mono text-[11px] text-[#60A5FA]">偏观望</span>
@@ -921,7 +921,7 @@ export default function LowVolOpportunityChart({ series, indexCode, biasBasis, c
             <div className="text-[#E6EDF7]">指标定义</div>
             <div>股息收益率（修正）：滚动1年推算分红点数D，对D做250日SMA后除以PRI</div>
             <div>利差（核心）：股息收益率(修正)-10Y</div>
-            <div>利差分位：核心利差的10年滚动分位（window≈2520，minPeriods=252）</div>
+            <div>利差分位：核心利差的5年滚动分位（window≈1260，minPeriods=252）</div>
           </div>
         </div>
       ) : null}
@@ -975,7 +975,7 @@ export default function LowVolOpportunityChart({ series, indexCode, biasBasis, c
             ) : null}
             {showBiasPctPane ? (
               <>
-                <div className="text-[#A9B6CC]">BIAS分位(3年, {biasBasis === 'sma60' ? 'SMA60' : 'SMA250'})</div>
+                <div className="text-[#A9B6CC]">BIAS分位(5年, {biasBasis === 'sma60' ? 'SMA60' : 'SMA250'})</div>
                 <div className="text-right font-mono">{fmt(biasBasis === 'sma60' ? hover.biasPct3y60 : hover.biasPct3y250, 1)}</div>
               </>
             ) : null}
@@ -987,7 +987,7 @@ export default function LowVolOpportunityChart({ series, indexCode, biasBasis, c
             ) : null}
             {showSpreadPctPane ? (
               <>
-                <div className="text-[#A9B6CC]">利差分位(10年)</div>
+                <div className="text-[#A9B6CC]">利差分位(5年)</div>
                 <div className="text-right font-mono">{fmt(hover.spreadPctRank10y, 1)}</div>
               </>
             ) : null}
@@ -1024,7 +1024,7 @@ export default function LowVolOpportunityChart({ series, indexCode, biasBasis, c
           style={{ height: showBiasPctPane ? 140 : 1 }}
         >
           <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
-            BIAS分位(3年, {biasBasis === 'sma60' ? 'SMA60' : 'SMA250'})
+            BIAS分位(5年, {biasBasis === 'sma60' ? 'SMA60' : 'SMA250'})
           </div>
           <div ref={biasPctElRef} className="relative z-10 h-full w-full" />
         </div>
@@ -1050,7 +1050,7 @@ export default function LowVolOpportunityChart({ series, indexCode, biasBasis, c
           style={{ height: showSpreadPctPane ? 140 : 1 }}
         >
           <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
-            利差分位(10年)
+            利差分位(5年)
           </div>
           <div
             ref={spreadPctCheapBgRef}
