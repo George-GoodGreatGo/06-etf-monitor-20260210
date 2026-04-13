@@ -11,6 +11,8 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout
@@ -39,4 +41,3 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           LOWVOL_REFRESH_IGNORE_WINDOW: "1"
         run: npx tsx server/scripts/refreshLowVolSnapshots.ts
-
