@@ -327,8 +327,19 @@ async function refreshOneIncrementalCompute(args: {
     updatedByDate.set(d, base)
   }
 
-  const mergedSeries: SeriesPoint[] = allDates.map((d) => updatedByDate.get(d) ?? historyByDate.get(d) ?? ({ date: d, close: closeByDate.get(d) } as SeriesPoint))
-  const dd = allDates[allDates.length - 1]
+  let lastValidIdx = -1
+  for (let i = allDates.length - 1; i >= 0; i -= 1) {
+    if (spreadCorePct[i] != null) {
+      lastValidIdx = i
+      break
+    }
+  }
+  const endIdx = lastValidIdx >= 0 ? lastValidIdx : allDates.length - 1
+  const datesToWrite = allDates.slice(0, endIdx + 1)
+  const mergedSeries: SeriesPoint[] = datesToWrite.map(
+    (d) => updatedByDate.get(d) ?? historyByDate.get(d) ?? ({ date: d, close: closeByDate.get(d) } as SeriesPoint),
+  )
+  const dd = datesToWrite[datesToWrite.length - 1]
   const snapshotAt = new Date().toISOString()
 
   await upsertLowVolIndexSnapshot({

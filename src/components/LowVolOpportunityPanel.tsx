@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import { fetchLowVolIndex, type LowVolH30269Point } from '@/utils/marketApi'
 import { calcLowVolSuggestion } from '@/utils/lowVolSignal'
 import type { Top100Meta } from '@/utils/etfApi'
-import { parseIsoToLocal } from '@/utils/format'
+import { formatYmd, parseIsoToLocal } from '@/utils/format'
 
 function fmt(v: number | null | undefined, digits: number): string {
   if (typeof v !== 'number' || !Number.isFinite(v)) return '—'
@@ -77,6 +77,14 @@ export default function LowVolOpportunityPanel(props: {
   const suggestionCls = suggestionToneToTextCls(suggestion.tone)
   const sourceType = meta && typeof meta === 'object' ? ((meta as unknown as { sourceType?: unknown }).sourceType as unknown) : null
   const snapshotAt = meta && typeof meta === 'object' ? ((meta as unknown as { snapshotAt?: unknown }).snapshotAt as unknown) : null
+  const dataDateRaw = meta && typeof meta === 'object' ? ((meta as unknown as { dataDate?: unknown }).dataDate as unknown) : null
+  const dataDate = typeof dataDateRaw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dataDateRaw) ? dataDateRaw : null
+  const today = (() => {
+    const d = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  })()
+  const isNotToday = Boolean(dataDate && dataDate < today)
   const isSnapshot = sourceType === 'snapshot'
 
   return (
@@ -89,6 +97,13 @@ export default function LowVolOpportunityPanel(props: {
               <span>快照数据（非最新）</span>
               <span className="text-[#64748B]">·</span>
               <span>快照时间：{typeof snapshotAt === 'string' && snapshotAt ? parseIsoToLocal(snapshotAt) : '—'}</span>
+            </div>
+          ) : null}
+          {isNotToday ? (
+            <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-[#A9B6CC]">
+              <span>数据截至：{formatYmd(dataDate)}</span>
+              <span className="text-[#64748B]">·</span>
+              <span>今日未更新/非交易日，已显示最近交易日数据</span>
             </div>
           ) : null}
           <div className="mt-2 space-y-1 text-[13px] leading-relaxed text-[#94A3B8]">
