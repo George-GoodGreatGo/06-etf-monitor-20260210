@@ -268,6 +268,35 @@ export function getLowVolSupportedIndexCodes(): string[] {
   return Object.keys(LOWVOL_INDEXES)
 }
 
+export async function fetchLowVolIndexCloseSeries(args: {
+  code: string
+  kind: 'pri' | 'tri'
+  startDate8: string
+  endDate8: string
+}): Promise<Array<{ date: string; close: number }>> {
+  const cfg = LOWVOL_INDEXES[String(args.code || '').trim().toUpperCase()]
+  if (!cfg) return []
+  const start8 = String(args.startDate8 || '').trim()
+  const end8 = String(args.endDate8 || '').trim()
+  if (!/^\d{8}$/.test(start8) || !/^\d{8}$/.test(end8)) return []
+
+  const dataSource = cfg.dataSource ?? 'csindex'
+  const rawIndexCode =
+    args.kind === 'tri'
+      ? cfg.triCode
+      : cfg.priCode
+  if (!rawIndexCode) return []
+
+  if (dataSource === 'cnindex') {
+    return fetchCnindexIndexCloseSeries({ indexCode: rawIndexCode, startDate8: start8, endDate8: end8 })
+  }
+  return fetchCsindexIndexCloseSeries({
+    indexCode: normalizeCsindexIndexCode(rawIndexCode),
+    startDate: start8,
+    endDate: end8,
+  })
+}
+
 type LowVolLatestSummary = {
   date: string
   spreadPctRank10y: number | null
