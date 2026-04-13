@@ -11,7 +11,8 @@ import path from 'node:path'
 
 type CacheEntry<T> = { expiresAt: number; value: T }
 const cache = new Map<string, CacheEntry<unknown>>()
-const diskCacheFile = path.join(process.cwd(), 'server', '.cache', 'market-liquidity-v5.json')
+const calcVersion = 'pct-window-5y-v1'
+const diskCacheFile = path.join(process.cwd(), 'server', '.cache', `market-liquidity-v5.${calcVersion}.json`)
 
 function normalizeMarketAmountToKyuan(rows: Record<string, unknown>[]): Record<string, unknown>[] {
   const values: number[] = []
@@ -130,7 +131,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
   const end = typeof args?.endDate === 'string' && args.endDate.trim() ? args.endDate.trim() : ymdToday()
   const liquidityStart = start < '20200101' ? '20200101' : start
 
-  const cacheKey = `liquidity:v5:${start}:${end}`
+  const cacheKey = `liquidity:v5:${calcVersion}:${start}:${end}`
   const now = Date.now()
   const hit = cache.get(cacheKey)
   if (hit && hit.expiresAt > now) return hit.value as Record<string, unknown>
@@ -142,7 +143,8 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       const snap = await readLatestMarketBoardSnapshot()
       const payload = snap && typeof snap === 'object' ? (snap.payload as Record<string, unknown> | null) : null
       const meta = payload && typeof payload.meta === 'object' && payload.meta ? (payload.meta as Record<string, unknown>) : null
-      if (payload && meta && payload.success === true) {
+      const snapVer = meta && typeof meta.calcVersion === 'string' ? (meta.calcVersion as string) : ''
+      if (payload && meta && payload.success === true && snapVer === calcVersion) {
         const merged = {
           ...payload,
           meta: {
@@ -225,6 +227,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       const out = {
         success: true,
         meta: {
+          calcVersion,
           fetchedAt: new Date().toISOString(),
           dataDate: last?.date ?? null,
           sourceType: 'fallback-realtime',
@@ -333,8 +336,8 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
     const equityBond = buildEquityBondValuePctSeries({ dates, peByDate, yield10yPctByDate })
 
     const notes: string[] = [
-      '独家流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为360日滚动，最小有效180日。',
-      '股债利差=1/沪深300PE-中国10Y国债收益率，value再取720日滚动分位（最小有效360日），分位越高代表股票相对于国债更有性价比。',
+      '独家流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为5年滚动（≈1260），最小有效≈630。',
+      '股债利差=1/沪深300PE-中国10Y国债收益率，value再取5年滚动分位（≈1260，最小有效≈630），分位越高代表股票相对于国债更有性价比。',
       '已使用 AkShare 替代数据源；缺失字段保持 null，不做推测补值。',
       '成交额展示口径统一为“千元”；若 AkShare 返回口径不同，会在服务端进行单位归一化。',
       '北向资金展示口径统一为“总成交额(亿元)”；本分支北向数据使用东方财富数据中心替代源。',
@@ -344,6 +347,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
     const out = {
       success: true,
       meta: {
+        calcVersion,
         fetchedAt: new Date().toISOString(),
         dataDate: last?.date ?? null,
         source: 'akshare:eastmoney + eastmoney:datacenter + yield.chinabond.com.cn',
@@ -475,8 +479,8 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
     const equityBond = yield10yPctByDate.size > 0 ? buildEquityBondValuePctSeries({ dates, peByDate, yield10yPctByDate }) : []
 
     const notes: string[] = [
-      '独家流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为360日滚动，最小有效180日。',
-      '股债利差=1/沪深300PE-中国10Y国债收益率，value再取720日滚动分位（最小有效360日），分位越高代表股票相对于国债更有性价比。',
+      '独家流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为5年滚动（≈1260），最小有效≈630。',
+      '股债利差=1/沪深300PE-中国10Y国债收益率，value再取5年滚动分位（≈1260，最小有效≈630），分位越高代表股票相对于国债更有性价比。',
       '股债性价比PE数据源：codebuddy:financedata(index_dailybasic)',
       '股债性价比10Y数据源：chinabond(yield.chinabond.com.cn, 整年标准期限xlsx)',
       '股债性价比对齐：以沪深300交易日为基准，缺失使用前值填充。',
@@ -487,6 +491,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
     const out = {
       success: true,
       meta: {
+        calcVersion,
         fetchedAt: new Date().toISOString(),
         dataDate: last?.date ?? null,
         sourceType: 'primary-realtime',

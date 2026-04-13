@@ -171,9 +171,9 @@ export function buildLiquidityV5Series(input: {
   const trF = fillForward(totalTr)
   const northF = fillForward(north)
 
-  const amountPct = rollingPercentilePct(amountF, 360, 180)
-  const trPct = rollingPercentilePct(trF, 360, 180)
-  const northPct = rollingPercentilePct(northF, 360, 180)
+  const amountPct = rollingPercentilePct(amountF, 1260, 630)
+  const trPct = rollingPercentilePct(trF, 1260, 630)
+  const northPct = rollingPercentilePct(northF, 1260, 630)
   const v5 = calcV5(amountPct, trPct, northPct)
 
   const out: LiquidityV5Point[] = []

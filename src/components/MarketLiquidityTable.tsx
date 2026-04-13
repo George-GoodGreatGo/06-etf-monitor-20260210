@@ -78,7 +78,7 @@ function buildBoll120ByDate(points: Array<{ date: string; close: number }>, peri
 }
 
 export default function MarketLiquidityTable({ series, equityBond, className }: Props) {
-  const [limit, setLimit] = useState<number>(720)
+  const [limit, setLimit] = useState<number>(504)
 
   const derivedByDate = useMemo(() => {
     const src = series || []
@@ -120,13 +120,14 @@ export default function MarketLiquidityTable({ series, equityBond, className }: 
             value={String(limit)}
             onChange={(e) => {
               const v = Number(e.target.value)
-              setLimit(Number.isFinite(v) ? v : 720)
+              setLimit(Number.isFinite(v) ? v : 504)
             }}
           >
-            <option value="90">最近 90 日</option>
-            <option value="180">最近 180 日</option>
-            <option value="360">最近 360 日</option>
-            <option value="720">最近 720 日</option>
+            <option value="90">最近 3个月</option>
+            <option value="180">最近 6个月</option>
+            <option value="252">最近 1年</option>
+            <option value="504">最近 2年</option>
+            <option value="1260">最近 5年</option>
             <option value="0">全部</option>
           </select>
         </div>
