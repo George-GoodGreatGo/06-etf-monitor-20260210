@@ -245,7 +245,7 @@ async function fetchCnindexIndexCloseSeries(args: {
     const close = Array.isArray(row) ? row[1] : null
     if (typeof ms !== 'number' || !Number.isFinite(ms)) continue
     if (typeof close !== 'number' || !Number.isFinite(close)) continue
-    const date = new Date(ms).toISOString().slice(0, 10)
+    const date = new Date(ms + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
     out.push({ date, close })
   }
   return out
