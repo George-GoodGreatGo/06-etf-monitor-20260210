@@ -57,21 +57,22 @@ async function fetchJson(url: string): Promise<unknown> {
       'X-Requested-With': 'XMLHttpRequest',
     },
   })
+  const text = await res.text().catch(() => '')
+  const normalized = String(text || '').replace(/\s+/g, ' ').trim()
+  const isWaf =
+    normalized.includes('attack.jinxibei.com') ||
+    normalized.includes('您的访问被阻断') ||
+    normalized.includes('应用防火墙') ||
+    normalized.includes('访问被阻断')
+  if (isWaf) {
+    throw new Error(`csindex blocked by WAF: HTTP ${res.status}（建议稍后重试或更换网络/出口IP）`)
+  }
   if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    const normalized = String(text || '').replace(/\s+/g, ' ').trim()
-    const isWaf =
-      normalized.includes('attack.jinxibei.com') ||
-      normalized.includes('您的访问被阻断') ||
-      normalized.includes('应用防火墙') ||
-      normalized.includes('访问被阻断')
-    if (isWaf) {
-      throw new Error(`csindex blocked by WAF: HTTP ${res.status}（建议稍后重试或更换网络/出口IP）`)
-    }
     const brief = normalized ? normalized.slice(0, 240) : ''
     throw new Error(`csindex failed: HTTP ${res.status}${brief ? ` ${brief}` : ''}`)
   }
-  return res.json().catch(() => null)
+  const j = normalized ? (JSON.parse(normalized) as unknown) : null
+  return j
 }
 
 async function fetchCsindexIndexCloseSeries(args: {
@@ -460,7 +461,15 @@ export async function getLowVolIndexSeries(args: {
   if (!triSeries.length) throw new Error(`TRI 数据为空，无法计算股息率/利差：${cfg.code}`)
   let overlap = 0
   for (const p of closeSeries) if (triByDate.has(p.date)) overlap += 1
-  if (overlap < 253) throw new Error(`TRI 数据不足或无法对齐，无法计算股息率/利差：${cfg.code}`)
+  if (overlap < 253) {
+    const priFirst = closeSeries.length ? closeSeries[0].date : ''
+    const priLast = closeSeries.length ? closeSeries[closeSeries.length - 1].date : ''
+    const triFirst = triSeries.length ? triSeries[0].date : ''
+    const triLast = triSeries.length ? triSeries[triSeries.length - 1].date : ''
+    throw new Error(
+      `TRI 数据不足或无法对齐，无法计算股息率/利差：${cfg.code}（priLen=${closeSeries.length}, triLen=${triSeries.length}, overlap=${overlap}, priLast=${priLast}, triLast=${triLast}, range=${start8}-${end8}）`,
+    )
+  }
 
   const closes = closeSeries.map((p) => p.close)
   const ma60 = buildSma(closes, 60)
