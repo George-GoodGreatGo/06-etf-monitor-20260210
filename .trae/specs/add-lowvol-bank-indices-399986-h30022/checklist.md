@@ -1,0 +1,5 @@
+- [x] 后端 LOWVOL_INDEXES 已新增：399986→H20180、H30022→H20022
+- [x] 前端低波指数列表已新增两项且可切换
+- [x] 定时刷新任务会覆盖新增指数（不需额外配置）
+- [x] `/api/lowvol/index/399986` 与 `/api/lowvol/index/H30022` 在有快照时可返回数据并标注 sourceType
+- [x] `npm run check` 通过

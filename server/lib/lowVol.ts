@@ -252,6 +252,8 @@ async function fetchCnindexIndexCloseSeries(args: {
 
 const LOWVOL_INDEXES: Record<string, LowVolIndexConfig> = {
   H30269: { code: 'H30269', name: '红利低波', priCode: 'H30269', triCode: 'H20269' },
+  '399986': { code: '399986', name: '中证银行', priCode: '399986', triCode: 'H20180' },
+  H30022: { code: 'H30022', name: '中证800银行', priCode: 'H30022', triCode: 'H20022' },
   '930740.CSI': { code: '930740.CSI', name: '沪深300红利低波动', priCode: '930740', triCode: 'H20740' },
   '931847.CSI': { code: '931847.CSI', name: '中证500红利低波动', priCode: '931847', triCode: '931847CNY010' },
   '931848.CSI': { code: '931848.CSI', name: '中证800红利低波动', priCode: '931848', triCode: '931848CNY010' },
