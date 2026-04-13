@@ -739,13 +739,13 @@ export default function Home() {
                           >
                             {opt.label}
                           </div>
-                          <div className={cn('mt-0.5 flex items-center justify-between font-mono text-[11px]', active ? 'text-[#FFD6C8]' : 'text-[#64748B]')}>
-                            <span>{opt.code}</span>
-                            {last?.dividendYieldPct != null && (
-                              <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2 py-[2px] text-[11px] font-medium leading-none text-[#A9B6CC] font-sans">
-                                股息率 {last.dividendYieldPct.toFixed(2)}%
-                              </span>
+                          <div
+                            className={cn(
+                              'mt-0.5 font-mono text-[11px]',
+                              active ? 'text-[#FFD6C8]' : 'text-[#64748B]',
                             )}
+                          >
+                            {opt.code}
                           </div>
                           {isCardsExpanded && (
                             <div className="mt-1 text-[11px] leading-4 text-[#94A3B8] group-hover:text-[#CBD5E1]">
@@ -753,17 +753,24 @@ export default function Home() {
                             </div>
                           )}
                         </div>
-                        <span
-                          className={cn(
-                            'inline-flex shrink-0 items-center gap-2 rounded-full border px-2 py-[2px] text-[11px] font-medium leading-none',
-                            toneToNavPillCls(sugLoading ? 'unknown' : (sug?.tone ?? 'unknown')),
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          {last?.dividendYieldPct != null && (
+                            <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2 py-[2px] text-[11px] font-medium leading-none text-[#A9B6CC] font-sans">
+                              股息率 {last.dividendYieldPct.toFixed(2)}%
+                            </span>
                           )}
-                        >
-                          {sugLoading ? (
-                            <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
-                          ) : null}
-                          {sugLoading ? '—' : (sug?.label ?? '—')}
-                        </span>
+                          <span
+                            className={cn(
+                              'inline-flex items-center gap-2 rounded-full border px-2 py-[2px] text-[11px] font-medium leading-none',
+                              toneToNavPillCls(sugLoading ? 'unknown' : (sug?.tone ?? 'unknown')),
+                            )}
+                          >
+                            {sugLoading ? (
+                              <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
+                            ) : null}
+                            {sugLoading ? '—' : (sug?.label ?? '—')}
+                          </span>
+                        </div>
                       </div>
                     </button>
                   )

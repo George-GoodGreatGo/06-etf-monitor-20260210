@@ -8,6 +8,7 @@
 - 修改 `src/utils/marketApi.ts` 中的 `LowVolLatestSummary` 类型，加入 `dividendYieldPct` 字段。
 - 在 `src/components/LowVolOpportunityPanel.tsx` 右侧摘要数据区，增加“股息收益率”的数值展示。
 - 在 `src/pages/Home.tsx` 中的指数切换卡片区，增加“股息收益率”的数值展示。
+- 在 `src/pages/Home.tsx` 中将“股息率”以标签（pill/tag）样式展示，以突出关键信息。
 - 在 `src/pages/Home.tsx` 中为指数切换卡片区增加“展开/收起”状态及切换按钮（默认展开）。
 - 当切换为“收起”状态时，卡片内隐藏指数的详细描述文本（`desc`），减小卡片的内边距（padding），从而大幅缩减切换区的高度。
 
@@ -26,6 +27,14 @@ The system SHALL provide `dividendYieldPct` data from the snapshot summary API, 
 #### Scenario: Success case
 - **WHEN** user views the Low Volatility opportunity tab
 - **THEN** they can see the "股息收益率: X.XX%" on each index card and in the detailed summary panel.
+
+### Requirement: 股息率标签突出
+The system SHALL render the dividend yield on index switch cards as a tag (pill) UI element to make it more scannable.
+
+#### Scenario: Tag rendering
+- **WHEN** dividend yield exists for an index
+- **THEN** show a compact tag like “股息率 2.34%” on the card
+- **AND** keep the suggestion tag unchanged
 
 ### Requirement: 卡片展开与收起
 The system SHALL provide a toggle button to expand or collapse the index selection cards area.

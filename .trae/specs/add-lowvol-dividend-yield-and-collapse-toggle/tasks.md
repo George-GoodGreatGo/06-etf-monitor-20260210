@@ -12,5 +12,5 @@
 - [x] Task 3: Update LowVolOpportunityPanel
   - [x] SubTask 3.1: In `src/components/LowVolOpportunityPanel.tsx`, add a new row in the summary stats box to display "股息收益率" and its value.
 
-- [ ] Task 4: Refine dividend yield UI on index cards
-  - [ ] SubTask 4.1: In `src/pages/Home.tsx`, render dividend yield as a tag/pill element (e.g. rounded-full, bordered, compact) rather than plain text.
+- [x] Task 4: Refine dividend yield UI on index cards
+  - [x] SubTask 4.1: In `src/pages/Home.tsx`, render dividend yield as a tag/pill element (e.g. rounded-full, bordered, compact) rather than plain text.
