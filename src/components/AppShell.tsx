@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import NavBar from '@/components/NavBar'
 import SideNav from '@/components/SideNav'
 import { apiUrl } from '@/utils/apiBase'
@@ -8,9 +8,11 @@ const SIDEBAR_COLLAPSE_KEY = 'etf_monitor_sidebar_collapsed'
 
 export default function AppShell() {
   const nav = useNavigate()
+  const loc = useLocation()
   const [username, setUsername] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const isQuotesHome = loc.pathname === '/'
 
   useEffect(() => {
     const ac = new AbortController()
@@ -110,7 +112,7 @@ export default function AppShell() {
       </div>
 
       <div className="pt-[72px] md:pl-[var(--sidebar-w)] transition-[padding] duration-200 ease-out">
-        <div className="mx-auto w-full max-w-[1440px] px-4 pb-14 pt-6 sm:px-8">
+        <div className={isQuotesHome ? 'mx-auto w-full max-w-none px-0 pb-0 pt-0' : 'mx-auto w-full max-w-[1440px] px-4 pb-14 pt-6 sm:px-8'}>
           <Outlet />
         </div>
       </div>
