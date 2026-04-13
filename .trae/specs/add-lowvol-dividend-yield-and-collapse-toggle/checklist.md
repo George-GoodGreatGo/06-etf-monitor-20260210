@@ -1,0 +1,7 @@
+- [x] `src/utils/marketApi.ts` type `LowVolLatestSummary` includes `dividendYieldPct`.
+- [x] `server/lib/lowVol.ts` correctly extracts and returns `dividendYieldPct` in the summary endpoint.
+- [x] `src/pages/Home.tsx` properly stores `dividendYieldPct` in its component state map.
+- [x] Index switch cards in `Home.tsx` display the dividend yield percentage.
+- [x] A functional "展开/收起" toggle button is present in `Home.tsx` above the index cards.
+- [x] Collapsing the cards hides the descriptions and reduces the overall height of the cards area.
+- [x] `src/components/LowVolOpportunityPanel.tsx` displays "股息收益率" in the right-side summary box.
