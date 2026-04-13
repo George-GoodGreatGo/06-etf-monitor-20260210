@@ -57,6 +57,7 @@ export type LowVolLatestSummary = {
   spreadPctRank10y: number | null
   biasPct3y: number | null
   biasPct3y60: number | null
+  dividendYieldPct: number | null
 }
 
 export type LowVolSummaryItem = {

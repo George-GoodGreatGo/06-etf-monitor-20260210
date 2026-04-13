@@ -7,7 +7,7 @@ import Top100Table from '@/components/Top100Table'
 import Top100InsightPanel from '@/components/Top100InsightPanel'
 import MarketLiquidityPanel from '@/components/MarketLiquidityPanel'
 import LowVolOpportunityPanel from '@/components/LowVolOpportunityPanel'
-import { Loader2 } from 'lucide-react'
+import { Loader2, ChevronUp, ChevronDown } from 'lucide-react'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { cn } from '@/lib/utils'
 import {
@@ -102,15 +102,16 @@ export default function Home() {
 
   const [lowVolIndexCode, setLowVolIndexCode] = useState<LowVolIndexCode>('H30269')
   const [lowVolBiasBasis, setLowVolBiasBasis] = useState<LowVolBiasBasis>('sma250')
+  const [isCardsExpanded, setIsCardsExpanded] = useState(true)
   const [lowVolLatestByCode, setLowVolLatestByCode] = useState<
     Record<
       LowVolIndexCode,
-      { spreadPctRank10y?: number | null; biasPct3y?: number | null; biasPct3y60?: number | null } | null
+      { spreadPctRank10y?: number | null; biasPct3y?: number | null; biasPct3y60?: number | null; dividendYieldPct?: number | null } | null
     >
   >(() => {
     const out = {} as Record<
       LowVolIndexCode,
-      { spreadPctRank10y?: number | null; biasPct3y?: number | null; biasPct3y60?: number | null } | null
+      { spreadPctRank10y?: number | null; biasPct3y?: number | null; biasPct3y60?: number | null; dividendYieldPct?: number | null } | null
     >
     for (const opt of LOWVOL_INDEX_OPTIONS) out[opt.code] = null
     return out
@@ -209,7 +210,7 @@ export default function Home() {
       const latestNext = { ...lowVolLatestByCode }
       const sugNext = { ...lowVolIndexSuggestionByCode }
       const items = r.success === true && Array.isArray(r.data?.items) ? r.data.items : []
-      const byCode = new Map<string, { spreadPctRank10y?: number | null; biasPct3y?: number | null; biasPct3y60?: number | null } | null>()
+      const byCode = new Map<string, { spreadPctRank10y?: number | null; biasPct3y?: number | null; biasPct3y60?: number | null; dividendYieldPct?: number | null } | null>()
       for (const it of items) {
         const code = it && typeof it === 'object' ? (it as { code?: unknown }).code : null
         if (typeof code !== 'string') continue
@@ -223,6 +224,7 @@ export default function Home() {
           spreadPctRank10y: typeof o.spreadPctRank10y === 'number' ? o.spreadPctRank10y : null,
           biasPct3y: typeof o.biasPct3y === 'number' ? o.biasPct3y : null,
           biasPct3y60: typeof o.biasPct3y60 === 'number' ? o.biasPct3y60 : null,
+          dividendYieldPct: typeof o.dividendYieldPct === 'number' ? o.dividendYieldPct : null,
         })
       }
 
@@ -688,11 +690,29 @@ export default function Home() {
         {tab === 'lowvol' ? (
           <>
             <div className="mt-2 pb-3">
+              <div className="mb-2 flex items-center justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsCardsExpanded(!isCardsExpanded)}
+                  className="flex items-center gap-1 text-xs text-[#94A3B8] hover:text-[#E6EDF7] transition-colors"
+                >
+                  {isCardsExpanded ? (
+                    <>
+                      收起说明 <ChevronUp className="h-3 w-3" />
+                    </>
+                  ) : (
+                    <>
+                      展开说明 <ChevronDown className="h-3 w-3" />
+                    </>
+                  )}
+                </button>
+              </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                 {LOWVOL_INDEX_OPTIONS.map((opt) => {
                   const sug = lowVolIndexSuggestionByCode[opt.code]
                   const sugLoading = lowVolIndexSuggestionLoadingByCode[opt.code]
                   const active = opt.code === lowVolIndexCode
+                  const last = lowVolLatestByCode[opt.code]
                   return (
                     <button
                       key={opt.code}
@@ -702,14 +722,15 @@ export default function Home() {
                         setLowVolIndexCode(opt.code)
                       }}
                       className={cn(
-                        'group flex flex-col gap-2 rounded-2xl border px-3 py-2.5 text-left transition-all',
+                        'group flex flex-col gap-2 rounded-2xl border px-3 text-left transition-all',
+                        isCardsExpanded ? 'py-2.5' : 'py-1.5',
                         active
                           ? 'border-[rgba(255,87,34,0.55)] bg-[rgba(255,87,34,0.10)] shadow-[0_0_0_1px_rgba(255,87,34,0.18),0_10px_30px_rgba(0,0,0,0.25)]'
                           : 'border-white/10 bg-white/5 hover:-translate-y-[1px] hover:border-white/20 hover:bg-white/7 hover:shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_16px_40px_rgba(0,0,0,0.35)]',
                       )}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
+                      <div className="flex w-full items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
                           <div
                             className={cn(
                               'truncate text-sm font-semibold',
@@ -718,12 +739,19 @@ export default function Home() {
                           >
                             {opt.label}
                           </div>
-                          <div className={cn('mt-0.5 font-mono text-[11px]', active ? 'text-[#FFD6C8]' : 'text-[#64748B]')}>
-                            {opt.code}
+                          <div className={cn('mt-0.5 flex items-center justify-between font-mono text-[11px]', active ? 'text-[#FFD6C8]' : 'text-[#64748B]')}>
+                            <span>{opt.code}</span>
+                            {last?.dividendYieldPct != null && (
+                              <span className="text-[#94A3B8]">
+                                股息率: {last.dividendYieldPct.toFixed(2)}%
+                              </span>
+                            )}
                           </div>
-                          <div className="mt-1 text-[11px] leading-4 text-[#94A3B8] group-hover:text-[#CBD5E1]">
-                            {opt.desc}
-                          </div>
+                          {isCardsExpanded && (
+                            <div className="mt-1 text-[11px] leading-4 text-[#94A3B8] group-hover:text-[#CBD5E1]">
+                              {opt.desc}
+                            </div>
+                          )}
                         </div>
                         <span
                           className={cn(

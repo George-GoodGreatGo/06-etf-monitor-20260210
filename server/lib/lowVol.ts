@@ -302,6 +302,7 @@ type LowVolLatestSummary = {
   spreadPctRank10y: number | null
   biasPct3y: number | null
   biasPct3y60: number | null
+  dividendYieldPct: number | null
 }
 
 export type LowVolSummaryItem = {
@@ -368,6 +369,7 @@ export async function getLowVolSummary(): Promise<{
           spreadPctRank10y: last.spreadPctRank10y ?? null,
           biasPct3y: last.biasPct3y ?? null,
           biasPct3y60: last.biasPct3y60 ?? null,
+          dividendYieldPct: last.dividendYieldPct ?? null,
         },
         sourceType: 'snapshot',
         snapshotAt: row.snapshot_at ?? null,

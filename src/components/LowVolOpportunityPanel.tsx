@@ -144,6 +144,12 @@ export default function LowVolOpportunityPanel(props: {
                 <div className="font-mono text-sm font-semibold text-[#F8FAFC]">{fmt(latest?.close, 2)}</div>
               </div>
               <div className="flex items-baseline justify-between gap-4">
+                <div className="text-[#94A3B8]">股息收益率</div>
+                <div className="font-mono text-sm font-semibold text-[#F8FAFC]">
+                  {latest?.dividendYieldPct != null ? `${fmt(latest.dividendYieldPct, 2)}%` : '—'}
+                </div>
+              </div>
+              <div className="flex items-baseline justify-between gap-4">
                 <div className="text-[#94A3B8]">利差分位(5年)</div>
                 <div className="font-mono text-sm font-semibold text-[#F8FAFC]">{fmt(latest?.spreadPctRank10y, 1)}</div>
               </div>
