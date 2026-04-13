@@ -81,6 +81,7 @@ export default function MarketLiquidityPanel() {
             <p><span className="font-medium text-[#CBD5E1]">沪深300</span>：反映中国A股市场整体表现的核心宽基指数。</p>
             <p><span className="font-medium text-[#CBD5E1]">EMA20 / EMA60</span>：20日/60日指数移动平均线，辅助判断短、中长期趋势。</p>
             <p><span className="font-medium text-[#CBD5E1]">独家流动性指数（3指标）</span>：=(成交额分位×换手率分位×北向资金分位)^(1/3)，5年滚动（≈1260，最少≈630）。&lt;30 为机会区，&gt;70 为风险区。</p>
+            <p><span className="font-medium text-[#CBD5E1]">独家流动性指数（分位）</span>：v5 的 5 年滚动分位（0–100）。越高表示近 5 年综合流动性越偏高位/过热，越低越偏低位/冷却（相对刻度）。</p>
             <p><span className="font-medium text-[#CBD5E1]">股债性价比（分位）</span>：value=1/沪深300PE-10Y国债收益率（%）/100；分位为过去5年滚动分位（≈1260，最少≈630）。</p>
           </div>
         </div>

@@ -11,7 +11,7 @@ import path from 'node:path'
 
 type CacheEntry<T> = { expiresAt: number; value: T }
 const cache = new Map<string, CacheEntry<unknown>>()
-const calcVersion = 'pct-window-5y-v1'
+const calcVersion = 'pct-window-5y-v2'
 const diskCacheFile = path.join(process.cwd(), 'server', '.cache', `market-liquidity-v5.${calcVersion}.json`)
 
 function normalizeMarketAmountToKyuan(rows: Record<string, unknown>[]): Record<string, unknown>[] {
@@ -222,6 +222,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
         `成交额口径：来自 Eastmoney kline 成交额，已换算为“千元”（与表格视图一致）。`,
         '沪深300PE数据源：中证指数（csindex）。',
         '北向资金总成交额数据源：东方财富数据中心（reportName=RPT_MUTUAL_DEAL_HISTORY, MUTUAL_TYPE=005, 字段 DEAL_AMT；本服务端输出单位为“亿元”）。',
+        'v5Pct=rollingPercentilePct(v5,1260,630)，即独家流动性指数 v5 的 5 年滚动分位（0–100）。',
         `替代触发原因：${reason}`,
       ]
       const out = {
@@ -337,6 +338,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
 
     const notes: string[] = [
       '独家流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为5年滚动（≈1260），最小有效≈630。',
+      'v5Pct=rollingPercentilePct(v5,1260,630)，即独家流动性指数 v5 的 5 年滚动分位（0–100）。',
       '股债利差=1/沪深300PE-中国10Y国债收益率，value再取5年滚动分位（≈1260，最小有效≈630），分位越高代表股票相对于国债更有性价比。',
       '已使用 AkShare 替代数据源；缺失字段保持 null，不做推测补值。',
       '成交额展示口径统一为“千元”；若 AkShare 返回口径不同，会在服务端进行单位归一化。',
@@ -480,6 +482,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
 
     const notes: string[] = [
       '独家流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为5年滚动（≈1260），最小有效≈630。',
+      'v5Pct=rollingPercentilePct(v5,1260,630)，即独家流动性指数 v5 的 5 年滚动分位（0–100）。',
       '股债利差=1/沪深300PE-中国10Y国债收益率，value再取5年滚动分位（≈1260，最小有效≈630），分位越高代表股票相对于国债更有性价比。',
       '股债性价比PE数据源：codebuddy:financedata(index_dailybasic)',
       '股债性价比10Y数据源：chinabond(yield.chinabond.com.cn, 整年标准期限xlsx)',

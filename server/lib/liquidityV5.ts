@@ -8,6 +8,7 @@ export type LiquidityV5Point = {
   trPct: number | null
   northPct: number | null
   v5: number | null
+  v5Pct: number | null
 }
 
 function parseYmd(raw: unknown): string {
@@ -175,6 +176,7 @@ export function buildLiquidityV5Series(input: {
   const trPct = rollingPercentilePct(trF, 1260, 630)
   const northPct = rollingPercentilePct(northF, 1260, 630)
   const v5 = calcV5(amountPct, trPct, northPct)
+  const v5Pct = rollingPercentilePct(v5, 1260, 630)
 
   const out: LiquidityV5Point[] = []
   for (let i = 0; i < dates.length; i += 1) {
@@ -190,6 +192,7 @@ export function buildLiquidityV5Series(input: {
       trPct: trPct[i],
       northPct: northPct[i],
       v5: v5[i],
+      v5Pct: v5Pct[i],
     })
   }
   return out
