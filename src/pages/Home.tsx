@@ -742,8 +742,8 @@ export default function Home() {
                           <div className={cn('mt-0.5 flex items-center justify-between font-mono text-[11px]', active ? 'text-[#FFD6C8]' : 'text-[#64748B]')}>
                             <span>{opt.code}</span>
                             {last?.dividendYieldPct != null && (
-                              <span className="text-[#94A3B8]">
-                                股息率: {last.dividendYieldPct.toFixed(2)}%
+                              <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2 py-[2px] text-[11px] font-medium leading-none text-[#A9B6CC] font-sans">
+                                股息率 {last.dividendYieldPct.toFixed(2)}%
                               </span>
                             )}
                           </div>

@@ -5,3 +5,4 @@
 - [x] A functional "展开/收起" toggle button is present in `Home.tsx` above the index cards.
 - [x] Collapsing the cards hides the descriptions and reduces the overall height of the cards area.
 - [x] `src/components/LowVolOpportunityPanel.tsx` displays "股息收益率" in the right-side summary box.
+- [x] Dividend yield on `Home.tsx` index cards is displayed as a tag/pill (not plain text).
