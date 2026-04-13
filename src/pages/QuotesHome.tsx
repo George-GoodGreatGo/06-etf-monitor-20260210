@@ -109,7 +109,7 @@ function QuoteCarousel({
     >
       <div
         className={cn(
-          'relative overflow-hidden rounded-3xl border border-white/10 bg-[rgba(0,0,0,0.35)] px-6 py-8 shadow-[0_40px_120px_rgba(0,0,0,0.55)] backdrop-blur-[28px] transition-[transform,box-shadow,border-color] duration-300',
+          'relative overflow-hidden rounded-3xl border border-white/10 bg-[rgba(0,0,0,0.35)] px-5 py-6 shadow-[0_40px_120px_rgba(0,0,0,0.55)] backdrop-blur-[28px] transition-[transform,box-shadow,border-color] duration-300 sm:px-6 sm:py-7',
           reducedMotion ? '' : 'hover:-translate-y-[1px] hover:border-white/15 hover:shadow-[0_50px_140px_rgba(0,0,0,0.6)]',
         )}
       >
@@ -134,17 +134,17 @@ function QuoteCarousel({
             </div>
           </div>
 
-          <div key={active.id} className={cn('mt-7 space-y-6', reducedMotion ? '' : 'ui-quote-enter')}>
-            <blockquote className="text-balance text-[24px] font-semibold leading-[1.35] text-[#F1F5F9] sm:text-[32px]">
+          <div key={active.id} className={cn('mt-5 space-y-4 sm:mt-6 sm:space-y-5', reducedMotion ? '' : 'ui-quote-enter')}>
+            <blockquote className="text-balance text-[clamp(18px,2.6vw,30px)] font-semibold leading-[1.3] text-[#F1F5F9]">
               {active.zh}
             </blockquote>
-            <div className="text-pretty text-sm leading-[1.9] text-[#A9B6CC] sm:text-base">
+            <div className="text-pretty text-[clamp(12px,1.3vw,16px)] leading-[1.85] text-[#A9B6CC]">
               {active.en}
             </div>
             <div className="text-xs font-medium tracking-wide text-[#64748B] sm:text-sm">{active.source}</div>
           </div>
 
-          <div className="mt-8 flex items-center justify-between gap-3">
+          <div className="mt-6 flex items-center justify-between gap-3 sm:mt-7">
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -184,7 +184,7 @@ function QuoteCarousel({
             </div>
           </div>
 
-          <div className="mt-5 h-[2px] w-full overflow-hidden rounded-full bg-white/10">
+          <div className="mt-4 h-[2px] w-full overflow-hidden rounded-full bg-white/10 sm:mt-5">
             <div
               className={cn('h-full rounded-full bg-[linear-gradient(90deg,#FFFFFF_0%,#FF8A50_60%,#E65100_100%)]', reducedMotion ? '' : 'transition-[width] duration-150')}
               style={{ width: `${paused || reducedMotion ? 0 : progressPct}%` }}
@@ -326,43 +326,26 @@ export default function QuotesHome() {
   )
 
   return (
-    <div className="relative -mx-4 sm:-mx-8">
+    <div className="relative -mx-4 h-[calc(100dvh-72px)] overflow-hidden sm:-mx-8">
       <div className="pointer-events-none absolute inset-0 ui-ambient" aria-hidden="true" />
-      <div className="relative mx-auto w-full max-w-[1440px] px-4 pb-14 pt-6 sm:px-8">
-        <header className="mx-auto w-full max-w-[980px] pb-10 pt-10 sm:pb-14 sm:pt-16">
+      <div className="relative mx-auto flex h-full w-full max-w-[1440px] flex-col px-4 py-6 sm:px-8 sm:py-8">
+        <header className="mx-auto w-full max-w-[980px] shrink-0 pb-6 pt-2 sm:pb-8 sm:pt-4">
           <div className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[11px] font-semibold tracking-[0.18em] text-[#A9B6CC]">
             INVESTMENT MENTAL MODEL
           </div>
-          <h1 className="mt-6 text-balance text-[44px] font-black leading-[1.02] tracking-[-0.04em] text-white sm:text-[72px]">
+          <h1 className="mt-5 text-balance text-[clamp(34px,5vw,64px)] font-black leading-[1.02] tracking-[-0.04em] text-white">
             理性与耐心，
             <br />
             在周期里保持冷静。
           </h1>
-          <p className="mt-5 max-w-[56ch] text-pretty text-base leading-[1.8] text-[#A9B6CC] sm:text-lg">
+          <p className="mt-4 max-w-[56ch] text-pretty text-[clamp(14px,1.5vw,18px)] leading-[1.75] text-[#A9B6CC]">
             这里没有噪音，只有长期有效的原则。读一句，慢一点，再做决定。
           </p>
         </header>
 
-        <QuoteCarousel quotes={quotes} />
-
-        <section className="mx-auto mt-14 w-full max-w-[980px]">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              { k: '理性', d: '以事实与概率取代情绪。' },
-              { k: '耐心', d: '等待高胜率的时刻。' },
-              { k: '冷静', d: '在波动里保持执行力。' },
-              { k: '周期', d: '识别位置，顺势而为。' },
-            ].map((x) => (
-              <div
-                key={x.k}
-                className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-5 backdrop-blur-[18px] transition-[transform,border-color,background-color] duration-300 hover:-translate-y-[1px] hover:border-white/15 hover:bg-white/[0.05]"
-              >
-                <div className="text-sm font-bold text-white">{x.k}</div>
-                <div className="mt-1.5 text-xs leading-[1.7] text-[#94A3B8]">{x.d}</div>
-              </div>
-            ))}
-          </div>
-        </section>
+        <div className="flex min-h-0 flex-1 items-center">
+          <QuoteCarousel quotes={quotes} />
+        </div>
       </div>
     </div>
   )
