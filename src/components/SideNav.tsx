@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { Activity, BookOpen, ChevronLeft, ChevronRight, LineChart, List, Sparkles } from 'lucide-react'
+import { Activity, BookOpen, ChevronLeft, ChevronRight, Home as HomeIcon, LineChart, List, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type HomeTab = 'list' | 'insight' | 'liquidity' | 'lowvol'
@@ -28,11 +28,12 @@ export default function SideNav({
   const [searchParams] = useSearchParams()
 
   const isHome = loc.pathname === '/'
+  const isMarket = loc.pathname === '/market'
   const isMethod = loc.pathname === '/methodology'
-  const rawTab = searchParams.get('tab')
+  const rawTab = isMarket ? searchParams.get('tab') : null
   const tab: HomeTab =
     rawTab === 'list' || rawTab === 'insight' || rawTab === 'liquidity' || rawTab === 'lowvol' ? rawTab : 'list'
-  const activeKey = isMethod ? 'methodology' : `home:${tab}`
+  const activeKey = isMethod ? 'methodology' : isHome ? 'home' : isMarket ? `market:${tab}` : ''
 
   const listRef = useRef<HTMLDivElement | null>(null)
   const itemRefs = useRef<Record<string, HTMLElement | null>>({})
@@ -94,8 +95,42 @@ export default function SideNav({
             }}
             aria-hidden="true"
           />
+          <button
+            type="button"
+            onClick={() => {
+              nav('/')
+              onNavigate?.()
+            }}
+            ref={(el) => {
+              itemRefs.current['home'] = el
+            }}
+            className={cn(
+              'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/50',
+              isHome
+                ? 'text-white'
+                : 'text-[#A9B6CC] hover:-translate-y-[1px] hover:bg-white/5 hover:text-white hover:shadow-[0_10px_30px_rgba(0,0,0,0.25)] active:translate-y-0',
+              collapsedValue ? 'justify-start' : 'justify-between',
+            )}
+            title={collapsedValue ? '首页' : undefined}
+            aria-label={collapsedValue ? '首页' : undefined}
+          >
+            <span className={cn('inline-flex items-center gap-3', collapsedValue ? 'justify-center' : 'min-w-0')}>
+              <HomeIcon className={cn('h-4 w-4 shrink-0', isHome ? 'text-[#FF8A66]' : 'text-[#94A3B8] group-hover:text-[#E6EDF7]')} />
+              {collapsedValue ? null : <span className="truncate">首页</span>}
+            </span>
+            {collapsedValue ? null : (
+              <span
+                className={cn(
+                  'h-1.5 w-1.5 rounded-full bg-[#FF5722] transition-all duration-200',
+                  isHome ? 'opacity-100 scale-100' : 'opacity-0 scale-50 group-hover:opacity-60 group-hover:scale-90',
+                )}
+                aria-hidden="true"
+              />
+            )}
+          </button>
+
           {HOME_TABS.map((x) => {
-            const active = isHome && tab === x.tab
+            const active = isMarket && tab === x.tab
             const Icon = x.icon
             return (
               <button
@@ -104,11 +139,11 @@ export default function SideNav({
                 onClick={() => {
                   const next = new URLSearchParams(searchParams)
                   next.set('tab', x.tab)
-                  nav({ pathname: '/', search: `?${next.toString()}` })
+                  nav({ pathname: '/market', search: `?${next.toString()}` })
                   onNavigate?.()
                 }}
                 ref={(el) => {
-                  itemRefs.current[`home:${x.tab}`] = el
+                  itemRefs.current[`market:${x.tab}`] = el
                 }}
                 className={cn(
                   'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/50',

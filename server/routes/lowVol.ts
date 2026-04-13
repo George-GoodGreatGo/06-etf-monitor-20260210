@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express'
-import { getLowVolH30269Series, getLowVolIndexSeries, getLowVolSupportedIndexCodes, getLowVolSummary } from '../lib/lowVol.js'
+import { getLowVolH30269Series, getLowVolIndexSnapshotSeries, getLowVolSupportedIndexCodes, getLowVolSummary } from '../lib/lowVol.js'
 
 const router = Router()
 
@@ -11,7 +11,12 @@ router.get('/h30269', async (req: Request, res: Response) => {
     const out = await getLowVolH30269Series({ startDate, endDate })
     res.status(200).json({ success: true, ...out })
   } catch (e) {
-    res.status(502).json({ success: false, error: 'upstream_error', message: e instanceof Error ? e.message : String(e) })
+    const msg = e instanceof Error ? e.message : String(e)
+    if (msg.includes('暂无快照')) {
+      res.status(503).json({ success: false, error: 'no_snapshot', message: msg })
+      return
+    }
+    res.status(502).json({ success: false, error: 'upstream_error', message: msg })
   }
 })
 
@@ -25,7 +30,7 @@ router.get('/index/:code', async (req: Request, res: Response) => {
       res.status(400).json({ success: false, error: 'bad_request', message: `不支持的指数 code：${code}` })
       return
     }
-    const out = await getLowVolIndexSeries({ code, startDate, endDate })
+    const out = await getLowVolIndexSnapshotSeries({ code, startDate, endDate })
     res.status(200).json({ success: true, ...out })
   } catch (e) {
     res.status(502).json({ success: false, error: 'upstream_error', message: e instanceof Error ? e.message : String(e) })

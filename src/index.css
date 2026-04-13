@@ -139,4 +139,53 @@
     border-color: rgba(255, 255, 255, 0.18);
     background: rgba(255, 255, 255, 0.08);
   }
+
+  .ui-ambient {
+    background: radial-gradient(1200px 520px at 15% 5%, rgba(255, 255, 255, 0.08), transparent 55%),
+      radial-gradient(900px 420px at 85% 10%, rgba(255, 138, 80, 0.14), transparent 60%),
+      radial-gradient(1200px 520px at 70% 90%, rgba(230, 81, 0, 0.12), transparent 65%),
+      linear-gradient(180deg, rgba(5, 10, 11, 1) 0%, rgba(5, 10, 11, 0.92) 40%, rgba(5, 10, 11, 1) 100%);
+    filter: blur(0px);
+    transform: translate3d(0, 0, 0);
+    animation: ui-ambient-pan 18s ease-in-out infinite;
+  }
+
+  .ui-quote-enter {
+    animation: ui-fade-up 420ms ease-out both;
+  }
+}
+
+@keyframes ui-ambient-pan {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -14px, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes ui-fade-up {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+    filter: blur(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    filter: blur(0px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-ambient {
+    animation: none;
+  }
+
+  .ui-quote-enter {
+    animation: none;
+  }
 }

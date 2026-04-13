@@ -1,0 +1,6 @@
+- [x] 定时队列刷新可运行（20:00–22:00 北京时间窗口内）：按指数写入 Supabase 快照；失败按策略重试；遇 WAF 触发熔断并终止本轮
+- [x] 用户访问默认不回源 csindex：`/api/lowvol/index/:code` 与 `/api/lowvol/summary` 优先读取 Supabase 快照
+- [x] 快照缺失时返回明确提示（例如“暂无快照/等待晚间刷新”），不展示推测值
+- [x] `meta` 明确标注 `sourceType=snapshot`、`snapshotAt`，并在需要时提供 `cooldownUntil`
+- [x] 前端展示“快照数据/快照时间/是否过期”的提示
+- [x] `npm run check` 通过

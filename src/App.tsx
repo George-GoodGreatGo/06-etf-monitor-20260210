@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Home from '@/pages/Home'
+import QuotesHome from '@/pages/QuotesHome'
 import EtfDetail from '@/pages/EtfDetail'
 import Methodology from '@/pages/Methodology'
 import Login from '@/pages/Login'
@@ -21,7 +22,8 @@ export default function App() {
               </RequireAuth>
             }
           >
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<QuotesHome />} />
+            <Route path="/market" element={<Home />} />
             <Route path="/etf/:code" element={<EtfDetail />} />
             <Route path="/methodology" element={<Methodology />} />
           </Route>

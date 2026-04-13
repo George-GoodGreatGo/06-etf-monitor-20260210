@@ -46,6 +46,17 @@ export type MarketBoardDailyRow = {
   updated_at: string
 }
 
+export type LowVolIndexDailyRow = {
+  code: string
+  data_date: string
+  snapshot_at: string
+  source_type: string | null
+  source: string | null
+  notes: unknown
+  payload: unknown
+  updated_at: string
+}
+
 export async function readTop100LatestSnapshot(): Promise<Top100LatestRow | null> {
   const supabaseUrl = String(process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '')
   const anonKey = String(process.env.SUPABASE_ANON_KEY || '').trim()
@@ -346,5 +357,105 @@ export async function upsertMarketBoardSnapshot(payload: {
   if (!res.ok) {
     const body = await res.text().catch(() => '')
     throw new Error(`supabase write market_board_daily failed: HTTP ${res.status} ${body}`)
+  }
+}
+
+export async function readLatestLowVolIndexSnapshot(code: string): Promise<LowVolIndexDailyRow | null> {
+  const supabaseUrl = String(process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '')
+  const anonKey = String(process.env.SUPABASE_ANON_KEY || '').trim()
+  const c = String(code || '').trim()
+  if (!supabaseUrl || !anonKey || !c) return null
+
+  const url = `${supabaseUrl}/rest/v1/lowvol_index_daily?code=eq.${encodeURIComponent(c)}&select=*&order=data_date.desc&limit=1`
+  const res = await fetch(url, {
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+    },
+  })
+  if (!res.ok) return null
+  const j = (await res.json().catch(() => null)) as unknown
+  if (!Array.isArray(j) || j.length === 0) return null
+  const first = j[0]
+  if (!first || typeof first !== 'object') return null
+  return first as LowVolIndexDailyRow
+}
+
+export async function readLatestLowVolIndexSnapshots(codes: string[]): Promise<Map<string, LowVolIndexDailyRow>> {
+  const supabaseUrl = String(process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '')
+  const anonKey = String(process.env.SUPABASE_ANON_KEY || '').trim()
+  const list = Array.isArray(codes) ? codes.map((x) => String(x || '').trim()).filter(Boolean) : []
+  const out = new Map<string, LowVolIndexDailyRow>()
+  if (!supabaseUrl || !anonKey || list.length === 0) return out
+
+  const inList = list.map((x) => encodeURIComponent(x)).join(',')
+  const url = `${supabaseUrl}/rest/v1/lowvol_index_daily?code=in.(${inList})&select=*&order=code.asc,data_date.desc`
+  const res = await fetch(url, {
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+    },
+  })
+  if (!res.ok) return out
+  const j = (await res.json().catch(() => null)) as unknown
+  if (!Array.isArray(j) || j.length === 0) return out
+  for (const row of j) {
+    if (!row || typeof row !== 'object') continue
+    const r = row as LowVolIndexDailyRow
+    const c = typeof r.code === 'string' ? r.code : ''
+    if (!c || out.has(c)) continue
+    out.set(c, r)
+  }
+  return out
+}
+
+export async function upsertLowVolIndexSnapshot(payload: {
+  code: string
+  data_date: string
+  snapshot_at: string
+  source_type?: string | null
+  source?: string | null
+  notes?: unknown
+  payload: unknown
+  updated_at?: string
+}): Promise<void> {
+  const supabaseUrl = mustEnv('SUPABASE_URL').replace(/\/+$/, '')
+  const serviceKey = mustEnv('SUPABASE_SERVICE_ROLE_KEY')
+  const p = payload && typeof payload === 'object' ? payload : null
+  if (!p) throw new Error('bad payload')
+
+  const code = String(p.code || '').trim()
+  const dataDate = String(p.data_date || '').trim()
+  const snapshotAt = String(p.snapshot_at || '').trim()
+  if (!code) throw new Error('missing code')
+  if (!dataDate) throw new Error('missing data_date')
+  if (!snapshotAt) throw new Error('missing snapshot_at')
+
+  const row = {
+    code,
+    data_date: dataDate,
+    snapshot_at: snapshotAt,
+    source_type: p.source_type ?? null,
+    source: p.source ?? null,
+    notes: p.notes ?? [],
+    payload: p.payload,
+    updated_at: p.updated_at ? String(p.updated_at) : new Date().toISOString(),
+  }
+
+  const url = `${supabaseUrl}/rest/v1/lowvol_index_daily?on_conflict=code,data_date`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates,return=minimal',
+    },
+    body: JSON.stringify(row),
+  })
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`supabase write lowvol_index_daily failed: HTTP ${res.status} ${body}`)
   }
 }

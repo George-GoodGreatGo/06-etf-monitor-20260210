@@ -1,7 +1,10 @@
 import { fetchGovBond10yYieldPctByDate } from './chinamoneyGovBond.js'
+import { readLatestLowVolIndexSnapshot, readLatestLowVolIndexSnapshots } from './supabaseRest.js'
 
 type CacheEntry<T> = { expiresAt: number; value: T }
 const cache = new Map<string, CacheEntry<unknown>>()
+let csindexCooldownUntilMs = 0
+const csindexInflight = new Map<string, Promise<Array<{ date: string; close: number }>>>()
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms))
@@ -83,35 +86,53 @@ async function fetchCsindexIndexCloseSeries(args: {
 
   const key = `csindex:index-perf:${indexCode}:${startDate}:${endDate}`
   const now = Date.now()
+  if (csindexCooldownUntilMs > now) {
+    const untilIso = new Date(csindexCooldownUntilMs).toISOString()
+    throw new Error(`csindex 熔断中，已暂停拉取（cooldownUntil=${untilIso}）`)
+  }
   const hit = cache.get(key)
   if (hit && hit.expiresAt > now) return hit.value as Array<{ date: string; close: number }>
+  const inflight = csindexInflight.get(key)
+  if (inflight) return inflight
 
-  const url = new URL('https://www.csindex.com.cn/csindex-home/perf/index-perf')
-  url.searchParams.set('indexCode', indexCode)
-  url.searchParams.set('startDate', startDate)
-  url.searchParams.set('endDate', endDate)
+  const task = (async () => {
+    const url = new URL('https://www.csindex.com.cn/csindex-home/perf/index-perf')
+    url.searchParams.set('indexCode', indexCode)
+    url.searchParams.set('startDate', startDate)
+    url.searchParams.set('endDate', endDate)
 
-  let lastErr: unknown = null
-  for (let i = 0; i < 2; i += 1) {
-    try {
-      const j = (await fetchJson(url.toString())) as Record<string, unknown>
-      const rows = Array.isArray(j?.data) ? (j.data as Record<string, unknown>[]) : []
-      const out: Array<{ date: string; close: number }> = []
-      for (const r of rows) {
-        const d = normalizeYmd10((r as Record<string, unknown>).tradeDate)
-        const c = toNum((r as Record<string, unknown>).close)
-        if (!d || c == null) continue
-        out.push({ date: d, close: c })
+    let lastErr: unknown = null
+    for (let i = 0; i < 2; i += 1) {
+      try {
+        const j = (await fetchJson(url.toString())) as Record<string, unknown>
+        const rows = Array.isArray(j?.data) ? (j.data as Record<string, unknown>[]) : []
+        const out: Array<{ date: string; close: number }> = []
+        for (const r of rows) {
+          const d = normalizeYmd10((r as Record<string, unknown>).tradeDate)
+          const c = toNum((r as Record<string, unknown>).close)
+          if (!d || c == null) continue
+          out.push({ date: d, close: c })
+        }
+        out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+        cache.set(key, { expiresAt: Date.now() + 10 * 60_000, value: out })
+        return out
+      } catch (e) {
+        lastErr = e
+        const msg = e instanceof Error ? e.message : String(e)
+        if (msg.includes('csindex blocked by WAF')) {
+          csindexCooldownUntilMs = Date.now() + 20 * 60_000
+          break
+        }
+        if (i === 0) await sleep(250 + Math.floor(Math.random() * 400))
       }
-      out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
-      cache.set(key, { expiresAt: now + 10 * 60_000, value: out })
-      return out
-    } catch (e) {
-      lastErr = e
-      if (i === 0) await sleep(250)
     }
-  }
-  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr))
+    throw lastErr instanceof Error ? lastErr : new Error(String(lastErr))
+  })().finally(() => {
+    csindexInflight.delete(key)
+  })
+
+  csindexInflight.set(key, task)
+  return task
 }
 
 function normalizeCsindexIndexCode(raw: string): string {
@@ -254,6 +275,9 @@ type LowVolLatestSummary = {
 export type LowVolSummaryItem = {
   code: string
   latest: LowVolLatestSummary | null
+  sourceType?: 'snapshot'
+  snapshotAt?: string | null
+  stale?: boolean
   error?: string
   message?: string
 }
@@ -288,47 +312,46 @@ export async function getLowVolSummary(): Promise<{
 
   lowVolSummaryInflight = (async () => {
     const fetchedAt = new Date().toISOString()
-    const startDate = ymd8YearsAgoJan1(15)
-    const endDate = ymd8Of(new Date())
     const codes = getLowVolSupportedIndexCodes()
     const items: LowVolSummaryItem[] = []
+    const latestMap = await readLatestLowVolIndexSnapshots(codes)
     let ok = 0
     let fail = 0
     let dataDate: string | null = null
     for (const code of codes) {
-      try {
-        const out = await getLowVolIndexSeries({ code, startDate, endDate })
-        const series = out?.data?.series ?? []
-        const last = series.length ? series[series.length - 1] : null
-        if (!last) {
-          items.push({ code, latest: null, error: 'no_data', message: '序列为空' })
-          fail += 1
-          continue
-        }
-        if (!dataDate || last.date > dataDate) dataDate = last.date
-        items.push({
-          code,
-          latest: {
-            date: last.date,
-            spreadPctRank10y: last.spreadPctRank10y ?? null,
-            biasPct3y: last.biasPct3y ?? null,
-            biasPct3y60: last.biasPct3y60 ?? null,
-          },
-        })
-        ok += 1
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e)
-        items.push({ code, latest: null, error: 'upstream_error', message: msg })
+      const row = latestMap.get(code) ?? null
+      const payload = row?.payload && typeof row.payload === 'object' ? (row.payload as { series?: unknown }) : null
+      const series = payload && Array.isArray(payload.series) ? (payload.series as LowVolDailyPoint[]) : []
+      const last = series.length ? series[series.length - 1] : null
+      if (!row || !last) {
+        items.push({ code, latest: null, sourceType: 'snapshot', snapshotAt: null, stale: true, error: 'no_snapshot', message: '暂无快照，请等待晚间刷新' })
         fail += 1
+        continue
       }
+      if (!dataDate || row.data_date > dataDate) dataDate = row.data_date
+      items.push({
+        code,
+        latest: {
+          date: last.date,
+          spreadPctRank10y: last.spreadPctRank10y ?? null,
+          biasPct3y: last.biasPct3y ?? null,
+          biasPct3y60: last.biasPct3y60 ?? null,
+        },
+        sourceType: 'snapshot',
+        snapshotAt: row.snapshot_at ?? null,
+        stale: true,
+        error: undefined,
+        message: undefined,
+      })
+      ok += 1
     }
 
     const value = {
       meta: {
         fetchedAt,
         dataDate,
-        source: 'lowvol_summary',
-        notes: [`ok=${ok}`, `fail=${fail}`, `startDate=${startDate}`, `endDate=${endDate}`],
+        source: 'supabase:lowvol_index_daily',
+        notes: [`ok=${ok}`, `fail=${fail}`],
       },
       data: { items },
     }
@@ -339,6 +362,61 @@ export async function getLowVolSummary(): Promise<{
   })
 
   return lowVolSummaryInflight
+}
+
+export async function getLowVolIndexSnapshotSeries(args: {
+  code: string
+  startDate?: string
+  endDate?: string
+}): Promise<{
+  meta: {
+    fetchedAt: string
+    dataDate: string | null
+    source: string
+    notes: string[]
+    sourceType: 'snapshot'
+    snapshotAt: string | null
+    stale: boolean
+    cooldownUntil?: string | null
+  }
+  data: { series: LowVolDailyPoint[] }
+}> {
+  const code = String(args.code || '').trim()
+  const row = await readLatestLowVolIndexSnapshot(code)
+  if (!row) throw new Error(`暂无快照，请等待晚间刷新：${code}`)
+
+  const payload = row.payload && typeof row.payload === 'object' ? (row.payload as { series?: unknown }) : null
+  const full = payload && Array.isArray(payload.series) ? (payload.series as LowVolDailyPoint[]) : []
+
+  const startYmd = normalizeYmd10(args.startDate)
+  const endYmd = normalizeYmd10(args.endDate)
+  const series =
+    startYmd || endYmd
+      ? full.filter((p) => {
+          if (!p || typeof p !== 'object') return false
+          const d = String((p as LowVolDailyPoint).date || '')
+          if (!d) return false
+          if (startYmd && d < startYmd) return false
+          if (endYmd && d > endYmd) return false
+          return true
+        })
+      : full
+
+  const cooldownUntil = csindexCooldownUntilMs > Date.now() ? new Date(csindexCooldownUntilMs).toISOString() : null
+
+  return {
+    meta: {
+      fetchedAt: row.snapshot_at,
+      dataDate: row.data_date ?? null,
+      source: row.source ?? 'supabase:lowvol_index_daily',
+      notes: Array.isArray(row.notes) ? (row.notes as string[]) : [],
+      sourceType: 'snapshot',
+      snapshotAt: row.snapshot_at ?? null,
+      stale: true,
+      ...(cooldownUntil ? { cooldownUntil } : {}),
+    },
+    data: { series },
+  }
 }
 
 export async function getLowVolIndexSeries(args: {

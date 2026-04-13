@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { fetchLowVolIndex, type LowVolH30269Point } from '@/utils/marketApi'
 import { calcLowVolSuggestion } from '@/utils/lowVolSignal'
 import type { Top100Meta } from '@/utils/etfApi'
+import { parseIsoToLocal } from '@/utils/format'
 
 function fmt(v: number | null | undefined, digits: number): string {
   if (typeof v !== 'number' || !Number.isFinite(v)) return '—'
@@ -74,12 +75,22 @@ export default function LowVolOpportunityPanel(props: {
     indexCode,
   })
   const suggestionCls = suggestionToneToTextCls(suggestion.tone)
+  const sourceType = meta && typeof meta === 'object' ? ((meta as unknown as { sourceType?: unknown }).sourceType as unknown) : null
+  const snapshotAt = meta && typeof meta === 'object' ? ((meta as unknown as { snapshotAt?: unknown }).snapshotAt as unknown) : null
+  const isSnapshot = sourceType === 'snapshot'
 
   return (
     <section className="mt-3 overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
           <div className="text-xl font-semibold tracking-tight text-white">{indexLabel}择时分析</div>
+          {isSnapshot ? (
+            <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-[#A9B6CC]">
+              <span>快照数据（非最新）</span>
+              <span className="text-[#64748B]">·</span>
+              <span>快照时间：{typeof snapshotAt === 'string' && snapshotAt ? parseIsoToLocal(snapshotAt) : '—'}</span>
+            </div>
+          ) : null}
           <div className="mt-2 space-y-1 text-[13px] leading-relaxed text-[#94A3B8]">
             <p>
               <span className="font-medium text-[#CBD5E1]">
