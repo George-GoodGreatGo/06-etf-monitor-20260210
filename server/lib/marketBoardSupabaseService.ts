@@ -13,6 +13,24 @@ function normalizeYmd10(s: string): string {
   return ''
 }
 
+function ymd10ToUtcMs(ymd10: string): number | null {
+  const s = String(ymd10 || '').trim()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null
+  const y = Number(s.slice(0, 4))
+  const m = Number(s.slice(5, 7))
+  const d = Number(s.slice(8, 10))
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null
+  const ms = Date.UTC(y, m - 1, d)
+  return Number.isFinite(ms) ? ms : null
+}
+
+function diffDaysUtc(aYmd10: string, bYmd10: string): number | null {
+  const a = ymd10ToUtcMs(aYmd10)
+  const b = ymd10ToUtcMs(bYmd10)
+  if (a == null || b == null) return null
+  return Math.floor((a - b) / 86_400_000)
+}
+
 function ymd8BeijingToday(): string {
   const d = new Date(Date.now() + 8 * 3600_000)
   const y = d.getUTCFullYear()
@@ -52,6 +70,30 @@ type EquityBondPoint = {
   pct: number | null
 }
 
+function validateRows(rows: Array<{ data_date: string; close: number | null }>): { ok: true } | { ok: false; error: string; message: string } {
+  if (!rows || rows.length === 0) return { ok: false, error: 'no_data', message: 'Supabase 返回空序列' }
+  const seen = new Set<string>()
+  let prev = ''
+  let dup = 0
+  let nonInc = 0
+  let closeOk = 0
+  for (const r of rows) {
+    const d = typeof r.data_date === 'string' ? r.data_date : ''
+    if (!d) continue
+    if (seen.has(d)) dup += 1
+    seen.add(d)
+    if (prev && d <= prev) nonInc += 1
+    prev = d
+    const c = typeof r.close === 'number' ? r.close : null
+    if (c != null && Number.isFinite(c)) closeOk += 1
+  }
+  if (closeOk === 0) return { ok: false, error: 'no_valid_points', message: '关键序列（close）无有效点' }
+  if (dup > 0 || nonInc > 0) {
+    return { ok: false, error: 'bad_date_series', message: `日期序列异常（dup=${dup}, nonInc=${nonInc}）` }
+  }
+  return { ok: true }
+}
+
 export async function getMarketLiquidityV5FromSupabase(args?: { startDate?: string; endDate?: string }) {
   const start8 = typeof args?.startDate === 'string' && args.startDate.trim() ? args.startDate.trim() : ymd8BeijingYearsAgo(10)
   const end8 = typeof args?.endDate === 'string' && args.endDate.trim() ? args.endDate.trim() : ymd8BeijingToday()
@@ -62,13 +104,42 @@ export async function getMarketLiquidityV5FromSupabase(args?: { startDate?: stri
   }
 
   const metaRow = await readMarketBoardMeta()
-  const runId = metaRow?.currentRunId || null
-  const rows = await readMarketBoardPointsRange({ startDate: start10, endDate: end10, runId })
+  const candidates = [metaRow?.currentRunId || null, metaRow?.previousRunId || null].filter(Boolean) as string[]
+  if (candidates.length === 0) {
+    return { success: false as const, error: 'no_data', message: 'Supabase 尚无大盘看板数据（meta 未初始化）' }
+  }
+
+  let rows: any[] = []
+  let usedRunId: string | null = null
+  let fallbackReason: string | null = null
+  for (const rid of candidates) {
+    const r = await readMarketBoardPointsRange({ startDate: start10, endDate: end10, runId: rid })
+    if (!r || r.length === 0) {
+      fallbackReason = fallbackReason ? `${fallbackReason}; run=${rid}:empty` : `run=${rid}:empty`
+      continue
+    }
+    const last = r[r.length - 1]
+    const lastDate = typeof last?.data_date === 'string' ? last.data_date : ''
+    const lag = lastDate ? diffDaysUtc(end10, lastDate) : null
+    if (lag != null && lag > 14) {
+      fallbackReason = fallbackReason ? `${fallbackReason}; run=${rid}:stale(${lag}d)` : `run=${rid}:stale(${lag}d)`
+      continue
+    }
+    const v = validateRows(r as Array<{ data_date: string; close: number | null }>)
+    if (!v.ok) {
+      fallbackReason = fallbackReason ? `${fallbackReason}; run=${rid}:${v.error}` : `run=${rid}:${v.error}`
+      continue
+    }
+    rows = r
+    usedRunId = rid
+    break
+  }
+
   if (!rows || rows.length === 0) {
     return {
       success: false as const,
       error: 'no_data',
-      message: 'Supabase 尚无大盘看板数据，请等待定时任务或先执行 backfill（近10年）',
+      message: 'Supabase 尚无可用大盘看板数据（current/previous 均不可用）',
     }
   }
 
@@ -104,7 +175,11 @@ export async function getMarketLiquidityV5FromSupabase(args?: { startDate?: stri
       dataDate: last.data_date ?? null,
       sourceType: 'supabase-table',
       source: 'supabase:market_board_point',
-      notes,
+      notes: [
+        ...(notes || []),
+        ...(usedRunId ? [`run_id=${usedRunId}`] : []),
+        ...(fallbackReason ? [`run_fallback=${fallbackReason}`] : []),
+      ],
     },
     data: {
       series,

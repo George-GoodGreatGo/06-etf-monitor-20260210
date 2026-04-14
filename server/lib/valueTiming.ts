@@ -1,5 +1,5 @@
 import { fetchGovBond10yYieldPctByDateSafe } from './chinamoneyGovBond.js'
-import { fetchCsindexIndexValuationSeries } from './csindexIndexValuation.js'
+import { fetchCsindexIndexPeSeries } from './csindex.js'
 import { readLatestValueTimingIndexSnapshot, readLatestValueTimingIndexSnapshots } from './supabaseRest.js'
 
 function shouldVerboseLog(): boolean {
@@ -85,6 +85,12 @@ function ymd10MinusDays(ymd10: string, days: number): string | null {
   const ms = d.getTime() - Math.max(0, days) * 24 * 60 * 60 * 1000
   const nd = new Date(ms)
   return `${nd.getUTCFullYear()}-${pad2(nd.getUTCMonth() + 1)}-${pad2(nd.getUTCDate())}`
+}
+
+function ymd10FromYmd8(ymd8: string): string | null {
+  const s = String(ymd8 || '').trim()
+  if (!/^\d{8}$/.test(s)) return null
+  return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`
 }
 
 function toNum(v: unknown): number | null {
@@ -209,7 +215,8 @@ async function fetchEtfProxyPe(args: {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const j = (await res.json().catch(() => null)) as any
       const data = j?.data && typeof j.data === 'object' ? j.data : null
-      const pe = toNum(data?.f162)
+      const peRaw = toNum(data?.f162)
+      const pe = peRaw != null && peRaw > 0 ? peRaw : null
       logEvent({
         event: 'value_timing.pe_proxy.done',
         etfCode: code,
@@ -218,7 +225,7 @@ async function fetchEtfProxyPe(args: {
         pe,
         ms: Date.now() - startedAt,
       })
-      return { date: null, pe, error: pe == null ? 'pe_missing' : null }
+      return { date: null, pe, error: pe == null ? (peRaw == null ? 'pe_missing' : 'pe_non_positive') : null }
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e))
       if (attempt < maxAttempts) {
@@ -302,12 +309,25 @@ export async function getValueTimingIndexSeries(args: {
 
   const peByDate = new Map<string, number | null>()
   const notes: string[] = []
+  let peDirectPoints = 0
   if (cfg.peSource === 'csindex_indicator_xls') {
     const peStartedAt = Date.now()
-    const series = await fetchCsindexIndexValuationSeries({ indexCode: String(cfg.peIndexCode || cfg.code) })
-    for (const p of series) peByDate.set(p.date, p.pe)
-    notes.push(`pe_source=csindex_indicator_xls`)
+    const firstDate = closeSeries[0]?.date
+    const lastDate = closeSeries[closeSeries.length - 1]?.date
+    const peStart8 = firstDate ? firstDate.replace(/-/g, '') : start8
+    const peEnd8 = lastDate ? lastDate.replace(/-/g, '') : end8
+    const series = await fetchCsindexIndexPeSeries({ indexCode: String(cfg.peIndexCode || cfg.code), startDate: peStart8, endDate: peEnd8 })
+    for (const r of series) {
+      const trade8 = typeof (r as any).trade_date === 'string' ? String((r as any).trade_date) : ''
+      const pe = typeof (r as any).pe === 'number' ? (r as any).pe : null
+      const d = ymd10FromYmd8(trade8)
+      if (!d) continue
+      peByDate.set(d, pe)
+      if (pe != null && pe > 0) peDirectPoints += 1
+    }
+    notes.push(`pe_source=csindex:indexCsiDsPe`)
     notes.push(`pe_points=${series.length}`)
+    notes.push(`pe_direct_points=${peDirectPoints}`)
     logEvent({ event: 'value_timing.index.pe_csindex.done', code: cfg.code, points: series.length, ms: Date.now() - peStartedAt })
   } else {
     const peStartedAt = Date.now()
@@ -316,7 +336,14 @@ export async function getValueTimingIndexSeries(args: {
     if (r.pe != null) notes.push(`pe_source=etf_proxy:${cfg.peEtfCode}`)
     const lastDate = closeSeries[closeSeries.length - 1]?.date
     if (lastDate && r.pe != null) peByDate.set(lastDate, r.pe)
+    if (r.pe != null && r.pe > 0) peDirectPoints += 1
     logEvent({ event: 'value_timing.index.pe_proxy.result', code: cfg.code, etfCode: cfg.peEtfCode, pe: r.pe, error: r.error, ms: Date.now() - peStartedAt })
+  }
+  if (peDirectPoints === 0) notes.push('pe_direct_missing=1')
+  if (closeSeries.length) {
+    let withPe = 0
+    for (const p of closeSeries) if (peByDate.get(p.date) != null) withPe += 1
+    notes.push(`pe_cover=${withPe}/${closeSeries.length}`)
   }
 
   const years = new Set<number>()
@@ -362,8 +389,13 @@ export async function getValueTimingIndexSeries(args: {
 
   const spreads: Array<number | null> = []
   const series: ValueTimingDailyPoint[] = []
+  let lastPe: number | null = null
+  let peForwardFilled = 0
   for (const p of closeSeries) {
-    const pe = peByDate.has(p.date) ? peByDate.get(p.date)! : null
+    const direct = peByDate.has(p.date) ? peByDate.get(p.date)! : null
+    const pe = direct != null && direct > 0 ? direct : lastPe
+    if (direct != null && direct > 0) lastPe = direct
+    else if (pe != null) peForwardFilled += 1
     const earningsYieldPct = calcEarningsYieldPctFromPe(pe)
     let y10 = yieldByDate.get(p.date) ?? null
     if (y10 == null) {
@@ -407,6 +439,7 @@ export async function getValueTimingIndexSeries(args: {
       spreadPctRank5y: null,
     })
   }
+  if (peForwardFilled > 0) notes.push(`pe_forward_filled=${peForwardFilled}`)
   if (yieldByDate.size === 0) notes.push('yield10y_missing=all')
   if (usedYieldFallback) notes.push('yield10y_used_fallback=1')
 

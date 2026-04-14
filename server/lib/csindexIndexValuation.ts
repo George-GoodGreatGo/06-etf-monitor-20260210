@@ -3,12 +3,31 @@ import xlsx from 'xlsx'
 type CacheEntry = { expiresAt: number; value: Array<{ date: string; pe: number | null; dividendYieldPct: number | null }> }
 const cache = new Map<string, CacheEntry>()
 
+function pad2(n: number): string {
+  return n < 10 ? `0${n}` : String(n)
+}
+
 function sleep(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms))
 }
 
+function excelSerialToYmd8(raw: number): string {
+  const ssf = (xlsx as unknown as { SSF?: { parse_date_code?: (n: number) => any } }).SSF
+  const parsed = ssf?.parse_date_code ? ssf.parse_date_code(raw) : null
+  const y = parsed && Number.isFinite(parsed.y) ? Number(parsed.y) : NaN
+  const m = parsed && Number.isFinite(parsed.m) ? Number(parsed.m) : NaN
+  const d = parsed && Number.isFinite(parsed.d) ? Number(parsed.d) : NaN
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return ''
+  if (y < 1900 || y > 2100) return ''
+  return `${String(y).padStart(4, '0')}${pad2(m)}${pad2(d)}`
+}
+
 function normalizeYmd8(raw: unknown): string {
-  const s = typeof raw === 'string' ? raw.trim() : ''
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 10_000) {
+    const ymd8 = excelSerialToYmd8(raw)
+    if (ymd8) return ymd8
+  }
+  const s = typeof raw === 'string' ? raw.trim() : raw == null ? '' : String(raw).trim()
   if (/^\d{8}$/.test(s)) return s
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s.replace(/-/g, '')
   return ''
@@ -30,6 +49,19 @@ function buildUrl(indexCode: string): string {
   return `https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/file/autofile/indicator/${encodeURIComponent(code)}indicator.xls`
 }
 
+function findHeaderRow(rows: unknown[]): { rowIdx: number; dateCol: number; peCol: number; dyCol: number } | null {
+  for (let i = 0; i < rows.length; i += 1) {
+    const r = rows[i]
+    if (!Array.isArray(r)) continue
+    const cells = r.map((x) => (typeof x === 'string' ? x.trim() : x == null ? '' : String(x).trim()))
+    const dateCol = cells.findIndex((x) => x.includes('日期'))
+    const peCol = cells.findIndex((x) => x.includes('市盈率') || x.toLowerCase() === 'pe' || x.toLowerCase().includes('p/e'))
+    const dyCol = cells.findIndex((x) => x.includes('股息率'))
+    if (dateCol >= 0 && peCol >= 0) return { rowIdx: i, dateCol, peCol, dyCol: dyCol >= 0 ? dyCol : -1 }
+  }
+  return null
+}
+
 async function fetchOnce(indexCode: string): Promise<Array<{ date: string; pe: number | null; dividendYieldPct: number | null }>> {
   const url = buildUrl(indexCode)
   const res = await fetch(url, {
@@ -46,23 +78,36 @@ async function fetchOnce(indexCode: string): Promise<Array<{ date: string; pe: n
 
   const buf = Buffer.from(await res.arrayBuffer())
   const wb = xlsx.read(buf, { type: 'buffer' })
-  const sheetName = wb.SheetNames[0]
-  const sheet = sheetName ? wb.Sheets[sheetName] : undefined
-  if (!sheet) return []
-
-  const rows = xlsx.utils.sheet_to_json(sheet, { header: 1 }) as unknown[]
+  const sheetNames = Array.isArray(wb.SheetNames) ? wb.SheetNames : []
   const out: Array<{ date: string; pe: number | null; dividendYieldPct: number | null }> = []
-  for (const r of rows) {
-    if (!Array.isArray(r)) continue
-    const ymd8 = normalizeYmd8(r[0])
-    if (!ymd8) continue
-    const pe2 = toNum(r[7])
-    const dy2 = toNum(r[9])
-    out.push({
-      date: ymd8ToDash(ymd8),
-      pe: pe2,
-      dividendYieldPct: dy2,
-    })
+  for (const sheetName of sheetNames) {
+    const sheet = sheetName ? wb.Sheets[sheetName] : undefined
+    if (!sheet) continue
+    const rows = xlsx.utils.sheet_to_json(sheet, { header: 1, raw: true }) as unknown[]
+    const hdr = findHeaderRow(rows)
+    if (!hdr) continue
+    for (let i = hdr.rowIdx + 1; i < rows.length; i += 1) {
+      const r = rows[i]
+      if (!Array.isArray(r)) continue
+      const ymd8 = normalizeYmd8(r[hdr.dateCol])
+      if (!ymd8) continue
+      const pe2 = toNum(r[hdr.peCol])
+      const dy2 = hdr.dyCol >= 0 ? toNum(r[hdr.dyCol]) : null
+      out.push({ date: ymd8ToDash(ymd8), pe: pe2, dividendYieldPct: dy2 })
+    }
+    if (out.length) break
+  }
+  if (!out.length && sheetNames.length) {
+    const sheet = wb.Sheets[sheetNames[0]]
+    const rows = sheet ? (xlsx.utils.sheet_to_json(sheet, { header: 1, raw: true }) as unknown[]) : []
+    for (const r of rows) {
+      if (!Array.isArray(r)) continue
+      const ymd8 = normalizeYmd8(r[0])
+      if (!ymd8) continue
+      const pe2 = toNum(r[7])
+      const dy2 = toNum(r[9])
+      out.push({ date: ymd8ToDash(ymd8), pe: pe2, dividendYieldPct: dy2 })
+    }
   }
   out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
   return out
@@ -94,4 +139,3 @@ export async function fetchCsindexIndexValuationSeries(args: {
   }
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr))
 }
-

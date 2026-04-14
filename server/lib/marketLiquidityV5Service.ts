@@ -1,7 +1,7 @@
 import { fetchFinanceData } from './financeData.js'
 import { buildLiquidityV5Series } from './liquidityV5.js'
 import { buildEquityBondValuePctSeries } from './equityBondValue.js'
-import { fetchGovBond10yYieldPctByDate } from './chinamoneyGovBond.js'
+import { fetchGovBond10yYieldPctByDateSafe } from './chinamoneyGovBond.js'
 import { runAkshare } from './akshare.js'
 import { fetchCsindexHs300PeSeries } from './csindex.js'
 import { fetchNorthboundTotalTurnoverSeries } from './hkex.js'
@@ -68,6 +68,48 @@ function normalizeTradeDate(raw: unknown): string {
   if (/^\d{8}$/.test(s)) return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
   return ''
+}
+
+async function buildYield10yPctByDate(args: { start8: string; end8: string }): Promise<{
+  yield10yPctByDate: Map<string, number>
+  notes: string[]
+}> {
+  const startY = ymd8ToYear(args.start8)
+  const endY = ymd8ToYear(args.end8)
+  const yield10yPctByDate = new Map<string, number>()
+  const notes: string[] = []
+  const failYears: Array<{ year: number; error: string }> = []
+
+  if (startY != null && endY != null) {
+    const years: number[] = []
+    for (let y = startY; y <= endY; y += 1) years.push(y)
+    for (const year of years) {
+      const r = await fetchGovBond10yYieldPctByDateSafe({ year })
+      if (r.error) {
+        failYears.push({ year, error: r.error })
+        continue
+      }
+      for (const [d, y10] of r.map) yield10yPctByDate.set(d, y10)
+    }
+  }
+  if (failYears.length) {
+    for (const it of failYears) notes.push(`yield10y_year_missing=${it.year}:${String(it.error).slice(0, 120)}`)
+  }
+
+  if (yield10yPctByDate.size > 0) return { yield10yPctByDate, notes }
+
+  const prev = await readLatestMarketBoardSnapshot().catch(() => null)
+  const payload = prev?.payload && typeof prev.payload === 'object' ? (prev.payload as Record<string, unknown>) : null
+  const data = payload?.data && typeof payload.data === 'object' ? (payload.data as Record<string, unknown>) : null
+  const eb = data?.equityBond && typeof data.equityBond === 'object' ? (data.equityBond as Record<string, unknown>) : null
+  const prevSeries = Array.isArray(eb?.series) ? (eb!.series as Array<Record<string, unknown>>) : []
+  for (const p of prevSeries) {
+    const d = typeof p.date === 'string' ? p.date : ''
+    const y10 = typeof (p as any).yield10yPct === 'number' && Number.isFinite((p as any).yield10yPct) ? ((p as any).yield10yPct as number) : null
+    if (d && y10 != null) yield10yPctByDate.set(d, y10)
+  }
+  if (yield10yPctByDate.size > 0) notes.push('yield10y_fallback=prev_snapshot')
+  return { yield10yPctByDate, notes }
 }
 
 function sleep(ms: number) {
@@ -261,22 +303,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       if (series.length === 0) return { ok: false as const, err: 'Eastmoney HTTP 替代源返回为空' }
       const last = series[series.length - 1]
 
-      const yield10yPctByDate = new Map<string, number>()
-      const startY = ymd8ToYear(start)
-      const endY = ymd8ToYear(end)
-      if (startY != null && endY != null) {
-        const years: number[] = []
-        for (let y = startY; y <= endY; y += 1) years.push(y)
-        const limit = 3
-        for (let i = 0; i < years.length; i += limit) {
-          const batch = years.slice(i, i + limit)
-          const results = await Promise.allSettled(batch.map((year) => fetchGovBond10yYieldPctByDate({ year })))
-          for (const r of results) {
-            if (r.status !== 'fulfilled') continue
-            for (const [d, y10] of r.value) yield10yPctByDate.set(d, y10)
-          }
-        }
-      }
+      const { yield10yPctByDate, notes: yNotes } = await buildYield10yPctByDate({ start8: start, end8: end })
 
       const peByDate = new Map<string, number>()
       for (const r of hs300Pe) {
@@ -303,6 +330,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
         'v5Pct=rollingPercentilePct(v5,1260,630)，即独家流动性指数 v5 的 5 年滚动分位（0–100）。',
         `替代触发原因：${reason}`,
       ]
+      for (const it of yNotes) notes.push(it)
       if (northTailMissing > 10) {
         notes.push(`北向资金最新有效日期落后于数据日期约${northTailMissing}个交易日，尾段保持缺失值以避免常数填充。`)
       }
@@ -398,21 +426,8 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       if (d && Number.isFinite(pe)) peByDate.set(d, pe)
     }
 
-    const startY = ymd8ToYear(start)
-    const endY = ymd8ToYear(end)
-    if (startY != null && endY != null) {
-      const years: number[] = []
-      for (let y = startY; y <= endY; y += 1) years.push(y)
-      const limit = 3
-      for (let i = 0; i < years.length; i += limit) {
-        const batch = years.slice(i, i + limit)
-        const results = await Promise.allSettled(batch.map((year) => fetchGovBond10yYieldPctByDate({ year })))
-        for (const r of results) {
-          if (r.status !== 'fulfilled') continue
-          for (const [d, y10] of r.value) yield10yPctByDate.set(d, y10)
-        }
-      }
-    }
+    const { yield10yPctByDate: y10ByDate, notes: yNotes } = await buildYield10yPctByDate({ start8: start, end8: end })
+    for (const [d, y10] of y10ByDate) yield10yPctByDate.set(d, y10)
 
     const dates = series.map((p) => p.date)
     const equityBond = buildEquityBondValuePctSeries({ dates, peByDate, yield10yPctByDate })
@@ -427,6 +442,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       '北向资金展示口径统一为“总成交额(亿元)”；本分支北向数据使用东方财富数据中心替代源（分页拉取并合并去重）。',
       ...(primaryFailReason ? [`主源失败原因：${primaryFailReason}`] : []),
     ]
+    for (const it of yNotes) notes.push(it)
     if (northTailMissing > 10) {
       notes.push(`北向资金最新有效日期落后于数据日期约${northTailMissing}个交易日，尾段保持缺失值以避免常数填充。`)
     }
@@ -539,7 +555,6 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
     const last = series[series.length - 1]
 
     const peByDate = new Map<string, number>()
-    const yield10yPctByDate = new Map<string, number>()
 
     for (const r of hs300Pe) {
       const d = ymd8ToYmd10((r as Record<string, unknown>).trade_date)
@@ -547,21 +562,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       if (d && Number.isFinite(pe)) peByDate.set(d, pe)
     }
 
-    const startY = ymd8ToYear(start)
-    const endY = ymd8ToYear(end)
-    if (startY != null && endY != null) {
-      const years: number[] = []
-      for (let y = startY; y <= endY; y += 1) years.push(y)
-      const limit = 3
-      for (let i = 0; i < years.length; i += limit) {
-        const batch = years.slice(i, i + limit)
-        const results = await Promise.allSettled(batch.map((year) => fetchGovBond10yYieldPctByDate({ year })))
-        for (const r of results) {
-          if (r.status !== 'fulfilled') continue
-          for (const [d, y10] of r.value) yield10yPctByDate.set(d, y10)
-        }
-      }
-    }
+    const { yield10yPctByDate, notes: yNotes } = await buildYield10yPctByDate({ start8: start, end8: end })
 
     const dates = series.map((p) => p.date)
     const equityBond = yield10yPctByDate.size > 0 ? buildEquityBondValuePctSeries({ dates, peByDate, yield10yPctByDate }) : []
@@ -577,6 +578,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       '成交额展示口径统一为“千元”；若主源返回口径不同，会在服务端进行单位归一化。',
       '北向资金展示口径统一为“总成交额(亿元)”；本分支北向数据使用东方财富数据中心替代源（分页拉取并合并去重）。',
     ]
+    for (const it of yNotes) notes.push(it)
     if (northTailMissing > 10) {
       notes.push(`北向资金最新有效日期落后于数据日期约${northTailMissing}个交易日，尾段保持缺失值以避免常数填充。`)
     }

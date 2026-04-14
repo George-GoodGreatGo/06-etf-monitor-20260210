@@ -94,3 +94,38 @@ export async function fetchCsindexHs300PeSeries(args: { startDate: string; endDa
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr))
 }
 
+export async function fetchCsindexIndexPeSeries(args: {
+  indexCode: string
+  startDate: string
+  endDate: string
+}): Promise<Record<string, unknown>[]> {
+  const indexCode = String(args.indexCode || '').trim()
+  const startDate = normalizeYmd8(args.startDate)
+  const endDate = normalizeYmd8(args.endDate)
+  if (!indexCode || !startDate || !endDate) return []
+
+  const key = buildKey(indexCode, startDate, endDate)
+  const now = Date.now()
+  const hit = cache.get(key)
+  if (hit && hit.expiresAt > now) return hit.value
+
+  const url = new URL('https://www.csindex.com.cn/csindex-home/perf/indexCsiDsPe')
+  url.searchParams.set('indexCode', indexCode)
+  url.searchParams.set('startDate', startDate)
+  url.searchParams.set('endDate', endDate)
+
+  let lastErr: unknown = null
+  for (let i = 0; i < 2; i += 1) {
+    try {
+      const value = await fetchOnce(url.toString())
+      cache.set(key, { expiresAt: now + 10 * 60_000, value })
+      return value
+    } catch (e) {
+      lastErr = e
+      if (i === 0) await sleep(250)
+    }
+  }
+
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr))
+}
+

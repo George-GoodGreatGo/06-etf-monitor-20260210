@@ -9,6 +9,24 @@ function argValue(name: string): string | null {
   return typeof v === 'string' && v.trim() ? v.trim() : null
 }
 
+function ymd10ToUtcMs(ymd10: string): number | null {
+  const s = String(ymd10 || '').trim()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null
+  const y = Number(s.slice(0, 4))
+  const m = Number(s.slice(5, 7))
+  const d = Number(s.slice(8, 10))
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null
+  const ms = Date.UTC(y, m - 1, d)
+  return Number.isFinite(ms) ? ms : null
+}
+
+function diffDaysUtc(aYmd10: string, bYmd10: string): number | null {
+  const a = ymd10ToUtcMs(aYmd10)
+  const b = ymd10ToUtcMs(bYmd10)
+  if (a == null || b == null) return null
+  return Math.floor((a - b) / 86_400_000)
+}
+
 function ymd8BeijingToday(): string {
   const d = new Date(Date.now() + 8 * 3600_000)
   const y = d.getUTCFullYear()
@@ -30,6 +48,11 @@ function ymd8ToYmd10(ymd8: string): string {
   const s = String(ymd8 || '').trim()
   if (!/^\d{8}$/.test(s)) return ''
   return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`
+}
+
+function finiteOrNull(raw: unknown): number | null {
+  const n = typeof raw === 'number' ? raw : raw == null ? NaN : Number(String(raw).trim())
+  return Number.isFinite(n) ? n : null
 }
 
 function ymd8ToYear(ymd8: string): number | null {
@@ -111,6 +134,16 @@ function mustArray(v: unknown): Record<string, unknown>[] {
   return Array.isArray(v) ? (v.filter((x) => x && typeof x === 'object') as Record<string, unknown>[]) : []
 }
 
+function nonNullRatio(rows: Array<Record<string, unknown>>, key: string): number {
+  if (!rows.length) return 0
+  let ok = 0
+  for (const r of rows) {
+    const v = (r as any)[key]
+    if (typeof v === 'number' && Number.isFinite(v)) ok += 1
+  }
+  return ok / rows.length
+}
+
 async function main() {
   const mode = (argValue('--mode') || 'backfill').toLowerCase()
   const startDate = argValue('--startDate') || ymd8BeijingYearsAgo(10)
@@ -132,6 +165,8 @@ async function main() {
     const y1 = ymd8ToYear(endDate)
     if (y0 == null || y1 == null) throw new Error('bad startDate/endDate year')
     let totalWrite = 0
+    let maxDate: string | null = null
+    const recentRows: Array<Record<string, unknown>> = []
     for (let y = y0; y <= y1; y += 2) {
       const segStart = maxYmd8(startDate, `${y}0101`)
       const segEnd = minYmd8(endDate, `${Math.min(y + 1, y1)}1231`)
@@ -159,6 +194,14 @@ async function main() {
 
       const data = out.data && typeof out.data === 'object' ? out.data : {}
       const seriesAll = mustArray((data as Record<string, unknown>).series)
+      const allLast = seriesAll.length ? (seriesAll[seriesAll.length - 1] as any) : null
+      const allLastDate = allLast && typeof allLast.date === 'string' ? String(allLast.date) : ''
+      if (allLastDate) {
+        const lag = diffDaysUtc(segEnd10, allLastDate)
+        if (lag != null && lag > 14) {
+          throw new Error(`segment source stale: out_last_date=${allLastDate} seg_end=${segEnd10} lag=${lag}d`)
+        }
+      }
       const series = seriesAll.filter((p) => {
         const d = typeof p.date === 'string' ? p.date : ''
         return d && d >= segStart10 && d <= segEnd10
@@ -192,44 +235,73 @@ async function main() {
             source,
             notes,
             close,
-            amount: typeof p.amount === 'number' ? (p.amount as number) : p.amount == null ? null : Number(p.amount),
-            tr: typeof p.tr === 'number' ? (p.tr as number) : p.tr == null ? null : Number(p.tr),
-            north_money:
-              typeof p.northMoney === 'number' ? (p.northMoney as number) : p.northMoney == null ? null : Number(p.northMoney),
-            amount_pct:
-              typeof p.amountPct === 'number' ? (p.amountPct as number) : p.amountPct == null ? null : Number(p.amountPct),
-            tr_pct: typeof p.trPct === 'number' ? (p.trPct as number) : p.trPct == null ? null : Number(p.trPct),
-            north_pct:
-              typeof p.northPct === 'number' ? (p.northPct as number) : p.northPct == null ? null : Number(p.northPct),
-            v5: typeof p.v5 === 'number' ? (p.v5 as number) : p.v5 == null ? null : Number(p.v5),
-            v5_pct: typeof p.v5Pct === 'number' ? (p.v5Pct as number) : p.v5Pct == null ? null : Number(p.v5Pct),
-            pe: eb && typeof eb.pe === 'number' ? (eb.pe as number) : eb && eb.pe != null ? Number(eb.pe) : null,
-            earnings_yield:
-              eb && typeof eb.earningsYield === 'number'
-                ? (eb.earningsYield as number)
-                : eb && eb.earningsYield != null
-                  ? Number(eb.earningsYield)
-                  : null,
-            yield10y_pct:
-              eb && typeof eb.yield10yPct === 'number'
-                ? (eb.yield10yPct as number)
-                : eb && eb.yield10yPct != null
-                  ? Number(eb.yield10yPct)
-                  : null,
-            equity_bond_value: eb && typeof eb.value === 'number' ? (eb.value as number) : eb && eb.value != null ? Number(eb.value) : null,
-            equity_bond_pct: eb && typeof eb.pct === 'number' ? (eb.pct as number) : eb && eb.pct != null ? Number(eb.pct) : null,
+            amount: finiteOrNull((p as any).amount),
+            tr: finiteOrNull((p as any).tr),
+            north_money: finiteOrNull((p as any).northMoney),
+            amount_pct: finiteOrNull((p as any).amountPct),
+            tr_pct: finiteOrNull((p as any).trPct),
+            north_pct: finiteOrNull((p as any).northPct),
+            v5: finiteOrNull((p as any).v5),
+            v5_pct: finiteOrNull((p as any).v5Pct),
+            pe: finiteOrNull(eb && (eb as any).pe),
+            earnings_yield: finiteOrNull(eb && (eb as any).earningsYield),
+            yield10y_pct: finiteOrNull(eb && (eb as any).yield10yPct),
+            equity_bond_value: finiteOrNull(eb && (eb as any).value),
+            equity_bond_pct: finiteOrNull(eb && (eb as any).pct),
           }
         })
         .filter((x) => x != null)
+
+      if (rows.length === 0) {
+        throw new Error(`segment produced no rows: out=${segStart}..${segEnd}`)
+      }
 
       for (const part of chunk(rows, 200)) {
         await withRetry(() => upsertMarketBoardPoints(part as any), `upsert batch size=${part.length}`, 4)
         await sleep(jitterMs(350, 0.6))
       }
       totalWrite += rows.length
+      const segMax = rows[rows.length - 1]?.data_date
+      if (typeof segMax === 'string') maxDate = maxDate ? (segMax > maxDate ? segMax : maxDate) : segMax
+      for (const r of rows) recentRows.push(r)
+      while (recentRows.length > 700) recentRows.shift()
+
+      if (recentRows.length) {
+        const tail = recentRows.slice(-504)
+        const amountCover = nonNullRatio(tail, 'amount')
+        const trCover = nonNullRatio(tail, 'tr')
+        const northCover = nonNullRatio(tail, 'north_money')
+        const peCover = nonNullRatio(tail, 'pe')
+        const y10Cover = nonNullRatio(tail, 'yield10y_pct')
+        process.stdout.write(
+          `[segment] cover(last${tail.length}) amount=${(amountCover * 100).toFixed(1)}% tr=${(trCover * 100).toFixed(1)}% north=${(northCover * 100).toFixed(1)}% pe=${(peCover * 100).toFixed(1)}% y10=${(y10Cover * 100).toFixed(1)}%\n`,
+        )
+      }
       process.stdout.write(`[segment] wrote=${rows.length} total=${totalWrite}\n`)
       await sleep(jitterMs(5_000, 0.8))
     }
+
+    if (!maxDate) throw new Error('backfill produced no data')
+    const lagAll = diffDaysUtc(end10, maxDate)
+    if (lagAll != null && lagAll > 14) {
+      throw new Error(`backfill max_date too old: max_date=${maxDate} end=${end10} lag=${lagAll}d`)
+    }
+
+    const tail = recentRows.slice(-504)
+    const amountCover = nonNullRatio(tail, 'amount')
+    const trCover = nonNullRatio(tail, 'tr')
+    const northCover = nonNullRatio(tail, 'north_money')
+    const peCover = nonNullRatio(tail, 'pe')
+    const y10Cover = nonNullRatio(tail, 'yield10y_pct')
+    process.stdout.write(
+      `[run] max_date=${maxDate} cover(last${tail.length}) amount=${(amountCover * 100).toFixed(1)}% tr=${(trCover * 100).toFixed(1)}% north=${(northCover * 100).toFixed(1)}% pe=${(peCover * 100).toFixed(1)}% y10=${(y10Cover * 100).toFixed(1)}%\n`,
+    )
+    if (tail.length >= 200) {
+      if (amountCover < 0.95 || trCover < 0.95 || northCover < 0.95 || peCover < 0.95 || y10Cover < 0.95) {
+        throw new Error('backfill coverage check failed (threshold=95%)')
+      }
+    }
+
     await withRetry(() => upsertMarketBoardMeta({ currentRunId: runId, previousRunId: prevVisible }), 'switch visible run', 3)
     if (prevVisible) {
       await withRetry(() => deleteMarketBoardPointsNotInRuns({ keepRunIds: [runId, prevVisible] }), 'cleanup old runs', 3)
@@ -281,32 +353,19 @@ async function main() {
           source,
           notes,
           close,
-          amount: typeof p.amount === 'number' ? (p.amount as number) : p.amount == null ? null : Number(p.amount),
-          tr: typeof p.tr === 'number' ? (p.tr as number) : p.tr == null ? null : Number(p.tr),
-          north_money:
-            typeof p.northMoney === 'number' ? (p.northMoney as number) : p.northMoney == null ? null : Number(p.northMoney),
-          amount_pct:
-            typeof p.amountPct === 'number' ? (p.amountPct as number) : p.amountPct == null ? null : Number(p.amountPct),
-          tr_pct: typeof p.trPct === 'number' ? (p.trPct as number) : p.trPct == null ? null : Number(p.trPct),
-          north_pct:
-            typeof p.northPct === 'number' ? (p.northPct as number) : p.northPct == null ? null : Number(p.northPct),
-          v5: typeof p.v5 === 'number' ? (p.v5 as number) : p.v5 == null ? null : Number(p.v5),
-          v5_pct: typeof p.v5Pct === 'number' ? (p.v5Pct as number) : p.v5Pct == null ? null : Number(p.v5Pct),
-          pe: eb && typeof eb.pe === 'number' ? (eb.pe as number) : eb && eb.pe != null ? Number(eb.pe) : null,
-          earnings_yield:
-            eb && typeof eb.earningsYield === 'number'
-              ? (eb.earningsYield as number)
-              : eb && eb.earningsYield != null
-                ? Number(eb.earningsYield)
-                : null,
-          yield10y_pct:
-            eb && typeof eb.yield10yPct === 'number'
-              ? (eb.yield10yPct as number)
-              : eb && eb.yield10yPct != null
-                ? Number(eb.yield10yPct)
-                : null,
-          equity_bond_value: eb && typeof eb.value === 'number' ? (eb.value as number) : eb && eb.value != null ? Number(eb.value) : null,
-          equity_bond_pct: eb && typeof eb.pct === 'number' ? (eb.pct as number) : eb && eb.pct != null ? Number(eb.pct) : null,
+          amount: finiteOrNull((p as any).amount),
+          tr: finiteOrNull((p as any).tr),
+          north_money: finiteOrNull((p as any).northMoney),
+          amount_pct: finiteOrNull((p as any).amountPct),
+          tr_pct: finiteOrNull((p as any).trPct),
+          north_pct: finiteOrNull((p as any).northPct),
+          v5: finiteOrNull((p as any).v5),
+          v5_pct: finiteOrNull((p as any).v5Pct),
+          pe: finiteOrNull(eb && (eb as any).pe),
+          earnings_yield: finiteOrNull(eb && (eb as any).earningsYield),
+          yield10y_pct: finiteOrNull(eb && (eb as any).yield10yPct),
+          equity_bond_value: finiteOrNull(eb && (eb as any).value),
+          equity_bond_pct: finiteOrNull(eb && (eb as any).pct),
         }
       })
       .filter((x) => x != null)

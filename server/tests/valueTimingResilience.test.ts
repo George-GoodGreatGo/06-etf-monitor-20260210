@@ -15,7 +15,7 @@ globalThis.fetch = (async (url: any) => {
     return new Response('<html><title>504</title></html>', { status: 504, headers: { 'content-type': 'text/html' } })
   }
   if (u.includes('push2.eastmoney.com')) {
-    throw new TypeError('fetch failed')
+    return new Response(JSON.stringify({ data: { f162: 0 } }), { status: 200, headers: { 'content-type': 'application/json' } })
   }
   return new Response('{"code":0}', { status: 200, headers: { 'content-type': 'application/json' } })
 }) as any
@@ -26,7 +26,6 @@ assert.ok(r1.error && r1.error.includes('HTTP 504'))
 
 const r2 = await fetchEtfProxyPeForTest('159605')
 assert.equal(r2.pe, null)
-assert.ok(r2.error && r2.error.includes('fetch failed'))
+assert.ok(r2.error && r2.error.includes('non_positive'))
 
 globalThis.fetch = origFetch
-
