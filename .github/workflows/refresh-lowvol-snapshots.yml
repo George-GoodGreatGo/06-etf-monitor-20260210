@@ -32,7 +32,10 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: npx tsx server/scripts/refreshLowVolSnapshots.ts
+          LOWVOL_REFRESH_MODE: full_backfill_publish
+        run: |
+          echo "LOWVOL_REFRESH_MODE=$LOWVOL_REFRESH_MODE event=${{ github.event_name }}"
+          npx tsx server/scripts/refreshLowVolSnapshots.ts
 
       - name: Refresh (manual)
         if: github.event_name == 'workflow_dispatch'
@@ -40,4 +43,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           LOWVOL_REFRESH_IGNORE_WINDOW: "1"
-        run: npx tsx server/scripts/refreshLowVolSnapshots.ts
+          LOWVOL_REFRESH_MODE: full_backfill_publish
+        run: |
+          echo "LOWVOL_REFRESH_MODE=$LOWVOL_REFRESH_MODE event=${{ github.event_name }}"
+          npx tsx server/scripts/refreshLowVolSnapshots.ts

@@ -235,6 +235,40 @@ export type LowVolIndexDailyRow = {
   updated_at: string
 }
 
+export type LowVolIndexPointRow = {
+  run_id: string
+  code: string
+  data_date: string
+  fetched_at: string
+  source_type: string | null
+  source: string | null
+  notes: unknown
+  close: number
+  ma60: number | null
+  ma250: number | null
+  bias60: number | null
+  bias250: number | null
+  bias_pct_3y_60: number | null
+  bias_pct_3y: number | null
+  dividend_yield_pct: number | null
+  yield10y_pct: number | null
+  spread_raw_pct: number | null
+  spread_smooth_pct: number | null
+  spread_pct: number | null
+  spread_pct_rank_3y: number | null
+  spread_pct_rank_10y: number | null
+  updated_at: string
+}
+
+export type LowVolMetaRow = {
+  currentRunId: string
+  previousRunId: string | null
+  historyRunIds: string[]
+  currentDataDate: string | null
+  publishStatus: string
+  qualitySummary: Record<string, unknown> | null
+}
+
 export type ValueTimingIndexDailyRow = {
   id: string
   code: string
@@ -604,6 +638,133 @@ export async function deleteMarketBoardPointsNotInRuns(args: { keepRunIds: strin
   if (!res.ok) {
     const body = await res.text().catch(() => '')
     throw new Error(`supabase delete market_board_point(not-in runs) failed: HTTP ${res.status} ${body}`)
+  }
+}
+
+export async function readLowVolMeta(): Promise<LowVolMetaRow | null> {
+  const supabaseUrl = String(process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '')
+  const anonKey = String(process.env.SUPABASE_ANON_KEY || '').trim()
+  const serviceKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
+  const readKey = serviceKey || anonKey
+  if (!supabaseUrl || !readKey) return null
+
+  const url =
+    `${supabaseUrl}/rest/v1/lowvol_meta?id=eq.default` +
+    `&select=current_run_id,previous_run_id,history_run_ids,current_data_date,publish_status,quality_summary`
+  const res = await fetch(url, {
+    headers: {
+      apikey: readKey,
+      Authorization: `Bearer ${readKey}`,
+    },
+  })
+  if (!res.ok) return null
+  const j = (await res.json().catch(() => null)) as unknown
+  if (!Array.isArray(j) || j.length === 0) return null
+  const first = j[0] as Record<string, unknown>
+  const currentRunId = typeof first.current_run_id === 'string' ? first.current_run_id : ''
+  const previousRunId = typeof first.previous_run_id === 'string' ? first.previous_run_id : null
+  const historyRaw = Array.isArray(first.history_run_ids) ? first.history_run_ids : []
+  const historyRunIds = uniqueNonEmptyRunIds([currentRunId, ...historyRaw, previousRunId].filter(Boolean))
+  const currentDataDate = typeof first.current_data_date === 'string' ? first.current_data_date : null
+  const publishStatus = typeof first.publish_status === 'string' ? first.publish_status : 'idle'
+  const qualitySummary =
+    first.quality_summary && typeof first.quality_summary === 'object' ? (first.quality_summary as Record<string, unknown>) : null
+  if (!currentRunId) return null
+  return { currentRunId, previousRunId, historyRunIds, currentDataDate, publishStatus, qualitySummary }
+}
+
+export async function readLowVolIndexPointsRange(args: {
+  code: string
+  startDate: string
+  endDate: string
+  runId?: string | null
+}): Promise<LowVolIndexPointRow[]> {
+  const supabaseUrl = String(process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '')
+  const anonKey = String(process.env.SUPABASE_ANON_KEY || '').trim()
+  const serviceKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
+  const readKey = serviceKey || anonKey
+  const code = String(args.code || '').trim()
+  const start = String(args.startDate || '').trim()
+  const end = String(args.endDate || '').trim()
+  const runId = args.runId ? String(args.runId).trim() : ''
+  if (!supabaseUrl || !readKey || !code || !start || !end) return []
+  return await readSupabasePaged<LowVolIndexPointRow>({
+    supabaseUrl,
+    readKey,
+    pathWithQueryBuilder: (offset, limit) =>
+      `lowvol_index_point?` +
+      `select=*` +
+      `&code=eq.${encodeURIComponent(code)}` +
+      `&data_date=gte.${encodeURIComponent(start)}&data_date=lte.${encodeURIComponent(end)}` +
+      (runId ? `&run_id=eq.${encodeURIComponent(runId)}` : '') +
+      `&order=data_date.asc&limit=${limit}&offset=${offset}`,
+    pageSize: 1000,
+    maxRows: 50_000,
+  })
+}
+
+export async function upsertLowVolIndexPoints(payload: Array<Omit<LowVolIndexPointRow, 'updated_at'>>): Promise<void> {
+  const supabaseUrl = mustEnv('SUPABASE_URL').replace(/\/+$/, '')
+  const serviceKey = mustEnv('SUPABASE_SERVICE_ROLE_KEY')
+  const list = Array.isArray(payload) ? payload : []
+  if (list.length === 0) return
+
+  const url = `${supabaseUrl}/rest/v1/lowvol_index_point?on_conflict=run_id,code,data_date`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates,return=minimal',
+    },
+    body: JSON.stringify(list.map((r) => ({ ...r, updated_at: new Date().toISOString() }))),
+  })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`supabase write lowvol_index_point failed: HTTP ${res.status} ${body}`)
+  }
+}
+
+export async function publishLowVolRun(args: {
+  nextRunId: string
+  previousRunId?: string | null
+  keepRunIds: string[]
+  currentDataDate?: string | null
+  publishStatus?: string
+  qualitySummary?: Record<string, unknown> | null
+}): Promise<void> {
+  const supabaseUrl = mustEnv('SUPABASE_URL').replace(/\/+$/, '')
+  const serviceKey = mustEnv('SUPABASE_SERVICE_ROLE_KEY')
+  const nextRunId = String(args.nextRunId || '').trim()
+  const previousRunId = args.previousRunId ? String(args.previousRunId).trim() : null
+  const keepRunIds = uniqueNonEmptyRunIds(args.keepRunIds || [])
+  if (!nextRunId) throw new Error('missing nextRunId')
+  if (!keepRunIds.includes(nextRunId)) throw new Error('keepRunIds must include nextRunId')
+
+  const payload = {
+    p_next_run_id: nextRunId,
+    p_previous_run_id: previousRunId,
+    p_keep_run_ids: keepRunIds,
+    p_current_data_date: args.currentDataDate ? String(args.currentDataDate).trim() : null,
+    p_publish_status: args.publishStatus ? String(args.publishStatus).trim() : 'ready',
+    p_quality_summary: args.qualitySummary && typeof args.qualitySummary === 'object' ? args.qualitySummary : {},
+  }
+
+  const url = `${supabaseUrl}/rest/v1/rpc/publish_lowvol_run`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`supabase rpc publish_lowvol_run failed: HTTP ${res.status} ${body}`)
   }
 }
 
