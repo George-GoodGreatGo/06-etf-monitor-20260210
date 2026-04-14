@@ -100,7 +100,7 @@ export default function MarketLiquidityTable({ series, equityBond, className }: 
       const d = String(p?.date || '').trim()
       if (!d) continue
       if (typeof p.v5Pct === 'number' && Number.isFinite(p.v5Pct)) validCount += 1
-      out.set(d, validCount < 630)
+      out.set(d, validCount < 378)
     }
     return out
   }, [series])
@@ -165,7 +165,7 @@ export default function MarketLiquidityTable({ series, equityBond, className }: 
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">北向资金总成交额(亿元)</th>
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">北向分位(%)</th>
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">流动性指数(无量纲)</th>
-              <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">独家流动性指数（5年分位）</th>
+              <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">独家流动性指数（3年分位）</th>
 
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">PE(倍)</th>
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">1/PE(比率)</th>

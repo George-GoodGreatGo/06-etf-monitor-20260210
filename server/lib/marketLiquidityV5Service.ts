@@ -11,8 +11,37 @@ import path from 'node:path'
 
 type CacheEntry<T> = { expiresAt: number; value: T }
 const cache = new Map<string, CacheEntry<unknown>>()
-const calcVersion = 'pct-window-5y-v3'
+const calcVersion = 'pct-window-v5pct-3y-v1'
 const diskCacheFile = path.join(process.cwd(), 'server', '.cache', `market-liquidity-v5.${calcVersion}.json`)
+
+function rollingPercentilePct(values: Array<number | null>, window: number, minPeriods: number): Array<number | null> {
+  const out: Array<number | null> = new Array(values.length).fill(null)
+  for (let i = 0; i < values.length; i += 1) {
+    const v = values[i]
+    if (v == null) continue
+    const start = Math.max(0, i - window + 1)
+    let n = 0
+    let less = 0
+    let equal = 0
+    for (let j = start; j <= i; j += 1) {
+      const x = values[j]
+      if (x == null) continue
+      n += 1
+      if (x < v) less += 1
+      else if (x === v) equal += 1
+    }
+    if (n < minPeriods || equal === 0) continue
+    const avgRank = less + (equal + 1) / 2
+    out[i] = (avgRank / n) * 100
+  }
+  return out
+}
+
+function attachV5Pct3y<T extends LiquidityV5Point>(series: T[]): Array<T & { v5Pct: number | null }> {
+  const v5 = series.map((p) => (typeof p.v5 === 'number' && Number.isFinite(p.v5) ? p.v5 : null))
+  const v5Pct = rollingPercentilePct(v5, 756, 378)
+  return series.map((p, idx) => ({ ...p, v5Pct: v5Pct[idx] ?? null }))
+}
 
 function countNorthTailMissing(series: LiquidityV5Point[]): number {
   if (!Array.isArray(series) || series.length === 0) return 0
@@ -266,7 +295,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
         fetchCsindexHs300PeSeries({ startDate: start, endDate: end }),
       ])
 
-      const series = buildLiquidityV5Series({ hs300, sh, sz, north })
+      const series = attachV5Pct3y(buildLiquidityV5Series({ hs300, sh, sz, north }))
       if (series.length === 0) return { ok: false as const, err: 'Eastmoney HTTP 替代源返回为空' }
       const last = series[series.length - 1]
 
@@ -294,7 +323,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
         `成交额口径：来自 Eastmoney kline 成交额，已换算为“千元”（与表格视图一致）。`,
         '沪深300PE数据源：中证指数（csindex）。',
         '北向资金总成交额数据源：东方财富数据中心（reportName=RPT_MUTUAL_DEAL_HISTORY, MUTUAL_TYPE=005, 字段 DEAL_AMT；分页拉取并合并去重；本服务端输出单位为“亿元”）。',
-        'v5Pct=rollingPercentilePct(v5,1260,630)，即独家流动性指数 v5 的 5 年滚动分位（0–100）。',
+        'v5Pct=rollingPercentilePct(v5,756,378)，即独家流动性指数 v5 的 3 年滚动分位（0–100）。',
         `替代触发原因：${reason}`,
       ]
       for (const it of yNotes) notes.push(it)
@@ -358,12 +387,12 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
     const hs300Pe = Array.isArray(data.hs300Pe) ? (data.hs300Pe as Record<string, unknown>[]) : []
 
     const [north] = await Promise.all([fetchNorthboundTotalTurnoverSeries({ startDate: liquidityStart, endDate: end })])
-    const series = buildLiquidityV5Series({
+    const series = attachV5Pct3y(buildLiquidityV5Series({
       hs300,
       sh: normalizeMarketAmountToKyuan(sh),
       sz: normalizeMarketAmountToKyuan(sz),
       north,
-    })
+    }))
     if (series.length === 0) {
       return { ok: false as const, err: 'AkShare 返回数据不足以构建流动性序列' }
     }
@@ -494,12 +523,12 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
     ])
 
     const hs300Filled = hs300.length ? hs300 : await fetchCsindexHs300CloseSeries({ startDate8: start, endDate8: end })
-    const series = buildLiquidityV5Series({
+    const series = attachV5Pct3y(buildLiquidityV5Series({
       hs300: hs300Filled,
       sh: normalizeMarketAmountToKyuan(sh),
       sz: normalizeMarketAmountToKyuan(sz),
       north,
-    })
+    }))
     if (series.length === 0) {
       throw new Error('未获取到有效的指数和成交数据，可能数据源（如Tushare）限流或暂无数据。')
     }
