@@ -95,6 +95,29 @@ function fillForward(values: Array<number | null>): Array<number | null> {
   return out
 }
 
+function fillForwardUntilLast(values: Array<number | null>): Array<number | null> {
+  let lastIdx = -1
+  for (let i = values.length - 1; i >= 0; i -= 1) {
+    if (values[i] != null) {
+      lastIdx = i
+      break
+    }
+  }
+  if (lastIdx < 0) return values.slice()
+  const out: Array<number | null> = new Array(values.length).fill(null)
+  let last: number | null = null
+  for (let i = 0; i < values.length; i += 1) {
+    if (i > lastIdx) {
+      out[i] = null
+      continue
+    }
+    const v = values[i]
+    if (v != null) last = v
+    out[i] = last
+  }
+  return out
+}
+
 export function buildLiquidityV5Series(input: {
   hs300: Record<string, unknown>[]
   sh: Record<string, unknown>[]
@@ -170,7 +193,7 @@ export function buildLiquidityV5Series(input: {
   const closeF = fillForward(close)
   const amountF = fillForward(totalAmount)
   const trF = fillForward(totalTr)
-  const northF = fillForward(north)
+  const northF = fillForwardUntilLast(north)
 
   const amountPct = rollingPercentilePct(amountF, 1260, 630)
   const trPct = rollingPercentilePct(trF, 1260, 630)

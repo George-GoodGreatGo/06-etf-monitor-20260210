@@ -6,13 +6,28 @@ import { runAkshare } from './akshare.js'
 import { fetchCsindexHs300PeSeries } from './csindex.js'
 import { fetchNorthboundTotalTurnoverSeries } from './hkex.js'
 import { readLatestMarketBoardSnapshot, upsertMarketBoardSnapshot } from './supabaseRest.js'
+import type { LiquidityV5Point } from './liquidityV5.js'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
 type CacheEntry<T> = { expiresAt: number; value: T }
 const cache = new Map<string, CacheEntry<unknown>>()
-const calcVersion = 'pct-window-5y-v2'
+const calcVersion = 'pct-window-5y-v3'
 const diskCacheFile = path.join(process.cwd(), 'server', '.cache', `market-liquidity-v5.${calcVersion}.json`)
+
+function countNorthTailMissing(series: LiquidityV5Point[]): number {
+  if (!Array.isArray(series) || series.length === 0) return 0
+  let lastIdx = -1
+  for (let i = series.length - 1; i >= 0; i -= 1) {
+    const v = series[i]?.northMoney
+    if (typeof v === 'number' && Number.isFinite(v)) {
+      lastIdx = i
+      break
+    }
+  }
+  if (lastIdx < 0) return series.length
+  return series.length - 1 - lastIdx
+}
 
 function normalizeMarketAmountToKyuan(rows: Record<string, unknown>[]): Record<string, unknown>[] {
   const values: number[] = []
@@ -217,14 +232,18 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
         yield10yPctByDate.size > 0
           ? buildEquityBondValuePctSeries({ dates: series.map((p) => p.date), peByDate, yield10yPctByDate })
           : []
+      const northTailMissing = countNorthTailMissing(series)
       const notes: string[] = [
         '已使用 Eastmoney HTTP 替代数据源（无 Python 依赖），缺失字段保持 null，不做推测补值。',
         `成交额口径：来自 Eastmoney kline 成交额，已换算为“千元”（与表格视图一致）。`,
         '沪深300PE数据源：中证指数（csindex）。',
-        '北向资金总成交额数据源：东方财富数据中心（reportName=RPT_MUTUAL_DEAL_HISTORY, MUTUAL_TYPE=005, 字段 DEAL_AMT；本服务端输出单位为“亿元”）。',
+        '北向资金总成交额数据源：东方财富数据中心（reportName=RPT_MUTUAL_DEAL_HISTORY, MUTUAL_TYPE=005, 字段 DEAL_AMT；分页拉取并合并去重；本服务端输出单位为“亿元”）。',
         'v5Pct=rollingPercentilePct(v5,1260,630)，即独家流动性指数 v5 的 5 年滚动分位（0–100）。',
         `替代触发原因：${reason}`,
       ]
+      if (northTailMissing > 10) {
+        notes.push(`北向资金最新有效日期落后于数据日期约${northTailMissing}个交易日，尾段保持缺失值以避免常数填充。`)
+      }
       const out = {
         success: true,
         meta: {
@@ -336,15 +355,19 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
     const dates = series.map((p) => p.date)
     const equityBond = buildEquityBondValuePctSeries({ dates, peByDate, yield10yPctByDate })
 
+    const northTailMissing = countNorthTailMissing(series)
     const notes: string[] = [
       '独家流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为5年滚动（≈1260），最小有效≈630。',
       'v5Pct=rollingPercentilePct(v5,1260,630)，即独家流动性指数 v5 的 5 年滚动分位（0–100）。',
       '股债利差=1/沪深300PE-中国10Y国债收益率，value再取5年滚动分位（≈1260，最小有效≈630），分位越高代表股票相对于国债更有性价比。',
       '已使用 AkShare 替代数据源；缺失字段保持 null，不做推测补值。',
       '成交额展示口径统一为“千元”；若 AkShare 返回口径不同，会在服务端进行单位归一化。',
-      '北向资金展示口径统一为“总成交额(亿元)”；本分支北向数据使用东方财富数据中心替代源。',
+      '北向资金展示口径统一为“总成交额(亿元)”；本分支北向数据使用东方财富数据中心替代源（分页拉取并合并去重）。',
       ...(primaryFailReason ? [`主源失败原因：${primaryFailReason}`] : []),
     ]
+    if (northTailMissing > 10) {
+      notes.push(`北向资金最新有效日期落后于数据日期约${northTailMissing}个交易日，尾段保持缺失值以避免常数填充。`)
+    }
 
     const out = {
       success: true,
@@ -480,6 +503,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
     const dates = series.map((p) => p.date)
     const equityBond = yield10yPctByDate.size > 0 ? buildEquityBondValuePctSeries({ dates, peByDate, yield10yPctByDate }) : []
 
+    const northTailMissing = countNorthTailMissing(series)
     const notes: string[] = [
       '独家流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为5年滚动（≈1260），最小有效≈630。',
       'v5Pct=rollingPercentilePct(v5,1260,630)，即独家流动性指数 v5 的 5 年滚动分位（0–100）。',
@@ -488,8 +512,11 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       '股债性价比10Y数据源：chinabond(yield.chinabond.com.cn, 整年标准期限xlsx)',
       '股债性价比对齐：以沪深300交易日为基准，缺失使用前值填充。',
       '成交额展示口径统一为“千元”；若主源返回口径不同，会在服务端进行单位归一化。',
-      '北向资金展示口径统一为“总成交额(亿元)”；本分支北向数据使用东方财富数据中心替代源。',
+      '北向资金展示口径统一为“总成交额(亿元)”；本分支北向数据使用东方财富数据中心替代源（分页拉取并合并去重）。',
     ]
+    if (northTailMissing > 10) {
+      notes.push(`北向资金最新有效日期落后于数据日期约${northTailMissing}个交易日，尾段保持缺失值以避免常数填充。`)
+    }
 
     const out = {
       success: true,

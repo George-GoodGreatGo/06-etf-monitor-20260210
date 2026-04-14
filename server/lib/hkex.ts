@@ -33,8 +33,8 @@ function toNum(raw: unknown): number | null {
   return Number.isFinite(n) ? n : null
 }
 
-async function fetchOnce(url: string): Promise<Record<string, unknown>[]> {
-  const res = await fetch(url, {
+async function fetchPage(url: URL): Promise<{ rows: Record<string, unknown>[]; pages: number }> {
+  const res = await fetch(url.toString(), {
     method: 'GET',
     headers: {
       Accept: 'application/json,text/plain,*/*',
@@ -47,13 +47,15 @@ async function fetchOnce(url: string): Promise<Record<string, unknown>[]> {
   }
 
   const j = (await res.json().catch(() => null)) as EastmoneyDcResponse | null
-  if (!j || typeof j !== 'object') return []
+  if (!j || typeof j !== 'object') return { rows: [], pages: 0 }
   if (j.success !== true) {
     const msg = typeof j.message === 'string' ? j.message : 'unknown error'
-    if (msg.includes('返回数据为空')) return []
+    if (msg.includes('返回数据为空')) return { rows: [], pages: 0 }
     throw new Error(`northbound API error: ${msg}`)
   }
   const rows = Array.isArray(j.result?.data) ? j.result?.data : []
+  const pagesRaw = typeof j.result?.pages === 'number' ? j.result?.pages : j.result?.pages == null ? NaN : Number(j.result?.pages)
+  const pages = Number.isFinite(pagesRaw) && pagesRaw > 0 ? Math.floor(pagesRaw) : 0
 
   const out: Record<string, unknown>[] = []
   for (const r of rows) {
@@ -65,7 +67,7 @@ async function fetchOnce(url: string): Promise<Record<string, unknown>[]> {
     const v = vRaw == null ? null : vRaw / 100
     out.push({ trade_date: ymd8, north_money: v })
   }
-  return out
+  return { rows: out, pages }
 }
 
 export async function fetchNorthboundTotalTurnoverSeries(args: {
@@ -97,7 +99,25 @@ export async function fetchNorthboundTotalTurnoverSeries(args: {
   let lastErr: unknown = null
   for (let i = 0; i < 2; i += 1) {
     try {
-      const rows = await fetchOnce(url.toString())
+      const map = new Map<string, Record<string, unknown>>()
+      const pageSize = 600
+      let pages = 0
+      for (let page = 1; page <= 50; page += 1) {
+        url.searchParams.set('pageNumber', String(page))
+        url.searchParams.set('pageSize', String(pageSize))
+        const r = await fetchPage(url)
+        if (pages === 0) pages = r.pages
+        for (const row of r.rows) {
+          const d = typeof row.trade_date === 'string' ? row.trade_date : ''
+          if (!d) continue
+          map.set(d, row)
+        }
+        if (pages > 0 && page >= pages) break
+        if (pages === 0 && r.rows.length < pageSize) break
+        if (r.rows.length === 0) break
+        if (page === 1) await sleep(120)
+      }
+      const rows = Array.from(map.values()).sort((a, b) => String(a.trade_date).localeCompare(String(b.trade_date)))
       cache.set(key, { expiresAt: now + 3 * 60_000, value: rows })
       return rows
     } catch (e) {
