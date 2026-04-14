@@ -551,13 +551,17 @@ async function getValueIndexSeriesFromSupabaseRuns(args: {
       fallbackReason = fallbackReason ? `${fallbackReason}; run=${runId}:stale(${lag}d)` : `run=${runId}:stale(${lag}d)`
       continue
     }
+    const hydrated = hydrateValueTimingSeriesWithDerivedMetrics(rows.map(mapPointRowToDailyPoint))
     return {
       usedRunId: runId,
       fallbackReason,
       fetchedAt: rows[rows.length - 1]?.fetched_at || new Date().toISOString(),
       dataDate: lastDate || null,
-      notes: Array.isArray(rows[rows.length - 1]?.notes) ? (rows[rows.length - 1].notes as string[]) : [],
-      series: rows.map(mapPointRowToDailyPoint),
+      notes: [
+        ...(Array.isArray(rows[rows.length - 1]?.notes) ? (rows[rows.length - 1].notes as string[]) : []),
+        ...(hydrated.hydrationApplied ? hydrated.notes.map((x) => (x === 'derived_from_snapshot=1' ? 'derived_from_run=1' : x)) : []),
+      ],
+      series: hydrated.series,
     }
   }
 
