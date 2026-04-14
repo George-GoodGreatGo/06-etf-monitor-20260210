@@ -1,0 +1,5 @@
+- [x] GitHub Actions 可配置 `MARKET_DATA_SOURCE`，日志输出生效值且默认值符合预期
+- [x] 沪深300 close 具备 csindex/cnindex 备用数据源，并有空数据校验
+- [x] backfill 任一分段失败时不切换 current_run_id、不清理旧 run、线上仍可用
+- [x] 本地小区间回灌验证通过（fallback 与失败不切换生效）
+- [x] `npm run build` 通过

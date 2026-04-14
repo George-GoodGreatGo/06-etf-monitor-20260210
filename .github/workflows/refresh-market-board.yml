@@ -9,6 +9,10 @@ on:
         description: incremental 或 backfill
         required: false
         default: backfill
+      marketDataSource:
+        description: 数据源策略（financedata/eastmoney-http/akshare-first）
+        required: false
+        default: financedata
       startDate:
         description: backfill 起始日期（YYYYMMDD，可选）
         required: false
@@ -50,8 +54,13 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          MARKET_DATA_SOURCE: akshare-first
         run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            export MARKET_DATA_SOURCE="financedata"
+          else
+            export MARKET_DATA_SOURCE="${{ github.event.inputs.marketDataSource }}"
+          fi
+          if [ -z "$MARKET_DATA_SOURCE" ]; then export MARKET_DATA_SOURCE="financedata"; fi
           if [ "${{ github.event_name }}" = "schedule" ]; then
             mode="backfill"
           else
@@ -60,7 +69,7 @@ jobs:
           startDate="${{ github.event.inputs.startDate }}"
           endDate="${{ github.event.inputs.endDate }}"
           if [ -z "$mode" ]; then mode="incremental"; fi
-          echo "mode=$mode startDate=$startDate endDate=$endDate"
+          echo "MARKET_DATA_SOURCE=$MARKET_DATA_SOURCE mode=$mode startDate=$startDate endDate=$endDate"
           sleep_sec=$(( (RANDOM % 600) + 1 ))
           echo "jitter sleep ${sleep_sec}s"
           sleep "$sleep_sec"

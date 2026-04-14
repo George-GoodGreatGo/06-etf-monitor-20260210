@@ -167,14 +167,27 @@ async function fetchEtfProxyPe(args: { etfCode: string }): Promise<{ date: strin
   if (!/^\d{6}$/.test(code)) return { date: null, pe: null }
   const secid = `0.${code}`
   const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${encodeURIComponent(secid)}&fields=f58,f59,f60,f86,f92,f107,f111,f162`
-  const res = await fetch(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json,text/plain,*/*' },
-  })
-  if (!res.ok) return { date: null, pe: null }
-  const j = (await res.json().catch(() => null)) as any
-  const data = j?.data && typeof j.data === 'object' ? j.data : null
-  const pe = toNum(data?.f162)
-  return { date: null, pe }
+  
+  let lastErr: Error | null = null
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json,text/plain,*/*' },
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const j = (await res.json().catch(() => null)) as any
+      const data = j?.data && typeof j.data === 'object' ? j.data : null
+      const pe = toNum(data?.f162)
+      return { date: null, pe }
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error(String(e))
+      if (attempt < 3) {
+        await new Promise((r) => setTimeout(r, 1000 * attempt))
+      }
+    }
+  }
+  console.error(`fetchEtfProxyPe failed for ${code} after 3 attempts:`, lastErr?.message)
+  return { date: null, pe: null }
 }
 
 function buildRollingPercentile(values: Array<number | null>, window: number, minPeriods: number): Array<number | null> {

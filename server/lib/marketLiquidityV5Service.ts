@@ -70,6 +70,68 @@ function normalizeTradeDate(raw: unknown): string {
   return ''
 }
 
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms))
+}
+
+function normalizeYmd10ToYmd8(ymd10: string): string {
+  const s = String(ymd10 || '').trim()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return ''
+  return s.replace(/-/g, '')
+}
+
+async function fetchCsindexHs300CloseSeries(args: { startDate8: string; endDate8: string }): Promise<Record<string, unknown>[]> {
+  const startDate = String(args.startDate8 || '').trim()
+  const endDate = String(args.endDate8 || '').trim()
+  if (!/^\d{8}$/.test(startDate) || !/^\d{8}$/.test(endDate)) return []
+
+  const url = new URL('https://www.csindex.com.cn/csindex-home/perf/index-perf')
+  url.searchParams.set('indexCode', '000300')
+  url.searchParams.set('startDate', startDate)
+  url.searchParams.set('endDate', endDate)
+
+  let lastErr: unknown = null
+  for (let i = 0; i < 2; i += 1) {
+    try {
+      const res = await fetch(url.toString(), {
+        headers: {
+          'User-Agent': 'Mozilla/5.0',
+          Accept: 'application/json,text/plain,*/*',
+          Referer: 'https://www.csindex.com.cn/',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      })
+      const text = await res.text().catch(() => '')
+      const normalized = String(text || '').replace(/\s+/g, ' ').trim()
+      const isWaf =
+        normalized.includes('attack.jinxibei.com') ||
+        normalized.includes('您的访问被阻断') ||
+        normalized.includes('应用防火墙') ||
+        normalized.includes('访问被阻断')
+      if (isWaf) throw new Error(`csindex blocked by WAF: HTTP ${res.status}`)
+      if (!res.ok) throw new Error(`csindex failed: HTTP ${res.status}`)
+
+      const j = normalized ? (JSON.parse(normalized) as Record<string, unknown>) : null
+      const rows = j && typeof j === 'object' && Array.isArray((j as Record<string, unknown>).data) ? ((j as Record<string, unknown>).data as unknown[]) : []
+      const out: Record<string, unknown>[] = []
+      for (const r of rows) {
+        const o = r && typeof r === 'object' ? (r as Record<string, unknown>) : null
+        if (!o) continue
+        const d10 = normalizeTradeDate(o.tradeDate)
+        const d8 = normalizeYmd10ToYmd8(d10)
+        const c = typeof o.close === 'number' ? o.close : o.close == null ? NaN : Number(o.close)
+        if (!d8 || !Number.isFinite(c)) continue
+        out.push({ trade_date: d8, close: c })
+      }
+      return out
+    } catch (e) {
+      lastErr = e
+      if (i === 0) await sleep(250 + Math.floor(Math.random() * 400))
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr))
+}
+
 async function fetchEastmoneyIndexDaily(args: {
   secid: string
   start: string
@@ -464,8 +526,9 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       }),
     ])
 
+    const hs300Filled = hs300.length ? hs300 : await fetchCsindexHs300CloseSeries({ startDate8: start, endDate8: end })
     const series = buildLiquidityV5Series({
-      hs300,
+      hs300: hs300Filled,
       sh: normalizeMarketAmountToKyuan(sh),
       sz: normalizeMarketAmountToKyuan(sz),
       north,

@@ -119,7 +119,7 @@ async function main() {
   const end10 = ymd8ToYmd10(endDate)
   if (!start10 || !end10) throw new Error('bad startDate/endDate (expect YYYYMMDD)')
 
-  process.env.MARKET_DATA_SOURCE = String(process.env.MARKET_DATA_SOURCE || '').trim() || 'akshare-first'
+  process.env.MARKET_DATA_SOURCE = String(process.env.MARKET_DATA_SOURCE || '').trim() || 'financedata'
 
   process.stdout.write(`mode=${mode} range=${startDate}..${endDate}\n`)
   if (mode === 'backfill') {
