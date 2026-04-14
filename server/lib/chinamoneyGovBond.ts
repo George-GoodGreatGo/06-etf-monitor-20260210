@@ -6,6 +6,17 @@ type CacheEntry = { expiresAt: number; value: Map<string, number> }
 const cache = new Map<number, CacheEntry>()
 const inflight = new Map<number, Promise<Map<string, number>>>()
 
+function shouldVerboseLog(): boolean {
+  const v = String(process.env.CHINAMONEY_VERBOSE || '').trim()
+  if (v === '1' || v.toLowerCase() === 'true') return true
+  return String(process.env.GITHUB_ACTIONS || '').trim().toLowerCase() === 'true'
+}
+
+function logEvent(event: Record<string, unknown>) {
+  if (!shouldVerboseLog()) return
+  process.stdout.write(`${JSON.stringify({ ts: new Date().toISOString(), ...event })}\n`)
+}
+
 function sleep(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms))
 }
@@ -79,9 +90,12 @@ async function fetchYearXlsx(year: number): Promise<Buffer> {
   const maxAttempts = Number.isFinite(maxAttemptsRaw) ? Math.max(1, Math.min(8, Math.floor(maxAttemptsRaw))) : 5
   const baseDelayRaw = Number(process.env.CHINAMONEY_FETCH_BASE_DELAY_MS)
   const baseDelayMs = Number.isFinite(baseDelayRaw) ? Math.max(0, Math.min(30_000, Math.floor(baseDelayRaw))) : 1_500
+  const startedAt = Date.now()
+  logEvent({ event: 'chinamoney.10y.year.start', year, maxAttempts, baseDelayMs })
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const res = await fetchWithTimeout(url, 20_000 + attempt * 5_000)
+      const timeoutMs = 20_000 + attempt * 5_000
+      const res = await fetchWithTimeout(url, timeoutMs)
       if (!res.ok) {
         const text = await res.text().catch(() => '')
         throw new Error(`chinamoney downYearBzqx failed: HTTP ${res.status} ${text}`)
@@ -95,13 +109,32 @@ async function fetchYearXlsx(year: number): Promise<Buffer> {
           throw new Error(`chinamoney downYearBzqx failed: unexpected html body ${hint}`)
         }
       }
+      logEvent({ event: 'chinamoney.10y.year.done', year, attempt, timeoutMs, bytes: arrayBuf.byteLength, ms: Date.now() - startedAt })
       return Buffer.from(arrayBuf)
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e))
       if (attempt < maxAttempts) {
         const base = Math.min(30_000, baseDelayMs * 2 ** (attempt - 1))
         const jitter = Math.floor(Math.random() * 350)
-        await sleep(base + jitter)
+        const waitMs = base + jitter
+        logEvent({
+          event: 'chinamoney.10y.year.retry',
+          year,
+          attempt,
+          timeoutMs: 20_000 + attempt * 5_000,
+          waitMs,
+          error: String(lastErr.message || '').slice(0, 220),
+        })
+        await sleep(waitMs)
+      } else {
+        logEvent({
+          event: 'chinamoney.10y.year.fail',
+          year,
+          attempt,
+          timeoutMs: 20_000 + attempt * 5_000,
+          ms: Date.now() - startedAt,
+          error: String(lastErr.message || '').slice(0, 320),
+        })
       }
     }
   }
@@ -141,6 +174,7 @@ export async function fetchGovBond10yYieldPctByDate(input: {
       if (!date || term == null || y == null) continue
       if (term === 10) out.set(date, y)
     }
+    logEvent({ event: 'chinamoney.10y.year.parsed', year, points: out.size })
     cache.set(year, { expiresAt: now + ttl, value: out })
     return out
   })().finally(() => inflight.delete(year))

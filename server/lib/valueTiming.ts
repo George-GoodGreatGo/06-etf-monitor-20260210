@@ -2,6 +2,17 @@ import { fetchGovBond10yYieldPctByDateSafe } from './chinamoneyGovBond.js'
 import { fetchCsindexIndexValuationSeries } from './csindexIndexValuation.js'
 import { readLatestValueTimingIndexSnapshot, readLatestValueTimingIndexSnapshots } from './supabaseRest.js'
 
+function shouldVerboseLog(): boolean {
+  const v = String(process.env.VALUE_TIMING_VERBOSE || '').trim()
+  if (v === '1' || v.toLowerCase() === 'true') return true
+  return String(process.env.GITHUB_ACTIONS || '').trim().toLowerCase() === 'true'
+}
+
+function logEvent(event: Record<string, unknown>) {
+  if (!shouldVerboseLog()) return
+  process.stdout.write(`${JSON.stringify({ ts: new Date().toISOString(), ...event })}\n`)
+}
+
 type ValueTimingIndexConfig = {
   code: string
   name: string
@@ -179,10 +190,13 @@ async function fetchEtfProxyPe(args: {
   const maxAttempts = Number.isFinite(maxAttemptsRaw) ? Math.max(1, Math.min(8, Math.floor(maxAttemptsRaw))) : 4
   const baseDelayRaw = Number(process.env.ETF_PROXY_BASE_DELAY_MS)
   const baseDelayMs = Number.isFinite(baseDelayRaw) ? Math.max(0, Math.min(15_000, Math.floor(baseDelayRaw))) : 900
+  const startedAt = Date.now()
+  logEvent({ event: 'value_timing.pe_proxy.start', etfCode: code, maxAttempts, baseDelayMs })
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const ac = new AbortController()
-      const id = setTimeout(() => ac.abort(), 12_000 + attempt * 2_000)
+      const timeoutMs = 12_000 + attempt * 2_000
+      const id = setTimeout(() => ac.abort(), timeoutMs)
       let res: Response
       try {
         res = await fetch(url, {
@@ -196,11 +210,37 @@ async function fetchEtfProxyPe(args: {
       const j = (await res.json().catch(() => null)) as any
       const data = j?.data && typeof j.data === 'object' ? j.data : null
       const pe = toNum(data?.f162)
+      logEvent({
+        event: 'value_timing.pe_proxy.done',
+        etfCode: code,
+        attempt,
+        timeoutMs,
+        pe,
+        ms: Date.now() - startedAt,
+      })
       return { date: null, pe, error: pe == null ? 'pe_missing' : null }
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e))
       if (attempt < maxAttempts) {
-        await sleep(baseDelayMs * attempt + Math.floor(Math.random() * 250))
+        const waitMs = baseDelayMs * attempt + Math.floor(Math.random() * 250)
+        logEvent({
+          event: 'value_timing.pe_proxy.retry',
+          etfCode: code,
+          attempt,
+          timeoutMs: 12_000 + attempt * 2_000,
+          waitMs,
+          error: String(lastErr.message || '').slice(0, 220),
+        })
+        await sleep(waitMs)
+      } else {
+        logEvent({
+          event: 'value_timing.pe_proxy.fail',
+          etfCode: code,
+          attempt,
+          timeoutMs: 12_000 + attempt * 2_000,
+          ms: Date.now() - startedAt,
+          error: String(lastErr.message || '').slice(0, 320),
+        })
       }
     }
   }
@@ -244,30 +284,39 @@ export async function getValueTimingIndexSeries(args: {
   const cfg = VALUE_TIMING_INDEXES[String(args.code || '').trim()]
   if (!cfg) throw new Error(`unsupported index code: ${String(args.code || '').trim()}`)
 
+  const jobStartedAt = Date.now()
+  logEvent({ event: 'value_timing.index.compute.start', code: cfg.code })
+
   const start = typeof args.startDate === 'string' ? args.startDate.trim() : ''
   const end = typeof args.endDate === 'string' ? args.endDate.trim() : ''
   const start8 = /^\d{8}$/.test(start) ? start : '20051230'
   const end8 = /^\d{8}$/.test(end) ? end : '20991231'
 
+  const closeStartedAt = Date.now()
   const closeSeries =
     cfg.closeSource === 'cnindex'
       ? await fetchCnindexIndexCloseSeries({ indexCode: cfg.closeCode, startDate8: start8, endDate8: end8 })
       : await fetchCsindexIndexCloseSeries({ indexCode: cfg.closeCode, startDate: start8, endDate: end8 })
   if (!closeSeries.length) throw new Error(`close series empty: ${cfg.code}`)
+  logEvent({ event: 'value_timing.index.close.done', code: cfg.code, points: closeSeries.length, ms: Date.now() - closeStartedAt })
 
   const peByDate = new Map<string, number | null>()
   const notes: string[] = []
   if (cfg.peSource === 'csindex_indicator_xls') {
+    const peStartedAt = Date.now()
     const series = await fetchCsindexIndexValuationSeries({ indexCode: String(cfg.peIndexCode || cfg.code) })
     for (const p of series) peByDate.set(p.date, p.pe)
     notes.push(`pe_source=csindex_indicator_xls`)
     notes.push(`pe_points=${series.length}`)
+    logEvent({ event: 'value_timing.index.pe_csindex.done', code: cfg.code, points: series.length, ms: Date.now() - peStartedAt })
   } else {
+    const peStartedAt = Date.now()
     const r = await fetchEtfProxyPe({ etfCode: String(cfg.peEtfCode || '') })
     if (r.error) notes.push(`pe_etf_proxy_error=${String(r.error).slice(0, 180)}`)
     if (r.pe != null) notes.push(`pe_source=etf_proxy:${cfg.peEtfCode}`)
     const lastDate = closeSeries[closeSeries.length - 1]?.date
     if (lastDate && r.pe != null) peByDate.set(lastDate, r.pe)
+    logEvent({ event: 'value_timing.index.pe_proxy.result', code: cfg.code, etfCode: cfg.peEtfCode, pe: r.pe, error: r.error, ms: Date.now() - peStartedAt })
   }
 
   const years = new Set<number>()
@@ -277,13 +326,18 @@ export async function getValueTimingIndexSeries(args: {
   }
   const yieldByDate = new Map<string, number>()
   const yieldFailYears: Array<{ year: number; error: string }> = []
-  for (const y of years) {
+  const sortedYears = Array.from(years).sort((a, b) => a - b)
+  for (const y of sortedYears) {
+    const yStartedAt = Date.now()
+    logEvent({ event: 'value_timing.index.y10.year.start', code: cfg.code, year: y })
     const r = await fetchGovBond10yYieldPctByDateSafe({ year: y })
     if (r.error) {
       yieldFailYears.push({ year: y, error: r.error })
+      logEvent({ event: 'value_timing.index.y10.year.fail', code: cfg.code, year: y, ms: Date.now() - yStartedAt, error: String(r.error).slice(0, 240) })
       continue
     }
     for (const [d, v] of r.map) yieldByDate.set(d, v)
+    logEvent({ event: 'value_timing.index.y10.year.done', code: cfg.code, year: y, points: r.map.size, ms: Date.now() - yStartedAt })
   }
   if (yieldFailYears.length) {
     for (const it of yieldFailYears) notes.push(`yield10y_year_missing=${it.year}:${String(it.error).slice(0, 180)}`)
@@ -291,6 +345,7 @@ export async function getValueTimingIndexSeries(args: {
   let yieldFallbackByDate: Map<string, number> | null = null
   let usedYieldFallback = false
   if (yieldFailYears.length || yieldByDate.size === 0) {
+    const fbStartedAt = Date.now()
     const prev = await readLatestValueTimingIndexSnapshot(cfg.code).catch(() => null)
     const payload = prev?.payload && typeof prev.payload === 'object' ? (prev.payload as { series?: unknown }) : null
     const prevSeries = payload && Array.isArray(payload.series) ? (payload.series as Array<Record<string, unknown>>) : []
@@ -302,6 +357,7 @@ export async function getValueTimingIndexSeries(args: {
     }
     yieldFallbackByDate = m.size ? m : null
     if (yieldFallbackByDate) notes.push('yield10y_fallback=prev_snapshot')
+    logEvent({ event: 'value_timing.index.y10.fallback', code: cfg.code, points: m.size, enabled: Boolean(yieldFallbackByDate), ms: Date.now() - fbStartedAt })
   }
 
   const spreads: Array<number | null> = []
@@ -353,6 +409,16 @@ export async function getValueTimingIndexSeries(args: {
   }
   if (yieldByDate.size === 0) notes.push('yield10y_missing=all')
   if (usedYieldFallback) notes.push('yield10y_used_fallback=1')
+
+  logEvent({
+    event: 'value_timing.index.compute.done',
+    code: cfg.code,
+    closePoints: closeSeries.length,
+    yieldPoints: yieldByDate.size,
+    failYears: yieldFailYears.length,
+    usedYieldFallback,
+    ms: Date.now() - jobStartedAt,
+  })
 
   const ranks = buildRollingPercentile(spreads, 1260, 630)
   for (let i = 0; i < series.length; i += 1) series[i].spreadPctRank5y = ranks[i]
