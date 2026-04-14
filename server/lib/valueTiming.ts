@@ -1,4 +1,4 @@
-import { fetchGovBond10yYieldPctByDate } from './chinamoneyGovBond.js'
+import { fetchGovBond10yYieldPctByDateSafe } from './chinamoneyGovBond.js'
 import { fetchCsindexIndexValuationSeries } from './csindexIndexValuation.js'
 import { readLatestValueTimingIndexSnapshot, readLatestValueTimingIndexSnapshots } from './supabaseRest.js'
 
@@ -79,6 +79,10 @@ function ymd10MinusDays(ymd10: string, days: number): string | null {
 function toNum(v: unknown): number | null {
   const n = typeof v === 'number' ? v : v == null ? NaN : Number(String(v).trim())
   return Number.isFinite(n) ? n : null
+}
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms))
 }
 
 async function fetchCsindexIndexCloseSeries(args: {
@@ -162,32 +166,49 @@ async function fetchCnindexIndexCloseSeries(args: {
   return out
 }
 
-async function fetchEtfProxyPe(args: { etfCode: string }): Promise<{ date: string | null; pe: number | null }> {
+async function fetchEtfProxyPe(args: {
+  etfCode: string
+}): Promise<{ date: string | null; pe: number | null; error: string | null }> {
   const code = String(args.etfCode || '').trim()
-  if (!/^\d{6}$/.test(code)) return { date: null, pe: null }
+  if (!/^\d{6}$/.test(code)) return { date: null, pe: null, error: 'bad_etf_code' }
   const secid = `0.${code}`
   const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${encodeURIComponent(secid)}&fields=f58,f59,f60,f86,f92,f107,f111,f162`
-  
+
   let lastErr: Error | null = null
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  const maxAttemptsRaw = Number(process.env.ETF_PROXY_MAX_ATTEMPTS)
+  const maxAttempts = Number.isFinite(maxAttemptsRaw) ? Math.max(1, Math.min(8, Math.floor(maxAttemptsRaw))) : 4
+  const baseDelayRaw = Number(process.env.ETF_PROXY_BASE_DELAY_MS)
+  const baseDelayMs = Number.isFinite(baseDelayRaw) ? Math.max(0, Math.min(15_000, Math.floor(baseDelayRaw))) : 900
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json,text/plain,*/*' },
-      })
+      const ac = new AbortController()
+      const id = setTimeout(() => ac.abort(), 12_000 + attempt * 2_000)
+      let res: Response
+      try {
+        res = await fetch(url, {
+          signal: ac.signal,
+          headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json,text/plain,*/*' },
+        })
+      } finally {
+        clearTimeout(id)
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const j = (await res.json().catch(() => null)) as any
       const data = j?.data && typeof j.data === 'object' ? j.data : null
       const pe = toNum(data?.f162)
-      return { date: null, pe }
+      return { date: null, pe, error: pe == null ? 'pe_missing' : null }
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e))
-      if (attempt < 3) {
-        await new Promise((r) => setTimeout(r, 1000 * attempt))
+      if (attempt < maxAttempts) {
+        await sleep(baseDelayMs * attempt + Math.floor(Math.random() * 250))
       }
     }
   }
-  console.error(`fetchEtfProxyPe failed for ${code} after 3 attempts:`, lastErr?.message)
-  return { date: null, pe: null }
+  return { date: null, pe: null, error: lastErr?.message || 'fetch_failed' }
+}
+
+export async function fetchEtfProxyPeForTest(etfCode: string): Promise<{ date: string | null; pe: number | null; error: string | null }> {
+  return await fetchEtfProxyPe({ etfCode })
 }
 
 function buildRollingPercentile(values: Array<number | null>, window: number, minPeriods: number): Array<number | null> {
@@ -243,6 +264,7 @@ export async function getValueTimingIndexSeries(args: {
     notes.push(`pe_points=${series.length}`)
   } else {
     const r = await fetchEtfProxyPe({ etfCode: String(cfg.peEtfCode || '') })
+    if (r.error) notes.push(`pe_etf_proxy_error=${String(r.error).slice(0, 180)}`)
     if (r.pe != null) notes.push(`pe_source=etf_proxy:${cfg.peEtfCode}`)
     const lastDate = closeSeries[closeSeries.length - 1]?.date
     if (lastDate && r.pe != null) peByDate.set(lastDate, r.pe)
@@ -254,9 +276,32 @@ export async function getValueTimingIndexSeries(args: {
     if (Number.isFinite(y)) years.add(y)
   }
   const yieldByDate = new Map<string, number>()
+  const yieldFailYears: Array<{ year: number; error: string }> = []
   for (const y of years) {
-    const m = await fetchGovBond10yYieldPctByDate({ year: y })
-    for (const [d, v] of m) yieldByDate.set(d, v)
+    const r = await fetchGovBond10yYieldPctByDateSafe({ year: y })
+    if (r.error) {
+      yieldFailYears.push({ year: y, error: r.error })
+      continue
+    }
+    for (const [d, v] of r.map) yieldByDate.set(d, v)
+  }
+  if (yieldFailYears.length) {
+    for (const it of yieldFailYears) notes.push(`yield10y_year_missing=${it.year}:${String(it.error).slice(0, 180)}`)
+  }
+  let yieldFallbackByDate: Map<string, number> | null = null
+  let usedYieldFallback = false
+  if (yieldFailYears.length || yieldByDate.size === 0) {
+    const prev = await readLatestValueTimingIndexSnapshot(cfg.code).catch(() => null)
+    const payload = prev?.payload && typeof prev.payload === 'object' ? (prev.payload as { series?: unknown }) : null
+    const prevSeries = payload && Array.isArray(payload.series) ? (payload.series as Array<Record<string, unknown>>) : []
+    const m = new Map<string, number>()
+    for (const p of prevSeries) {
+      const d = typeof p.date === 'string' ? p.date : ''
+      const y10 = typeof p.yield10yPct === 'number' && Number.isFinite(p.yield10yPct) ? p.yield10yPct : null
+      if (d && y10 != null) m.set(d, y10)
+    }
+    yieldFallbackByDate = m.size ? m : null
+    if (yieldFallbackByDate) notes.push('yield10y_fallback=prev_snapshot')
   }
 
   const spreads: Array<number | null> = []
@@ -276,6 +321,24 @@ export async function getValueTimingIndexSeries(args: {
         }
       }
     }
+    if (y10 == null && yieldFallbackByDate) {
+      const direct = yieldFallbackByDate.get(p.date)
+      if (typeof direct === 'number' && Number.isFinite(direct)) {
+        y10 = direct
+        usedYieldFallback = true
+      } else {
+        for (let i = 1; i <= 7; i += 1) {
+          const prev = ymd10MinusDays(p.date, i)
+          if (!prev) continue
+          const hit = yieldFallbackByDate.get(prev)
+          if (typeof hit === 'number' && Number.isFinite(hit)) {
+            y10 = hit
+            usedYieldFallback = true
+            break
+          }
+        }
+      }
+    }
     const spread = calcSpreadPct(earningsYieldPct, y10)
     spreads.push(spread)
     series.push({
@@ -288,6 +351,8 @@ export async function getValueTimingIndexSeries(args: {
       spreadPctRank5y: null,
     })
   }
+  if (yieldByDate.size === 0) notes.push('yield10y_missing=all')
+  if (usedYieldFallback) notes.push('yield10y_used_fallback=1')
 
   const ranks = buildRollingPercentile(spreads, 1260, 630)
   for (let i = 0; i < series.length; i += 1) series[i].spreadPctRank5y = ranks[i]

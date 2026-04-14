@@ -6,6 +6,27 @@ type CacheEntry = { expiresAt: number; value: Map<string, number> }
 const cache = new Map<number, CacheEntry>()
 const inflight = new Map<number, Promise<Map<string, number>>>()
 
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms))
+}
+
+async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
+  const ms = Math.max(1_000, Math.min(60_000, Math.floor(timeoutMs)))
+  const ac = new AbortController()
+  const id = setTimeout(() => ac.abort(), ms)
+  try {
+    return await fetch(url, {
+      signal: ac.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        Accept: 'application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,*/*',
+      },
+    })
+  } finally {
+    clearTimeout(id)
+  }
+}
+
 function toYmd10FromExcelDate(n: number): string | null {
   const v = XLSX.SSF.parse_date_code(n)
   if (!v) return null
@@ -52,33 +73,35 @@ async function fetchYearXlsx(year: number): Promise<Buffer> {
   const url =
     `https://yield.chinabond.com.cn/cbweb-mn/yc/downYearBzqx?year=${year}` +
     `&wrjxCBFlag=0&zblx=txy&ycDefId=${YC_DEF_ID_GOV_BOND_MATURITY}&locale=zh_CN`
-  
+
   let lastErr: Error | null = null
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  const maxAttemptsRaw = Number(process.env.CHINAMONEY_FETCH_MAX_ATTEMPTS)
+  const maxAttempts = Number.isFinite(maxAttemptsRaw) ? Math.max(1, Math.min(8, Math.floor(maxAttemptsRaw))) : 5
+  const baseDelayRaw = Number(process.env.CHINAMONEY_FETCH_BASE_DELAY_MS)
+  const baseDelayMs = Number.isFinite(baseDelayRaw) ? Math.max(0, Math.min(30_000, Math.floor(baseDelayRaw))) : 1_500
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        }
-      })
+      const res = await fetchWithTimeout(url, 20_000 + attempt * 5_000)
       if (!res.ok) {
         const text = await res.text().catch(() => '')
         throw new Error(`chinamoney downYearBzqx failed: HTTP ${res.status} ${text}`)
       }
+      const ct = String(res.headers.get('content-type') || '')
       const arrayBuf = await res.arrayBuffer()
-      if (arrayBuf.byteLength < 1000) {
-        // Sometimes they return a short error HTML string instead of a 50x code
+      if (ct.includes('text/html') || arrayBuf.byteLength < 2_048) {
         const text = Buffer.from(arrayBuf).toString('utf-8')
-        if (text.includes('<html') || text.includes('504')) {
-          throw new Error(`chinamoney downYearBzqx failed: Returned short HTML error instead of Excel file`)
+        const hint = text.slice(0, 400)
+        if (ct.includes('text/html') || hint.toLowerCase().includes('<html') || hint.includes('Gateway Time-out') || hint.includes('504')) {
+          throw new Error(`chinamoney downYearBzqx failed: unexpected html body ${hint}`)
         }
       }
       return Buffer.from(arrayBuf)
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e))
-      if (attempt < 3) {
-        await new Promise(r => setTimeout(r, 2000 * attempt)) // Wait before retry
+      if (attempt < maxAttempts) {
+        const base = Math.min(30_000, baseDelayMs * 2 ** (attempt - 1))
+        const jitter = Math.floor(Math.random() * 350)
+        await sleep(base + jitter)
       }
     }
   }
@@ -124,4 +147,17 @@ export async function fetchGovBond10yYieldPctByDate(input: {
 
   inflight.set(year, p)
   return await p
+}
+
+export async function fetchGovBond10yYieldPctByDateSafe(input: {
+  year: number
+  cacheTtlMs?: number
+}): Promise<{ map: Map<string, number>; error: string | null }> {
+  try {
+    const map = await fetchGovBond10yYieldPctByDate(input)
+    return { map, error: null }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return { map: new Map<string, number>(), error: msg || 'unknown_error' }
+  }
 }

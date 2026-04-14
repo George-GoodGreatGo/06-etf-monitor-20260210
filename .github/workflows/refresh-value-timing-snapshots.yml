@@ -11,6 +11,7 @@ jobs:
     timeout-minutes: 30
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      NODE_OPTIONS: --dns-result-order=ipv4first
 
     steps:
       - name: Checkout
@@ -29,5 +30,8 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CHINAMONEY_FETCH_MAX_ATTEMPTS: "7"
+          CHINAMONEY_FETCH_BASE_DELAY_MS: "2000"
+          ETF_PROXY_MAX_ATTEMPTS: "6"
+          ETF_PROXY_BASE_DELAY_MS: "1200"
         run: npx tsx server/scripts/refreshValueTimingSnapshots.ts
-

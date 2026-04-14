@@ -1,0 +1,6 @@
+- [x] 10Y 国债收益率下载在遇到 504/网络失败时会重试，并在最终失败时降级为缺失年份而不是终止进程。
+- [x] 980081（ETF 推算口径）在遇到 `fetch failed` 时会重试，并在最终失败时降级为 `pe=null`，且不会终止整次任务。
+- [x] 刷新脚本支持“部分成功”：至少一个指数写入成功时，GitHub Actions 整体为成功（exit code 0），并输出 `value_timing.refresh.partial_fail` 日志。
+- [x] 全部指数失败时，脚本仍会以非 0 退出，便于告警。
+- [x] 工作流包含网络兼容配置（例如 IPv4 优先），以降低 CI 环境下的 `fetch failed` 概率。
+- [x] `npm run check` 与 `npm run test:unit` 通过。
