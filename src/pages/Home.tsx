@@ -87,17 +87,17 @@ const VALUE_INDEX_OPTIONS = [
   {
     code: '932365',
     label: '自由现金流',
-    desc: '聚焦自由现金流质量与可持续性，使用盈利收益率-10Y利差评估阶段性估值吸引力。',
+    desc: '以自由现金流质量与持续性为核心构建，偏向高现金创造能力公司；用股债利差刻画估值修复空间。',
   },
   {
     code: '932315',
     label: '红利质量',
-    desc: '在高股息基础上叠加质量筛选，使用盈利收益率-10Y利差评估阶段性估值吸引力。',
+    desc: '在红利因子上叠加盈利与稳健性质量筛选，强化分红可持续性；用股债利差识别阶段性机会。',
   },
   {
     code: '980081',
     label: '国证价值100',
-    desc: '价值风格宽基，优先使用公开估值源；若估值缺口则以ETF(159263)替代并显著标注。',
+    desc: '价值风格宽基，聚焦低估值与基本面特征；动态PE历史数据来自touzid（截至2026/4/13），增量来自国证指数官网每日抓取。',
   },
 ] as const
 
@@ -877,7 +877,7 @@ export default function Home() {
                             </span>
                             {last?.spreadPctRank5y != null && (
                               <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2 py-[2px] text-[11px] font-medium leading-none text-[#A9B6CC] font-sans">
-                                分位 {last.spreadPctRank5y.toFixed(0)}
+                                股债利差分位 {last.spreadPctRank5y.toFixed(0)}
                               </span>
                             )}
                             {last?.earningsYieldPct != null && (

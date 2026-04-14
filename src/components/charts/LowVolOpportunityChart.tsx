@@ -65,12 +65,22 @@ type HoverState = {
 type Props = {
   series: LowVolH30269Point[]
   indexCode?: string
+  indexLabel?: string
+  indexDesc?: string
   biasBasis: 'sma250' | 'sma60'
   metricMode?: 'dividend' | 'earnings'
   className?: string
 }
 
-export default function LowVolOpportunityChart({ series, indexCode, biasBasis, metricMode = 'dividend', className }: Props) {
+export default function LowVolOpportunityChart({
+  series,
+  indexCode,
+  indexLabel,
+  indexDesc,
+  biasBasis,
+  metricMode = 'dividend',
+  className,
+}: Props) {
   const [hover, setHover] = useState<HoverState | null>(null)
   const [showInfo, setShowInfo] = useState(true)
   const [showSma60, setShowSma60] = useState(true)
@@ -81,6 +91,8 @@ export default function LowVolOpportunityChart({ series, indexCode, biasBasis, m
   const [showSpreadPctPane, setShowSpreadPctPane] = useState(true)
 
   const thresh = useMemo(() => getLowVolThresh(indexCode), [indexCode])
+  const isValueTiming = metricMode === 'earnings'
+  const isValue100 = isValueTiming && indexCode === '980081'
   const spreadCoreLabel = metricMode === 'earnings' ? '盈利收益率(=1/PE)-10Y' : '股息收益率(修正)-10Y'
   const metricDefinition =
     metricMode === 'earnings'
@@ -925,6 +937,12 @@ export default function LowVolOpportunityChart({ series, indexCode, biasBasis, m
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
             <div className="text-[#E6EDF7]">指标定义</div>
+            {isValueTiming && indexDesc ? (
+              <div>
+                指数介绍：{indexLabel ? `${indexLabel}（${indexCode ?? ''}）` : indexCode ? `指数（${indexCode}）` : '指数'}，{indexDesc}
+              </div>
+            ) : null}
+            {isValue100 ? <div>动态PE来源：历史数据来自 touzid（截至2026/4/13），增量数据来自国证指数官网每日抓取。</div> : null}
             <div>{metricDefinition}</div>
             <div>利差（核心）：{spreadCoreLabel}</div>
             <div>利差分位：核心利差的5年滚动分位（window≈1260，minPeriods=252）</div>

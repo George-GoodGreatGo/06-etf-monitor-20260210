@@ -91,6 +91,7 @@ export default function ValueTimingPanel(props: {
   const isSnapshot = sourceType === 'snapshot'
   const peSourceNotes = Array.isArray(latest?.peSourceNotes) ? latest.peSourceNotes.map((x) => String(x)) : []
   const etfFallbackActive = peSourceNotes.some((s) => s.includes('159263') || s.includes('fallback_etf'))
+  const isValue100 = indexCode === '980081'
   const sampleTip = latest?.spreadPctRank5y == null ? '样本期不足或估值缺失，分位可能为空' : null
 
   return (
@@ -112,11 +113,16 @@ export default function ValueTimingPanel(props: {
               <span>今日未更新/非交易日，已显示最近交易日数据</span>
             </div>
           ) : null}
-          {etfFallbackActive || sampleTip ? (
+          {etfFallbackActive || sampleTip || isValue100 ? (
             <div className="mt-2 flex flex-wrap gap-2">
               {etfFallbackActive ? (
                 <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-[#A9B6CC]">
                   980081 当前估值采用 ETF 替代口径（159263）
+                </span>
+              ) : null}
+              {isValue100 ? (
+                <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-[#A9B6CC]">
+                  动态PE：历史数据来自 touzid（截至2026/4/13），增量数据来自国证指数官网每日抓取
                 </span>
               ) : null}
               {sampleTip ? (
@@ -137,10 +143,10 @@ export default function ValueTimingPanel(props: {
               <span className="font-medium text-[#CBD5E1]">盈利收益率</span>：按 1/PE 计算（百分比口径）。
             </p>
             <p>
-              <span className="font-medium text-[#CBD5E1]">利差（核心）</span>：盈利收益率(=1/PE)-10Y。
+              <span className="font-medium text-[#CBD5E1]">股债利差（核心）</span>：盈利收益率(=1/PE)-10Y。
             </p>
             <p>
-              <span className="font-medium text-[#CBD5E1]">利差分位(5年)</span>：核心利差的 5 年滚动分位（window≈1260，minPeriods=252）。
+              <span className="font-medium text-[#CBD5E1]">股债利差分位(5年)</span>：核心股债利差的 5 年滚动分位（window≈1260，minPeriods=252）。
             </p>
           </div>
         </div>
@@ -170,7 +176,7 @@ export default function ValueTimingPanel(props: {
                 </div>
               </div>
               <div className="flex items-baseline justify-between gap-4">
-                <div className="text-[#94A3B8]">利差分位(5年)</div>
+                <div className="text-[#94A3B8]">股债利差分位(5年)</div>
                 <div className="font-mono text-sm font-semibold text-[#F8FAFC]">{fmt(latest?.spreadPctRank5y, 1)}</div>
               </div>
               <div className="flex items-baseline justify-between gap-4">
@@ -188,7 +194,7 @@ export default function ValueTimingPanel(props: {
 
       <div className="mt-4">
         <div className="relative">
-          <ValueTimingChart series={series} indexCode={indexCode} biasBasis={biasBasis} />
+          <ValueTimingChart series={series} indexCode={indexCode} indexLabel={indexLabel} indexDesc={indexDesc} biasBasis={biasBasis} />
           {loading && !error ? (
             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-black/10 backdrop-blur-[1px]">
               <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-black/30 px-4 py-3 text-sm text-[#E6EDF7]">

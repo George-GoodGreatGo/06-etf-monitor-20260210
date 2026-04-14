@@ -5,11 +5,13 @@ import type { LowVolH30269Point, ValueTimingPoint } from '@/utils/marketApi'
 type Props = {
   series: ValueTimingPoint[]
   indexCode?: string
+  indexLabel?: string
+  indexDesc?: string
   biasBasis: 'sma250' | 'sma60'
   className?: string
 }
 
-export default function ValueTimingChart({ series, indexCode, biasBasis, className }: Props) {
+export default function ValueTimingChart({ series, indexCode, indexLabel, indexDesc, biasBasis, className }: Props) {
   const mapped = useMemo<LowVolH30269Point[]>(
     () =>
       (Array.isArray(series) ? series : []).map((p) => ({
@@ -32,5 +34,15 @@ export default function ValueTimingChart({ series, indexCode, biasBasis, classNa
     [series],
   )
 
-  return <LowVolOpportunityChart series={mapped} indexCode={indexCode} biasBasis={biasBasis} metricMode="earnings" className={className} />
+  return (
+    <LowVolOpportunityChart
+      series={mapped}
+      indexCode={indexCode}
+      indexLabel={indexLabel}
+      indexDesc={indexDesc}
+      biasBasis={biasBasis}
+      metricMode="earnings"
+      className={className}
+    />
+  )
 }
