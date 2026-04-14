@@ -3,9 +3,9 @@ import DataStatusBanner from '@/components/DataStatusBanner'
 import ValueTimingChart from '@/components/charts/ValueTimingChart'
 import { cn } from '@/lib/utils'
 import { fetchValueTimingIndex, type ValueTimingPoint } from '@/utils/marketApi'
+import { calcValueTimingSuggestion } from '@/utils/valueTimingSignal'
 import type { Top100Meta } from '@/utils/etfApi'
 import { formatYmd, parseIsoToLocal } from '@/utils/format'
-import { calcValueTimingSuggestion } from '@/utils/valueTimingSignal'
 
 function fmt(v: number | null | undefined, digits: number): string {
   if (typeof v !== 'number' || !Number.isFinite(v)) return '—'
@@ -15,14 +15,21 @@ function fmt(v: number | null | undefined, digits: number): string {
 function suggestionToneToTextCls(tone: ReturnType<typeof calcValueTimingSuggestion>['tone']): string {
   if (tone === 'bad') return 'text-[#F87171]'
   if (tone === 'good') return 'text-[#34D399]'
+  if (tone === 'warn') return 'text-[#FBBF24]'
   if (tone === 'neutral') return 'text-[#60A5FA]'
   return 'text-[#94A3B8]'
 }
 
-export default function ValueTimingPanel(props: { indexCode: string; indexLabel: string; indexDesc?: string }) {
+export default function ValueTimingPanel(props: {
+  indexCode: string
+  indexLabel: string
+  indexDesc?: string
+  biasBasis: 'sma250' | 'sma60'
+}) {
   const indexCode = props.indexCode
   const indexLabel = props.indexLabel
   const indexDesc = props.indexDesc
+  const biasBasis = props.biasBasis
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [meta, setMeta] = useState<Top100Meta | null>(null)
@@ -42,7 +49,10 @@ export default function ValueTimingPanel(props: { indexCode: string; indexLabel:
         return
       }
       const m = r.meta && typeof r.meta === 'object' ? (r.meta as Top100Meta) : null
-      const s = r.data && typeof r.data === 'object' && Array.isArray((r.data as { series?: unknown }).series) ? ((r.data as { series: ValueTimingPoint[] }).series ?? []) : []
+      const s =
+        r.data && typeof r.data === 'object' && Array.isArray((r.data as { series?: unknown }).series)
+          ? ((r.data as { series: ValueTimingPoint[] }).series ?? [])
+          : []
       setMeta(m)
       setSeries(s)
       setLoading(false)
@@ -62,7 +72,11 @@ export default function ValueTimingPanel(props: { indexCode: string; indexLabel:
   }, [indexCode])
 
   const latest = series.length ? series[series.length - 1] : null
-  const suggestion = calcValueTimingSuggestion({ spreadPctRank5y: latest?.spreadPctRank5y })
+  const biasPct = biasBasis === 'sma60' ? latest?.biasPct3y60 : latest?.biasPct3y
+  const suggestion = calcValueTimingSuggestion({
+    spreadPctRank5y: latest?.spreadPctRank5y,
+    biasPct3y: biasPct,
+  })
   const suggestionCls = suggestionToneToTextCls(suggestion.tone)
   const sourceType = meta && typeof meta === 'object' ? ((meta as unknown as { sourceType?: unknown }).sourceType as unknown) : null
   const snapshotAt = meta && typeof meta === 'object' ? ((meta as unknown as { snapshotAt?: unknown }).snapshotAt as unknown) : null
@@ -75,8 +89,8 @@ export default function ValueTimingPanel(props: { indexCode: string; indexLabel:
   })()
   const isNotToday = Boolean(dataDate && dataDate < today)
   const isSnapshot = sourceType === 'snapshot'
-  const isProxy = indexCode === '980081'
-  const proxyTip = isProxy ? 'PE 为推算口径（基于跟踪ETF：159605）' : null
+  const peSourceNotes = Array.isArray(latest?.peSourceNotes) ? latest.peSourceNotes.map((x) => String(x)) : []
+  const etfFallbackActive = peSourceNotes.some((s) => s.includes('159263') || s.includes('fallback_etf'))
   const sampleTip = latest?.spreadPctRank5y == null ? '样本期不足或估值缺失，分位可能为空' : null
 
   return (
@@ -98,11 +112,11 @@ export default function ValueTimingPanel(props: { indexCode: string; indexLabel:
               <span>今日未更新/非交易日，已显示最近交易日数据</span>
             </div>
           ) : null}
-          {proxyTip || sampleTip ? (
+          {etfFallbackActive || sampleTip ? (
             <div className="mt-2 flex flex-wrap gap-2">
-              {proxyTip ? (
+              {etfFallbackActive ? (
                 <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-[#A9B6CC]">
-                  {proxyTip}
+                  980081 当前估值采用 ETF 替代口径（159263）
                 </span>
               ) : null}
               {sampleTip ? (
@@ -120,16 +134,19 @@ export default function ValueTimingPanel(props: { indexCode: string; indexLabel:
               ：{indexDesc ?? '以估值与利率的相对关系衡量阶段性风险收益。'}
             </p>
             <p>
-              <span className="font-medium text-[#CBD5E1]">利差（核心）</span>：盈利收益率(=1/PE) - 10年期国债收益率
+              <span className="font-medium text-[#CBD5E1]">盈利收益率</span>：按 1/PE 计算（百分比口径）。
             </p>
             <p>
-              <span className="font-medium text-[#CBD5E1]">利差分位(5年)</span>：基于核心利差做滚动分位（历史不足时使用可用样本）
+              <span className="font-medium text-[#CBD5E1]">利差（核心）</span>：盈利收益率(=1/PE)-10Y。
+            </p>
+            <p>
+              <span className="font-medium text-[#CBD5E1]">利差分位(5年)</span>：核心利差的 5 年滚动分位（window≈1260，minPeriods=252）。
             </p>
           </div>
         </div>
 
         <div className="flex flex-col items-end gap-2">
-          <div className="min-w-[260px] rounded-lg border border-[#1E293B] bg-[#0F172A] px-3 py-2 text-xs">
+          <div className="min-w-[240px] rounded-lg border border-[#1E293B] bg-[#0F172A] px-3 py-2 text-xs">
             <div className="flex items-center justify-between gap-3">
               <div className="text-[#94A3B8]">指数</div>
               <div className="font-mono text-[11px] text-[#A9B6CC]">
@@ -147,25 +164,9 @@ export default function ValueTimingPanel(props: { indexCode: string; indexLabel:
                 <div className="font-mono text-sm font-semibold text-[#F8FAFC]">{fmt(latest?.close, 2)}</div>
               </div>
               <div className="flex items-baseline justify-between gap-4">
-                <div className="text-[#94A3B8]">PE</div>
-                <div className="font-mono text-sm font-semibold text-[#F8FAFC]">{fmt(latest?.pe, 2)}</div>
-              </div>
-              <div className="flex items-baseline justify-between gap-4">
                 <div className="text-[#94A3B8]">盈利收益率</div>
                 <div className="font-mono text-sm font-semibold text-[#F8FAFC]">
                   {latest?.earningsYieldPct != null ? `${fmt(latest.earningsYieldPct, 2)}%` : '—'}
-                </div>
-              </div>
-              <div className="flex items-baseline justify-between gap-4">
-                <div className="text-[#94A3B8]">10Y</div>
-                <div className="font-mono text-sm font-semibold text-[#F8FAFC]">
-                  {latest?.yield10yPct != null ? `${fmt(latest.yield10yPct, 2)}%` : '—'}
-                </div>
-              </div>
-              <div className="flex items-baseline justify-between gap-4">
-                <div className="text-[#94A3B8]">利差</div>
-                <div className="font-mono text-sm font-semibold text-[#F8FAFC]">
-                  {latest?.spreadPct != null ? `${fmt(latest.spreadPct, 2)}%` : '—'}
                 </div>
               </div>
               <div className="flex items-baseline justify-between gap-4">
@@ -187,7 +188,7 @@ export default function ValueTimingPanel(props: { indexCode: string; indexLabel:
 
       <div className="mt-4">
         <div className="relative">
-          <ValueTimingChart series={series} />
+          <ValueTimingChart series={series} indexCode={indexCode} biasBasis={biasBasis} />
           {loading && !error ? (
             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-black/10 backdrop-blur-[1px]">
               <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-black/30 px-4 py-3 text-sm text-[#E6EDF7]">
@@ -201,4 +202,3 @@ export default function ValueTimingPanel(props: { indexCode: string; indexLabel:
     </section>
   )
 }
-

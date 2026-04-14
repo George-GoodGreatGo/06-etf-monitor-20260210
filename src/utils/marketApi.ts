@@ -75,11 +75,19 @@ export type LowVolSummaryData = {
 export type ValueTimingPoint = {
   date: string
   close: number
+  ma60: number | null
+  ma250: number | null
+  bias60: number | null
+  bias250: number | null
+  biasPct3y60: number | null
+  biasPct3y: number | null
   pe: number | null
   earningsYieldPct: number | null
   yield10yPct: number | null
   spreadPct: number | null
   spreadPctRank5y: number | null
+  peSource: string | null
+  peSourceNotes: string[]
 }
 
 export type ValueTimingData = {
@@ -91,6 +99,9 @@ export type ValueTimingLatestSummary = {
   spreadPctRank5y: number | null
   pe: number | null
   earningsYieldPct: number | null
+  biasPct3y: number | null
+  biasPct3y60: number | null
+  peSource: string | null
 }
 
 export type ValueTimingSummaryItem = {

@@ -1,6 +1,12 @@
 import { fetchGovBond10yYieldPctByDateSafe } from './chinamoneyGovBond.js'
 import { fetchCsindexIndexPeSeries } from './csindex.js'
-import { readLatestValueTimingIndexSnapshot, readLatestValueTimingIndexSnapshots } from './supabaseRest.js'
+import { runAkshare } from './akshare.js'
+import {
+  readLatestValueTimingIndexSnapshot,
+  readValueTimingIndexPointsRange,
+  readValueTimingMeta,
+  type ValueTimingIndexPointRow,
+} from './supabaseRest.js'
 
 function shouldVerboseLog(): boolean {
   const v = String(process.env.VALUE_TIMING_VERBOSE || '').trim()
@@ -18,7 +24,7 @@ type ValueTimingIndexConfig = {
   name: string
   closeSource: 'csindex' | 'cnindex'
   closeCode: string
-  peSource: 'csindex_indicator_xls' | 'etf_proxy'
+  peSource: 'csindex_indicator_xls' | 'etf_proxy' | 'public_api_then_etf'
   peIndexCode?: string
   peEtfCode?: string
 }
@@ -26,16 +32,32 @@ type ValueTimingIndexConfig = {
 export type ValueTimingDailyPoint = {
   date: string
   close: number
+  ma60: number | null
+  ma250: number | null
+  bias60: number | null
+  bias250: number | null
+  biasPct3y60: number | null
+  biasPct3y: number | null
   pe: number | null
   earningsYieldPct: number | null
   yield10yPct: number | null
   spreadPct: number | null
   spreadPctRank5y: number | null
+  peSource: string | null
+  peSourceNotes: string[]
 }
 
 type ValueTimingSummaryItem = {
   code: string
-  latest: { date: string; spreadPctRank5y: number | null; pe: number | null; earningsYieldPct: number | null } | null
+  latest: {
+    date: string
+    spreadPctRank5y: number | null
+    pe: number | null
+    earningsYieldPct: number | null
+    biasPct3y: number | null
+    biasPct3y60: number | null
+    peSource: string | null
+  } | null
   error?: string
   message?: string
 }
@@ -43,7 +65,7 @@ type ValueTimingSummaryItem = {
 const VALUE_TIMING_INDEXES: Record<string, ValueTimingIndexConfig> = {
   '932365': { code: '932365', name: '中证全指自由现金流', closeSource: 'csindex', closeCode: '932365', peSource: 'csindex_indicator_xls', peIndexCode: '932365' },
   '932315': { code: '932315', name: '中证全指红利质量', closeSource: 'csindex', closeCode: '932315', peSource: 'csindex_indicator_xls', peIndexCode: '932315' },
-  '980081': { code: '980081', name: '国证价值100', closeSource: 'cnindex', closeCode: '980081', peSource: 'etf_proxy', peEtfCode: '159605' },
+  '980081': { code: '980081', name: '国证价值100', closeSource: 'cnindex', closeCode: '980081', peSource: 'public_api_then_etf', peEtfCode: '159263' },
 }
 
 export function getValueTimingSupportedIndexCodes(): string[] {
@@ -258,6 +280,36 @@ export async function fetchEtfProxyPeForTest(etfCode: string): Promise<{ date: s
   return await fetchEtfProxyPe({ etfCode })
 }
 
+async function fetchAkshareIndexPeSeries(args: {
+  code: string
+  startDate?: string
+  endDate?: string
+}): Promise<Array<{ date: string; pe: number }>> {
+  const code = String(args.code || '').trim()
+  if (!code) return []
+  const startDate = normalizeYmd10(args.startDate)
+  const endDate = normalizeYmd10(args.endDate)
+  const cacheKey = `value-pe:akshare:${code}:${startDate || 'na'}:${endDate || 'na'}`
+  const out = await runAkshare<{ series?: Array<{ date?: string; pe?: number | null }> }>(
+    cacheKey,
+    ['index-valuation', '--index-code', code, ...(startDate ? ['--start-date', startDate] : []), ...(endDate ? ['--end-date', endDate] : [])],
+    { cacheTtlMs: 4 * 60 * 60_000, timeoutMs: 60_000 },
+  )
+  if (!out.success) return []
+  const rows = Array.isArray(out.data?.series) ? out.data.series : []
+  const series: Array<{ date: string; pe: number }> = []
+  for (const r of rows) {
+    const d = normalizeYmd10(r?.date)
+    const pe = typeof r?.pe === 'number' && Number.isFinite(r.pe) && r.pe > 0 ? r.pe : null
+    if (!d || pe == null) continue
+    if (startDate && d < startDate) continue
+    if (endDate && d > endDate) continue
+    series.push({ date: d, pe })
+  }
+  series.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+  return series
+}
+
 function buildRollingPercentile(values: Array<number | null>, window: number, minPeriods: number): Array<number | null> {
   const out: Array<number | null> = new Array(values.length).fill(null)
   if (!values.length || window <= 0) return out
@@ -278,6 +330,129 @@ function buildRollingPercentile(values: Array<number | null>, window: number, mi
     out[i] = (le / slice.length) * 100
   }
   return out
+}
+
+function buildSma(values: number[], period: number): Array<number | null> {
+  const out: Array<number | null> = new Array(values.length).fill(null)
+  if (!values.length || period <= 0) return out
+  let sum = 0
+  for (let i = 0; i < values.length; i += 1) {
+    sum += values[i]
+    if (i >= period) sum -= values[i - period]
+    if (i >= period - 1) out[i] = sum / period
+  }
+  return out
+}
+
+const VALUE_RUN_STALE_MAX_DAYS = 14
+
+function ymd10ToUtcMs(ymd10: string): number | null {
+  const s = String(ymd10 || '').trim()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null
+  const y = Number(s.slice(0, 4))
+  const m = Number(s.slice(5, 7))
+  const d = Number(s.slice(8, 10))
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null
+  const ms = Date.UTC(y, m - 1, d)
+  return Number.isFinite(ms) ? ms : null
+}
+
+function diffDaysUtc(aYmd10: string, bYmd10: string): number | null {
+  const a = ymd10ToUtcMs(aYmd10)
+  const b = ymd10ToUtcMs(bYmd10)
+  if (a == null || b == null) return null
+  return Math.floor((a - b) / 86_400_000)
+}
+
+function validateValuePointRows(rows: ValueTimingIndexPointRow[]): { ok: true } | { ok: false; error: string } {
+  if (!rows.length) return { ok: false, error: 'empty' }
+  let prev = ''
+  let dup = 0
+  let nonInc = 0
+  let closeOk = 0
+  const seen = new Set<string>()
+  for (const r of rows) {
+    const d = String(r.data_date || '')
+    if (!d) continue
+    if (seen.has(d)) dup += 1
+    seen.add(d)
+    if (prev && d <= prev) nonInc += 1
+    prev = d
+    if (typeof r.close === 'number' && Number.isFinite(r.close)) closeOk += 1
+  }
+  if (dup > 0 || nonInc > 0) return { ok: false, error: `bad_date_series(dup=${dup},nonInc=${nonInc})` }
+  if (closeOk === 0) return { ok: false, error: 'no_valid_close' }
+  return { ok: true }
+}
+
+function mapPointRowToDailyPoint(r: ValueTimingIndexPointRow): ValueTimingDailyPoint {
+  return {
+    date: r.data_date,
+    close: r.close,
+    ma60: r.ma60 ?? null,
+    ma250: r.ma250 ?? null,
+    bias60: r.bias60 ?? null,
+    bias250: r.bias250 ?? null,
+    biasPct3y60: r.bias_pct_3y_60 ?? null,
+    biasPct3y: r.bias_pct_3y ?? null,
+    pe: r.pe ?? null,
+    earningsYieldPct: r.earnings_yield_pct ?? null,
+    yield10yPct: r.yield10y_pct ?? null,
+    spreadPct: r.spread_pct ?? null,
+    spreadPctRank5y: r.spread_pct_rank_5y ?? null,
+    peSource: r.pe_source ?? null,
+    peSourceNotes: Array.isArray(r.pe_source_notes) ? (r.pe_source_notes as string[]) : [],
+  }
+}
+
+async function getValueIndexSeriesFromSupabaseRuns(args: {
+  code: string
+  startDate?: string
+  endDate?: string
+}): Promise<{
+  usedRunId: string | null
+  fallbackReason: string | null
+  fetchedAt: string
+  dataDate: string | null
+  notes: string[]
+  series: ValueTimingDailyPoint[]
+}> {
+  const code = String(args.code || '').trim()
+  const startYmd = normalizeYmd10(args.startDate) || '2016-01-01'
+  const endYmd = normalizeYmd10(args.endDate) || new Date().toISOString().slice(0, 10)
+  const meta = await readValueTimingMeta()
+  const candidates = (meta?.historyRunIds || []).filter(Boolean)
+  if (candidates.length === 0) throw new Error(`暂无可用 run：${code}`)
+
+  let fallbackReason: string | null = null
+  for (const runId of candidates) {
+    const rows = await readValueTimingIndexPointsRange({ code, startDate: startYmd, endDate: endYmd, runId })
+    if (!rows.length) {
+      fallbackReason = fallbackReason ? `${fallbackReason}; run=${runId}:empty` : `run=${runId}:empty`
+      continue
+    }
+    const v = validateValuePointRows(rows)
+    if ('error' in v) {
+      fallbackReason = fallbackReason ? `${fallbackReason}; run=${runId}:${v.error}` : `run=${runId}:${v.error}`
+      continue
+    }
+    const lastDate = rows[rows.length - 1]?.data_date || ''
+    const lag = lastDate ? diffDaysUtc(endYmd, lastDate) : null
+    if (lag != null && lag > VALUE_RUN_STALE_MAX_DAYS) {
+      fallbackReason = fallbackReason ? `${fallbackReason}; run=${runId}:stale(${lag}d)` : `run=${runId}:stale(${lag}d)`
+      continue
+    }
+    return {
+      usedRunId: runId,
+      fallbackReason,
+      fetchedAt: rows[rows.length - 1]?.fetched_at || new Date().toISOString(),
+      dataDate: lastDate || null,
+      notes: Array.isArray(rows[rows.length - 1]?.notes) ? (rows[rows.length - 1].notes as string[]) : [],
+      series: rows.map(mapPointRowToDailyPoint),
+    }
+  }
+
+  throw new Error(`暂无可用价值择时数据：${code}${fallbackReason ? `（${fallbackReason}）` : ''}`)
 }
 
 export async function getValueTimingIndexSeries(args: {
@@ -329,6 +504,32 @@ export async function getValueTimingIndexSeries(args: {
     notes.push(`pe_points=${series.length}`)
     notes.push(`pe_direct_points=${peDirectPoints}`)
     logEvent({ event: 'value_timing.index.pe_csindex.done', code: cfg.code, points: series.length, ms: Date.now() - peStartedAt })
+  } else if (cfg.peSource === 'public_api_then_etf') {
+    const peStartedAt = Date.now()
+    const firstDate = closeSeries[0]?.date || null
+    const lastDate = closeSeries[closeSeries.length - 1]?.date || null
+    const apiSeries =
+      firstDate && lastDate
+        ? await fetchAkshareIndexPeSeries({ code: cfg.code, startDate: firstDate, endDate: lastDate })
+        : []
+    for (const r of apiSeries) {
+      peByDate.set(r.date, r.pe)
+      peDirectPoints += 1
+    }
+    notes.push(`pe_source=public_api:${cfg.code}`)
+    notes.push(`pe_public_points=${apiSeries.length}`)
+    if (!apiSeries.length) notes.push('pe_public_missing=1')
+    logEvent({ event: 'value_timing.index.pe_public.result', code: cfg.code, points: apiSeries.length, ms: Date.now() - peStartedAt })
+
+    if (!apiSeries.length) {
+      const r = await fetchEtfProxyPe({ etfCode: String(cfg.peEtfCode || '') })
+      if (r.error) notes.push(`pe_etf_proxy_error=${String(r.error).slice(0, 180)}`)
+      if (r.pe != null) notes.push(`pe_source=fallback_etf_proxy:${cfg.peEtfCode}`)
+      const lastDate2 = closeSeries[closeSeries.length - 1]?.date
+      if (lastDate2 && r.pe != null) peByDate.set(lastDate2, r.pe)
+      if (r.pe != null && r.pe > 0) peDirectPoints += 1
+      logEvent({ event: 'value_timing.index.pe_proxy.fallback', code: cfg.code, etfCode: cfg.peEtfCode, pe: r.pe, error: r.error, ms: Date.now() - peStartedAt })
+    }
   } else {
     const peStartedAt = Date.now()
     const r = await fetchEtfProxyPe({ etfCode: String(cfg.peEtfCode || '') })
@@ -388,6 +589,23 @@ export async function getValueTimingIndexSeries(args: {
   }
 
   const spreads: Array<number | null> = []
+  const peSources: Array<string | null> = []
+  const peSourceNotesByDate = new Map<string, string[]>()
+  const closes = closeSeries.map((p) => p.close)
+  const ma60 = buildSma(closes, 60)
+  const ma250 = buildSma(closes, 250)
+  const bias60: Array<number | null> = closeSeries.map((p, i) => {
+    const ma = ma60[i]
+    if (ma == null || ma === 0) return null
+    return (p.close - ma) / ma
+  })
+  const bias250: Array<number | null> = closeSeries.map((p, i) => {
+    const ma = ma250[i]
+    if (ma == null || ma === 0) return null
+    return (p.close - ma) / ma
+  })
+  const biasPct3y60 = buildRollingPercentile(bias60, 1260, 252)
+  const biasPct3y = buildRollingPercentile(bias250, 1260, 252)
   const series: ValueTimingDailyPoint[] = []
   let lastPe: number | null = null
   let peForwardFilled = 0
@@ -396,6 +614,18 @@ export async function getValueTimingIndexSeries(args: {
     const pe = direct != null && direct > 0 ? direct : lastPe
     if (direct != null && direct > 0) lastPe = direct
     else if (pe != null) peForwardFilled += 1
+    peSources.push(direct != null && direct > 0 ? `direct:${cfg.peSource}` : pe != null ? `ffill:${cfg.peSource}` : null)
+    if (cfg.code === '980081') {
+      const notesByDate: string[] = []
+      if (cfg.peSource === 'public_api_then_etf') {
+        if (direct != null && direct > 0) notesByDate.push('pe_source=public_api')
+        if (direct == null && pe != null) notesByDate.push(`pe_source=fallback_etf_ffill:${cfg.peEtfCode}`)
+      } else {
+        if (direct != null && direct > 0) notesByDate.push(`pe_source=etf:${cfg.peEtfCode}`)
+        if (direct == null && pe != null) notesByDate.push(`pe_source=etf_ffill:${cfg.peEtfCode}`)
+      }
+      if (notesByDate.length) peSourceNotesByDate.set(p.date, notesByDate)
+    }
     const earningsYieldPct = calcEarningsYieldPctFromPe(pe)
     let y10 = yieldByDate.get(p.date) ?? null
     if (y10 == null) {
@@ -432,11 +662,19 @@ export async function getValueTimingIndexSeries(args: {
     series.push({
       date: p.date,
       close: p.close,
+      ma60: null,
+      ma250: null,
+      bias60: null,
+      bias250: null,
+      biasPct3y60: null,
+      biasPct3y: null,
       pe,
       earningsYieldPct,
       yield10yPct: y10,
       spreadPct: spread,
       spreadPctRank5y: null,
+      peSource: null,
+      peSourceNotes: [],
     })
   }
   if (peForwardFilled > 0) notes.push(`pe_forward_filled=${peForwardFilled}`)
@@ -454,7 +692,17 @@ export async function getValueTimingIndexSeries(args: {
   })
 
   const ranks = buildRollingPercentile(spreads, 1260, 630)
-  for (let i = 0; i < series.length; i += 1) series[i].spreadPctRank5y = ranks[i]
+  for (let i = 0; i < series.length; i += 1) {
+    series[i].ma60 = ma60[i]
+    series[i].ma250 = ma250[i]
+    series[i].bias60 = bias60[i]
+    series[i].bias250 = bias250[i]
+    series[i].biasPct3y60 = biasPct3y60[i]
+    series[i].biasPct3y = biasPct3y[i]
+    series[i].spreadPctRank5y = ranks[i]
+    series[i].peSource = peSources[i] ?? null
+    series[i].peSourceNotes = peSourceNotesByDate.get(series[i].date) ?? []
+  }
 
   return {
     meta: {
@@ -474,33 +722,46 @@ export async function getValueTimingSummary(): Promise<{
   const fetchedAt = new Date().toISOString()
   const codes = getValueTimingSupportedIndexCodes()
   const items: ValueTimingSummaryItem[] = []
-  const latestMap = await readLatestValueTimingIndexSnapshots(codes)
   let ok = 0
   let fail = 0
   let dataDate: string | null = null
   for (const code of codes) {
-    const row = latestMap.get(code) ?? null
-    const payload = row?.payload && typeof row.payload === 'object' ? (row.payload as { series?: unknown }) : null
-    const series = payload && Array.isArray(payload.series) ? (payload.series as ValueTimingDailyPoint[]) : []
-    const last = series.length ? series[series.length - 1] : null
-    if (!row || !last) {
-      items.push({ code, latest: null, error: 'no_snapshot', message: '暂无快照，请等待晚间刷新' })
+    try {
+      const out = await getValueIndexSeriesFromSupabaseRuns({ code })
+      const series = out.series
+      const last = series.length ? series[series.length - 1] : null
+      if (!last) {
+        items.push({ code, latest: null, error: 'no_data', message: '暂无已发布数据' })
+        fail += 1
+        continue
+      }
+      const rowDate = out.dataDate || last.date || null
+      if (rowDate && (!dataDate || rowDate > dataDate)) dataDate = rowDate
+      items.push({
+        code,
+        latest: {
+          date: last.date,
+          spreadPctRank5y: last.spreadPctRank5y ?? null,
+          pe: last.pe ?? null,
+          earningsYieldPct: last.earningsYieldPct ?? null,
+          biasPct3y: last.biasPct3y ?? null,
+          biasPct3y60: last.biasPct3y60 ?? null,
+          peSource: last.peSource ?? null,
+        },
+      })
+      ok += 1
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      items.push({ code, latest: null, error: 'no_data', message: msg || '暂无可用数据' })
       fail += 1
-      continue
     }
-    if (!dataDate || row.data_date > dataDate) dataDate = row.data_date
-    items.push({
-      code,
-      latest: { date: last.date, spreadPctRank5y: last.spreadPctRank5y ?? null, pe: last.pe ?? null, earningsYieldPct: last.earningsYieldPct ?? null },
-    })
-    ok += 1
   }
 
   return {
     meta: {
       fetchedAt,
       dataDate,
-      source: 'supabase:value_timing_index_daily',
+      source: 'supabase:value_timing_index_point',
       notes: [`ok=${ok}`, `fail=${fail}`],
     },
     data: { items },
@@ -517,43 +778,57 @@ export async function getValueTimingIndexSnapshotSeries(args: {
     dataDate: string | null
     source: string
     notes: string[]
-    sourceType: 'snapshot'
+    sourceType: 'snapshot' | 'supabase-table'
     snapshotAt: string | null
     stale: boolean
   }
   data: { series: ValueTimingDailyPoint[] }
 }> {
   const code = String(args.code || '').trim()
-  const row = await readLatestValueTimingIndexSnapshot(code)
-  if (!row) throw new Error(`暂无快照，请等待晚间刷新：${code}`)
-
-  const payload = row.payload && typeof row.payload === 'object' ? (row.payload as { series?: unknown }) : null
-  const full = payload && Array.isArray(payload.series) ? (payload.series as ValueTimingDailyPoint[]) : []
-
   const startYmd = normalizeYmd10(args.startDate)
-  const endYmd = normalizeYmd10(args.endDate)
-  const series =
-    startYmd || endYmd
-      ? full.filter((p) => {
-          if (!p || typeof p !== 'object') return false
-          const d = String((p as ValueTimingDailyPoint).date || '')
-          if (!d) return false
-          if (startYmd && d < startYmd) return false
-          if (endYmd && d > endYmd) return false
-          return true
-        })
-      : full
+  const endYmd = normalizeYmd10(args.endDate) || new Date().toISOString().slice(0, 10)
+  try {
+    const out = await getValueIndexSeriesFromSupabaseRuns({ code, startDate: startYmd, endDate: endYmd })
+    return {
+      meta: {
+        fetchedAt: out.fetchedAt,
+        dataDate: out.dataDate,
+        source: 'supabase:value_timing_index_point',
+        notes: [...out.notes, ...(out.usedRunId ? [`run_id=${out.usedRunId}`] : []), ...(out.fallbackReason ? [`run_fallback=${out.fallbackReason}`] : [])],
+        sourceType: 'supabase-table',
+        snapshotAt: out.fetchedAt,
+        stale: false,
+      },
+      data: { series: out.series },
+    }
+  } catch {
+    const row = await readLatestValueTimingIndexSnapshot(code)
+    if (!row) throw new Error(`暂无快照，请等待晚间刷新：${code}`)
+    const payload = row.payload && typeof row.payload === 'object' ? (row.payload as { series?: unknown }) : null
+    const full = payload && Array.isArray(payload.series) ? (payload.series as ValueTimingDailyPoint[]) : []
+    const series =
+      startYmd || endYmd
+        ? full.filter((p) => {
+            if (!p || typeof p !== 'object') return false
+            const d = String((p as ValueTimingDailyPoint).date || '')
+            if (!d) return false
+            if (startYmd && d < startYmd) return false
+            if (endYmd && d > endYmd) return false
+            return true
+          })
+        : full
 
-  return {
-    meta: {
-      fetchedAt: row.snapshot_at,
-      dataDate: row.data_date ?? null,
-      source: row.source ?? 'supabase:value_timing_index_daily',
-      notes: Array.isArray(row.notes) ? (row.notes as string[]) : [],
-      sourceType: 'snapshot',
-      snapshotAt: row.snapshot_at ?? null,
-      stale: true,
-    },
-    data: { series },
+    return {
+      meta: {
+        fetchedAt: row.snapshot_at,
+        dataDate: row.data_date ?? null,
+        source: row.source ?? 'supabase:value_timing_index_daily',
+        notes: Array.isArray(row.notes) ? (row.notes as string[]) : [],
+        sourceType: 'snapshot',
+        snapshotAt: row.snapshot_at ?? null,
+        stale: true,
+      },
+      data: { series },
+    }
   }
 }

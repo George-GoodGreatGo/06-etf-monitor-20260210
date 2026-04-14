@@ -1168,6 +1168,65 @@ def market_board_daily(start_date: str, end_date: str):
     return _ok(meta, {"hs300": hs300, "sh": sh, "sz": sz, "north": north, "hs300Pe": pe})
 
 
+def index_valuation(index_code: str, start_date: str | None, end_date: str | None):
+    fetched_at = _iso_now()
+    import akshare as ak
+
+    code = str(index_code or "").strip()
+    if not code:
+        return _err("bad_request", "缺少 index_code")
+
+    alias_map = {
+        "980081": ["国证价值100", "价值100", "980081"],
+        "932365": ["中证全指自由现金流", "自由现金流", "932365"],
+        "932315": ["中证全指红利质量", "红利质量", "932315"],
+    }
+    aliases = alias_map.get(code, [code])
+    start_ymd = _fmt_ymd(start_date) if start_date else None
+    end_ymd = _fmt_ymd(end_date) if end_date else None
+
+    for alias in aliases:
+        try:
+            df = ak.stock_index_pe_lg(symbol=alias)
+        except Exception:
+            continue
+        if df is None or df.empty:
+            continue
+        date_col = _pick_col(df, ["日期", "date", "trade_date", "交易日期"])
+        pe_col = _pick_col(df, ["市盈率", "pe", "PE"])
+        if not date_col or not pe_col:
+            continue
+        d2 = df.copy()
+        d2[date_col] = d2[date_col].apply(_fmt_ymd)
+        out = []
+        for _, r in d2.iterrows():
+            d = str(r.get(date_col) or "").strip()
+            if not d:
+                continue
+            if start_ymd and d < start_ymd:
+                continue
+            if end_ymd and d > end_ymd:
+                continue
+            pe = _to_float(r.get(pe_col))
+            if pe is None or pe <= 0:
+                continue
+            out.append({"date": d, "pe": pe})
+        if not out:
+            continue
+        out.sort(key=lambda x: x["date"])
+        return _ok(
+            {
+                "fetchedAt": fetched_at,
+                "dataDate": out[-1]["date"],
+                "source": f"akshare:stock_index_pe_lg:{alias}",
+                "notes": [f"index_code={code}", f"alias={alias}"],
+            },
+            {"series": out},
+        )
+
+    return _err("akshare_error", f"无法获取指数估值：{code}")
+
+
 def main(argv):
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -1189,6 +1248,11 @@ def main(argv):
     p_mbd.add_argument("--start-date", type=str, required=True)
     p_mbd.add_argument("--end-date", type=str, required=True)
 
+    p_val = sub.add_parser("index-valuation")
+    p_val.add_argument("--index-code", type=str, required=True)
+    p_val.add_argument("--start-date", type=str, default="")
+    p_val.add_argument("--end-date", type=str, default="")
+
     args = parser.parse_args(argv)
     try:
         if args.cmd == "top100":
@@ -1200,6 +1264,8 @@ def main(argv):
             result = weekly_chart(args.code, args.adjust)
         elif args.cmd == "market-board-daily":
             result = market_board_daily(args.start_date, args.end_date)
+        elif args.cmd == "index-valuation":
+            result = index_valuation(args.index_code, args.start_date or None, args.end_date or None)
         else:
             result = _err("bad_request", "未知命令")
     except Exception as e:

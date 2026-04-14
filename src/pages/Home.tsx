@@ -97,7 +97,7 @@ const VALUE_INDEX_OPTIONS = [
   {
     code: '980081',
     label: '国证价值100',
-    desc: '价值风格宽基，PE 采用跟踪ETF推算口径（159605），用于估值择时参考。',
+    desc: '价值风格宽基，优先使用公开估值源；若估值缺口则以ETF(159263)替代并显著标注。',
   },
 ] as const
 
@@ -154,10 +154,17 @@ export default function Home() {
   })
 
   const [valueIndexCode, setValueIndexCode] = useState<ValueIndexCode>('932365')
+  const [valueBiasBasis, setValueBiasBasis] = useState<'sma250' | 'sma60'>('sma250')
   const [valueLatestByCode, setValueLatestByCode] = useState<
-    Record<ValueIndexCode, { spreadPctRank5y?: number | null; pe?: number | null; earningsYieldPct?: number | null } | null>
+    Record<
+      ValueIndexCode,
+      { spreadPctRank5y?: number | null; pe?: number | null; earningsYieldPct?: number | null; biasPct3y?: number | null; biasPct3y60?: number | null } | null
+    >
   >(() => {
-    const out = {} as Record<ValueIndexCode, { spreadPctRank5y?: number | null; pe?: number | null; earningsYieldPct?: number | null } | null>
+    const out = {} as Record<
+      ValueIndexCode,
+      { spreadPctRank5y?: number | null; pe?: number | null; earningsYieldPct?: number | null; biasPct3y?: number | null; biasPct3y60?: number | null } | null
+    >
     for (const opt of VALUE_INDEX_OPTIONS) out[opt.code] = null
     return out
   })
@@ -327,7 +334,10 @@ export default function Home() {
       const latestNext = { ...valueLatestByCode }
       const sugNext = { ...valueSuggestionByCode }
       const items = r.success === true && Array.isArray(r.data?.items) ? r.data.items : []
-      const byCode = new Map<string, { spreadPctRank5y?: number | null; pe?: number | null; earningsYieldPct?: number | null } | null>()
+      const byCode = new Map<
+        string,
+        { spreadPctRank5y?: number | null; pe?: number | null; earningsYieldPct?: number | null; biasPct3y?: number | null; biasPct3y60?: number | null } | null
+      >()
       for (const it of items) {
         const code = it && typeof it === 'object' ? (it as { code?: unknown }).code : null
         if (typeof code !== 'string') continue
@@ -341,12 +351,15 @@ export default function Home() {
           spreadPctRank5y: typeof o.spreadPctRank5y === 'number' ? o.spreadPctRank5y : null,
           pe: typeof o.pe === 'number' ? o.pe : null,
           earningsYieldPct: typeof o.earningsYieldPct === 'number' ? o.earningsYieldPct : null,
+          biasPct3y: typeof o.biasPct3y === 'number' ? o.biasPct3y : null,
+          biasPct3y60: typeof o.biasPct3y60 === 'number' ? o.biasPct3y60 : null,
         })
       }
       for (const opt of VALUE_INDEX_OPTIONS) {
         const last = byCode.has(opt.code) ? byCode.get(opt.code)! : null
         latestNext[opt.code] = last
-        sugNext[opt.code] = calcValueTimingSuggestion({ spreadPctRank5y: last?.spreadPctRank5y })
+        const biasPct = valueBiasBasis === 'sma60' ? last?.biasPct3y60 : last?.biasPct3y
+        sugNext[opt.code] = calcValueTimingSuggestion({ spreadPctRank5y: last?.spreadPctRank5y, biasPct3y: biasPct })
       }
       setValueLatestByCode(latestNext)
       setValueSuggestionByCode(sugNext)
@@ -366,6 +379,18 @@ export default function Home() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab])
+
+  useEffect(() => {
+    if (tab !== 'value') return
+    const next = { ...valueSuggestionByCode }
+    for (const opt of VALUE_INDEX_OPTIONS) {
+      const last = valueLatestByCode[opt.code]
+      const biasPct = valueBiasBasis === 'sma60' ? last?.biasPct3y60 : last?.biasPct3y
+      next[opt.code] = calcValueTimingSuggestion({ spreadPctRank5y: last?.spreadPctRank5y, biasPct3y: biasPct })
+    }
+    setValueSuggestionByCode(next)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valueBiasBasis])
 
   useEffect(() => {
     const next = new URLSearchParams(searchParams)
@@ -855,6 +880,11 @@ export default function Home() {
                                 分位 {last.spreadPctRank5y.toFixed(0)}
                               </span>
                             )}
+                            {last?.earningsYieldPct != null && (
+                              <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2 py-[2px] text-[11px] font-medium leading-none text-[#A9B6CC] font-sans">
+                                盈利率 {last.earningsYieldPct.toFixed(2)}%
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -867,6 +897,36 @@ export default function Home() {
                     </button>
                   )
                 })}
+              </div>
+            </div>
+
+            <div className="fixed right-4 sm:right-8 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-[#050A0B]/80 backdrop-blur-md p-1.5 shadow-2xl shadow-black/50">
+              <div className="text-[11px] font-medium text-[#94A3B8] pt-1">BIAS基准</div>
+              <div className="flex flex-col gap-1 w-full rounded-xl bg-white/5 p-1">
+                <button
+                  type="button"
+                  onClick={() => setValueBiasBasis('sma250')}
+                  className={cn(
+                    'w-full rounded-lg border px-3 py-2 text-center text-xs font-semibold transition',
+                    valueBiasBasis === 'sma250'
+                      ? 'border-[rgba(255,87,34,0.65)] bg-[rgba(255,87,34,0.18)] text-white shadow-[0_0_0_1px_rgba(255,87,34,0.35),0_0_20px_rgba(255,87,34,0.25)]'
+                      : 'border-white/10 text-[#94A3B8] hover:bg-white/5 hover:text-white',
+                  )}
+                >
+                  SMA250
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setValueBiasBasis('sma60')}
+                  className={cn(
+                    'w-full rounded-lg border px-3 py-2 text-center text-xs font-semibold transition',
+                    valueBiasBasis === 'sma60'
+                      ? 'border-[rgba(255,87,34,0.65)] bg-[rgba(255,87,34,0.18)] text-white shadow-[0_0_0_1px_rgba(255,87,34,0.35),0_0_20px_rgba(255,87,34,0.25)]'
+                      : 'border-white/10 text-[#94A3B8] hover:bg-white/5 hover:text-white',
+                  )}
+                >
+                  SMA60
+                </button>
               </div>
             </div>
           </>
@@ -1007,6 +1067,7 @@ export default function Home() {
           indexCode={valueIndexCode}
           indexLabel={VALUE_INDEX_OPTIONS.find((x) => x.code === valueIndexCode)?.label ?? valueIndexCode}
           indexDesc={VALUE_INDEX_OPTIONS.find((x) => x.code === valueIndexCode)?.desc}
+          biasBasis={valueBiasBasis}
         />
       ) : tab === 'lowvol' ? (
         <LowVolOpportunityPanel

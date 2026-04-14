@@ -66,10 +66,11 @@ type Props = {
   series: LowVolH30269Point[]
   indexCode?: string
   biasBasis: 'sma250' | 'sma60'
+  metricMode?: 'dividend' | 'earnings'
   className?: string
 }
 
-export default function LowVolOpportunityChart({ series, indexCode, biasBasis, className }: Props) {
+export default function LowVolOpportunityChart({ series, indexCode, biasBasis, metricMode = 'dividend', className }: Props) {
   const [hover, setHover] = useState<HoverState | null>(null)
   const [showInfo, setShowInfo] = useState(true)
   const [showSma60, setShowSma60] = useState(true)
@@ -80,6 +81,11 @@ export default function LowVolOpportunityChart({ series, indexCode, biasBasis, c
   const [showSpreadPctPane, setShowSpreadPctPane] = useState(true)
 
   const thresh = useMemo(() => getLowVolThresh(indexCode), [indexCode])
+  const spreadCoreLabel = metricMode === 'earnings' ? '盈利收益率(=1/PE)-10Y' : '股息收益率(修正)-10Y'
+  const metricDefinition =
+    metricMode === 'earnings'
+      ? '盈利收益率：按 1/PE 计算（百分比口径）'
+      : '股息收益率（修正）：滚动1年推算分红点数D，对D做250日SMA后除以PRI'
 
   const mainElRef = useRef<HTMLDivElement | null>(null)
   const biasElRef = useRef<HTMLDivElement | null>(null)
@@ -919,8 +925,8 @@ export default function LowVolOpportunityChart({ series, indexCode, biasBasis, c
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
             <div className="text-[#E6EDF7]">指标定义</div>
-            <div>股息收益率（修正）：滚动1年推算分红点数D，对D做250日SMA后除以PRI</div>
-            <div>利差（核心）：股息收益率(修正)-10Y</div>
+            <div>{metricDefinition}</div>
+            <div>利差（核心）：{spreadCoreLabel}</div>
             <div>利差分位：核心利差的5年滚动分位（window≈1260，minPeriods=252）</div>
           </div>
         </div>

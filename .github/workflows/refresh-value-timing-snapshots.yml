@@ -2,6 +2,8 @@ name: Refresh Value Timing Snapshots
 
 on:
   schedule:
+    # GitHub cron uses UTC. Beijing 20:00–22:00 = UTC 12:00–14:00
+    # Run every 15 minutes during 20:00–21:59 Beijing time.
     - cron: "0,15,30,45 12-13 * * *"
   workflow_dispatch: {}
 
@@ -11,7 +13,6 @@ jobs:
     timeout-minutes: 30
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      NODE_OPTIONS: --dns-result-order=ipv4first
 
     steps:
       - name: Checkout
@@ -26,12 +27,33 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Refresh
+      - name: Refresh (scheduled)
+        if: github.event_name == 'schedule'
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VALUE_TIMING_REFRESH_MODE: full_backfill_publish
+          NODE_OPTIONS: --dns-result-order=ipv4first
           CHINAMONEY_FETCH_MAX_ATTEMPTS: "7"
           CHINAMONEY_FETCH_BASE_DELAY_MS: "2000"
           ETF_PROXY_MAX_ATTEMPTS: "6"
           ETF_PROXY_BASE_DELAY_MS: "1200"
-        run: npx tsx server/scripts/refreshValueTimingSnapshots.ts
+        run: |
+          echo "VALUE_TIMING_REFRESH_MODE=$VALUE_TIMING_REFRESH_MODE event=${{ github.event_name }}"
+          npx tsx server/scripts/refreshValueTimingSnapshots.ts
+
+      - name: Refresh (manual)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VALUE_TIMING_REFRESH_IGNORE_WINDOW: "1"
+          VALUE_TIMING_REFRESH_MODE: full_backfill_publish
+          NODE_OPTIONS: --dns-result-order=ipv4first
+          CHINAMONEY_FETCH_MAX_ATTEMPTS: "7"
+          CHINAMONEY_FETCH_BASE_DELAY_MS: "2000"
+          ETF_PROXY_MAX_ATTEMPTS: "6"
+          ETF_PROXY_BASE_DELAY_MS: "1200"
+        run: |
+          echo "VALUE_TIMING_REFRESH_MODE=$VALUE_TIMING_REFRESH_MODE event=${{ github.event_name }}"
+          npx tsx server/scripts/refreshValueTimingSnapshots.ts
