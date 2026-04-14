@@ -356,7 +356,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       h.bbBandwidth = typeof bw === 'number' && Number.isFinite(bw) ? bw : undefined
     }
 
-    const hasSampleInsufficient = series.length > 0 && v5Pct.length < 378
+    const hasSampleInsufficient = series.length > 0 && v5Pct.length < 630
     return { hs, hsHotSegments, hsColdSegments, ema20, ema60, bbMid, bbUpper, bbLower, v5, v5Pct, eb, map, hasSampleInsufficient }
   }, [equityBond, series])
 
@@ -981,7 +981,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
             ) : null}
             {showLiquidityPctPane ? (
               <>
-                <div className="text-[#A9B6CC]">独家流动性指数（3年分位）</div>
+                <div className="text-[#A9B6CC]">独家流动性指数（5年分位）</div>
                 <div className="text-right font-mono">{fmt(hover.v5Pct, 1)}</div>
               </>
             ) : null}
@@ -1049,7 +1049,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
           style={{ height: showLiquidityPctPane ? 140 : 1 }}
         >
           <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
-            独家流动性指数（3年分位）{data.hasSampleInsufficient ? ' · 样本不足' : ''}
+            独家流动性指数（5年分位）{data.hasSampleInsufficient ? ' · 样本不足' : ''}
           </div>
           <div
             ref={v5PctOverboughtBgRef}
