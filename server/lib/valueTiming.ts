@@ -344,6 +344,115 @@ function buildSma(values: number[], period: number): Array<number | null> {
   return out
 }
 
+function normalizeLegacyValuePoint(raw: unknown): ValueTimingDailyPoint | null {
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as Record<string, unknown>
+  const date = normalizeYmd10(o.date)
+  const close = toNum(o.close)
+  if (!date || close == null) return null
+  const pe = toNum(o.pe)
+  const earningsYieldPct = toNum(o.earningsYieldPct)
+  const yield10yPct = toNum(o.yield10yPct)
+  const spreadPctRaw = toNum(o.spreadPct)
+  const spreadPct = spreadPctRaw ?? calcSpreadPct(earningsYieldPct, yield10yPct)
+  const peSourceNotesRaw = o.peSourceNotes
+  const peSourceNotes = Array.isArray(peSourceNotesRaw) ? peSourceNotesRaw.map((x) => String(x)) : []
+  return {
+    date,
+    close,
+    ma60: toNum(o.ma60),
+    ma250: toNum(o.ma250),
+    bias60: toNum(o.bias60),
+    bias250: toNum(o.bias250),
+    biasPct3y60: toNum(o.biasPct3y60),
+    biasPct3y: toNum(o.biasPct3y),
+    pe,
+    earningsYieldPct,
+    yield10yPct,
+    spreadPct,
+    spreadPctRank5y: toNum(o.spreadPctRank5y),
+    peSource: typeof o.peSource === 'string' && o.peSource.trim() ? o.peSource.trim() : null,
+    peSourceNotes,
+  }
+}
+
+export function hydrateValueTimingSeriesWithDerivedMetrics(rawSeries: unknown): {
+  series: ValueTimingDailyPoint[]
+  hydrationApplied: boolean
+  notes: string[]
+} {
+  const list = Array.isArray(rawSeries) ? rawSeries : []
+  const normalized = list.map(normalizeLegacyValuePoint).filter((x): x is ValueTimingDailyPoint => Boolean(x))
+  if (!normalized.length) return { series: [], hydrationApplied: false, notes: [] }
+
+  const byDate = new Map<string, ValueTimingDailyPoint>()
+  for (const p of normalized) byDate.set(p.date, p)
+  const series = Array.from(byDate.values()).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+
+  const closes = series.map((p) => p.close)
+  const ma60 = buildSma(closes, 60)
+  const ma250 = buildSma(closes, 250)
+  const bias60 = series.map((p, i) => {
+    const ma = ma60[i]
+    if (ma == null || ma === 0) return null
+    return (p.close - ma) / ma
+  })
+  const bias250 = series.map((p, i) => {
+    const ma = ma250[i]
+    if (ma == null || ma === 0) return null
+    return (p.close - ma) / ma
+  })
+  const biasPct3y60 = buildRollingPercentile(bias60, 1260, 252)
+  const biasPct3y = buildRollingPercentile(bias250, 1260, 252)
+  const spreads = series.map((p) => p.spreadPct ?? calcSpreadPct(p.earningsYieldPct, p.yield10yPct))
+  const spreadRank = buildRollingPercentile(spreads, 1260, 630)
+
+  let fillCount = 0
+  for (let i = 0; i < series.length; i += 1) {
+    if (series[i].ma60 == null && ma60[i] != null) {
+      series[i].ma60 = ma60[i]
+      fillCount += 1
+    }
+    if (series[i].ma250 == null && ma250[i] != null) {
+      series[i].ma250 = ma250[i]
+      fillCount += 1
+    }
+    if (series[i].bias60 == null && bias60[i] != null) {
+      series[i].bias60 = bias60[i]
+      fillCount += 1
+    }
+    if (series[i].bias250 == null && bias250[i] != null) {
+      series[i].bias250 = bias250[i]
+      fillCount += 1
+    }
+    if (series[i].biasPct3y60 == null && biasPct3y60[i] != null) {
+      series[i].biasPct3y60 = biasPct3y60[i]
+      fillCount += 1
+    }
+    if (series[i].biasPct3y == null && biasPct3y[i] != null) {
+      series[i].biasPct3y = biasPct3y[i]
+      fillCount += 1
+    }
+    const spread = spreads[i]
+    if (series[i].spreadPct == null && spread != null) {
+      series[i].spreadPct = spread
+      fillCount += 1
+    }
+    if (series[i].spreadPctRank5y == null && spreadRank[i] != null) {
+      series[i].spreadPctRank5y = spreadRank[i]
+      fillCount += 1
+    }
+  }
+
+  const notes: string[] = []
+  if (fillCount > 0) {
+    notes.push('derived_from_snapshot=1')
+    notes.push('derived_fields=ma,bias,bias_pct,spread_rank')
+    notes.push(`derived_fill_count=${fillCount}`)
+  }
+  return { series, hydrationApplied: fillCount > 0, notes }
+}
+
 const VALUE_RUN_STALE_MAX_DAYS = 14
 
 function ymd10ToUtcMs(ymd10: string): number | null {
@@ -805,7 +914,8 @@ export async function getValueTimingIndexSnapshotSeries(args: {
     const row = await readLatestValueTimingIndexSnapshot(code)
     if (!row) throw new Error(`暂无快照，请等待晚间刷新：${code}`)
     const payload = row.payload && typeof row.payload === 'object' ? (row.payload as { series?: unknown }) : null
-    const full = payload && Array.isArray(payload.series) ? (payload.series as ValueTimingDailyPoint[]) : []
+    const hydrated = hydrateValueTimingSeriesWithDerivedMetrics(payload?.series)
+    const full = hydrated.series
     const series =
       startYmd || endYmd
         ? full.filter((p) => {
@@ -823,7 +933,10 @@ export async function getValueTimingIndexSnapshotSeries(args: {
         fetchedAt: row.snapshot_at,
         dataDate: row.data_date ?? null,
         source: row.source ?? 'supabase:value_timing_index_daily',
-        notes: Array.isArray(row.notes) ? (row.notes as string[]) : [],
+        notes: [
+          ...(Array.isArray(row.notes) ? (row.notes as string[]) : []),
+          ...(hydrated.hydrationApplied ? hydrated.notes : []),
+        ],
         sourceType: 'snapshot',
         snapshotAt: row.snapshot_at ?? null,
         stale: true,
