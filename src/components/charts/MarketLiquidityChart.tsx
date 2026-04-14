@@ -283,6 +283,8 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     const v5Pct: LineData<Time>[] = []
     const eb: LineData<Time>[] = []
     const map = new Map<UTCTimestamp, HoverState>()
+    const v5PctSampleInsufficientByTime = new Map<UTCTimestamp, boolean>()
+    let v5PctValidCount = 0
     let hotBuf: LineData<Time>[] = []
     let coldBuf: LineData<Time>[] = []
 
@@ -315,6 +317,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       }
       if (typeof p.v5Pct === 'number' && Number.isFinite(p.v5Pct)) {
         v5Pct.push({ time: t, value: p.v5Pct })
+        v5PctValidCount += 1
       }
       const ebPct = ebByDate.get(p.date)
       if (typeof ebPct === 'number' && Number.isFinite(ebPct)) {
@@ -328,6 +331,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
         v5Pct: typeof p.v5Pct === 'number' && Number.isFinite(p.v5Pct) ? p.v5Pct : undefined,
         ebPct: typeof ebPct === 'number' && Number.isFinite(ebPct) ? ebPct : undefined,
       })
+      v5PctSampleInsufficientByTime.set(t, v5PctValidCount < 630)
     }
 
     if (hotBuf.length) hsHotSegments.push(hotBuf)
@@ -356,9 +360,13 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       h.bbBandwidth = typeof bw === 'number' && Number.isFinite(bw) ? bw : undefined
     }
 
-    const hasSampleInsufficient = series.length > 0 && v5Pct.length < 630
-    return { hs, hsHotSegments, hsColdSegments, ema20, ema60, bbMid, bbUpper, bbLower, v5, v5Pct, eb, map, hasSampleInsufficient }
+    return { hs, hsHotSegments, hsColdSegments, ema20, ema60, bbMid, bbUpper, bbLower, v5, v5Pct, eb, map, v5PctSampleInsufficientByTime }
   }, [equityBond, series])
+
+  const showHoverSampleInsufficient = useMemo(() => {
+    if (!hover) return false
+    return data.v5PctSampleInsufficientByTime.get(hover.t) === true
+  }, [data.v5PctSampleInsufficientByTime, hover])
 
   useEffect(() => {
     if (!priceElRef.current || chartsRef.current.price) return
@@ -1049,7 +1057,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
           style={{ height: showLiquidityPctPane ? 140 : 1 }}
         >
           <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
-            独家流动性指数（5年分位）{data.hasSampleInsufficient ? ' · 样本不足' : ''}
+            独家流动性指数（5年分位）{showHoverSampleInsufficient ? ' · 样本不足' : ''}
           </div>
           <div
             ref={v5PctOverboughtBgRef}
