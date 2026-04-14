@@ -38,8 +38,10 @@ jobs:
           CHINAMONEY_FETCH_BASE_DELAY_MS: "2000"
           ETF_PROXY_MAX_ATTEMPTS: "6"
           ETF_PROXY_BASE_DELAY_MS: "1200"
+          VALUE_TIMING_980081_BASELINE_FILE: "参考文档_for_references/价值100-pettm-2026-04-15.xlsx"
         run: |
           echo "VALUE_TIMING_REFRESH_MODE=$VALUE_TIMING_REFRESH_MODE event=${{ github.event_name }}"
+          ls -l "$VALUE_TIMING_980081_BASELINE_FILE"
           npx tsx server/scripts/refreshValueTimingSnapshots.ts
 
       - name: Refresh (manual)
@@ -54,6 +56,8 @@ jobs:
           CHINAMONEY_FETCH_BASE_DELAY_MS: "2000"
           ETF_PROXY_MAX_ATTEMPTS: "6"
           ETF_PROXY_BASE_DELAY_MS: "1200"
+          VALUE_TIMING_980081_BASELINE_FILE: "参考文档_for_references/价值100-pettm-2026-04-15.xlsx"
         run: |
           echo "VALUE_TIMING_REFRESH_MODE=$VALUE_TIMING_REFRESH_MODE event=${{ github.event_name }}"
+          ls -l "$VALUE_TIMING_980081_BASELINE_FILE"
           npx tsx server/scripts/refreshValueTimingSnapshots.ts

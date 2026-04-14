@@ -1,6 +1,7 @@
 import { fetchGovBond10yYieldPctByDateSafe } from './chinamoneyGovBond.js'
 import { fetchCsindexIndexPeSeries } from './csindex.js'
 import { runAkshare } from './akshare.js'
+import path from 'node:path'
 import {
   readLatestValueTimingIndexSnapshot,
   readValueTimingIndexPointsRange,
@@ -24,7 +25,7 @@ type ValueTimingIndexConfig = {
   name: string
   closeSource: 'csindex' | 'cnindex'
   closeCode: string
-  peSource: 'csindex_indicator_xls' | 'etf_proxy' | 'public_api_then_etf'
+  peSource: 'csindex_indicator_xls' | 'etf_proxy' | 'public_api_then_etf' | 'baseline_plus_cnindex_daily'
   peIndexCode?: string
   peEtfCode?: string
 }
@@ -65,7 +66,7 @@ type ValueTimingSummaryItem = {
 const VALUE_TIMING_INDEXES: Record<string, ValueTimingIndexConfig> = {
   '932365': { code: '932365', name: '中证全指自由现金流', closeSource: 'csindex', closeCode: '932365', peSource: 'csindex_indicator_xls', peIndexCode: '932365' },
   '932315': { code: '932315', name: '中证全指红利质量', closeSource: 'csindex', closeCode: '932315', peSource: 'csindex_indicator_xls', peIndexCode: '932315' },
-  '980081': { code: '980081', name: '国证价值100', closeSource: 'cnindex', closeCode: '980081', peSource: 'public_api_then_etf', peEtfCode: '159263' },
+  '980081': { code: '980081', name: '国证价值100', closeSource: 'cnindex', closeCode: '980081', peSource: 'baseline_plus_cnindex_daily', peEtfCode: '159263' },
 }
 
 export function getValueTimingSupportedIndexCodes(): string[] {
@@ -308,6 +309,97 @@ async function fetchAkshareIndexPeSeries(args: {
   }
   series.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
   return series
+}
+
+function get980081BaselineFilePath(): string {
+  const p = String(process.env.VALUE_TIMING_980081_BASELINE_FILE || '').trim()
+  const rel = '参考文档_for_references/价值100-pettm-2026-04-15.xlsx'
+  if (!p) return path.resolve(process.cwd(), rel)
+  return path.isAbsolute(p) ? p : path.resolve(process.cwd(), p)
+}
+
+async function load980081HistoricalPeBaseline(): Promise<Array<{ date: string; pe: number }>> {
+  const file = get980081BaselineFilePath()
+  const cacheKey = `value-pe:baseline-xlsx:980081:${file}`
+  const out = await runAkshare<{ series?: Array<{ date?: string; pe?: number | null }> }>(
+    cacheKey,
+    ['index-valuation-baseline', '--index-code', '980081', '--file', file],
+    { cacheTtlMs: 12 * 60 * 60_000, timeoutMs: 90_000 },
+  )
+  if (out.success !== true) {
+    const msg = 'message' in out ? String(out.message || '') : ''
+    throw new Error(msg || '980081 baseline load failed')
+  }
+  const rows = Array.isArray(out.data?.series) ? out.data.series : []
+  const series: Array<{ date: string; pe: number }> = []
+  for (const r of rows) {
+    const d = normalizeYmd10(r?.date)
+    const pe = typeof r?.pe === 'number' && Number.isFinite(r.pe) && r.pe > 0 ? r.pe : null
+    if (!d || pe == null) continue
+    series.push({ date: d, pe })
+  }
+  series.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+  return series
+}
+
+async function fetchCnindex980081LatestPeWithTradeDate(): Promise<{ tradeDate: string | null; pe: number | null; notes: string[] }> {
+  const headers = {
+    'User-Agent': 'Mozilla/5.0',
+    Accept: 'application/json,text/plain,*/*',
+    Referer: 'https://www.cnindex.com.cn/',
+  }
+  const notes: string[] = []
+  try {
+    const [runRes, dayRes] = await Promise.all([
+      fetch('https://www.cnindex.com.cn/index/running?type=1', { headers }),
+      fetch('https://www.cnindex.com.cn/market/market/getMarketDay?codesValue=980081', { headers }),
+    ])
+    const runJ = (await runRes.json().catch(() => null)) as any
+    const dayJ = (await dayRes.json().catch(() => null)) as any
+    const runRows = Array.isArray(runJ?.data) ? runJ.data : []
+    const row = runRows.find((x: any) => String(x?.indexcode || '') === '980081')
+    const pe = toNum(row?.peDynamic)
+    const dayRows = Array.isArray(dayJ?.data) ? dayJ.data : []
+    const tradeDate = normalizeYmd10(dayRows[0]?.lastMarketDay)
+    if (!tradeDate) notes.push('cnindex_lastMarketDay_missing=1')
+    if (pe == null || pe <= 0) notes.push('cnindex_peDynamic_missing=1')
+    return { tradeDate: tradeDate || null, pe: pe != null && pe > 0 ? pe : null, notes }
+  } catch (e) {
+    notes.push(`cnindex_daily_error=${String(e instanceof Error ? e.message : e).slice(0, 180)}`)
+    return { tradeDate: null, pe: null, notes }
+  }
+}
+
+export function merge980081PeSeries(args: {
+  baseline: Array<{ date: string; pe: number }>
+  latest: { tradeDate: string | null; pe: number | null }
+}): {
+  merged: Map<string, number | null>
+  baselinePoints: number
+  newDailyPoints: number
+  overwriteDays: number
+  dailyDate: string | null
+} {
+  const merged = new Map<string, number | null>()
+  for (const r of args.baseline) {
+    const d = normalizeYmd10(r.date)
+    const pe = toNum(r.pe)
+    if (!d || pe == null || pe <= 0) continue
+    merged.set(d, pe)
+  }
+  const baselinePoints = merged.size
+  let newDailyPoints = 0
+  let overwriteDays = 0
+  let dailyDate: string | null = null
+  const d = normalizeYmd10(args.latest.tradeDate)
+  const pe = toNum(args.latest.pe)
+  if (d && pe != null && pe > 0) {
+    if (merged.has(d)) overwriteDays = 1
+    merged.set(d, pe)
+    newDailyPoints = 1
+    dailyDate = d
+  }
+  return { merged, baselinePoints, newDailyPoints, overwriteDays, dailyDate }
 }
 
 function buildRollingPercentile(values: Array<number | null>, window: number, minPeriods: number): Array<number | null> {
@@ -598,6 +690,10 @@ export async function getValueTimingIndexSeries(args: {
   const peByDate = new Map<string, number | null>()
   const notes: string[] = []
   let peDirectPoints = 0
+  let peBaselinePoints = 0
+  let peDailyPoints = 0
+  let peOverwriteDays = 0
+  let peDailyDate: string | null = null
   if (cfg.peSource === 'csindex_indicator_xls') {
     const peStartedAt = Date.now()
     const firstDate = closeSeries[0]?.date
@@ -617,6 +713,37 @@ export async function getValueTimingIndexSeries(args: {
     notes.push(`pe_points=${series.length}`)
     notes.push(`pe_direct_points=${peDirectPoints}`)
     logEvent({ event: 'value_timing.index.pe_csindex.done', code: cfg.code, points: series.length, ms: Date.now() - peStartedAt })
+  } else if (cfg.peSource === 'baseline_plus_cnindex_daily') {
+    const peStartedAt = Date.now()
+    const baseline = await load980081HistoricalPeBaseline()
+    const latest = await fetchCnindex980081LatestPeWithTradeDate()
+    const merged = merge980081PeSeries({ baseline, latest })
+    for (const [d, pe] of merged.merged) {
+      peByDate.set(d, pe)
+      if (pe != null && pe > 0) peDirectPoints += 1
+    }
+    peBaselinePoints = merged.baselinePoints
+    peDailyPoints = merged.newDailyPoints
+    peOverwriteDays = merged.overwriteDays
+    peDailyDate = merged.dailyDate
+    notes.push('pe_source=baseline_xlsx+cnindex_daily')
+    notes.push(`pe_baseline_points=${merged.baselinePoints}`)
+    notes.push(...latest.notes)
+    if (merged.dailyDate && latest.pe != null && latest.pe > 0) {
+      notes.push(`pe_daily_trade_date=${merged.dailyDate}`)
+      notes.push(`pe_daily_value=${latest.pe}`)
+      if (merged.overwriteDays > 0) notes.push('pe_conflict_override=1')
+    } else {
+      notes.push('pe_daily_missing=1')
+    }
+    logEvent({
+      event: 'value_timing.index.pe_baseline_daily.result',
+      code: cfg.code,
+      baselinePoints: baseline.length,
+      dailyPoints: peDailyPoints,
+      overwriteDays: peOverwriteDays,
+      ms: Date.now() - peStartedAt,
+    })
   } else if (cfg.peSource === 'public_api_then_etf') {
     const peStartedAt = Date.now()
     const firstDate = closeSeries[0]?.date || null
@@ -654,6 +781,11 @@ export async function getValueTimingIndexSeries(args: {
     logEvent({ event: 'value_timing.index.pe_proxy.result', code: cfg.code, etfCode: cfg.peEtfCode, pe: r.pe, error: r.error, ms: Date.now() - peStartedAt })
   }
   if (peDirectPoints === 0) notes.push('pe_direct_missing=1')
+  if (cfg.code === '980081') {
+    notes.push(`pe_baseline_points=${peBaselinePoints}`)
+    notes.push(`pe_new_daily_points=${peDailyPoints}`)
+    notes.push(`pe_overwrite_days=${peOverwriteDays}`)
+  }
   if (closeSeries.length) {
     let withPe = 0
     for (const p of closeSeries) if (peByDate.get(p.date) != null) withPe += 1
@@ -730,7 +862,13 @@ export async function getValueTimingIndexSeries(args: {
     peSources.push(direct != null && direct > 0 ? `direct:${cfg.peSource}` : pe != null ? `ffill:${cfg.peSource}` : null)
     if (cfg.code === '980081') {
       const notesByDate: string[] = []
-      if (cfg.peSource === 'public_api_then_etf') {
+      if (cfg.peSource === 'baseline_plus_cnindex_daily') {
+        if (direct != null && direct > 0) {
+          if (peDailyDate && p.date === peDailyDate) notesByDate.push('pe_source=cnindex_daily')
+          else notesByDate.push('pe_source=baseline_xlsx')
+        }
+        if (direct == null && pe != null) notesByDate.push('pe_source=forward_fill')
+      } else if (cfg.peSource === 'public_api_then_etf') {
         if (direct != null && direct > 0) notesByDate.push('pe_source=public_api')
         if (direct == null && pe != null) notesByDate.push(`pe_source=fallback_etf_ffill:${cfg.peEtfCode}`)
       } else {

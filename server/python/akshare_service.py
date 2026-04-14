@@ -1227,6 +1227,60 @@ def index_valuation(index_code: str, start_date: str | None, end_date: str | Non
     return _err("akshare_error", f"无法获取指数估值：{code}")
 
 
+def index_valuation_baseline(index_code: str, file_path: str):
+    fetched_at = _iso_now()
+    code = str(index_code or "").strip()
+    p = str(file_path or "").strip()
+    if not code:
+        return _err("bad_request", "缺少 index_code")
+    if not p:
+        return _err("bad_request", "缺少 file")
+    if not os.path.isabs(p):
+        p = os.path.abspath(os.path.join(os.getcwd(), p))
+    if not os.path.exists(p):
+        return _err("bad_request", f"文件不存在: {p}")
+
+    import pandas as pd
+
+    try:
+        df = pd.read_excel(p)
+    except Exception as e:
+        return _err("akshare_error", f"读取基线文件失败: {e}")
+    if df is None or df.empty:
+        return _err("akshare_error", "基线文件为空")
+
+    date_col = _pick_col(df, ["trade_date", "date", "日期", "交易日"])
+    pe_col = _pick_col(df, ["PE-TTM-S", "PE-TTM", "pe_ttm", "pe", "市盈率"])
+    if not date_col or not pe_col:
+        return _err("akshare_error", f"无法识别日期/PE列 date_col={date_col} pe_col={pe_col}")
+
+    d2 = df.copy()
+    d2[date_col] = d2[date_col].apply(_fmt_ymd)
+    out = []
+    for _, r in d2.iterrows():
+        d = str(r.get(date_col) or "").strip()
+        pe = _to_float(r.get(pe_col))
+        if not d or pe is None or pe <= 0:
+            continue
+        out.append({"date": d, "pe": pe})
+    if not out:
+        return _err("akshare_error", "基线文件无有效PE数据")
+
+    dedup = {}
+    for r in out:
+        dedup[str(r["date"])] = float(r["pe"])
+    series = [{"date": d, "pe": dedup[d]} for d in sorted(dedup.keys())]
+    return _ok(
+        {
+            "fetchedAt": fetched_at,
+            "dataDate": series[-1]["date"],
+            "source": "baseline:xlsx",
+            "notes": [f"index_code={code}", f"file={p}", f"rows={len(series)}", f"date_col={date_col}", f"pe_col={pe_col}"],
+        },
+        {"series": series},
+    )
+
+
 def main(argv):
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -1253,6 +1307,10 @@ def main(argv):
     p_val.add_argument("--start-date", type=str, default="")
     p_val.add_argument("--end-date", type=str, default="")
 
+    p_valb = sub.add_parser("index-valuation-baseline")
+    p_valb.add_argument("--index-code", type=str, required=True)
+    p_valb.add_argument("--file", type=str, required=True)
+
     args = parser.parse_args(argv)
     try:
         if args.cmd == "top100":
@@ -1266,6 +1324,8 @@ def main(argv):
             result = market_board_daily(args.start_date, args.end_date)
         elif args.cmd == "index-valuation":
             result = index_valuation(args.index_code, args.start_date or None, args.end_date or None)
+        elif args.cmd == "index-valuation-baseline":
+            result = index_valuation_baseline(args.index_code, args.file)
         else:
             result = _err("bad_request", "未知命令")
     except Exception as e:

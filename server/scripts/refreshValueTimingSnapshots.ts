@@ -84,6 +84,16 @@ function summarizeCoverage(series: ValueTimingDailyPoint[]) {
   }
 }
 
+function parseNoteInt(notes: string[], key: string): number | null {
+  const prefix = `${key}=`
+  for (const n of notes) {
+    if (!String(n).startsWith(prefix)) continue
+    const v = Number(String(n).slice(prefix.length))
+    if (Number.isFinite(v)) return v
+  }
+  return null
+}
+
 function mapSeriesToPointRows(args: {
   runId: string
   code: string
@@ -188,6 +198,14 @@ async function main() {
       totalRows += rows.length
       if (!maxDataDate || last.date > maxDataDate) maxDataDate = last.date
       perCode[code] = { rows: rows.length, dataDate: last.date, lagDays: lag, coverage: cov }
+      if (code === '980081') {
+        const sourceStats = {
+          baselinePoints: parseNoteInt(Array.isArray(out.meta?.notes) ? out.meta.notes : [], 'pe_baseline_points'),
+          newDailyPoints: parseNoteInt(Array.isArray(out.meta?.notes) ? out.meta.notes : [], 'pe_new_daily_points'),
+          overwriteDays: parseNoteInt(Array.isArray(out.meta?.notes) ? out.meta.notes : [], 'pe_overwrite_days'),
+        }
+        perCode[code] = { ...(perCode[code] as object), sourceStats }
+      }
       logEvent({ event: 'value_timing.refresh.index.done', idx: idx + 1, total: codes.length, code, runId, rows: rows.length, dataDate: last.date, lagDays: lag, ms: Date.now() - t0 })
     }
 
