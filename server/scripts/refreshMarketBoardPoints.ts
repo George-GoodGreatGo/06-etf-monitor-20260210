@@ -1,6 +1,6 @@
 import { getMarketLiquidityV5 } from '../lib/marketLiquidityV5Service.js'
 import { randomUUID } from 'node:crypto'
-import { deleteMarketBoardPointsNotInRuns, readMarketBoardMeta, upsertMarketBoardMeta, upsertMarketBoardPoints } from '../lib/supabaseRest.js'
+import { publishMarketBoardRun, readMarketBoardMeta, upsertMarketBoardMeta, upsertMarketBoardPoints } from '../lib/supabaseRest.js'
 import { fetchCsindexHs300PeSeries } from '../lib/csindex.js'
 import { fetchNorthboundTotalTurnoverSeries } from '../lib/hkex.js'
 import { fetchGovBond10yYieldPctByDateSafe } from '../lib/chinamoneyGovBond.js'
@@ -401,18 +401,17 @@ async function main() {
 
       await withRetry(
         () =>
-          upsertMarketBoardMeta({
-            currentRunId: runId,
+          publishMarketBoardRun({
+            nextRunId: runId,
             previousRunId,
-            historyRunIds,
+            keepRunIds: historyRunIds,
             currentDataDate: maxDate,
             publishStatus: 'ready',
             qualitySummary,
           }),
-        'switch visible run',
+        'publish run atomically',
         3,
       )
-      await withRetry(() => deleteMarketBoardPointsNotInRuns({ keepRunIds: historyRunIds }), 'cleanup old runs', 3)
       process.stdout.write(`mode=${mode} write=${totalWrite} visible_run=${runId} keep_runs=${historyRunIds.join(',')}\n`)
       return
     } catch (e) {

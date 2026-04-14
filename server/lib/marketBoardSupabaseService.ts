@@ -1,5 +1,13 @@
 import { readMarketBoardMeta, readMarketBoardPointsRange } from './supabaseRest.js'
 
+function logRead(event: string, payload: Record<string, unknown>) {
+  try {
+    process.stdout.write(`${JSON.stringify({ ts: new Date().toISOString(), event, ...payload })}\n`)
+  } catch {
+    void 0
+  }
+}
+
 function ymd8ToYmd10(ymd8: string): string {
   const s = String(ymd8 || '').trim()
   if (!/^\d{8}$/.test(s)) return ''
@@ -105,6 +113,13 @@ export async function getMarketLiquidityV5FromSupabase(args?: { startDate?: stri
 
   const metaRow = await readMarketBoardMeta()
   const candidates = (metaRow?.historyRunIds || []).filter(Boolean) as string[]
+  logRead('market_board.read.start', {
+    start10,
+    end10,
+    candidates,
+    publishStatus: metaRow?.publishStatus || null,
+    currentDataDate: metaRow?.currentDataDate || null,
+  })
   if (candidates.length === 0) {
     return { success: false as const, error: 'no_data', message: 'Supabase 尚无大盘看板数据（meta 未初始化）' }
   }
@@ -153,6 +168,12 @@ export async function getMarketLiquidityV5FromSupabase(args?: { startDate?: stri
   }
 
   if (!rows || rows.length === 0) {
+    logRead('market_board.read.failed', {
+      start10,
+      end10,
+      candidates,
+      fallbackReason,
+    })
     return {
       success: false as const,
       error: 'no_data',
@@ -184,6 +205,16 @@ export async function getMarketLiquidityV5FromSupabase(args?: { startDate?: stri
 
   const last = rows[rows.length - 1]
   const notes = Array.isArray(last.notes) ? (last.notes as unknown[]) : null
+  logRead('market_board.read.success', {
+    start10,
+    end10,
+    candidates,
+    usedRunId: usedRunId || 'all_visible',
+    rowCount: rows.length,
+    firstDate: rows[0]?.data_date ?? null,
+    lastDate: last?.data_date ?? null,
+    fallbackReason,
+  })
 
   return {
     success: true as const,

@@ -191,6 +191,48 @@ export async function upsertMarketBoardMeta(args: {
   }
 }
 
+export async function publishMarketBoardRun(args: {
+  nextRunId: string
+  previousRunId?: string | null
+  keepRunIds: string[]
+  currentDataDate?: string | null
+  publishStatus?: string
+  qualitySummary?: Record<string, unknown> | null
+}): Promise<void> {
+  const supabaseUrl = mustEnv('SUPABASE_URL').replace(/\/+$/, '')
+  const serviceKey = mustEnv('SUPABASE_SERVICE_ROLE_KEY')
+  const nextRunId = String(args.nextRunId || '').trim()
+  const previousRunId = args.previousRunId ? String(args.previousRunId).trim() : null
+  const keepRunIds = uniqueNonEmptyRunIds(args.keepRunIds || [])
+  if (!nextRunId) throw new Error('missing nextRunId')
+  if (!keepRunIds.includes(nextRunId)) throw new Error('keepRunIds must include nextRunId')
+
+  const payload = {
+    p_next_run_id: nextRunId,
+    p_previous_run_id: previousRunId,
+    p_keep_run_ids: keepRunIds,
+    p_current_data_date: args.currentDataDate ? String(args.currentDataDate).trim() : null,
+    p_publish_status: args.publishStatus ? String(args.publishStatus).trim() : 'ready',
+    p_quality_summary: args.qualitySummary && typeof args.qualitySummary === 'object' ? args.qualitySummary : {},
+  }
+
+  const url = `${supabaseUrl}/rest/v1/rpc/publish_market_board_run`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`supabase rpc publish_market_board_run failed: HTTP ${res.status} ${body}`)
+  }
+}
+
 export type LowVolIndexDailyRow = {
   id: string
   code: string
@@ -239,6 +281,34 @@ function mustEnv(name: string): string {
   const v = String(process.env[name] || '').trim()
   if (!v) throw new Error(`missing env: ${name}`)
   return v
+}
+
+async function readSupabasePaged<T extends object>(args: {
+  supabaseUrl: string
+  readKey: string
+  pathWithQueryBuilder: (offset: number, limit: number) => string
+  pageSize?: number
+  maxRows?: number
+}): Promise<T[]> {
+  const pageSize = Math.max(1, Math.floor(args.pageSize ?? 1000))
+  const maxRows = Math.max(pageSize, Math.floor(args.maxRows ?? 50_000))
+  const out: T[] = []
+  for (let offset = 0; offset < maxRows; offset += pageSize) {
+    const url = `${args.supabaseUrl}/rest/v1/${args.pathWithQueryBuilder(offset, pageSize)}`
+    const res = await fetch(url, {
+      headers: {
+        apikey: args.readKey,
+        Authorization: `Bearer ${args.readKey}`,
+      },
+    })
+    if (!res.ok) return out
+    const j = (await res.json().catch(() => null)) as unknown
+    if (!Array.isArray(j) || j.length === 0) break
+    const rows = j.filter((x) => x && typeof x === 'object') as T[]
+    out.push(...rows)
+    if (rows.length < pageSize) break
+  }
+  return out
 }
 
 export async function readTop100InsightByDataDate(dataDate: string): Promise<Top100InsightRow | null> {
@@ -484,29 +554,17 @@ export async function readMarketBoardPointsRange(args: {
   const end = String(args.endDate || '').trim()
   const runId = args.runId ? String(args.runId).trim() : ''
   if (!supabaseUrl || !readKey || !start || !end) return []
-
-  const pageSize = 1000
-  const out: MarketBoardPointRow[] = []
-  for (let offset = 0; offset < 50_000; offset += pageSize) {
-    const url =
-      `${supabaseUrl}/rest/v1/market_board_point?` +
+  return await readSupabasePaged<MarketBoardPointRow>({
+    supabaseUrl,
+    readKey,
+    pathWithQueryBuilder: (offset, limit) =>
+      `market_board_point?` +
       `select=*&data_date=gte.${encodeURIComponent(start)}&data_date=lte.${encodeURIComponent(end)}` +
       (runId ? `&run_id=eq.${encodeURIComponent(runId)}` : '') +
-      `&order=data_date.asc&limit=${pageSize}&offset=${offset}`
-    const res = await fetch(url, {
-      headers: {
-        apikey: readKey,
-        Authorization: `Bearer ${readKey}`,
-      },
-    })
-    if (!res.ok) return out
-    const j = (await res.json().catch(() => null)) as unknown
-    if (!Array.isArray(j) || j.length === 0) break
-    const rows = j.filter((x) => x && typeof x === 'object') as MarketBoardPointRow[]
-    out.push(...rows)
-    if (rows.length < pageSize) break
-  }
-  return out
+      `&order=data_date.asc&limit=${limit}&offset=${offset}`,
+    pageSize: 1000,
+    maxRows: 50_000,
+  })
 }
 
 export async function upsertMarketBoardPoints(payload: Array<Omit<MarketBoardPointRow, 'updated_at'>>): Promise<void> {
