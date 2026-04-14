@@ -51,13 +51,38 @@ function findHeaderRow(rows: unknown[][]): { rowIdx: number; dateCol: number; te
 async function fetchYearXlsx(year: number): Promise<Buffer> {
   const url =
     `https://yield.chinabond.com.cn/cbweb-mn/yc/downYearBzqx?year=${year}` +
-    `&&wrjxCBFlag=0&&zblx=txy&&ycDefId=${YC_DEF_ID_GOV_BOND_MATURITY}&&locale=zh_CN`
-  const res = await fetch(url)
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`chinamoney downYearBzqx failed: HTTP ${res.status} ${text}`)
+    `&wrjxCBFlag=0&zblx=txy&ycDefId=${YC_DEF_ID_GOV_BOND_MATURITY}&locale=zh_CN`
+  
+  let lastErr: Error | null = null
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        }
+      })
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(`chinamoney downYearBzqx failed: HTTP ${res.status} ${text}`)
+      }
+      const arrayBuf = await res.arrayBuffer()
+      if (arrayBuf.byteLength < 1000) {
+        // Sometimes they return a short error HTML string instead of a 50x code
+        const text = Buffer.from(arrayBuf).toString('utf-8')
+        if (text.includes('<html') || text.includes('504')) {
+          throw new Error(`chinamoney downYearBzqx failed: Returned short HTML error instead of Excel file`)
+        }
+      }
+      return Buffer.from(arrayBuf)
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error(String(e))
+      if (attempt < 3) {
+        await new Promise(r => setTimeout(r, 2000 * attempt)) // Wait before retry
+      }
+    }
   }
-  return Buffer.from(await res.arrayBuffer())
+  throw lastErr
 }
 
 export async function fetchGovBond10yYieldPctByDate(input: {
