@@ -94,7 +94,8 @@ function uniqueNonEmptyRunIds(list: unknown[]): string[] {
 export async function readMarketBoardMeta(): Promise<MarketBoardMetaRow | null> {
   const supabaseUrl = String(process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '')
   const anonKey = String(process.env.SUPABASE_ANON_KEY || '').trim()
-  const readKey = anonKey || String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
+  const serviceKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
+  const readKey = serviceKey || anonKey
   if (!supabaseUrl || !readKey) return null
 
   const urlV2 =
@@ -477,7 +478,8 @@ export async function readMarketBoardPointsRange(args: {
 }): Promise<MarketBoardPointRow[]> {
   const supabaseUrl = String(process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '')
   const anonKey = String(process.env.SUPABASE_ANON_KEY || '').trim()
-  const readKey = anonKey || String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
+  const serviceKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
+  const readKey = serviceKey || anonKey
   const start = String(args.startDate || '').trim()
   const end = String(args.endDate || '').trim()
   const runId = args.runId ? String(args.runId).trim() : ''

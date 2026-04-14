@@ -135,11 +135,28 @@ export async function getMarketLiquidityV5FromSupabase(args?: { startDate?: stri
     break
   }
 
+  // 容错兜底：若按 run_id 未命中，尝试读取可见范围（由 RLS 决定），避免因 run 过滤异常导致前端空白
+  if ((!rows || rows.length === 0) && candidates.length > 0) {
+    const fallbackRows = await readMarketBoardPointsRange({ startDate: start10, endDate: end10 })
+    if (fallbackRows.length > 0) {
+      const v = validateRows(fallbackRows as Array<{ data_date: string; close: number | null }>)
+      if (v.ok) {
+        rows = fallbackRows
+        usedRunId = null
+        fallbackReason = fallbackReason ? `${fallbackReason}; run=all:ok` : 'run=all:ok'
+      } else if (v.ok === false) {
+        fallbackReason = fallbackReason ? `${fallbackReason}; run=all:${v.error}` : `run=all:${v.error}`
+      }
+    } else {
+      fallbackReason = fallbackReason ? `${fallbackReason}; run=all:empty` : 'run=all:empty'
+    }
+  }
+
   if (!rows || rows.length === 0) {
     return {
       success: false as const,
       error: 'no_data',
-      message: 'Supabase 尚无可用大盘看板数据（history runs 均不可用）',
+      message: `Supabase 尚无可用大盘看板数据（history runs 均不可用）${fallbackReason ? `：${fallbackReason}` : ''}`,
     }
   }
 
