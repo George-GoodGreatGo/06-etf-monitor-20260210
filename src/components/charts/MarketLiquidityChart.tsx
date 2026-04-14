@@ -283,8 +283,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     const v5Pct: LineData<Time>[] = []
     const eb: LineData<Time>[] = []
     const map = new Map<UTCTimestamp, HoverState>()
-    const v5PctSampleInsufficientByTime = new Map<UTCTimestamp, boolean>()
-    let v5PctValidCount = 0
     let hotBuf: LineData<Time>[] = []
     let coldBuf: LineData<Time>[] = []
 
@@ -317,7 +315,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       }
       if (typeof p.v5Pct === 'number' && Number.isFinite(p.v5Pct)) {
         v5Pct.push({ time: t, value: p.v5Pct })
-        v5PctValidCount += 1
       }
       const ebPct = ebByDate.get(p.date)
       if (typeof ebPct === 'number' && Number.isFinite(ebPct)) {
@@ -331,7 +328,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
         v5Pct: typeof p.v5Pct === 'number' && Number.isFinite(p.v5Pct) ? p.v5Pct : undefined,
         ebPct: typeof ebPct === 'number' && Number.isFinite(ebPct) ? ebPct : undefined,
       })
-      v5PctSampleInsufficientByTime.set(t, v5PctValidCount < 630)
     }
 
     if (hotBuf.length) hsHotSegments.push(hotBuf)
@@ -360,13 +356,13 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       h.bbBandwidth = typeof bw === 'number' && Number.isFinite(bw) ? bw : undefined
     }
 
-    return { hs, hsHotSegments, hsColdSegments, ema20, ema60, bbMid, bbUpper, bbLower, v5, v5Pct, eb, map, v5PctSampleInsufficientByTime }
+    return { hs, hsHotSegments, hsColdSegments, ema20, ema60, bbMid, bbUpper, bbLower, v5, v5Pct, eb, map }
   }, [equityBond, series])
 
   const showHoverSampleInsufficient = useMemo(() => {
     if (!hover) return false
-    return data.v5PctSampleInsufficientByTime.get(hover.t) === true
-  }, [data.v5PctSampleInsufficientByTime, hover])
+    return !(typeof hover.v5Pct === 'number' && Number.isFinite(hover.v5Pct))
+  }, [hover])
 
   useEffect(() => {
     if (!priceElRef.current || chartsRef.current.price) return
