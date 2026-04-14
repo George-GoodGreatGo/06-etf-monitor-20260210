@@ -258,10 +258,7 @@ const LOWVOL_INDEXES: Record<string, LowVolIndexConfig> = {
   '930740.CSI': { code: '930740.CSI', name: '沪深300红利低波动', priCode: '930740', triCode: 'H20740' },
   '931847.CSI': { code: '931847.CSI', name: '中证500红利低波动', priCode: '931847', triCode: '931847CNY010' },
   '931848.CSI': { code: '931848.CSI', name: '中证800红利低波动', priCode: '931848', triCode: '931848CNY010' },
-  '932365': { code: '932365', name: '中证全指自由现金流', priCode: '932365', triCode: '932365CNY010' },
-  '932315': { code: '932315', name: '中证全指红利质量', priCode: '932315', triCode: '932315CNY010' },
   '930955': { code: '930955', name: '中证红利低波动100', priCode: '930955', triCode: 'H20955' },
-  '980081': { code: '980081', name: '国证价值100', priCode: '980081', triCode: '480081', dataSource: 'cnindex' },
 }
 
 export function getLowVolSupportedIndexCodes(): string[] {

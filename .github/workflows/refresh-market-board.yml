@@ -1,34 +1,64 @@
-name: Refresh Market Board Snapshot
+name: Refresh Market Board (Supabase Only)
 
 on:
   schedule:
-    - cron: "0 14 * * 1-5"
-  workflow_dispatch: {}
+    - cron: '10 12 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: incremental 或 backfill
+        required: false
+        default: incremental
+      startDate:
+        description: backfill 起始日期（YYYYMMDD，可选）
+        required: false
+      endDate:
+        description: backfill 结束日期（YYYYMMDD，可选）
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: refresh-market-board
+  cancel-in-progress: true
 
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    timeout-minutes: 110
     steps:
-      - name: Call refresh endpoint
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Node deps
+        run: npm ci
+
+      - name: Refresh market board points to Supabase
         env:
-          URL: ${{ secrets.REFRESH_URL_MARKET_BOARD }}
-          TOKEN: ${{ secrets.ADMIN_ACCESS_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          if [ -z "$URL" ]; then
-            echo "missing REFRESH_URL_MARKET_BOARD secret" >&2
-            exit 1
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            mode="backfill"
+          else
+            mode="${{ github.event.inputs.mode }}"
           fi
-          if [ -z "$TOKEN" ]; then
-            echo "missing ADMIN_ACCESS_TOKEN secret" >&2
-            exit 1
-          fi
-          http_code=$(curl -sS -o response.json -w "%{http_code}" -X POST "$URL" \
-            -H "x-admin-token: $TOKEN" \
-            -H "content-type: application/json" \
-            --data '{}')
-          echo "HTTP $http_code"
-          cat response.json || true
-          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
-            exit 22
+          startDate="${{ github.event.inputs.startDate }}"
+          endDate="${{ github.event.inputs.endDate }}"
+          if [ -z "$mode" ]; then mode="incremental"; fi
+          echo "mode=$mode startDate=$startDate endDate=$endDate"
+          sleep_sec=$(( (RANDOM % 600) + 1 ))
+          echo "jitter sleep ${sleep_sec}s"
+          sleep "$sleep_sec"
+          if [ "$mode" = "backfill" ]; then
+            npm run backfill:supabase:market-board -- --startDate "$startDate" --endDate "$endDate"
+          else
+            npm run refresh:supabase:market-board
           fi
 

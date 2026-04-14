@@ -1,5 +1,4 @@
 import { Router, type Request, type Response } from 'express'
-import { getMarketLiquidityV5 } from '../lib/marketLiquidityV5Service.js'
 
 const router = Router()
 
@@ -99,16 +98,33 @@ router.post('/market/refresh', async (req: Request, res: Response) => {
     res.status(401).json({ success: false, error: 'unauthorized' })
     return
   }
+  void req
   try {
-    const startDate = typeof (req.body as Record<string, unknown> | undefined)?.startDate === 'string' ? String((req.body as Record<string, unknown>).startDate).trim() : undefined
-    const endDate = typeof (req.body as Record<string, unknown> | undefined)?.endDate === 'string' ? String((req.body as Record<string, unknown>).endDate).trim() : undefined
-    const out = await getMarketLiquidityV5({ startDate, endDate, forceRefresh: true })
-    const meta = out && typeof out === 'object' ? ((out as Record<string, unknown>).meta as Record<string, unknown> | undefined) : undefined
-    const dataDate = meta && typeof meta.dataDate === 'string' ? meta.dataDate : null
-    res.status(200).json({ success: true, dataDate, meta })
+    const token = mustEnv('GITHUB_ACTIONS_TOKEN')
+    const owner = mustEnv('GITHUB_OWNER')
+    const repo = mustEnv('GITHUB_REPO')
+    const workflow = String(process.env.GITHUB_REFRESH_MARKET_WORKFLOW || 'refresh-market-board.yml').trim() || 'refresh-market-board.yml'
+    const ref = String(process.env.GITHUB_REF || 'main').trim() || 'main'
+    const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`
+    const gh = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ref }),
+    })
+    if (!gh.ok) {
+      const body = await gh.text().catch(() => '')
+      res.status(502).json({ success: false, error: 'github_dispatch_failed', message: `GitHub workflow_dispatch 触发失败：HTTP ${gh.status} ${body}` })
+      return
+    }
+    res.status(202).json({ success: true, message: '已触发大盘看板后台刷新任务（GitHub Actions）。' })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    res.status(500).json({ success: false, error: msg })
+    res.status(500).json({ success: false, error: 'internal_error', message: msg })
   }
 })
 

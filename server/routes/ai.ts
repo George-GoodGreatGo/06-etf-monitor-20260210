@@ -4,7 +4,7 @@ import { getTop100InsightStatusDetail } from '../lib/top100Insight.js'
 import { cozeStreamRunToSseEvents } from '../lib/coze.js'
 import { buildWeeklyChartVercel } from './etf.js'
 import { runAkshare } from '../lib/akshare.js'
-import { getMarketLiquidityV5 } from '../lib/marketLiquidityV5Service.js'
+import { getMarketLiquidityV5FromSupabase } from '../lib/marketBoardSupabaseService.js'
 import { buildMarketBoardInsightContextV2 } from '../lib/marketBoardInsightContextV2.js'
 import { volcAgentChatToSseEvents } from '../lib/volcAgent.js'
 import type { LiquidityV5Point } from '../lib/liquidityV5.js'
@@ -444,7 +444,7 @@ router.post('/market/insight', async (req: Request, res: Response) => {
 
   let marketData: Record<string, unknown>
   try {
-    marketData = await getMarketLiquidityV5()
+    marketData = await getMarketLiquidityV5FromSupabase()
   } catch (e) {
     writeEvent({ type: 'end', status: 'error', message: e instanceof Error ? e.message : String(e) })
     res.end()

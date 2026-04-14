@@ -7,6 +7,7 @@ import Top100Table from '@/components/Top100Table'
 import Top100InsightPanel from '@/components/Top100InsightPanel'
 import MarketLiquidityPanel from '@/components/MarketLiquidityPanel'
 import LowVolOpportunityPanel from '@/components/LowVolOpportunityPanel'
+import ValueTimingPanel from '@/components/ValueTimingPanel'
 import { Loader2, ChevronUp, ChevronDown } from 'lucide-react'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { cn } from '@/lib/utils'
@@ -19,15 +20,16 @@ import {
 import { apiUrl } from '@/utils/apiBase'
 import { adminAuthHeaders } from '@/utils/adminAccess'
 import { formatYmd, parseIsoToLocal } from '@/utils/format'
-import { fetchLowVolSummary } from '@/utils/marketApi'
+import { fetchLowVolSummary, fetchValueTimingSummary } from '@/utils/marketApi'
 import { calcLowVolSuggestion, type LowVolSuggestionTone } from '@/utils/lowVolSignal'
+import { calcValueTimingSuggestion, type ValueTimingSuggestionTone } from '@/utils/valueTimingSignal'
 
 const defaultSort: { key: Top100SortKey; dir: SortDir } = {
   key: 'turnover',
   dir: 'desc',
 }
 
-type HomeTab = 'list' | 'insight' | 'liquidity' | 'lowvol'
+type HomeTab = 'list' | 'insight' | 'liquidity' | 'lowvol' | 'value'
 
 const LOWVOL_INDEX_OPTIONS = [
   {
@@ -60,28 +62,33 @@ const LOWVOL_INDEX_OPTIONS = [
     label: '800 红利低波',
     desc: '基于中证800成分，从高股息中筛选低波动与流动性较好标的，定期调样。',
   },
-  {
-    code: '932365',
-    label: '自由现金流',
-    desc: '聚焦自由现金流率较高、现金流质量较好的公司，兼顾规模与流动性，定期调样。',
-  },
-  {
-    code: '932315',
-    label: '红利质量',
-    desc: '在高股息基础上叠加盈利、财务健康等质量筛选，降低“高分红陷阱”，定期调样。',
-  },
   { code: '930955', label: '红利低波100', desc: '以高股息为基础，综合低波动与流动性筛选，选取100只成分，定期调样。' },
-  {
-    code: '980081',
-    label: '国证价值100',
-    desc: '以估值因子为核心（如低PB/PE等），筛选价值特征突出且流动性较好的100只成分，定期调样。',
-  },
 ] as const
 
 type LowVolIndexCode = (typeof LOWVOL_INDEX_OPTIONS)[number]['code']
 type LowVolBiasBasis = 'sma250' | 'sma60'
 
-function toneToNavPillCls(tone: LowVolSuggestionTone): string {
+const VALUE_INDEX_OPTIONS = [
+  {
+    code: '932365',
+    label: '自由现金流',
+    desc: '聚焦自由现金流质量与可持续性，使用盈利收益率-10Y利差评估阶段性估值吸引力。',
+  },
+  {
+    code: '932315',
+    label: '红利质量',
+    desc: '在高股息基础上叠加质量筛选，使用盈利收益率-10Y利差评估阶段性估值吸引力。',
+  },
+  {
+    code: '980081',
+    label: '国证价值100',
+    desc: '价值风格宽基，PE 采用跟踪ETF推算口径（159605），用于估值择时参考。',
+  },
+] as const
+
+type ValueIndexCode = (typeof VALUE_INDEX_OPTIONS)[number]['code']
+
+function toneToNavPillCls(tone: LowVolSuggestionTone | ValueTimingSuggestionTone): string {
   if (tone === 'good') return 'border-[rgba(16,185,129,0.25)] bg-[rgba(16,185,129,0.12)] text-[#34D399]'
   if (tone === 'bad') return 'border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.12)] text-[#F87171]'
   if (tone === 'warn') return 'border-[rgba(251,191,36,0.25)] bg-[rgba(251,191,36,0.12)] text-[#FBBF24]'
@@ -98,7 +105,7 @@ export default function Home() {
 
   const rawTab = searchParams.get('tab')
   const tab: HomeTab =
-    rawTab === 'insight' || rawTab === 'list' || rawTab === 'liquidity' || rawTab === 'lowvol' ? rawTab : 'list'
+    rawTab === 'insight' || rawTab === 'list' || rawTab === 'liquidity' || rawTab === 'lowvol' || rawTab === 'value' ? rawTab : 'list'
 
   const [lowVolIndexCode, setLowVolIndexCode] = useState<LowVolIndexCode>('H30269')
   const [lowVolBiasBasis, setLowVolBiasBasis] = useState<LowVolBiasBasis>('sma250')
@@ -128,6 +135,25 @@ export default function Home() {
   >(() => {
     const out = {} as Record<LowVolIndexCode, boolean>
     for (const opt of LOWVOL_INDEX_OPTIONS) out[opt.code] = false
+    return out
+  })
+
+  const [valueIndexCode, setValueIndexCode] = useState<ValueIndexCode>('932365')
+  const [valueLatestByCode, setValueLatestByCode] = useState<
+    Record<ValueIndexCode, { spreadPctRank5y?: number | null; pe?: number | null; earningsYieldPct?: number | null } | null>
+  >(() => {
+    const out = {} as Record<ValueIndexCode, { spreadPctRank5y?: number | null; pe?: number | null; earningsYieldPct?: number | null } | null>
+    for (const opt of VALUE_INDEX_OPTIONS) out[opt.code] = null
+    return out
+  })
+  const [valueSuggestionByCode, setValueSuggestionByCode] = useState<Record<ValueIndexCode, { label: string; tone: ValueTimingSuggestionTone }>>(() => {
+    const out = {} as Record<ValueIndexCode, { label: string; tone: ValueTimingSuggestionTone }>
+    for (const opt of VALUE_INDEX_OPTIONS) out[opt.code] = { label: '—', tone: 'unknown' }
+    return out
+  })
+  const [valueSuggestionLoadingByCode, setValueSuggestionLoadingByCode] = useState<Record<ValueIndexCode, boolean>>(() => {
+    const out = {} as Record<ValueIndexCode, boolean>
+    for (const opt of VALUE_INDEX_OPTIONS) out[opt.code] = false
     return out
   })
 
@@ -191,7 +217,7 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    if (rawTab === 'list' || rawTab === 'insight' || rawTab === 'liquidity' || rawTab === 'lowvol') return
+    if (rawTab === 'list' || rawTab === 'insight' || rawTab === 'liquidity' || rawTab === 'lowvol' || rawTab === 'value') return
     const next = new URLSearchParams(searchParams)
     next.set('tab', 'list')
     setSearchParams(next, { replace: true })
@@ -272,6 +298,59 @@ export default function Home() {
     setLowVolIndexSuggestionByCode(next)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lowVolBiasBasis])
+
+  useEffect(() => {
+    if (tab !== 'value') return
+    const ac = new AbortController()
+    setValueSuggestionLoadingByCode((prev) => {
+      const next = { ...prev }
+      for (const opt of VALUE_INDEX_OPTIONS) next[opt.code] = true
+      return next
+    })
+    ;(async () => {
+      const r = await fetchValueTimingSummary({ signal: ac.signal })
+      const latestNext = { ...valueLatestByCode }
+      const sugNext = { ...valueSuggestionByCode }
+      const items = r.success === true && Array.isArray(r.data?.items) ? r.data.items : []
+      const byCode = new Map<string, { spreadPctRank5y?: number | null; pe?: number | null; earningsYieldPct?: number | null } | null>()
+      for (const it of items) {
+        const code = it && typeof it === 'object' ? (it as { code?: unknown }).code : null
+        if (typeof code !== 'string') continue
+        const latest = it && typeof it === 'object' ? (it as { latest?: unknown }).latest : null
+        if (!latest || typeof latest !== 'object') {
+          byCode.set(code, null)
+          continue
+        }
+        const o = latest as Record<string, unknown>
+        byCode.set(code, {
+          spreadPctRank5y: typeof o.spreadPctRank5y === 'number' ? o.spreadPctRank5y : null,
+          pe: typeof o.pe === 'number' ? o.pe : null,
+          earningsYieldPct: typeof o.earningsYieldPct === 'number' ? o.earningsYieldPct : null,
+        })
+      }
+      for (const opt of VALUE_INDEX_OPTIONS) {
+        const last = byCode.has(opt.code) ? byCode.get(opt.code)! : null
+        latestNext[opt.code] = last
+        sugNext[opt.code] = calcValueTimingSuggestion({ spreadPctRank5y: last?.spreadPctRank5y })
+      }
+      setValueLatestByCode(latestNext)
+      setValueSuggestionByCode(sugNext)
+      setValueSuggestionLoadingByCode((prev) => {
+        const after = { ...prev }
+        for (const opt of VALUE_INDEX_OPTIONS) after[opt.code] = false
+        return after
+      })
+    })()
+    return () => {
+      ac.abort()
+      setValueSuggestionLoadingByCode((prev) => {
+        const after = { ...prev }
+        for (const opt of VALUE_INDEX_OPTIONS) after[opt.code] = false
+        return after
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab])
 
   useEffect(() => {
     const next = new URLSearchParams(searchParams)
@@ -687,6 +766,97 @@ export default function Home() {
         </>
       ) : null}
 
+        {tab === 'value' ? (
+          <>
+            <div className="mt-2 pb-3">
+              <div className="mb-2 flex items-center justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsCardsExpanded(!isCardsExpanded)}
+                  className="flex items-center gap-1 text-xs text-[#94A3B8] hover:text-[#E6EDF7] transition-colors"
+                >
+                  {isCardsExpanded ? (
+                    <>
+                      收起说明 <ChevronUp className="h-3 w-3" />
+                    </>
+                  ) : (
+                    <>
+                      展开说明 <ChevronDown className="h-3 w-3" />
+                    </>
+                  )}
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                {VALUE_INDEX_OPTIONS.map((opt) => {
+                  const sug = valueSuggestionByCode[opt.code]
+                  const sugLoading = valueSuggestionLoadingByCode[opt.code]
+                  const active = opt.code === valueIndexCode
+                  const last = valueLatestByCode[opt.code]
+                  return (
+                    <button
+                      key={opt.code}
+                      type="button"
+                      onClick={() => {
+                        if (active) return
+                        setValueIndexCode(opt.code)
+                      }}
+                      className={cn(
+                        'group flex flex-col gap-2 rounded-2xl border px-3 text-left transition-all',
+                        isCardsExpanded ? 'py-2.5' : 'py-1.5',
+                        active
+                          ? 'border-[rgba(255,87,34,0.55)] bg-[rgba(255,87,34,0.10)] shadow-[0_0_0_1px_rgba(255,87,34,0.18),0_10px_30px_rgba(0,0,0,0.25)]'
+                          : 'border-white/10 bg-white/5 hover:-translate-y-[1px] hover:border-white/20 hover:bg-white/7 hover:shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_16px_40px_rgba(0,0,0,0.35)]',
+                      )}
+                    >
+                      <div className="flex w-full flex-col gap-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div
+                              className={cn(
+                                'truncate text-sm font-semibold',
+                                active ? 'text-white' : 'text-[#E6EDF7] group-hover:text-white',
+                              )}
+                            >
+                              {opt.label}
+                            </div>
+                            <div className={cn('mt-0.5 font-mono text-[11px]', active ? 'text-[#FFD6C8]' : 'text-[#64748B]')}>
+                              {opt.code}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end gap-1">
+                            <span
+                              className={cn(
+                                'inline-flex items-center gap-2 rounded-full border px-2 py-[2px] text-[11px] font-medium leading-none',
+                                toneToNavPillCls(sugLoading ? 'unknown' : (sug?.tone ?? 'unknown')),
+                              )}
+                            >
+                              {sugLoading ? (
+                                <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
+                              ) : null}
+                              {sugLoading ? '—' : (sug?.label ?? '—')}
+                            </span>
+                            {last?.spreadPctRank5y != null && (
+                              <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-2 py-[2px] text-[11px] font-medium leading-none text-[#A9B6CC] font-sans">
+                                分位 {last.spreadPctRank5y.toFixed(0)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {isCardsExpanded && (
+                          <div className="text-[11px] leading-4 text-[#94A3B8] group-hover:text-[#CBD5E1]">
+                            {opt.desc}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        ) : null}
+
         {tab === 'lowvol' ? (
           <>
             <div className="mt-2 pb-3">
@@ -817,6 +987,12 @@ export default function Home() {
         <Top100InsightPanel meta={meta} rows={rows} isHomeLoading={loading} />
       ) : tab === 'liquidity' ? (
         <MarketLiquidityPanel />
+      ) : tab === 'value' ? (
+        <ValueTimingPanel
+          indexCode={valueIndexCode}
+          indexLabel={VALUE_INDEX_OPTIONS.find((x) => x.code === valueIndexCode)?.label ?? valueIndexCode}
+          indexDesc={VALUE_INDEX_OPTIONS.find((x) => x.code === valueIndexCode)?.desc}
+        />
       ) : tab === 'lowvol' ? (
         <LowVolOpportunityPanel
           indexCode={lowVolIndexCode}

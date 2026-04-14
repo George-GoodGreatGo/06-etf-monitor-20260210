@@ -1,15 +1,16 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { Activity, BookOpen, ChevronLeft, ChevronRight, Home as HomeIcon, LineChart, List, Sparkles } from 'lucide-react'
+import { Activity, BookOpen, ChevronLeft, ChevronRight, Home as HomeIcon, LineChart, List, Sparkles, Target } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type HomeTab = 'list' | 'insight' | 'liquidity' | 'lowvol'
+type HomeTab = 'list' | 'insight' | 'liquidity' | 'lowvol' | 'value'
 
 const HOME_TABS: Array<{ tab: HomeTab; label: string; icon: typeof List }> = [
   { tab: 'list', label: 'ETF200 列表', icon: List },
   { tab: 'insight', label: 'AI 解读', icon: Sparkles },
   { tab: 'liquidity', label: '大盘看板', icon: LineChart },
   { tab: 'lowvol', label: '低波机会', icon: Activity },
+  { tab: 'value', label: '价值择时', icon: Target },
 ]
 
 export default function SideNav({
@@ -32,7 +33,7 @@ export default function SideNav({
   const isMethod = loc.pathname === '/methodology'
   const rawTab = isMarket ? searchParams.get('tab') : null
   const tab: HomeTab =
-    rawTab === 'list' || rawTab === 'insight' || rawTab === 'liquidity' || rawTab === 'lowvol' ? rawTab : 'list'
+    rawTab === 'list' || rawTab === 'insight' || rawTab === 'liquidity' || rawTab === 'lowvol' || rawTab === 'value' ? rawTab : 'list'
   const activeKey = isMethod ? 'methodology' : isHome ? 'home' : isMarket ? `market:${tab}` : ''
 
   const listRef = useRef<HTMLDivElement | null>(null)

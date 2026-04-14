@@ -6,14 +6,16 @@
   "scripts": {
     "client:dev": "vite",
     "build": "tsc -b && vite build",
-    "test:unit": "tsx server/tests/rollingWindows5y.test.ts",
+    "test:unit": "tsx server/tests/rollingWindows5y.test.ts && tsx server/tests/valueTimingFormula.test.ts",
     "lint": "eslint .",
     "preview": "vite preview",
     "check": "tsc --noEmit",
     "server:dev": "nodemon",
     "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\"",
     "publish:supabase:top100": "tsx server/scripts/publishTop100ToSupabase.ts",
-    "refresh:supabase:top100": "tsx server/scripts/refreshTop100Snapshot.ts"
+    "refresh:supabase:top100": "tsx server/scripts/refreshTop100Snapshot.ts",
+    "refresh:supabase:market-board": "tsx server/scripts/refreshMarketBoardPoints.ts --mode incremental",
+    "backfill:supabase:market-board": "tsx server/scripts/refreshMarketBoardPoints.ts --mode backfill"
   },
   "dependencies": {
     "clsx": "^2.1.1",

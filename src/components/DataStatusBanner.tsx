@@ -34,7 +34,9 @@ export default function DataStatusBanner({
     (Array.isArray(notes) && notes.some((x) => typeof x === 'string' && x.includes('已回退上次成功快照')))
   const dataSourceLabel = staleSnapshot
     ? '快照数据源（最近一次成功快照）'
-    : source && source.includes('codebuddy:financedata')
+    : source && source.includes('supabase:')
+      ? 'Supabase 数据表'
+      : source && source.includes('codebuddy:financedata')
       ? '主数据源'
       : source && (source.includes('eastmoney') || source.includes('akshare') || source.includes('csindex'))
         ? '替代数据源'

@@ -1,5 +1,5 @@
 import express, { type Request, type Response } from 'express'
-import { getMarketLiquidityV5 } from '../lib/marketLiquidityV5Service.js'
+import { getMarketLiquidityV5FromSupabase } from '../lib/marketBoardSupabaseService.js'
 
 const router = express.Router()
 
@@ -9,8 +9,8 @@ router.get('/liquidity/v5', async (req: Request, res: Response) => {
   try {
     const startDate = typeof req.query.startDate === 'string' ? req.query.startDate.trim() : undefined
     const endDate = typeof req.query.endDate === 'string' ? req.query.endDate.trim() : undefined
-    const forceRefresh = String(req.query.forceRefresh || '').trim() === '1'
-    const out = await getMarketLiquidityV5({ startDate, endDate, forceRefresh })
+    void req.query.forceRefresh
+    const out = await getMarketLiquidityV5FromSupabase({ startDate, endDate })
     res.status(200).json(out)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)

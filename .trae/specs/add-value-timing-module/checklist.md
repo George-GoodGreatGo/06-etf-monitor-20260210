@@ -1,0 +1,10 @@
+- [ ] 左侧导航存在“价值择时”入口，且可正确进入 `/market?tab=value`。
+- [ ] 红利择时模块不再包含 932365/932315/980081；价值择时模块包含且可切换查看这 3 支指数。
+- [ ] 价值择时 API 存在并返回结构稳定：`/api/value/summary` 与 `/api/value/index/:code`（或等价路由）。
+- [ ] 价值择时利差口径正确：`earningsYieldPct=100/PE`、`spreadPct=earningsYieldPct-yield10yPct`。
+- [ ] 利差分位计算基于价值择时利差口径，并在 UI 标注为“利差分位(5年)”。
+- [ ] 价值择时页面明确说明“利差使用盈利收益率(1/PE)口径”，用于区别红利择时的股息收益率口径。
+- [ ] 980081 的 PE 在 UI 中明确标注为“推算口径（基于跟踪ETF：159605）”，并在快照记录来源信息（`source_type/source/notes`）。
+- [ ] Supabase 独立表（`value_timing_index_daily`）可读可写；写入使用 `on_conflict=code,data_date` 合并；RLS 允许前端读取。
+- [ ] 独立 GitHub Actions workflow 可运行并写入价值择时快照，日志包含逐指数 start/done 与错误原因。
+- [ ] 价值择时前端切换卡片具备：建议标签、股息率/利差标签排版、展开/收起，并与红利择时交互一致。
