@@ -1,6 +1,13 @@
 import { getMarketLiquidityV5 } from '../lib/marketLiquidityV5Service.js'
 import { randomUUID } from 'node:crypto'
 import { deleteMarketBoardPointsNotInRuns, readMarketBoardMeta, upsertMarketBoardMeta, upsertMarketBoardPoints } from '../lib/supabaseRest.js'
+import { fetchCsindexHs300PeSeries } from '../lib/csindex.js'
+import { fetchNorthboundTotalTurnoverSeries } from '../lib/hkex.js'
+import { fetchGovBond10yYieldPctByDateSafe } from '../lib/chinamoneyGovBond.js'
+
+const FULL_BACKFILL_START = '20160101'
+const RUN_HISTORY_KEEP = 5
+const COVERAGE_THRESHOLD = 0.95
 
 function argValue(name: string): string | null {
   const idx = process.argv.indexOf(name)
@@ -60,6 +67,18 @@ function ymd8ToYear(ymd8: string): number | null {
   if (!/^\d{8}$/.test(s)) return null
   const y = Number(s.slice(0, 4))
   return Number.isFinite(y) ? y : null
+}
+
+function dedupeRunIds(list: Array<string | null | undefined>): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const raw of list) {
+    const s = typeof raw === 'string' ? raw.trim() : ''
+    if (!s || seen.has(s)) continue
+    seen.add(s)
+    out.push(s)
+  }
+  return out
 }
 
 function maxYmd8(a: string, b: string): string {
@@ -124,6 +143,69 @@ async function withRetry<T>(fn: () => Promise<T>, label: string, maxRetries: num
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr))
 }
 
+function summarizeCoverage(rows: Array<Record<string, unknown>>) {
+  const tail = rows.slice(-504)
+  const amountCover = nonNullRatio(tail, 'amount')
+  const trCover = nonNullRatio(tail, 'tr')
+  const northCover = nonNullRatio(tail, 'north_money')
+  const peCover = nonNullRatio(tail, 'pe')
+  const y10Cover = nonNullRatio(tail, 'yield10y_pct')
+  return {
+    window: tail.length,
+    amountCover,
+    trCover,
+    northCover,
+    peCover,
+    y10Cover,
+  }
+}
+
+async function runSourceConnectivityProbe(args: { endDate: string }) {
+  const endDate = String(args.endDate || '').trim()
+  const oneYearAgo = shiftYmd8Years(endDate, -1) || FULL_BACKFILL_START
+  const probeStart = maxYmd8(FULL_BACKFILL_START, oneYearAgo)
+  const endYear = ymd8ToYear(endDate) || new Date().getUTCFullYear()
+
+  process.stdout.write(`[probe] start=${probeStart} end=${endDate} year=${endYear}\n`)
+
+  const checks = await Promise.allSettled([
+    withRetry(async () => {
+      const rows = await fetchNorthboundTotalTurnoverSeries({ startDate: probeStart, endDate })
+      if (!Array.isArray(rows) || rows.length === 0) throw new Error('northbound empty')
+      return rows.length
+    }, 'probe:northbound', 2),
+    withRetry(async () => {
+      const rows = await fetchCsindexHs300PeSeries({ startDate: probeStart, endDate })
+      if (!Array.isArray(rows) || rows.length === 0) throw new Error('hs300 pe empty')
+      return rows.length
+    }, 'probe:hs300_pe', 2),
+    withRetry(async () => {
+      const out = await fetchGovBond10yYieldPctByDateSafe({ year: endYear })
+      if (out.error) throw new Error(out.error)
+      if (!(out.map instanceof Map) || out.map.size === 0) throw new Error('yield10y empty')
+      return out.map.size
+    }, 'probe:yield10y', 2),
+  ])
+
+  const names = ['northbound', 'hs300_pe', 'yield10y']
+  let okCount = 0
+  const failed: string[] = []
+  for (let i = 0; i < checks.length; i += 1) {
+    const it = checks[i]
+    if (it.status === 'fulfilled') {
+      okCount += 1
+      process.stdout.write(`[probe] ok ${names[i]} count=${it.value}\n`)
+    } else {
+      const msg = it.reason instanceof Error ? it.reason.message : String(it.reason)
+      failed.push(`${names[i]}=${msg}`)
+      process.stderr.write(`[probe] failed ${names[i]} err=${msg}\n`)
+    }
+  }
+  if (okCount < checks.length) {
+    throw new Error(`source connectivity probe failed: ${failed.join('; ')}`)
+  }
+}
+
 type Out = {
   success?: unknown
   meta?: Record<string, unknown>
@@ -146,7 +228,8 @@ function nonNullRatio(rows: Array<Record<string, unknown>>, key: string): number
 
 async function main() {
   const mode = (argValue('--mode') || 'backfill').toLowerCase()
-  const startDate = argValue('--startDate') || ymd8BeijingYearsAgo(10)
+  const defaultStartDate = mode === 'backfill' ? FULL_BACKFILL_START : ymd8BeijingYearsAgo(10)
+  const startDate = argValue('--startDate') || defaultStartDate
   const endDate = argValue('--endDate') || ymd8BeijingToday()
   const start10 = ymd8ToYmd10(startDate)
   const end10 = ymd8ToYmd10(endDate)
@@ -161,155 +244,202 @@ async function main() {
     const runId = randomUUID()
     process.stdout.write(`[run] new_run_id=${runId} prev_visible=${prevVisible || 'null'}\n`)
 
-    const y0 = ymd8ToYear(startDate)
-    const y1 = ymd8ToYear(endDate)
-    if (y0 == null || y1 == null) throw new Error('bad startDate/endDate year')
-    let totalWrite = 0
-    let maxDate: string | null = null
-    const recentRows: Array<Record<string, unknown>> = []
-    for (let y = y0; y <= y1; y += 2) {
-      const segStart = maxYmd8(startDate, `${y}0101`)
-      const segEnd = minYmd8(endDate, `${Math.min(y + 1, y1)}1231`)
-      if (segStart > segEnd) continue
+    try {
+      await runSourceConnectivityProbe({ endDate })
 
-      const computeStartRaw = shiftYmd8Years(segStart, -6)
-      const computeStart = computeStartRaw ? maxYmd8(startDate, computeStartRaw) : startDate
-      const computeEnd = segEnd
-      const segStart10 = ymd8ToYmd10(segStart)
-      const segEnd10 = ymd8ToYmd10(segEnd)
-      process.stdout.write(`[segment] out=${segStart}..${segEnd} compute=${computeStart}..${computeEnd}\n`)
+      const y0 = ymd8ToYear(startDate)
+      const y1 = ymd8ToYear(endDate)
+      if (y0 == null || y1 == null) throw new Error('bad startDate/endDate year')
+      let totalWrite = 0
+      let maxDate: string | null = null
+      const recentRows: Array<Record<string, unknown>> = []
+      for (let y = y0; y <= y1; y += 2) {
+        const segStart = maxYmd8(startDate, `${y}0101`)
+        const segEnd = minYmd8(endDate, `${Math.min(y + 1, y1)}1231`)
+        if (segStart > segEnd) continue
 
-      const out = (await withRetry(
-        () => getMarketLiquidityV5({ startDate: computeStart, endDate: computeEnd, forceRefresh: true }),
-        `compute segment ${segStart}..${segEnd}`,
-        5,
-      )) as Out
-      if (out.success !== true) throw new Error(`market board compute failed(seg ${segStart}..${segEnd})`)
+        const computeStartRaw = shiftYmd8Years(segStart, -6)
+        const computeStart = computeStartRaw ? maxYmd8(startDate, computeStartRaw) : startDate
+        const computeEnd = segEnd
+        const segStart10 = ymd8ToYmd10(segStart)
+        const segEnd10 = ymd8ToYmd10(segEnd)
+        process.stdout.write(`[segment] out=${segStart}..${segEnd} compute=${computeStart}..${computeEnd}\n`)
 
-      const meta = out.meta && typeof out.meta === 'object' ? out.meta : {}
-      const fetchedAt = typeof meta.fetchedAt === 'string' ? meta.fetchedAt : new Date().toISOString()
-      const sourceType = typeof meta.sourceType === 'string' ? meta.sourceType : null
-      const source = typeof meta.source === 'string' ? meta.source : null
-      const notes = Array.isArray(meta.notes) ? meta.notes : null
+        const out = (await withRetry(
+          () => getMarketLiquidityV5({ startDate: computeStart, endDate: computeEnd, forceRefresh: true }),
+          `compute segment ${segStart}..${segEnd}`,
+          5,
+        )) as Out
+        if (out.success !== true) throw new Error(`market board compute failed(seg ${segStart}..${segEnd})`)
 
-      const data = out.data && typeof out.data === 'object' ? out.data : {}
-      const seriesAll = mustArray((data as Record<string, unknown>).series)
-      const allLast = seriesAll.length ? (seriesAll[seriesAll.length - 1] as any) : null
-      const allLastDate = allLast && typeof allLast.date === 'string' ? String(allLast.date) : ''
-      if (allLastDate) {
-        const lag = diffDaysUtc(segEnd10, allLastDate)
-        if (lag != null && lag > 14) {
-          throw new Error(`segment source stale: out_last_date=${allLastDate} seg_end=${segEnd10} lag=${lag}d`)
-        }
-      }
-      const series = seriesAll.filter((p) => {
-        const d = typeof p.date === 'string' ? p.date : ''
-        return d && d >= segStart10 && d <= segEnd10
-      })
+        const meta = out.meta && typeof out.meta === 'object' ? out.meta : {}
+        const fetchedAt = typeof meta.fetchedAt === 'string' ? meta.fetchedAt : new Date().toISOString()
+        const sourceType = typeof meta.sourceType === 'string' ? meta.sourceType : null
+        const source = typeof meta.source === 'string' ? meta.source : null
+        const notes = Array.isArray(meta.notes) ? meta.notes : null
 
-      const equityBond = (data as Record<string, unknown>).equityBond
-      const equityBondSeriesAll = mustArray((equityBond as Record<string, unknown> | null)?.series)
-      const equityBondSeries = equityBondSeriesAll.filter((p) => {
-        const d = typeof p.date === 'string' ? p.date : ''
-        return d && d >= segStart10 && d <= segEnd10
-      })
-
-      const ebByDate = new Map<string, Record<string, unknown>>()
-      for (const p of equityBondSeries) {
-        const d = typeof p.date === 'string' ? p.date : ''
-        if (!d) continue
-        ebByDate.set(d, p)
-      }
-
-      const rows = series
-        .map((p) => {
-          const date = typeof p.date === 'string' ? p.date : ''
-          const close = typeof p.close === 'number' ? p.close : NaN
-          if (!date || !Number.isFinite(close)) return null
-          const eb = ebByDate.get(date) || null
-          return {
-            run_id: runId,
-            data_date: date,
-            fetched_at: fetchedAt,
-            source_type: sourceType,
-            source,
-            notes,
-            close,
-            amount: finiteOrNull((p as any).amount),
-            tr: finiteOrNull((p as any).tr),
-            north_money: finiteOrNull((p as any).northMoney),
-            amount_pct: finiteOrNull((p as any).amountPct),
-            tr_pct: finiteOrNull((p as any).trPct),
-            north_pct: finiteOrNull((p as any).northPct),
-            v5: finiteOrNull((p as any).v5),
-            v5_pct: finiteOrNull((p as any).v5Pct),
-            pe: finiteOrNull(eb && (eb as any).pe),
-            earnings_yield: finiteOrNull(eb && (eb as any).earningsYield),
-            yield10y_pct: finiteOrNull(eb && (eb as any).yield10yPct),
-            equity_bond_value: finiteOrNull(eb && (eb as any).value),
-            equity_bond_pct: finiteOrNull(eb && (eb as any).pct),
+        const data = out.data && typeof out.data === 'object' ? out.data : {}
+        const seriesAll = mustArray((data as Record<string, unknown>).series)
+        const allLast = seriesAll.length ? (seriesAll[seriesAll.length - 1] as any) : null
+        const allLastDate = allLast && typeof allLast.date === 'string' ? String(allLast.date) : ''
+        if (allLastDate) {
+          const lag = diffDaysUtc(segEnd10, allLastDate)
+          if (lag != null && lag > 7) {
+            throw new Error(`segment source stale: out_last_date=${allLastDate} seg_end=${segEnd10} lag=${lag}d`)
           }
+        }
+        const series = seriesAll.filter((p) => {
+          const d = typeof p.date === 'string' ? p.date : ''
+          return d && d >= segStart10 && d <= segEnd10
         })
-        .filter((x) => x != null)
 
-      if (rows.length === 0) {
-        throw new Error(`segment produced no rows: out=${segStart}..${segEnd}`)
+        const equityBond = (data as Record<string, unknown>).equityBond
+        const equityBondSeriesAll = mustArray((equityBond as Record<string, unknown> | null)?.series)
+        const equityBondSeries = equityBondSeriesAll.filter((p) => {
+          const d = typeof p.date === 'string' ? p.date : ''
+          return d && d >= segStart10 && d <= segEnd10
+        })
+
+        const ebByDate = new Map<string, Record<string, unknown>>()
+        for (const p of equityBondSeries) {
+          const d = typeof p.date === 'string' ? p.date : ''
+          if (!d) continue
+          ebByDate.set(d, p)
+        }
+
+        const rows = series
+          .map((p) => {
+            const date = typeof p.date === 'string' ? p.date : ''
+            const close = typeof p.close === 'number' ? p.close : NaN
+            if (!date || !Number.isFinite(close)) return null
+            const eb = ebByDate.get(date) || null
+            return {
+              run_id: runId,
+              data_date: date,
+              fetched_at: fetchedAt,
+              source_type: sourceType,
+              source,
+              notes,
+              close,
+              amount: finiteOrNull((p as any).amount),
+              tr: finiteOrNull((p as any).tr),
+              north_money: finiteOrNull((p as any).northMoney),
+              amount_pct: finiteOrNull((p as any).amountPct),
+              tr_pct: finiteOrNull((p as any).trPct),
+              north_pct: finiteOrNull((p as any).northPct),
+              v5: finiteOrNull((p as any).v5),
+              v5_pct: finiteOrNull((p as any).v5Pct),
+              pe: finiteOrNull(eb && (eb as any).pe),
+              earnings_yield: finiteOrNull(eb && (eb as any).earningsYield),
+              yield10y_pct: finiteOrNull(eb && (eb as any).yield10yPct),
+              equity_bond_value: finiteOrNull(eb && (eb as any).value),
+              equity_bond_pct: finiteOrNull(eb && (eb as any).pct),
+            }
+          })
+          .filter((x) => x != null)
+
+        if (rows.length === 0) {
+          throw new Error(`segment produced no rows: out=${segStart}..${segEnd}`)
+        }
+
+        for (const part of chunk(rows, 200)) {
+          await withRetry(() => upsertMarketBoardPoints(part as any), `upsert batch size=${part.length}`, 4)
+          await sleep(jitterMs(350, 0.6))
+        }
+        totalWrite += rows.length
+        const segMax = rows[rows.length - 1]?.data_date
+        if (typeof segMax === 'string') maxDate = maxDate ? (segMax > maxDate ? segMax : maxDate) : segMax
+        for (const r of rows) recentRows.push(r)
+        while (recentRows.length > 700) recentRows.shift()
+
+        if (recentRows.length) {
+          const cov = summarizeCoverage(recentRows)
+          process.stdout.write(
+            `[segment] cover(last${cov.window}) amount=${(cov.amountCover * 100).toFixed(1)}% tr=${(cov.trCover * 100).toFixed(1)}% north=${(cov.northCover * 100).toFixed(1)}% pe=${(cov.peCover * 100).toFixed(1)}% y10=${(cov.y10Cover * 100).toFixed(1)}%\n`,
+          )
+        }
+        process.stdout.write(`[segment] wrote=${rows.length} total=${totalWrite}\n`)
+        await sleep(jitterMs(5_000, 0.8))
       }
 
-      for (const part of chunk(rows, 200)) {
-        await withRetry(() => upsertMarketBoardPoints(part as any), `upsert batch size=${part.length}`, 4)
-        await sleep(jitterMs(350, 0.6))
+      if (!maxDate) throw new Error('backfill produced no data')
+      const lagAll = diffDaysUtc(end10, maxDate)
+      if (lagAll != null && lagAll > 7) {
+        throw new Error(`backfill max_date too old: max_date=${maxDate} end=${end10} lag=${lagAll}d`)
       }
-      totalWrite += rows.length
-      const segMax = rows[rows.length - 1]?.data_date
-      if (typeof segMax === 'string') maxDate = maxDate ? (segMax > maxDate ? segMax : maxDate) : segMax
-      for (const r of rows) recentRows.push(r)
-      while (recentRows.length > 700) recentRows.shift()
 
-      if (recentRows.length) {
-        const tail = recentRows.slice(-504)
-        const amountCover = nonNullRatio(tail, 'amount')
-        const trCover = nonNullRatio(tail, 'tr')
-        const northCover = nonNullRatio(tail, 'north_money')
-        const peCover = nonNullRatio(tail, 'pe')
-        const y10Cover = nonNullRatio(tail, 'yield10y_pct')
-        process.stdout.write(
-          `[segment] cover(last${tail.length}) amount=${(amountCover * 100).toFixed(1)}% tr=${(trCover * 100).toFixed(1)}% north=${(northCover * 100).toFixed(1)}% pe=${(peCover * 100).toFixed(1)}% y10=${(y10Cover * 100).toFixed(1)}%\n`,
+      const cov = summarizeCoverage(recentRows)
+      process.stdout.write(
+        `[run] max_date=${maxDate} cover(last${cov.window}) amount=${(cov.amountCover * 100).toFixed(1)}% tr=${(cov.trCover * 100).toFixed(1)}% north=${(cov.northCover * 100).toFixed(1)}% pe=${(cov.peCover * 100).toFixed(1)}% y10=${(cov.y10Cover * 100).toFixed(1)}%\n`,
+      )
+      if (
+        cov.window >= 200 &&
+        (cov.amountCover < COVERAGE_THRESHOLD ||
+          cov.trCover < COVERAGE_THRESHOLD ||
+          cov.northCover < COVERAGE_THRESHOLD ||
+          cov.peCover < COVERAGE_THRESHOLD ||
+          cov.y10Cover < COVERAGE_THRESHOLD)
+      ) {
+        throw new Error(`backfill coverage check failed (threshold=${(COVERAGE_THRESHOLD * 100).toFixed(0)}%)`)
+      }
+
+      const historyRunIds = dedupeRunIds([runId, ...(meta0?.historyRunIds || []), prevVisible, meta0?.previousRunId]).slice(
+        0,
+        RUN_HISTORY_KEEP,
+      )
+      const previousRunId = historyRunIds.length > 1 ? historyRunIds[1] : null
+      const qualitySummary = {
+        write: totalWrite,
+        maxDate,
+        coverageWindow: cov.window,
+        amountCover: cov.amountCover,
+        trCover: cov.trCover,
+        northCover: cov.northCover,
+        peCover: cov.peCover,
+        y10Cover: cov.y10Cover,
+      }
+
+      await withRetry(
+        () =>
+          upsertMarketBoardMeta({
+            currentRunId: runId,
+            previousRunId,
+            historyRunIds,
+            currentDataDate: maxDate,
+            publishStatus: 'ready',
+            qualitySummary,
+          }),
+        'switch visible run',
+        3,
+      )
+      await withRetry(() => deleteMarketBoardPointsNotInRuns({ keepRunIds: historyRunIds }), 'cleanup old runs', 3)
+      process.stdout.write(`mode=${mode} write=${totalWrite} visible_run=${runId} keep_runs=${historyRunIds.join(',')}\n`)
+      return
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      process.stderr.write(`[run] backfill failed run_id=${runId} err=${msg}\n`)
+      if (prevVisible) {
+        const fallbackHistory = dedupeRunIds([...(meta0?.historyRunIds || []), prevVisible]).slice(0, RUN_HISTORY_KEEP)
+        await withRetry(
+          () =>
+            upsertMarketBoardMeta({
+              currentRunId: prevVisible,
+              previousRunId: fallbackHistory.length > 1 ? fallbackHistory[1] : null,
+              historyRunIds: fallbackHistory,
+              currentDataDate: meta0?.currentDataDate || null,
+              publishStatus: 'failed',
+              qualitySummary: {
+                failedRunId: runId,
+                error: msg,
+                failedAt: new Date().toISOString(),
+              },
+            }),
+          'mark publish failed',
+          2,
         )
       }
-      process.stdout.write(`[segment] wrote=${rows.length} total=${totalWrite}\n`)
-      await sleep(jitterMs(5_000, 0.8))
+      throw e
     }
-
-    if (!maxDate) throw new Error('backfill produced no data')
-    const lagAll = diffDaysUtc(end10, maxDate)
-    if (lagAll != null && lagAll > 14) {
-      throw new Error(`backfill max_date too old: max_date=${maxDate} end=${end10} lag=${lagAll}d`)
-    }
-
-    const tail = recentRows.slice(-504)
-    const amountCover = nonNullRatio(tail, 'amount')
-    const trCover = nonNullRatio(tail, 'tr')
-    const northCover = nonNullRatio(tail, 'north_money')
-    const peCover = nonNullRatio(tail, 'pe')
-    const y10Cover = nonNullRatio(tail, 'yield10y_pct')
-    process.stdout.write(
-      `[run] max_date=${maxDate} cover(last${tail.length}) amount=${(amountCover * 100).toFixed(1)}% tr=${(trCover * 100).toFixed(1)}% north=${(northCover * 100).toFixed(1)}% pe=${(peCover * 100).toFixed(1)}% y10=${(y10Cover * 100).toFixed(1)}%\n`,
-    )
-    if (tail.length >= 200) {
-      if (amountCover < 0.95 || trCover < 0.95 || northCover < 0.95 || peCover < 0.95 || y10Cover < 0.95) {
-        throw new Error('backfill coverage check failed (threshold=95%)')
-      }
-    }
-
-    await withRetry(() => upsertMarketBoardMeta({ currentRunId: runId, previousRunId: prevVisible }), 'switch visible run', 3)
-    if (prevVisible) {
-      await withRetry(() => deleteMarketBoardPointsNotInRuns({ keepRunIds: [runId, prevVisible] }), 'cleanup old runs', 3)
-    } else {
-      await withRetry(() => deleteMarketBoardPointsNotInRuns({ keepRunIds: [runId] }), 'cleanup old runs', 3)
-    }
-    process.stdout.write(`mode=${mode} write=${totalWrite} visible_run=${runId}\n`)
-    return
   }
 
   if (mode === 'incremental') {

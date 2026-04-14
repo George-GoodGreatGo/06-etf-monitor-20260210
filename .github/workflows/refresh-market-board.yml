@@ -2,7 +2,7 @@ name: Refresh Market Board (Supabase Only)
 
 on:
   schedule:
-    - cron: '10 12 * * 1-5'
+    - cron: '0 13 * * 1-5'
   workflow_dispatch:
     inputs:
       mode:
@@ -16,6 +16,7 @@ on:
       startDate:
         description: backfill 起始日期（YYYYMMDD，可选）
         required: false
+        default: '20160101'
       endDate:
         description: backfill 结束日期（YYYYMMDD，可选）
         required: false
@@ -68,12 +69,13 @@ jobs:
           fi
           startDate="${{ github.event.inputs.startDate }}"
           endDate="${{ github.event.inputs.endDate }}"
-          if [ -z "$mode" ]; then mode="incremental"; fi
+          if [ -z "$mode" ]; then mode="backfill"; fi
           echo "MARKET_DATA_SOURCE=$MARKET_DATA_SOURCE mode=$mode startDate=$startDate endDate=$endDate"
           sleep_sec=$(( (RANDOM % 600) + 1 ))
           echo "jitter sleep ${sleep_sec}s"
           sleep "$sleep_sec"
           if [ "$mode" = "backfill" ]; then
+            if [ -z "$startDate" ]; then startDate="20160101"; fi
             npm run backfill:supabase:market-board -- --startDate "$startDate" --endDate "$endDate"
           else
             npm run refresh:supabase:market-board

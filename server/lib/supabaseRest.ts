@@ -70,34 +70,97 @@ export type MarketBoardPointRow = {
   updated_at: string
 }
 
-export async function readMarketBoardMeta(): Promise<{ currentRunId: string; previousRunId: string | null } | null> {
+export type MarketBoardMetaRow = {
+  currentRunId: string
+  previousRunId: string | null
+  historyRunIds: string[]
+  currentDataDate: string | null
+  publishStatus: string
+  qualitySummary: Record<string, unknown> | null
+}
+
+function uniqueNonEmptyRunIds(list: unknown[]): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const raw of list) {
+    const s = typeof raw === 'string' ? raw.trim() : ''
+    if (!s || seen.has(s)) continue
+    seen.add(s)
+    out.push(s)
+  }
+  return out
+}
+
+export async function readMarketBoardMeta(): Promise<MarketBoardMetaRow | null> {
   const supabaseUrl = String(process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '')
   const anonKey = String(process.env.SUPABASE_ANON_KEY || '').trim()
   const readKey = anonKey || String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
   if (!supabaseUrl || !readKey) return null
 
-  const url = `${supabaseUrl}/rest/v1/market_board_meta?id=eq.default&select=current_run_id,previous_run_id`
-  const res = await fetch(url, {
+  const urlV2 =
+    `${supabaseUrl}/rest/v1/market_board_meta?id=eq.default` +
+    `&select=current_run_id,previous_run_id,history_run_ids,current_data_date,publish_status,quality_summary`
+  const resV2 = await fetch(urlV2, {
     headers: {
       apikey: readKey,
       Authorization: `Bearer ${readKey}`,
     },
   })
-  if (!res.ok) return null
-  const j = (await res.json().catch(() => null)) as unknown
+  const jV2 = (await resV2.json().catch(() => null)) as unknown
+  if (resV2.ok && Array.isArray(jV2) && jV2.length > 0) {
+    const first = jV2[0] as Record<string, unknown>
+    const currentRunId = typeof first.current_run_id === 'string' ? first.current_run_id : ''
+    const previousRunId = typeof first.previous_run_id === 'string' ? first.previous_run_id : null
+    const historyRaw = Array.isArray(first.history_run_ids) ? first.history_run_ids : []
+    const historyRunIds = uniqueNonEmptyRunIds([currentRunId, ...historyRaw, previousRunId].filter(Boolean))
+    const currentDataDate = typeof first.current_data_date === 'string' ? first.current_data_date : null
+    const publishStatus = typeof first.publish_status === 'string' ? first.publish_status : 'idle'
+    const qualitySummary =
+      first.quality_summary && typeof first.quality_summary === 'object' ? (first.quality_summary as Record<string, unknown>) : null
+    if (!currentRunId) return null
+    return { currentRunId, previousRunId, historyRunIds, currentDataDate, publishStatus, qualitySummary }
+  }
+
+  const urlV1 = `${supabaseUrl}/rest/v1/market_board_meta?id=eq.default&select=current_run_id,previous_run_id`
+  const resV1 = await fetch(urlV1, {
+    headers: {
+      apikey: readKey,
+      Authorization: `Bearer ${readKey}`,
+    },
+  })
+  if (!resV1.ok) return null
+  const j = (await resV1.json().catch(() => null)) as unknown
   if (!Array.isArray(j) || j.length === 0) return null
   const first = j[0] as Record<string, unknown>
   const currentRunId = typeof first.current_run_id === 'string' ? first.current_run_id : ''
   const previousRunId = typeof first.previous_run_id === 'string' ? first.previous_run_id : null
   if (!currentRunId) return null
-  return { currentRunId, previousRunId }
+  return {
+    currentRunId,
+    previousRunId,
+    historyRunIds: uniqueNonEmptyRunIds([currentRunId, previousRunId].filter(Boolean)),
+    currentDataDate: null,
+    publishStatus: 'idle',
+    qualitySummary: null,
+  }
 }
 
-export async function upsertMarketBoardMeta(args: { currentRunId: string; previousRunId: string | null }): Promise<void> {
+export async function upsertMarketBoardMeta(args: {
+  currentRunId: string
+  previousRunId: string | null
+  historyRunIds?: string[]
+  currentDataDate?: string | null
+  publishStatus?: string
+  qualitySummary?: Record<string, unknown> | null
+}): Promise<void> {
   const supabaseUrl = mustEnv('SUPABASE_URL').replace(/\/+$/, '')
   const serviceKey = mustEnv('SUPABASE_SERVICE_ROLE_KEY')
   const currentRunId = String(args.currentRunId || '').trim()
   const previousRunId = args.previousRunId ? String(args.previousRunId).trim() : null
+  const historyRunIds = uniqueNonEmptyRunIds([currentRunId, ...(args.historyRunIds || []), previousRunId].filter(Boolean))
+  const currentDataDate = args.currentDataDate ? String(args.currentDataDate).trim() : null
+  const publishStatus = args.publishStatus ? String(args.publishStatus).trim() : 'idle'
+  const qualitySummary = args.qualitySummary && typeof args.qualitySummary === 'object' ? args.qualitySummary : {}
   if (!currentRunId) throw new Error('missing currentRunId')
 
   const url = `${supabaseUrl}/rest/v1/market_board_meta?on_conflict=id`
@@ -105,6 +168,10 @@ export async function upsertMarketBoardMeta(args: { currentRunId: string; previo
     id: 'default',
     current_run_id: currentRunId,
     previous_run_id: previousRunId,
+    history_run_ids: historyRunIds,
+    current_data_date: currentDataDate || null,
+    publish_status: publishStatus,
+    quality_summary: qualitySummary,
     updated_at: new Date().toISOString(),
   }
   const res = await fetch(url, {

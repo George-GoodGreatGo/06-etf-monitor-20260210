@@ -12,7 +12,6 @@ export type LiquidityV5Point = {
   trPct: number | null
   northPct: number | null
   v5: number | null
-  v5Pct: number | null
 }
 
 export type EquityBondPoint = {

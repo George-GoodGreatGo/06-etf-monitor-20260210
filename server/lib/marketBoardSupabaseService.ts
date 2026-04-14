@@ -104,7 +104,7 @@ export async function getMarketLiquidityV5FromSupabase(args?: { startDate?: stri
   }
 
   const metaRow = await readMarketBoardMeta()
-  const candidates = [metaRow?.currentRunId || null, metaRow?.previousRunId || null].filter(Boolean) as string[]
+  const candidates = (metaRow?.historyRunIds || []).filter(Boolean) as string[]
   if (candidates.length === 0) {
     return { success: false as const, error: 'no_data', message: 'Supabase 尚无大盘看板数据（meta 未初始化）' }
   }
@@ -126,7 +126,7 @@ export async function getMarketLiquidityV5FromSupabase(args?: { startDate?: stri
       continue
     }
     const v = validateRows(r as Array<{ data_date: string; close: number | null }>)
-    if (!v.ok) {
+    if (v.ok === false) {
       fallbackReason = fallbackReason ? `${fallbackReason}; run=${rid}:${v.error}` : `run=${rid}:${v.error}`
       continue
     }
@@ -139,7 +139,7 @@ export async function getMarketLiquidityV5FromSupabase(args?: { startDate?: stri
     return {
       success: false as const,
       error: 'no_data',
-      message: 'Supabase 尚无可用大盘看板数据（current/previous 均不可用）',
+      message: 'Supabase 尚无可用大盘看板数据（history runs 均不可用）',
     }
   }
 

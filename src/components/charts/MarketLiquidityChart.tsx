@@ -59,7 +59,6 @@ type HoverState = {
   date: string
   close?: number
   v5?: number
-  v5Pct?: number
   ebPct?: number
   bbMid?: number
   bbUpper?: number
@@ -163,17 +162,15 @@ function buildBollingerBands(points: LineData<Time>[], period = 120, k = 2.0): {
 export default function MarketLiquidityChart({ series, equityBond, className }: Props) {
   const priceElRef = useRef<HTMLDivElement | null>(null)
   const v5ElRef = useRef<HTMLDivElement | null>(null)
-  const v5PctElRef = useRef<HTMLDivElement | null>(null)
   const ebElRef = useRef<HTMLDivElement | null>(null)
   const v5OverboughtBgRef = useRef<HTMLDivElement | null>(null)
   const v5OversoldBgRef = useRef<HTMLDivElement | null>(null)
   const syncingRef = useRef(false)
   const initViewKeyRef = useRef<string>('')
 
-  const chartsRef = useRef<{ price: IChartApi | null; v5: IChartApi | null; v5Pct: IChartApi | null; eb: IChartApi | null }>({
+  const chartsRef = useRef<{ price: IChartApi | null; v5: IChartApi | null; eb: IChartApi | null }>({
     price: null,
     v5: null,
-    v5Pct: null,
     eb: null,
   })
   const seriesRef = useRef<{
@@ -185,8 +182,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     bbLower: ISeriesApi<'Line', Time> | null
     v5: ISeriesApi<'Line', Time> | null
     v5Align: ISeriesApi<'Line', Time> | null
-    v5Pct: ISeriesApi<'Line', Time> | null
-    v5PctAlign: ISeriesApi<'Line', Time> | null
     eb: ISeriesApi<'Line', Time> | null
     ebAlign: ISeriesApi<'Line', Time> | null
   }>({
@@ -198,8 +193,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     bbLower: null,
     v5: null,
     v5Align: null,
-    v5Pct: null,
-    v5PctAlign: null,
     eb: null,
     ebAlign: null,
   })
@@ -212,7 +205,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
   const [showEma60, setShowEma60] = useState(true)
   const [showBoll, setShowBoll] = useState(true)
   const [showLiquidityPane, setShowLiquidityPane] = useState(true)
-  const [showLiquidityPctPane, setShowLiquidityPctPane] = useState(true)
   const [showEquityBondPane, setShowEquityBondPane] = useState(true)
 
   const updateV5ZoneBg = () => {
@@ -249,7 +241,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     const hsHotSegments: LineData<Time>[][] = []
     const hsColdSegments: LineData<Time>[][] = []
     const v5: LineData<Time>[] = []
-    const v5Pct: LineData<Time>[] = []
     const eb: LineData<Time>[] = []
     const map = new Map<UTCTimestamp, HoverState>()
     let hotBuf: LineData<Time>[] = []
@@ -282,9 +273,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       if (typeof p.v5 === 'number' && Number.isFinite(p.v5)) {
         v5.push({ time: t, value: p.v5 })
       }
-      if (typeof p.v5Pct === 'number' && Number.isFinite(p.v5Pct)) {
-        v5Pct.push({ time: t, value: p.v5Pct })
-      }
       const ebPct = ebByDate.get(p.date)
       if (typeof ebPct === 'number' && Number.isFinite(ebPct)) {
         eb.push({ time: t, value: ebPct })
@@ -294,7 +282,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
         date: p.date,
         close: p.close,
         v5: typeof p.v5 === 'number' && Number.isFinite(p.v5) ? p.v5 : undefined,
-        v5Pct: typeof p.v5Pct === 'number' && Number.isFinite(p.v5Pct) ? p.v5Pct : undefined,
         ebPct: typeof ebPct === 'number' && Number.isFinite(ebPct) ? ebPct : undefined,
       })
     }
@@ -325,7 +312,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       h.bbBandwidth = typeof bw === 'number' && Number.isFinite(bw) ? bw : undefined
     }
 
-    return { hs, hsHotSegments, hsColdSegments, ema20, ema60, bbMid, bbUpper, bbLower, v5, v5Pct, eb, map }
+    return { hs, hsHotSegments, hsColdSegments, ema20, ema60, bbMid, bbUpper, bbLower, v5, eb, map }
   }, [equityBond, series])
 
   useEffect(() => {
@@ -587,95 +574,13 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
   }, [])
 
   useEffect(() => {
-    if (!v5PctElRef.current || chartsRef.current.v5Pct) return
-
-    const chart = createChart(v5PctElRef.current, {
-      autoSize: true,
-      handleScale: {
-        axisPressedMouseMove: false,
-        mouseWheel: true,
-        pinch: false,
-      },
-      layout: {
-        background: { type: ColorType.Solid, color: '#111B2E' },
-        textColor: '#A9B6CC',
-        fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif',
-      },
-      grid: {
-        vertLines: { color: 'rgba(255,255,255,0.06)' },
-        horzLines: { color: 'rgba(255,255,255,0.06)' },
-      },
-      rightPriceScale: { borderColor: 'rgba(255,255,255,0.10)', minimumWidth: SCALE_MIN_WIDTH },
-      timeScale: {
-        borderColor: 'rgba(255,255,255,0.10)',
-        visible: false,
-        fixLeftEdge: true,
-        fixRightEdge: true,
-        rightOffset: 0,
-      },
-      crosshair: { mode: CrosshairMode.Normal },
-    })
-
-    const v5Pct = chart.addSeries(LineSeries, {
-      color: '#38BDF8',
-      lineWidth: 2,
-      lineStyle: LineStyle.Solid,
-      priceLineVisible: false,
-      lastValueVisible: true,
-      priceFormat: { type: 'custom', formatter: (v) => fmt(v, 1) },
-      autoscaleInfoProvider: () => ({
-        priceRange: {
-          minValue: 0,
-          maxValue: 100,
-        },
-      }),
-    })
-
-    const align = chart.addSeries(LineSeries, {
-      color: 'rgba(255,255,255,0)',
-      lineWidth: 1,
-      priceLineVisible: false,
-      lastValueVisible: false,
-    })
-    align.applyOptions({ visible: false })
-
-    v5Pct.createPriceLine({
-      price: 30,
-      color: 'rgba(16,185,129,0.45)',
-      lineWidth: 1,
-      lineStyle: LineStyle.Dashed,
-      axisLabelVisible: false,
-    })
-    v5Pct.createPriceLine({
-      price: 70,
-      color: 'rgba(239,68,68,0.45)',
-      lineWidth: 1,
-      lineStyle: LineStyle.Dashed,
-      axisLabelVisible: false,
-    })
-
-    chartsRef.current.v5Pct = chart
-    seriesRef.current.v5Pct = v5Pct
-    seriesRef.current.v5PctAlign = align
-
-    return () => {
-      chart.remove()
-      if (chartsRef.current.v5Pct === chart) chartsRef.current.v5Pct = null
-      seriesRef.current.v5Pct = null
-      seriesRef.current.v5PctAlign = null
-    }
-  }, [])
-
-  useEffect(() => {
     const price = chartsRef.current.price
     const v5 = chartsRef.current.v5
-    const v5Pct = chartsRef.current.v5Pct
     const eb = chartsRef.current.eb
     if (!price) return
 
     const charts: IChartApi[] = [price]
     if (showLiquidityPane && v5) charts.push(v5)
-    if (showLiquidityPctPane && v5Pct) charts.push(v5Pct)
     if (showEquityBondPane && eb) charts.push(eb)
     if (charts.length <= 1) return
 
@@ -710,7 +615,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
 
       const hsSeries = seriesRef.current.hs300
       const v5Series = seriesRef.current.v5
-      const v5PctSeries = seriesRef.current.v5Pct
       const ebSeries = seriesRef.current.eb
       const h = data.map.get(t)
 
@@ -721,8 +625,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
           c.setCrosshairPosition(h.close, t, hsSeries)
         } else if (c === v5 && v5Series && typeof h?.v5 === 'number') {
           c.setCrosshairPosition(h.v5, t, v5Series)
-        } else if (c === v5Pct && v5PctSeries && typeof h?.v5Pct === 'number') {
-          c.setCrosshairPosition(h.v5Pct, t, v5PctSeries)
         } else if (c === eb && ebSeries && typeof h?.ebPct === 'number') {
           c.setCrosshairPosition(h.ebPct, t, ebSeries)
         } else {
@@ -763,7 +665,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       }
       ro?.disconnect()
     }
-  }, [data.map, showEquityBondPane, showLiquidityPane, showLiquidityPctPane])
+  }, [data.map, showEquityBondPane, showLiquidityPane])
 
   useEffect(() => {
     seriesRef.current.hs300?.setData(data.hs)
@@ -774,13 +676,10 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     seriesRef.current.bbLower?.setData(data.bbLower)
     seriesRef.current.v5?.setData(data.v5)
     seriesRef.current.v5Align?.setData(data.hs)
-    seriesRef.current.v5Pct?.setData(data.v5Pct)
-    seriesRef.current.v5PctAlign?.setData(data.hs)
     seriesRef.current.eb?.setData(data.eb)
     seriesRef.current.ebAlign?.setData(data.hs)
     const price = chartsRef.current.price
     const v5 = chartsRef.current.v5
-    const v5Pct = chartsRef.current.v5Pct
     const eb = chartsRef.current.eb
     if (!price) return
 
@@ -823,7 +722,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
 
     const range = price.timeScale().getVisibleLogicalRange()
     if (range && showLiquidityPane && v5) v5.timeScale().setVisibleLogicalRange(range)
-    if (range && showLiquidityPctPane && v5Pct) v5Pct.timeScale().setVisibleLogicalRange(range)
     if (range && showEquityBondPane && eb) eb.timeScale().setVisibleLogicalRange(range)
     requestAnimationFrame(() => requestAnimationFrame(updateV5ZoneBg))
   }, [data])
@@ -834,10 +732,9 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     const range = price.timeScale().getVisibleLogicalRange()
     if (!range) return
     if (showLiquidityPane && chartsRef.current.v5) chartsRef.current.v5.timeScale().setVisibleLogicalRange(range)
-    if (showLiquidityPctPane && chartsRef.current.v5Pct) chartsRef.current.v5Pct.timeScale().setVisibleLogicalRange(range)
     if (showEquityBondPane && chartsRef.current.eb) chartsRef.current.eb.timeScale().setVisibleLogicalRange(range)
     requestAnimationFrame(updateV5ZoneBg)
-  }, [showEquityBondPane, showLiquidityPane, showLiquidityPctPane])
+  }, [showEquityBondPane, showLiquidityPane])
 
   return (
     <div className={cn('relative', className)}>
@@ -890,18 +787,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
         </button>
         <button
           type="button"
-          onClick={() => setShowLiquidityPctPane((v) => !v)}
-          className={cn(
-            'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
-            showLiquidityPctPane
-              ? 'border-white/15 bg-white/5 text-[#E6EDF7]'
-              : 'border-white/10 bg-transparent hover:border-white/15',
-          )}
-        >
-          流动性分位
-        </button>
-        <button
-          type="button"
           onClick={() => setShowEquityBondPane((v) => !v)}
           className={cn(
             'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
@@ -936,12 +821,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
               <>
                 <div className="text-[#A9B6CC]">独家流动性指数（3指标）</div>
                 <div className="text-right font-mono">{fmt(hover.v5, 1)}</div>
-              </>
-            ) : null}
-            {showLiquidityPctPane ? (
-              <>
-                <div className="text-[#A9B6CC]">独家流动性指数（分位）</div>
-                <div className="text-right font-mono">{fmt(hover.v5Pct, 1)}</div>
               </>
             ) : null}
             {showEquityBondPane ? (
@@ -985,19 +864,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
             aria-hidden="true"
           />
           <div ref={v5ElRef} className="relative z-10 h-full w-full" />
-        </div>
-
-        <div
-          className={cn(
-            'relative rounded-lg border border-white/10 bg-[#111B2E] transition-[height,opacity]',
-            showLiquidityPctPane ? 'opacity-100' : 'pointer-events-none opacity-0',
-          )}
-          style={{ height: showLiquidityPctPane ? 140 : 1 }}
-        >
-          <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
-            独家流动性指数（分位）
-          </div>
-          <div ref={v5PctElRef} className="h-full w-full" />
         </div>
 
         <div

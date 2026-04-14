@@ -134,7 +134,7 @@ export default function MarketLiquidityTable({ series, equityBond, className }: 
       </div>
 
       <div className="max-h-[560px] overflow-auto">
-        <table className="w-full min-w-[1560px] border-collapse text-xs">
+        <table className="w-full min-w-[1480px] border-collapse text-xs">
           <thead className="sticky top-0 z-10 bg-[#0F172A]">
             <tr className="text-[#94A3B8]">
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-left font-medium">日期</th>
@@ -153,7 +153,6 @@ export default function MarketLiquidityTable({ series, equityBond, className }: 
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">北向资金总成交额(亿元)</th>
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">北向分位(%)</th>
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">流动性指数(无量纲)</th>
-              <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">流动性分位(%)</th>
 
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">PE(倍)</th>
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">1/PE(比率)</th>
@@ -185,7 +184,6 @@ export default function MarketLiquidityTable({ series, equityBond, className }: 
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(p.northMoney, 2)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(p.northPct, 1)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(p.v5, 1)}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(p.v5Pct, 1)}</td>
 
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(eb?.pe, 2)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(eb?.earningsYield, 4)}</td>

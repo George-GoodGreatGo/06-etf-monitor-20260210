@@ -435,7 +435,6 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
     const northTailMissing = countNorthTailMissing(series)
     const notes: string[] = [
       '独家流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为5年滚动（≈1260），最小有效≈630。',
-      'v5Pct=rollingPercentilePct(v5,1260,630)，即独家流动性指数 v5 的 5 年滚动分位（0–100）。',
       '股债利差=1/沪深300PE-中国10Y国债收益率，value再取5年滚动分位（≈1260，最小有效≈630），分位越高代表股票相对于国债更有性价比。',
       '已使用 AkShare 替代数据源；缺失字段保持 null，不做推测补值。',
       '成交额展示口径统一为“千元”；若 AkShare 返回口径不同，会在服务端进行单位归一化。',
@@ -570,7 +569,6 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
     const northTailMissing = countNorthTailMissing(series)
     const notes: string[] = [
       '独家流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为5年滚动（≈1260），最小有效≈630。',
-      'v5Pct=rollingPercentilePct(v5,1260,630)，即独家流动性指数 v5 的 5 年滚动分位（0–100）。',
       '股债利差=1/沪深300PE-中国10Y国债收益率，value再取5年滚动分位（≈1260，最小有效≈630），分位越高代表股票相对于国债更有性价比。',
       '股债性价比PE数据源：codebuddy:financedata(index_dailybasic)',
       '股债性价比10Y数据源：chinabond(yield.chinabond.com.cn, 整年标准期限xlsx)',
