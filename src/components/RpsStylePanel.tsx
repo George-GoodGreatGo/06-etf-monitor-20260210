@@ -97,6 +97,7 @@ export default function RpsStylePanel() {
     () => resolveDateRange(rangeKey, customStartDateApplied || ymd(addYears(new Date(), -1))),
     [rangeKey, customStartDateApplied],
   )
+  const controlsDisabled = loading
 
   useEffect(() => {
     if (chartView === 'relative' && rangeKey === 'custom' && !customStartDateApplied) return
@@ -257,9 +258,10 @@ export default function RpsStylePanel() {
             <span className="text-[#94A3B8]">图表视图</span>
             <button
               type="button"
+              disabled={controlsDisabled}
               onClick={() => setChartView('relative')}
               className={cn(
-                'rounded-md border px-2 py-1 transition',
+                'rounded-md border px-2 py-1 transition disabled:cursor-not-allowed disabled:opacity-50',
                 chartView === 'relative' ? 'border-white/20 bg-white/10 text-[#E6EDF7]' : 'border-white/10 text-[#A9B6CC] hover:border-white/20',
               )}
             >
@@ -267,9 +269,10 @@ export default function RpsStylePanel() {
             </button>
             <button
               type="button"
+              disabled={controlsDisabled}
               onClick={() => setChartView('raw')}
               className={cn(
-                'rounded-md border px-2 py-1 transition',
+                'rounded-md border px-2 py-1 transition disabled:cursor-not-allowed disabled:opacity-50',
                 chartView === 'raw' ? 'border-white/20 bg-white/10 text-[#E6EDF7]' : 'border-white/10 text-[#A9B6CC] hover:border-white/20',
               )}
             >
@@ -284,9 +287,10 @@ export default function RpsStylePanel() {
                   <button
                     key={x.key}
                     type="button"
+                    disabled={controlsDisabled}
                     onClick={() => setRangeKey(x.key)}
                     className={cn(
-                      'rounded-md border px-2 py-1 transition',
+                      'rounded-md border px-2 py-1 transition disabled:cursor-not-allowed disabled:opacity-50',
                       rangeKey === x.key ? 'border-white/20 bg-white/10 text-[#E6EDF7]' : 'border-white/10 text-[#A9B6CC] hover:border-white/20',
                     )}
                   >
@@ -297,19 +301,21 @@ export default function RpsStylePanel() {
                   <>
                     <input
                       type="date"
+                      disabled={controlsDisabled}
                       value={customStartDateDraft}
                       max={resolvedRange.endDate}
                       onChange={(e) => {
                         setCustomStartDateDraft(e.target.value)
                       }}
-                      className="rounded-md border border-white/15 bg-[#0B1220] px-2 py-1 text-[#E6EDF7] outline-none focus:border-white/30"
+                      className="rounded-md border border-white/15 bg-[#0B1220] px-2 py-1 text-[#E6EDF7] outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50"
                     />
                     <button
                       type="button"
+                      disabled={controlsDisabled}
                       onClick={() => {
                         setCustomStartDateApplied(clampStartDate(customStartDateDraft, ymd(new Date())))
                       }}
-                      className="rounded-md border border-white/20 bg-white/10 px-2 py-1 text-[#E6EDF7] transition hover:border-white/30"
+                      className="rounded-md border border-white/20 bg-white/10 px-2 py-1 text-[#E6EDF7] transition hover:border-white/30 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       提交
                     </button>
@@ -322,13 +328,23 @@ export default function RpsStylePanel() {
             </>
           ) : null}
         </div>
-        <RpsStyleChart
-          seriesByTicker={seriesByTicker}
-          viewMode={chartView}
-          baseLabel={`512890.SH(${ETF_NAME_MAP['512890.SH']})=1`}
-          tickerNameMap={ETF_NAME_MAP}
-          lockEdges
-        />
+        <div className="relative">
+          {loading ? (
+            <div className="absolute inset-0 z-20 flex items-center justify-center rounded-lg border border-white/10 bg-black/45 backdrop-blur-sm">
+              <div className="flex items-center gap-2 rounded-md border border-white/15 bg-[#0B1220]/90 px-3 py-2 text-xs text-[#E6EDF7]">
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                <span>正在加载图表数据...</span>
+              </div>
+            </div>
+          ) : null}
+          <RpsStyleChart
+            seriesByTicker={seriesByTicker}
+            viewMode={chartView}
+            baseLabel={`512890.SH(${ETF_NAME_MAP['512890.SH']})=1`}
+            tickerNameMap={ETF_NAME_MAP}
+            lockEdges
+          />
+        </div>
       </div>
     </section>
   )
