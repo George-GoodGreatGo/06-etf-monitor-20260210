@@ -216,6 +216,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
   const [showLiquidityPane, setShowLiquidityPane] = useState(true)
   const [showLiquidityPctPane, setShowLiquidityPctPane] = useState(true)
   const [showEquityBondPane, setShowEquityBondPane] = useState(true)
+  const [showRuleInfo, setShowRuleInfo] = useState(true)
 
   const updateV5ZoneBg = () => {
     if (!showLiquidityPane) return
@@ -277,14 +278,13 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
 
   const data = useMemo(() => {
     const hs: LineData<Time>[] = []
-    const hsHotSegments: LineData<Time>[][] = []
-    const hsColdSegments: LineData<Time>[][] = []
+    const hsRedSegments: LineData<Time>[][] = []
+    const hsGreenSegments: LineData<Time>[][] = []
     const v5: LineData<Time>[] = []
     const v5Pct: LineData<Time>[] = []
     const eb: LineData<Time>[] = []
     const map = new Map<UTCTimestamp, HoverState>()
-    let hotBuf: LineData<Time>[] = []
-    let coldBuf: LineData<Time>[] = []
+    const segBase: Array<{ time: UTCTimestamp; close: number; v5Pct?: number; ebPct?: number }> = []
 
     const ebByDate = new Map<string, number>()
     for (const p of equityBond || []) {
@@ -297,19 +297,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       const t = ymdToUtcSeconds(p.date)
       if (!t) continue
       hs.push({ time: t, value: p.close })
-      const v = typeof p.v5 === 'number' && Number.isFinite(p.v5) ? p.v5 : null
-      if (v != null && v >= 70) {
-        hotBuf.push({ time: t, value: p.close })
-      } else if (hotBuf.length) {
-        hsHotSegments.push(hotBuf)
-        hotBuf = []
-      }
-      if (v != null && v <= 30) {
-        coldBuf.push({ time: t, value: p.close })
-      } else if (coldBuf.length) {
-        hsColdSegments.push(coldBuf)
-        coldBuf = []
-      }
       if (typeof p.v5 === 'number' && Number.isFinite(p.v5)) {
         v5.push({ time: t, value: p.v5 })
       }
@@ -320,18 +307,51 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       if (typeof ebPct === 'number' && Number.isFinite(ebPct)) {
         eb.push({ time: t, value: ebPct })
       }
+      const v5PctVal = typeof p.v5Pct === 'number' && Number.isFinite(p.v5Pct) ? p.v5Pct : undefined
+      const ebPctVal = typeof ebPct === 'number' && Number.isFinite(ebPct) ? ebPct : undefined
+      segBase.push({ time: t, close: p.close, v5Pct: v5PctVal, ebPct: ebPctVal })
       map.set(t, {
         t,
         date: p.date,
         close: p.close,
         v5: typeof p.v5 === 'number' && Number.isFinite(p.v5) ? p.v5 : undefined,
-        v5Pct: typeof p.v5Pct === 'number' && Number.isFinite(p.v5Pct) ? p.v5Pct : undefined,
-        ebPct: typeof ebPct === 'number' && Number.isFinite(ebPct) ? ebPct : undefined,
+        v5Pct: v5PctVal,
+        ebPct: ebPctVal,
       })
     }
 
-    if (hotBuf.length) hsHotSegments.push(hotBuf)
-    if (coldBuf.length) hsColdSegments.push(coldBuf)
+    type SegState = 'green' | 'red' | null
+    const classify = (p: { v5Pct?: number; ebPct?: number }): SegState => {
+      // 绿色优先：股债分位>=90 覆盖流动性过热红色
+      if (typeof p.ebPct === 'number' && Number.isFinite(p.ebPct) && p.ebPct >= 90) return 'green'
+      if (typeof p.v5Pct === 'number' && Number.isFinite(p.v5Pct) && p.v5Pct >= 80) return 'red'
+      return null
+    }
+    let buf: LineData<Time>[] = []
+    let bufState: SegState = null
+    const flush = () => {
+      if (!buf.length || !bufState) {
+        buf = []
+        bufState = null
+        return
+      }
+      if (bufState === 'green') hsGreenSegments.push(buf)
+      else if (bufState === 'red') hsRedSegments.push(buf)
+      buf = []
+      bufState = null
+    }
+    for (const p of segBase) {
+      const st = classify(p)
+      if (!st) {
+        flush()
+        continue
+      }
+      const pt: LineData<Time> = { time: p.time, value: p.close }
+      if (bufState && bufState !== st) flush()
+      bufState = st
+      buf.push(pt)
+    }
+    flush()
 
     const ema20 = buildEma(hs, 20)
     const ema60 = buildEma(hs, 60)
@@ -356,7 +376,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       h.bbBandwidth = typeof bw === 'number' && Number.isFinite(bw) ? bw : undefined
     }
 
-    return { hs, hsHotSegments, hsColdSegments, ema20, ema60, bbMid, bbUpper, bbLower, v5, v5Pct, eb, map }
+    return { hs, hsRedSegments, hsGreenSegments, ema20, ema60, bbMid, bbUpper, bbLower, v5, v5Pct, eb, map }
   }, [equityBond, series])
 
   const showHoverSampleInsufficient = useMemo(() => {
@@ -830,7 +850,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     hsSegRef.current.hot = []
     hsSegRef.current.cold = []
 
-    for (const seg of data.hsHotSegments) {
+    for (const seg of data.hsRedSegments) {
       const s = price.addSeries(LineSeries, {
         color: '#F87171',
         lineWidth: 2,
@@ -841,7 +861,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       s.setData(seg)
       hsSegRef.current.hot.push(s)
     }
-    for (const seg of data.hsColdSegments) {
+    for (const seg of data.hsGreenSegments) {
       const s = price.addSeries(LineSeries, {
         color: '#34D399',
         lineWidth: 2,
@@ -887,6 +907,16 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
   return (
     <div className={cn('relative', className)}>
       <div className="flex flex-wrap items-center gap-2 text-xs text-[#A9B6CC]">
+        <button
+          type="button"
+          onClick={() => setShowRuleInfo((v) => !v)}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+            showRuleInfo ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+          )}
+        >
+          规则说明
+        </button>
         <button
           type="button"
           onClick={() => setShowEma20((v) => !v)}
@@ -958,6 +988,24 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
           股债
         </button>
       </div>
+
+      {showRuleInfo ? (
+        <div className="mt-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-[#A9B6CC]">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <div className="text-[#E6EDF7]">主图线段规则</div>
+            <div>
+              <span className="mr-2 rounded bg-[rgba(16,185,129,0.18)] px-2 py-[2px] font-mono text-[11px] text-[#34D399]">绿色</span>
+              股债性价比分位 ≥ 90（极致性价比）
+            </div>
+            <div>
+              <span className="mr-2 rounded bg-[rgba(239,68,68,0.18)] px-2 py-[2px] font-mono text-[11px] text-[#F87171]">红色</span>
+              独家流动性指数（5年分位）≥ 80（流动性过热）
+            </div>
+            <div>同日双触发时：绿色优先</div>
+            <div>未触发规则时：主图保持默认蓝色</div>
+          </div>
+        </div>
+      ) : null}
 
       {hover ? (
         <div className="pointer-events-none absolute right-3 top-10 z-10 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-[#E6EDF7] backdrop-blur">
@@ -1035,19 +1083,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
         <div
           className={cn(
             'relative rounded-lg border border-white/10 bg-[#111B2E] transition-[height,opacity]',
-            showEquityBondPane ? 'opacity-100' : 'pointer-events-none opacity-0',
-          )}
-          style={{ height: showEquityBondPane ? 140 : 1 }}
-        >
-          <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
-            股债性价比（分位）
-          </div>
-          <div ref={ebElRef} className="h-full w-full" />
-        </div>
-
-        <div
-          className={cn(
-            'relative rounded-lg border border-white/10 bg-[#111B2E] transition-[height,opacity]',
             showLiquidityPctPane ? 'opacity-100' : 'pointer-events-none opacity-0',
           )}
           style={{ height: showLiquidityPctPane ? 140 : 1 }}
@@ -1068,6 +1103,19 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
             aria-hidden="true"
           />
           <div ref={v5PctElRef} className="relative z-10 h-full w-full" />
+        </div>
+
+        <div
+          className={cn(
+            'relative rounded-lg border border-white/10 bg-[#111B2E] transition-[height,opacity]',
+            showEquityBondPane ? 'opacity-100' : 'pointer-events-none opacity-0',
+          )}
+          style={{ height: showEquityBondPane ? 140 : 1 }}
+        >
+          <div className="pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur">
+            股债性价比（分位）
+          </div>
+          <div ref={ebElRef} className="h-full w-full" />
         </div>
       </div>
     </div>
