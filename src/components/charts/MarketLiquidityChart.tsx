@@ -256,9 +256,9 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     if (!el || !overEl || !underEl || !s) return
 
     const h = el.clientHeight
-    const y80 = s.priceToCoordinate(80)
-    const y20 = s.priceToCoordinate(20)
-    if (y80 == null || y20 == null) {
+    const y90 = s.priceToCoordinate(90)
+    const y10 = s.priceToCoordinate(10)
+    if (y90 == null || y10 == null) {
       overEl.style.display = 'none'
       underEl.style.display = 'none'
       return
@@ -266,8 +266,8 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     overEl.style.display = 'block'
     underEl.style.display = 'block'
 
-    const topY = Math.max(0, Math.min(h, y80))
-    const bottomY = Math.max(0, Math.min(h, y20))
+    const topY = Math.max(0, Math.min(h, y90))
+    const bottomY = Math.max(0, Math.min(h, y10))
 
     overEl.style.top = '0px'
     overEl.style.height = `${topY}px`
@@ -324,7 +324,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     const classify = (p: { v5Pct?: number; ebPct?: number }): SegState => {
       // 绿色优先：股债分位>=90 覆盖流动性过热红色
       if (typeof p.ebPct === 'number' && Number.isFinite(p.ebPct) && p.ebPct >= 90) return 'green'
-      if (typeof p.v5Pct === 'number' && Number.isFinite(p.v5Pct) && p.v5Pct >= 80) return 'red'
+      if (typeof p.v5Pct === 'number' && Number.isFinite(p.v5Pct) && p.v5Pct >= 90) return 'red'
       return null
     }
     let buf: LineData<Time>[] = []
@@ -696,14 +696,14 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     align.applyOptions({ visible: false })
 
     v5Pct.createPriceLine({
-      price: 20,
+      price: 10,
       color: 'rgba(16,185,129,0.45)',
       lineWidth: 1,
       lineStyle: LineStyle.Dashed,
       axisLabelVisible: false,
     })
     v5Pct.createPriceLine({
-      price: 80,
+      price: 90,
       color: 'rgba(239,68,68,0.45)',
       lineWidth: 1,
       lineStyle: LineStyle.Dashed,
@@ -999,7 +999,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
             </div>
             <div>
               <span className="mr-2 rounded bg-[rgba(239,68,68,0.18)] px-2 py-[2px] font-mono text-[11px] text-[#F87171]">红色</span>
-              独家流动性指数（5年分位）≥ 80（流动性过热）
+              独家流动性指数（5年分位）≥ 90（流动性过热）
             </div>
             <div>同日双触发时：绿色优先</div>
             <div>未触发规则时：主图保持默认蓝色</div>
