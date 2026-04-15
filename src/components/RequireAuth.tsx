@@ -30,7 +30,12 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
     })()
   }, [loc.pathname, loc.search, nav])
 
-  if (ok !== true) return null
+  if (ok !== true) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#050A0B] text-[#A9B6CC]">
+        <div className="text-sm">正在检查登录状态...</div>
+      </div>
+    )
+  }
   return <>{children}</>
 }
-

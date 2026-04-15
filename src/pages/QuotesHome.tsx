@@ -326,7 +326,10 @@ export default function QuotesHome() {
   )
 
   return (
-    <div className="relative h-[calc(100dvh-72px)] overflow-hidden">
+    <div
+      className="relative overflow-hidden"
+      style={{ minHeight: 'calc(100vh - 72px)', height: 'calc(100dvh - 72px)' }}
+    >
       <div className="pointer-events-none absolute inset-0 ui-ambient" aria-hidden="true" />
       <div className="relative mx-auto flex h-full w-full max-w-[1440px] flex-col px-4 py-6 sm:px-8 sm:py-8">
         <header className="mx-auto w-full max-w-[980px] shrink-0 pb-4 pt-2 sm:pb-6 sm:pt-4">

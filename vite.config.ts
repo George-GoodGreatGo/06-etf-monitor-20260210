@@ -1,11 +1,16 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import legacy from '@vitejs/plugin-legacy'
 import tsconfigPaths from "vite-tsconfig-paths";
 import { traeBadgePlugin } from 'vite-plugin-trae-solo-badge';
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
+    legacy({
+      targets: ['safari >= 13', 'ios >= 13'],
+      modernPolyfills: true,
+    }),
     react({
       babel: {
         plugins: [
