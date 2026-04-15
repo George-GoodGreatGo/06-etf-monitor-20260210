@@ -15,11 +15,6 @@ function ymd8Of(d: Date): string {
   return `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}`
 }
 
-function nowBjtHour(): number {
-  const ms = Date.now() + 8 * 60 * 60 * 1000
-  return new Date(ms).getUTCHours()
-}
-
 function ymd8ToYmd10(ymd8: string): string {
   const s = String(ymd8 || '').trim()
   if (!/^\d{8}$/.test(s)) return ''
@@ -133,13 +128,6 @@ function logEvent(event: Record<string, unknown>) {
 }
 
 async function main() {
-  const ignoreWindow = String(process.env.VALUE_TIMING_REFRESH_IGNORE_WINDOW || '').trim() === '1'
-  const hour = nowBjtHour()
-  if (!ignoreWindow && !(hour >= 20 && hour < 22)) {
-    process.stdout.write(JSON.stringify({ success: true, skipped: true, reason: 'outside_refresh_window', bjtHour: hour }, null, 2))
-    return
-  }
-
   const startDate8 = FULL_BACKFILL_START
   const endDate8 = ymd8Of(new Date())
   const endDate10 = ymd8ToYmd10(endDate8)
@@ -150,7 +138,7 @@ async function main() {
   const runId = randomUUID()
   const startedAt = Date.now()
   const perCode: Record<string, unknown> = {}
-  logEvent({ event: 'value_timing.refresh.start', mode: 'full_backfill_publish', runId, prevVisible, startDate8, endDate8, count: codes.length, ignoreWindow })
+  logEvent({ event: 'value_timing.refresh.start', mode: 'full_backfill_publish', runId, prevVisible, startDate8, endDate8, count: codes.length })
 
   try {
     let maxDataDate: string | null = null

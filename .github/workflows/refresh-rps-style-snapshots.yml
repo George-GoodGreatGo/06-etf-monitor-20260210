@@ -54,7 +54,6 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          RPS_REFRESH_IGNORE_WINDOW: "1"
           AKSHARE_RETRIES: "5"
           AKSHARE_RETRY_SLEEP_SEC: "1.0"
         run: |

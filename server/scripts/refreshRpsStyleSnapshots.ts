@@ -56,12 +56,6 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out
 }
 
-function nowBjtHourMinute(): { hour: number; minute: number } {
-  const ms = Date.now() + 8 * 60 * 60 * 1000
-  const d = new Date(ms)
-  return { hour: d.getUTCHours(), minute: d.getUTCMinutes() }
-}
-
 function scoreCoverage(rows: Array<{ score_pct: number | null }>): number {
   if (!rows.length) return 0
   let ok = 0
@@ -107,25 +101,6 @@ function sleep(ms: number) {
 }
 
 async function main() {
-  const ignoreWindow = String(process.env.RPS_REFRESH_IGNORE_WINDOW || '').trim() === '1'
-  const bjt = nowBjtHourMinute()
-  const inWindow = (bjt.hour > 19 || (bjt.hour === 19 && bjt.minute >= 30)) && bjt.hour <= 23
-  if (!ignoreWindow && !inWindow) {
-    process.stdout.write(
-      JSON.stringify(
-        {
-          success: true,
-          skipped: true,
-          reason: 'outside_refresh_window',
-          bjtTime: `${pad2(bjt.hour)}:${pad2(bjt.minute)}`,
-        },
-        null,
-        2,
-      ),
-    )
-    return
-  }
-
   const startDate8 = FULL_BACKFILL_START
   const endDate8 = ymd8Of(new Date())
   const endDate10 = ymd8ToYmd10(endDate8)
