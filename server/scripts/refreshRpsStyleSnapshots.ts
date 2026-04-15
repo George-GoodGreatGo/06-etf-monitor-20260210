@@ -212,6 +212,19 @@ async function main() {
           failedAt: new Date().toISOString(),
         },
       })
+      process.stdout.write(
+        JSON.stringify(
+          {
+            success: true,
+            published: false,
+            fallbackRunId: prevVisible,
+            reason: msg,
+          },
+          null,
+          2,
+        ),
+      )
+      return
     }
     throw e
   }

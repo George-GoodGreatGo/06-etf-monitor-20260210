@@ -79,6 +79,23 @@ function buildSma(values: number[], period: number): Array<number | null> {
   return out
 }
 
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms))
+}
+
+async function withRetry<T>(fn: () => Promise<T>, retries: number): Promise<T> {
+  let lastErr: unknown = null
+  for (let i = 0; i <= retries; i += 1) {
+    try {
+      if (i > 0) await sleep(250 * i + Math.floor(Math.random() * 200))
+      return await fn()
+    } catch (e) {
+      lastErr = e
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr))
+}
+
 function tickerToSecid(ticker: string): string {
   const t = String(ticker || '').trim().toUpperCase()
   const [code, ex] = t.split('.')
@@ -149,11 +166,11 @@ async function fetchQfqDailyWithFallback(args: {
   endDate: string
 }): Promise<{ source: DataSourceName; series: Array<{ date: string; close: number }> }> {
   try {
-    const east = await fetchQfqDailyByEastmoney(args)
+    const east = await withRetry(() => fetchQfqDailyByEastmoney(args), 2)
     if (east.length > 0) return { source: 'eastmoney:qfq', series: east }
     throw new Error('eastmoney empty')
   } catch {
-    const ak = await fetchQfqDailyByAkshare(args)
+    const ak = await withRetry(() => fetchQfqDailyByAkshare(args), 2)
     if (ak.length > 0) return { source: 'akshare:qfq', series: ak }
     throw new Error(`qfq empty: ${args.ticker}`)
   }
