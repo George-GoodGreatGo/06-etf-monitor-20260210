@@ -6,6 +6,7 @@ type Props = {
   seriesByTicker: Record<string, RpsStyleSeriesPoint[]>
   viewMode: 'raw' | 'relative'
   baseLabel?: string
+  lockEdges?: boolean
 }
 
 function ymdToUtcSeconds(ymd: string): UTCTimestamp | null {
@@ -20,7 +21,7 @@ function ymdToUtcSeconds(ymd: string): UTCTimestamp | null {
 
 const COLORS = ['#60A5FA', '#F59E0B', '#34D399', '#F87171'] as const
 
-export default function RpsStyleChart({ seriesByTicker, viewMode, baseLabel = '515080.SH=1' }: Props) {
+export default function RpsStyleChart({ seriesByTicker, viewMode, baseLabel = '515080.SH=1', lockEdges = true }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const lineRefs = useRef<Array<ISeriesApi<'Line', Time>>>([])
@@ -76,9 +77,13 @@ export default function RpsStyleChart({ seriesByTicker, viewMode, baseLabel = '5
       },
       timeScale: {
         borderColor: 'rgba(255,255,255,0.10)',
+        fixLeftEdge: lockEdges,
+        fixRightEdge: lockEdges,
+        rightOffset: 0,
+        minBarSpacing: 0.6,
       },
       crosshair: { mode: CrosshairMode.Normal },
-      handleScale: { mouseWheel: false },
+      handleScale: { mouseWheel: false, axisPressedMouseMove: false },
       handleScroll: { mouseWheel: false },
     })
     chartRef.current = chart
@@ -87,7 +92,7 @@ export default function RpsStyleChart({ seriesByTicker, viewMode, baseLabel = '5
       chartRef.current = null
       lineRefs.current = []
     }
-  }, [])
+  }, [lockEdges])
 
   useEffect(() => {
     const chart = chartRef.current
@@ -125,8 +130,32 @@ export default function RpsStyleChart({ seriesByTicker, viewMode, baseLabel = '5
       maSeries.setData(item.ma50)
       lineRefs.current.push(maSeries)
     }
-    chart.timeScale().fitContent()
-  }, [prepared, viewMode])
+    if (lockEdges) {
+      let minTime = Number.POSITIVE_INFINITY
+      let maxTime = Number.NEGATIVE_INFINITY
+      for (const item of prepared) {
+        for (const p of item.rps) {
+          const t = Number(p.time)
+          if (Number.isFinite(t)) {
+            if (t < minTime) minTime = t
+            if (t > maxTime) maxTime = t
+          }
+        }
+        for (const p of item.ma50) {
+          const t = Number(p.time)
+          if (Number.isFinite(t)) {
+            if (t < minTime) minTime = t
+            if (t > maxTime) maxTime = t
+          }
+        }
+      }
+      if (Number.isFinite(minTime) && Number.isFinite(maxTime) && minTime <= maxTime) {
+        chart.timeScale().setVisibleRange({ from: minTime as UTCTimestamp, to: maxTime as UTCTimestamp })
+      }
+    } else {
+      chart.timeScale().fitContent()
+    }
+  }, [lockEdges, prepared, viewMode])
 
   return (
     <div className="space-y-2">
@@ -140,7 +169,7 @@ export default function RpsStyleChart({ seriesByTicker, viewMode, baseLabel = '5
         ))}
         {viewMode === 'relative' ? <div className="text-[#64748B]">参考线：{baseLabel}</div> : null}
       </div>
-      <div ref={hostRef} className="h-[360px] w-full rounded-lg border border-white/10 bg-[#111B2E]" />
+      <div ref={hostRef} className="h-[540px] w-full rounded-lg border border-white/10 bg-[#111B2E]" />
     </div>
   )
 }

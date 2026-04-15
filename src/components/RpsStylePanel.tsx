@@ -77,17 +77,22 @@ export default function RpsStylePanel() {
   const [error, setError] = useState<string | null>(null)
   const [meta, setMeta] = useState<Top100Meta | null>(null)
   const [chartView, setChartView] = useState<RpsViewMode>('relative')
-  const [rangeKey, setRangeKey] = useState<RpsRangeKey>('3m')
-  const [customStartDate, setCustomStartDate] = useState<string>(() => ymd(addMonths(new Date(), -3)))
+  const [rangeKey, setRangeKey] = useState<RpsRangeKey>('1y')
+  const [customStartDateDraft, setCustomStartDateDraft] = useState<string>(() => ymd(addYears(new Date(), -1)))
+  const [customStartDateApplied, setCustomStartDateApplied] = useState<string | null>(null)
   const [mode, setMode] = useState<'risk_on' | 'risk_off'>('risk_off')
   const [leaderTicker, setLeaderTicker] = useState<string | null>(null)
   const [positionPct, setPositionPct] = useState<number>(0)
   const [isFallback, setIsFallback] = useState(false)
   const [items, setItems] = useState<RpsStyleMatrixItem[]>([])
   const [seriesByTicker, setSeriesByTicker] = useState<Record<string, RpsStyleSeriesPoint[]>>({})
-  const resolvedRange = useMemo(() => resolveDateRange(rangeKey, customStartDate), [rangeKey, customStartDate])
+  const resolvedRange = useMemo(
+    () => resolveDateRange(rangeKey, customStartDateApplied || ymd(addYears(new Date(), -1))),
+    [rangeKey, customStartDateApplied],
+  )
 
   useEffect(() => {
+    if (chartView === 'relative' && rangeKey === 'custom' && !customStartDateApplied) return
     const ac = new AbortController()
     ;(async () => {
       setLoading(true)
@@ -121,8 +126,12 @@ export default function RpsStylePanel() {
           tickers.map((ticker) =>
             fetchRpsStyleSeries({
               ticker,
-              startDate: resolvedRange.startDate,
-              endDate: resolvedRange.endDate,
+              ...(chartView === 'relative'
+                ? {
+                    startDate: resolvedRange.startDate,
+                    endDate: resolvedRange.endDate,
+                  }
+                : {}),
               signal: ac.signal,
             }),
           ),
@@ -146,7 +155,7 @@ export default function RpsStylePanel() {
       }
     })()
     return () => ac.abort()
-  }, [resolvedRange.endDate, resolvedRange.startDate])
+  }, [chartView, customStartDateApplied, rangeKey, resolvedRange.endDate, resolvedRange.startDate])
 
   const modeCls = useMemo(() => {
     return mode === 'risk_on'
@@ -238,16 +247,6 @@ export default function RpsStylePanel() {
             <span className="text-[#94A3B8]">图表视图</span>
             <button
               type="button"
-              onClick={() => setChartView('raw')}
-              className={cn(
-                'rounded-md border px-2 py-1 transition',
-                chartView === 'raw' ? 'border-white/20 bg-white/10 text-[#E6EDF7]' : 'border-white/10 text-[#A9B6CC] hover:border-white/20',
-              )}
-            >
-              原始视图
-            </button>
-            <button
-              type="button"
               onClick={() => setChartView('relative')}
               className={cn(
                 'rounded-md border px-2 py-1 transition',
@@ -256,39 +255,64 @@ export default function RpsStylePanel() {
             >
               相对视图
             </button>
+            <button
+              type="button"
+              onClick={() => setChartView('raw')}
+              className={cn(
+                'rounded-md border px-2 py-1 transition',
+                chartView === 'raw' ? 'border-white/20 bg-white/10 text-[#E6EDF7]' : 'border-white/10 text-[#A9B6CC] hover:border-white/20',
+              )}
+            >
+              原始视图
+            </button>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[#94A3B8]">时间范围</span>
-            {RANGE_OPTIONS.map((x) => (
-              <button
-                key={x.key}
-                type="button"
-                onClick={() => setRangeKey(x.key)}
-                className={cn(
-                  'rounded-md border px-2 py-1 transition',
-                  rangeKey === x.key ? 'border-white/20 bg-white/10 text-[#E6EDF7]' : 'border-white/10 text-[#A9B6CC] hover:border-white/20',
-                )}
-              >
-                {x.label}
-              </button>
-            ))}
-            {rangeKey === 'custom' ? (
-              <input
-                type="date"
-                value={customStartDate}
-                max={resolvedRange.endDate}
-                onChange={(e) => {
-                  setCustomStartDate(e.target.value)
-                }}
-                className="rounded-md border border-white/15 bg-[#0B1220] px-2 py-1 text-[#E6EDF7] outline-none focus:border-white/30"
-              />
-            ) : null}
-          </div>
-          <div className="text-[#64748B]">
-            当前范围：{resolvedRange.startDate} ~ {resolvedRange.endDate}
-          </div>
+          {chartView === 'relative' ? (
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[#94A3B8]">时间范围</span>
+                {RANGE_OPTIONS.map((x) => (
+                  <button
+                    key={x.key}
+                    type="button"
+                    onClick={() => setRangeKey(x.key)}
+                    className={cn(
+                      'rounded-md border px-2 py-1 transition',
+                      rangeKey === x.key ? 'border-white/20 bg-white/10 text-[#E6EDF7]' : 'border-white/10 text-[#A9B6CC] hover:border-white/20',
+                    )}
+                  >
+                    {x.label}
+                  </button>
+                ))}
+                {rangeKey === 'custom' ? (
+                  <>
+                    <input
+                      type="date"
+                      value={customStartDateDraft}
+                      max={resolvedRange.endDate}
+                      onChange={(e) => {
+                        setCustomStartDateDraft(e.target.value)
+                      }}
+                      className="rounded-md border border-white/15 bg-[#0B1220] px-2 py-1 text-[#E6EDF7] outline-none focus:border-white/30"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomStartDateApplied(clampStartDate(customStartDateDraft, ymd(new Date())))
+                      }}
+                      className="rounded-md border border-white/20 bg-white/10 px-2 py-1 text-[#E6EDF7] transition hover:border-white/30"
+                    >
+                      提交
+                    </button>
+                  </>
+                ) : null}
+              </div>
+              <div className="text-[#64748B]">
+                当前范围：{resolvedRange.startDate} ~ {resolvedRange.endDate}
+              </div>
+            </>
+          ) : null}
         </div>
-        <RpsStyleChart seriesByTicker={seriesByTicker} viewMode={chartView} baseLabel="515080.SH=1" />
+        <RpsStyleChart seriesByTicker={seriesByTicker} viewMode={chartView} baseLabel="515080.SH=1" lockEdges />
       </div>
     </section>
   )
