@@ -56,9 +56,10 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out
 }
 
-function nowBjtHour(): number {
+function nowBjtHourMinute(): { hour: number; minute: number } {
   const ms = Date.now() + 8 * 60 * 60 * 1000
-  return new Date(ms).getUTCHours()
+  const d = new Date(ms)
+  return { hour: d.getUTCHours(), minute: d.getUTCMinutes() }
 }
 
 function scoreCoverage(rows: Array<{ score_pct: number | null }>): number {
@@ -107,9 +108,21 @@ function sleep(ms: number) {
 
 async function main() {
   const ignoreWindow = String(process.env.RPS_REFRESH_IGNORE_WINDOW || '').trim() === '1'
-  const hour = nowBjtHour()
-  if (!ignoreWindow && !(hour >= 20 && hour < 22)) {
-    process.stdout.write(JSON.stringify({ success: true, skipped: true, reason: 'outside_refresh_window', bjtHour: hour }, null, 2))
+  const bjt = nowBjtHourMinute()
+  const inWindow = (bjt.hour > 19 || (bjt.hour === 19 && bjt.minute >= 30)) && bjt.hour <= 23
+  if (!ignoreWindow && !inWindow) {
+    process.stdout.write(
+      JSON.stringify(
+        {
+          success: true,
+          skipped: true,
+          reason: 'outside_refresh_window',
+          bjtTime: `${pad2(bjt.hour)}:${pad2(bjt.minute)}`,
+        },
+        null,
+        2,
+      ),
+    )
     return
   }
 

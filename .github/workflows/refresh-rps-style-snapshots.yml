@@ -2,9 +2,11 @@ name: Refresh RPS Style Snapshots
 
 on:
   schedule:
-    # GitHub cron uses UTC. Beijing 20:00–22:00 = UTC 12:00–14:00
-    # Run every 15 minutes during 20:00–21:59 Beijing time.
-    - cron: "0,15,30,45 12-13 * * *"
+    # GitHub cron uses UTC.
+    # Beijing weekdays 19:30–23:59 = UTC weekdays 11:30–15:59.
+    # Run every 30 minutes in the window.
+    - cron: "30 11-15 * * 1-5"
+    - cron: "0 12-15 * * 1-5"
   workflow_dispatch: {}
 
 jobs:
