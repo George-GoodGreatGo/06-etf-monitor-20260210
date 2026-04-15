@@ -182,7 +182,7 @@ export default function RpsStylePanel() {
             <p><span className="font-medium text-[#CBD5E1]">MA50</span>：RPS 的 50 日简单移动平均线。</p>
             <p><span className="font-medium text-[#CBD5E1]">Score</span>：((RPS / MA50) - 1) × 100%。</p>
             <p><span className="font-medium text-[#CBD5E1]">判定</span>：全部 Score&lt;0 为防守（0%进攻仓）；存在 Score&gt;0 时选择最高分主攻，建议 33%。</p>
-            <p><span className="font-medium text-[#CBD5E1]">相对视图</span>：按所选起点将各标的 RPS 与 MA50 同步归一化到 1，便于横向比较（分母基准 512890.SH）。</p>
+            <p><span className="font-medium text-[#CBD5E1]">起点视图</span>：按所选起点将各标的 RPS 与 MA50 同步归一化到 1，便于横向比较（分母基准 512890.SH）。</p>
           </div>
         </div>
 
@@ -265,7 +265,7 @@ export default function RpsStylePanel() {
                 chartView === 'relative' ? 'border-white/20 bg-white/10 text-[#E6EDF7]' : 'border-white/10 text-[#A9B6CC] hover:border-white/20',
               )}
             >
-              相对视图
+              起点视图
             </button>
             <button
               type="button"
