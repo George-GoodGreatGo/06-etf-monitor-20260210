@@ -1281,6 +1281,52 @@ def index_valuation_baseline(index_code: str, file_path: str):
     )
 
 
+def rps_qfq(ticker: str, start_date: str, end_date: str):
+    fetched_at = _iso_now()
+    tk = str(ticker or "").strip().upper()
+    st = str(start_date or "").strip()
+    ed = str(end_date or "").strip()
+    if not tk:
+        return _err("bad_request", "缺少 ticker")
+    if not (len(st) == 8 and st.isdigit() and len(ed) == 8 and ed.isdigit()):
+        return _err("bad_request", "start_date/end_date 需要 YYYYMMDD")
+
+    code = tk.split(".")[0]
+    if not (len(code) == 6 and code.isdigit()):
+        return _err("bad_request", f"非法 ticker: {ticker}")
+
+    df = _hist_daily_custom(code, st, ed, 1)
+    if df is None or df.empty:
+        return _err("akshare_error", f"无法获取前复权日线: {ticker}")
+    if "日期" not in df.columns or "收盘" not in df.columns:
+        return _err("akshare_error", "前复权日线缺少 日期/收盘 字段")
+
+    d2 = df.copy()
+    d2["日期"] = d2["日期"].apply(_fmt_ymd)
+    d2["收盘"] = d2["收盘"].apply(_to_float)
+    d2 = d2.sort_values(by="日期")
+
+    series = []
+    for _, r in d2.iterrows():
+        d = str(r.get("日期") or "").strip()
+        c = _to_float(r.get("收盘"))
+        if not d or c is None:
+            continue
+        series.append({"date": d, "close": c})
+    if not series:
+        return _err("akshare_error", f"前复权日线有效数据为空: {ticker}")
+
+    return _ok(
+        {
+            "fetchedAt": fetched_at,
+            "dataDate": series[-1]["date"],
+            "source": "akshare:eastmoney_qfq",
+            "notes": [f"ticker={tk}", "fqt=1", "klt=101"],
+        },
+        {"series": series},
+    )
+
+
 def main(argv):
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -1311,6 +1357,11 @@ def main(argv):
     p_valb.add_argument("--index-code", type=str, required=True)
     p_valb.add_argument("--file", type=str, required=True)
 
+    p_rps = sub.add_parser("rps-qfq")
+    p_rps.add_argument("--ticker", type=str, required=True)
+    p_rps.add_argument("--start-date", type=str, required=True)
+    p_rps.add_argument("--end-date", type=str, required=True)
+
     args = parser.parse_args(argv)
     try:
         if args.cmd == "top100":
@@ -1326,6 +1377,8 @@ def main(argv):
             result = index_valuation(args.index_code, args.start_date or None, args.end_date or None)
         elif args.cmd == "index-valuation-baseline":
             result = index_valuation_baseline(args.index_code, args.file)
+        elif args.cmd == "rps-qfq":
+            result = rps_qfq(args.ticker, args.start_date, args.end_date)
         else:
             result = _err("bad_request", "未知命令")
     except Exception as e:

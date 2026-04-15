@@ -207,7 +207,7 @@ export default function QuotesHome() {
   useEffect(() => {
     const tab = sp.get('tab')
     if (!tab) return
-    if (tab !== 'list' && tab !== 'insight' && tab !== 'liquidity' && tab !== 'lowvol') return
+    if (tab !== 'list' && tab !== 'insight' && tab !== 'liquidity' && tab !== 'lowvol' && tab !== 'value' && tab !== 'rps') return
     nav({ pathname: '/market', search: `?${sp.toString()}` }, { replace: true })
   }, [nav, sp])
 

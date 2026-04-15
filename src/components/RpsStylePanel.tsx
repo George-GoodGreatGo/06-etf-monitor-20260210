@@ -1,0 +1,166 @@
+import { useEffect, useMemo, useState } from 'react'
+import DataStatusBanner from '@/components/DataStatusBanner'
+import RpsStyleChart from '@/components/charts/RpsStyleChart'
+import { cn } from '@/lib/utils'
+import { fetchRpsStyleMatrix, fetchRpsStyleSeries, fetchRpsStyleSummary, type RpsStyleMatrixItem, type RpsStyleSeriesPoint } from '@/utils/marketApi'
+import type { Top100Meta } from '@/utils/etfApi'
+
+const DEFAULT_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH']
+
+function fmt(v: number | null | undefined, digits = 2): string {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return '—'
+  return v.toFixed(digits)
+}
+
+export default function RpsStylePanel() {
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [meta, setMeta] = useState<Top100Meta | null>(null)
+  const [mode, setMode] = useState<'risk_on' | 'risk_off'>('risk_off')
+  const [leaderTicker, setLeaderTicker] = useState<string | null>(null)
+  const [positionPct, setPositionPct] = useState<number>(0)
+  const [isFallback, setIsFallback] = useState(false)
+  const [items, setItems] = useState<RpsStyleMatrixItem[]>([])
+  const [seriesByTicker, setSeriesByTicker] = useState<Record<string, RpsStyleSeriesPoint[]>>({})
+
+  useEffect(() => {
+    const ac = new AbortController()
+    ;(async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const [sumRes, matrixRes] = await Promise.all([
+          fetchRpsStyleSummary({ signal: ac.signal }),
+          fetchRpsStyleMatrix({ signal: ac.signal }),
+        ])
+        if (sumRes.success !== true) {
+          setError(sumRes.message || '获取RPS摘要失败')
+          setLoading(false)
+          return
+        }
+        if (matrixRes.success !== true) {
+          setError(matrixRes.message || '获取RPS矩阵失败')
+          setLoading(false)
+          return
+        }
+
+        setMeta(matrixRes.meta || null)
+        setMode(sumRes.data.mode)
+        setLeaderTicker(sumRes.data.leaderTicker)
+        setPositionPct(sumRes.data.suggestedAttackPositionPct)
+        setIsFallback(Boolean(sumRes.data.isFallback || (matrixRes.meta as unknown as { isFallback?: boolean })?.isFallback))
+        const matrixItems = Array.isArray(matrixRes.data.items) ? matrixRes.data.items : []
+        setItems(matrixItems)
+
+        const tickers = matrixItems.length ? matrixItems.map((x) => x.ticker) : DEFAULT_TICKERS
+        const all = await Promise.all(tickers.map((ticker) => fetchRpsStyleSeries({ ticker, signal: ac.signal })))
+        const byTicker: Record<string, RpsStyleSeriesPoint[]> = {}
+        for (let i = 0; i < tickers.length; i += 1) {
+          const r = all[i]
+          if (r.success === true && Array.isArray(r.data?.series)) {
+            byTicker[tickers[i]] = r.data.series
+          } else {
+            byTicker[tickers[i]] = []
+          }
+        }
+        setSeriesByTicker(byTicker)
+        setLoading(false)
+      } catch (e) {
+        const name = e instanceof Error ? e.name : ''
+        if (name === 'AbortError') return
+        setError('网络异常或 API 不可用')
+        setLoading(false)
+      }
+    })()
+    return () => ac.abort()
+  }, [])
+
+  const modeCls = useMemo(() => {
+    return mode === 'risk_on'
+      ? 'border-[rgba(16,185,129,0.35)] bg-[rgba(16,185,129,0.10)] text-[#34D399]'
+      : 'border-[rgba(239,68,68,0.35)] bg-[rgba(239,68,68,0.10)] text-[#F87171]'
+  }, [mode])
+
+  return (
+    <section className="mt-4 overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="text-xl font-semibold tracking-tight text-white">市场风格 RPS</div>
+          <div className="mt-2 space-y-1 text-[13px] leading-relaxed text-[#94A3B8]">
+            <p><span className="font-medium text-[#CBD5E1]">基准分母</span>：515080.SH（中证红利 ETF）。</p>
+            <p><span className="font-medium text-[#CBD5E1]">RPS</span>：目标ETF前复权收盘价 / 红利ETF前复权收盘价。</p>
+            <p><span className="font-medium text-[#CBD5E1]">MA50</span>：RPS 的 50 日简单移动平均线。</p>
+            <p><span className="font-medium text-[#CBD5E1]">Score</span>：((RPS / MA50) - 1) × 100%。</p>
+            <p><span className="font-medium text-[#CBD5E1]">判定</span>：全部 Score&lt;0 为防守（0%进攻仓）；存在 Score&gt;0 时选择最高分主攻，建议 33%。</p>
+          </div>
+        </div>
+
+        <div className="min-w-[300px] rounded-lg border border-[#1E293B] bg-[#0F172A] px-3 py-2 text-xs">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[#94A3B8]">模式</div>
+            <div className={cn('rounded-full border px-2 py-0.5 text-xs font-semibold', modeCls)}>
+              {mode === 'risk_on' ? '进攻模式' : '防守模式'}
+            </div>
+          </div>
+          <div className="mt-1 flex items-center justify-between gap-3">
+            <div className="text-[#94A3B8]">主攻标的</div>
+            <div className="font-mono text-[#E6EDF7]">{leaderTicker ?? '—'}</div>
+          </div>
+          <div className="mt-1 flex items-center justify-between gap-3">
+            <div className="text-[#94A3B8]">建议进攻仓位</div>
+            <div className="font-mono text-[#E6EDF7]">{positionPct}%</div>
+          </div>
+          <div className="mt-1 flex items-center justify-between gap-3">
+            <div className="text-[#94A3B8]">回退状态</div>
+            <div className={cn('font-mono', isFallback ? 'text-[#FBBF24]' : 'text-[#34D399]')}>
+              {isFallback ? 'Fallback' : '正常'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <DataStatusBanner
+          loading={loading}
+          error={error}
+          meta={meta}
+          incompleteCount={0}
+          onRetry={() => {
+            window.location.reload()
+          }}
+        />
+      </div>
+
+      <div className="mt-4 overflow-x-auto rounded-lg border border-white/10">
+        <table className="min-w-full text-sm">
+          <thead className="bg-white/5 text-[#A9B6CC]">
+            <tr>
+              <th className="px-3 py-2 text-left">Ticker</th>
+              <th className="px-3 py-2 text-right">RPS</th>
+              <th className="px-3 py-2 text-right">MA50</th>
+              <th className="px-3 py-2 text-right">Score%</th>
+              <th className="px-3 py-2 text-right">趋势</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((x) => (
+              <tr key={x.ticker} className="border-t border-white/5">
+                <td className="px-3 py-2 font-mono text-[#E6EDF7]">{x.ticker}</td>
+                <td className="px-3 py-2 text-right font-mono text-[#E6EDF7]">{fmt(x.rpsRaw, 4)}</td>
+                <td className="px-3 py-2 text-right font-mono text-[#E6EDF7]">{fmt(x.rpsMa50, 4)}</td>
+                <td className={cn('px-3 py-2 text-right font-mono', (x.scorePct ?? 0) > 0 ? 'text-[#34D399]' : (x.scorePct ?? 0) < 0 ? 'text-[#F87171]' : 'text-[#A9B6CC]')}>
+                  {fmt(x.scorePct, 2)}
+                </td>
+                <td className="px-3 py-2 text-right text-[#A9B6CC]">{x.trend === 'up' ? '上行' : x.trend === 'down' ? '下行' : '中性'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-4">
+        <RpsStyleChart seriesByTicker={seriesByTicker} />
+      </div>
+    </section>
+  )
+}

@@ -115,6 +115,51 @@ export type ValueTimingSummaryData = {
   items: ValueTimingSummaryItem[]
 }
 
+export type RpsStyleSeriesPoint = {
+  date: string
+  ticker: string
+  benchmarkTicker: string
+  targetCloseQfq: number
+  benchmarkCloseQfq: number
+  rpsRaw: number
+  rpsMa50: number | null
+  scorePct: number | null
+}
+
+export type RpsStyleSeriesData = {
+  ticker: string
+  benchmarkTicker: string
+  series: RpsStyleSeriesPoint[]
+}
+
+export type RpsStyleMatrixItem = {
+  ticker: string
+  date: string
+  targetCloseQfq: number
+  benchmarkCloseQfq: number
+  rpsRaw: number
+  rpsMa50: number | null
+  scorePct: number | null
+  trend: 'up' | 'down' | 'flat'
+}
+
+export type RpsStyleMatrixData = {
+  benchmarkTicker: string
+  mode: 'risk_on' | 'risk_off'
+  leaderTicker: string | null
+  suggestedAttackPositionPct: number
+  items: RpsStyleMatrixItem[]
+}
+
+export type RpsStyleSummaryData = {
+  benchmarkTicker: string
+  mode: 'risk_on' | 'risk_off'
+  leaderTicker: string | null
+  suggestedAttackPositionPct: number
+  isFallback: boolean
+  leaderScorePct: number | null
+}
+
 export async function fetchLowVolIndex(args: { code: string; signal?: AbortSignal }): Promise<ApiOk<LowVolH30269Data> | ApiErr> {
   const code = String(args.code || '').trim()
   let res: Response
@@ -251,6 +296,126 @@ export async function fetchValueTimingSummary(args?: { signal?: AbortSignal }): 
     return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
   }
   return json as ApiOk<ValueTimingSummaryData> | ApiErr
+}
+
+export async function fetchRpsStyleSummary(args?: { signal?: AbortSignal }): Promise<ApiOk<RpsStyleSummaryData> | ApiErr> {
+  let res: Response
+  try {
+    res = await fetch(apiUrl('/api/rps/summary'), {
+      ...(args?.signal ? { signal: args.signal } : {}),
+      credentials: 'include',
+      headers: {
+        ...adminAuthHeaders(),
+      },
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    const name = e instanceof Error ? e.name : ''
+    const aborted = name === 'AbortError' || msg.toLowerCase().includes('aborted')
+    return { success: false, error: 'api_error', message: aborted ? '请求已取消' : msg || '网络异常或 API 不可用' }
+  }
+
+  const text = await res.text()
+  let json: unknown = null
+  try {
+    json = text ? (JSON.parse(text) as unknown) : null
+  } catch {
+    json = null
+  }
+  if (!res.ok) {
+    const msg =
+      json && typeof json === 'object' && json && 'message' in (json as Record<string, unknown>) && typeof (json as Record<string, unknown>).message === 'string'
+        ? String((json as Record<string, unknown>).message)
+        : `HTTP ${res.status}`
+    return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
+  }
+  return json as ApiOk<RpsStyleSummaryData> | ApiErr
+}
+
+export async function fetchRpsStyleMatrix(args?: {
+  startDate?: string
+  endDate?: string
+  signal?: AbortSignal
+}): Promise<ApiOk<RpsStyleMatrixData> | ApiErr> {
+  const qs = new URLSearchParams()
+  if (args?.startDate) qs.set('startDate', args.startDate)
+  if (args?.endDate) qs.set('endDate', args.endDate)
+  const url = qs.toString() ? `/api/rps/matrix?${qs.toString()}` : '/api/rps/matrix'
+  let res: Response
+  try {
+    res = await fetch(apiUrl(url), {
+      ...(args?.signal ? { signal: args.signal } : {}),
+      credentials: 'include',
+      headers: {
+        ...adminAuthHeaders(),
+      },
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    const name = e instanceof Error ? e.name : ''
+    const aborted = name === 'AbortError' || msg.toLowerCase().includes('aborted')
+    return { success: false, error: 'api_error', message: aborted ? '请求已取消' : msg || '网络异常或 API 不可用' }
+  }
+
+  const text = await res.text()
+  let json: unknown = null
+  try {
+    json = text ? (JSON.parse(text) as unknown) : null
+  } catch {
+    json = null
+  }
+  if (!res.ok) {
+    const msg =
+      json && typeof json === 'object' && json && 'message' in (json as Record<string, unknown>) && typeof (json as Record<string, unknown>).message === 'string'
+        ? String((json as Record<string, unknown>).message)
+        : `HTTP ${res.status}`
+    return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
+  }
+  return json as ApiOk<RpsStyleMatrixData> | ApiErr
+}
+
+export async function fetchRpsStyleSeries(args: {
+  ticker: string
+  startDate?: string
+  endDate?: string
+  signal?: AbortSignal
+}): Promise<ApiOk<RpsStyleSeriesData> | ApiErr> {
+  const ticker = String(args.ticker || '').trim().toUpperCase()
+  const qs = new URLSearchParams()
+  if (args.startDate) qs.set('startDate', args.startDate)
+  if (args.endDate) qs.set('endDate', args.endDate)
+  const url = qs.toString() ? `/api/rps/series/${encodeURIComponent(ticker)}?${qs.toString()}` : `/api/rps/series/${encodeURIComponent(ticker)}`
+  let res: Response
+  try {
+    res = await fetch(apiUrl(url), {
+      ...(args.signal ? { signal: args.signal } : {}),
+      credentials: 'include',
+      headers: {
+        ...adminAuthHeaders(),
+      },
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    const name = e instanceof Error ? e.name : ''
+    const aborted = name === 'AbortError' || msg.toLowerCase().includes('aborted')
+    return { success: false, error: 'api_error', message: aborted ? '请求已取消' : msg || '网络异常或 API 不可用' }
+  }
+
+  const text = await res.text()
+  let json: unknown = null
+  try {
+    json = text ? (JSON.parse(text) as unknown) : null
+  } catch {
+    json = null
+  }
+  if (!res.ok) {
+    const msg =
+      json && typeof json === 'object' && json && 'message' in (json as Record<string, unknown>) && typeof (json as Record<string, unknown>).message === 'string'
+        ? String((json as Record<string, unknown>).message)
+        : `HTTP ${res.status}`
+    return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
+  }
+  return json as ApiOk<RpsStyleSeriesData> | ApiErr
 }
 
 export async function fetchMarketLiquidityV5(signal?: AbortSignal): Promise<ApiOk<MarketLiquidityV5> | ApiErr> {

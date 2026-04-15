@@ -16,6 +16,7 @@ import aiRoutes from './routes/ai.js'
 import lowVolRoutes from './routes/lowVol.js'
 import marketRoutes from './routes/market.js'
 import valueRoutes from './routes/value.js'
+import rpsStyleRoutes from './routes/rpsStyle.js'
 import { serverBootId, serverStartedAt } from './lib/runtime.js'
 import { requireAdminAccess } from './lib/adminAuth.js'
 
@@ -43,6 +44,7 @@ app.use('/api/ai', requireAdminAccess, aiRoutes)
 app.use('/api/market', requireAdminAccess, marketRoutes)
 app.use('/api/lowvol', requireAdminAccess, lowVolRoutes)
 app.use('/api/value', requireAdminAccess, valueRoutes)
+app.use('/api/rps', requireAdminAccess, rpsStyleRoutes)
 
 /**
  * health
