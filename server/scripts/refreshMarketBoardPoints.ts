@@ -160,7 +160,41 @@ function summarizeCoverage(rows: Array<Record<string, unknown>>) {
   }
 }
 
-async function runSourceConnectivityProbe(args: { endDate: string }) {
+type ProbeDetail = {
+  source: 'northbound' | 'hs300_pe' | 'yield10y'
+  ok: boolean
+  count: number
+  note?: string
+  error?: string
+}
+
+type ProbeSummary = {
+  ok: boolean
+  hardFailed: boolean
+  details: ProbeDetail[]
+}
+
+async function probeNorthboundWithFallback(args: { startDate1y: string; endDate: string }): Promise<ProbeDetail> {
+  const endDate = String(args.endDate || '').trim()
+  const candidates = [
+    String(args.startDate1y || '').trim(),
+    maxYmd8(FULL_BACKFILL_START, shiftYmd8Years(endDate, -3) || FULL_BACKFILL_START),
+    maxYmd8(FULL_BACKFILL_START, shiftYmd8Years(endDate, -5) || FULL_BACKFILL_START),
+  ]
+  const uniqueStarts = dedupeRunIds(candidates)
+  for (let i = 0; i < uniqueStarts.length; i += 1) {
+    const start = uniqueStarts[i] || ''
+    if (!start) continue
+    const rows = await fetchNorthboundTotalTurnoverSeries({ startDate: start, endDate })
+    if (Array.isArray(rows) && rows.length > 0) {
+      const label = i === 0 ? '1y' : i === 1 ? '3y-fallback' : '5y-fallback'
+      return { source: 'northbound', ok: true, count: rows.length, note: label }
+    }
+  }
+  return { source: 'northbound', ok: false, count: 0, error: 'northbound empty after 1y/3y/5y fallback' }
+}
+
+async function runSourceConnectivityProbe(args: { endDate: string }): Promise<ProbeSummary> {
   const endDate = String(args.endDate || '').trim()
   const oneYearAgo = shiftYmd8Years(endDate, -1) || FULL_BACKFILL_START
   const probeStart = maxYmd8(FULL_BACKFILL_START, oneYearAgo)
@@ -168,41 +202,61 @@ async function runSourceConnectivityProbe(args: { endDate: string }) {
 
   process.stdout.write(`[probe] start=${probeStart} end=${endDate} year=${endYear}\n`)
 
-  const checks = await Promise.allSettled([
-    withRetry(async () => {
-      const rows = await fetchNorthboundTotalTurnoverSeries({ startDate: probeStart, endDate })
-      if (!Array.isArray(rows) || rows.length === 0) throw new Error('northbound empty')
-      return rows.length
-    }, 'probe:northbound', 2),
+  const details: ProbeDetail[] = []
+
+  const hs300Check: ProbeDetail = await Promise.resolve(
     withRetry(async () => {
       const rows = await fetchCsindexHs300PeSeries({ startDate: probeStart, endDate })
       if (!Array.isArray(rows) || rows.length === 0) throw new Error('hs300 pe empty')
       return rows.length
     }, 'probe:hs300_pe', 2),
+  )
+    .then((count) => ({ source: 'hs300_pe' as const, ok: true, count }))
+    .catch((e) => {
+      const msg = e instanceof Error ? e.message : String(e)
+      return { source: 'hs300_pe' as const, ok: false, count: 0, error: msg }
+    })
+  details.push(hs300Check)
+  if (hs300Check.ok) process.stdout.write(`[probe] ok hs300_pe count=${hs300Check.count}\n`)
+  else process.stderr.write(`[probe] failed hs300_pe err=${hs300Check.error}\n`)
+
+  const northCheck: ProbeDetail = await Promise.resolve(
+    withRetry(() => probeNorthboundWithFallback({ startDate1y: probeStart, endDate }), 'probe:northbound', 2),
+  )
+    .then((d) => d)
+    .catch((e) => {
+      const msg = e instanceof Error ? e.message : String(e)
+      return { source: 'northbound' as const, ok: false, count: 0, error: msg }
+    })
+  details.push(northCheck)
+  if (northCheck.ok) {
+    process.stdout.write(`[probe] ok northbound count=${northCheck.count}${northCheck.note ? ` note=${northCheck.note}` : ''}\n`)
+  } else {
+    process.stderr.write(`[probe] warn northbound err=${northCheck.error}\n`)
+  }
+
+  const y10Check: ProbeDetail = await Promise.resolve(
     withRetry(async () => {
       const out = await fetchGovBond10yYieldPctByDateSafe({ year: endYear })
       if (out.error) throw new Error(out.error)
       if (!(out.map instanceof Map) || out.map.size === 0) throw new Error('yield10y empty')
       return out.map.size
     }, 'probe:yield10y', 2),
-  ])
+  )
+    .then((count) => ({ source: 'yield10y' as const, ok: true, count }))
+    .catch((e) => {
+      const msg = e instanceof Error ? e.message : String(e)
+      return { source: 'yield10y' as const, ok: false, count: 0, error: msg }
+    })
+  details.push(y10Check)
+  if (y10Check.ok) process.stdout.write(`[probe] ok yield10y count=${y10Check.count}\n`)
+  else process.stderr.write(`[probe] warn yield10y err=${y10Check.error}\n`)
 
-  const names = ['northbound', 'hs300_pe', 'yield10y']
-  let okCount = 0
-  const failed: string[] = []
-  for (let i = 0; i < checks.length; i += 1) {
-    const it = checks[i]
-    if (it.status === 'fulfilled') {
-      okCount += 1
-      process.stdout.write(`[probe] ok ${names[i]} count=${it.value}\n`)
-    } else {
-      const msg = it.reason instanceof Error ? it.reason.message : String(it.reason)
-      failed.push(`${names[i]}=${msg}`)
-      process.stderr.write(`[probe] failed ${names[i]} err=${msg}\n`)
-    }
-  }
-  if (okCount < checks.length) {
-    throw new Error(`source connectivity probe failed: ${failed.join('; ')}`)
+  const hardFailed = !hs300Check.ok
+  return {
+    ok: !hardFailed,
+    hardFailed,
+    details,
   }
 }
 
@@ -245,7 +299,20 @@ async function main() {
     process.stdout.write(`[run] new_run_id=${runId} prev_visible=${prevVisible || 'null'}\n`)
 
     try {
-      await runSourceConnectivityProbe({ endDate })
+      const probeSummary = await runSourceConnectivityProbe({ endDate })
+      if (probeSummary.hardFailed) {
+        const failed = probeSummary.details
+          .filter((d) => !d.ok)
+          .map((d) => `${d.source}=${d.error || 'failed'}`)
+          .join('; ')
+        throw new Error(`source connectivity probe hard-failed: ${failed || 'unknown'}`)
+      }
+      const probeWarn = probeSummary.details.filter((d) => !d.ok)
+      if (probeWarn.length > 0) {
+        process.stderr.write(
+          `[probe] soft-fail continue: ${probeWarn.map((d) => `${d.source}=${d.error || 'failed'}`).join('; ')}\n`,
+        )
+      }
 
       const y0 = ymd8ToYear(startDate)
       const y1 = ymd8ToYear(endDate)
@@ -397,6 +464,13 @@ async function main() {
         northCover: cov.northCover,
         peCover: cov.peCover,
         y10Cover: cov.y10Cover,
+        probeSummary: probeSummary.details.map((d) => ({
+          source: d.source,
+          ok: d.ok,
+          count: d.count,
+          note: d.note || null,
+          error: d.error || null,
+        })),
       }
 
       await withRetry(

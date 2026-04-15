@@ -164,15 +164,24 @@ async function fetchQfqDailyWithFallback(args: {
   ticker: string
   startDate: string
   endDate: string
+  extraRetries?: number
 }): Promise<{ source: DataSourceName; series: Array<{ date: string; close: number }> }> {
+  const extra = Math.max(0, Number(args.extraRetries || 0))
+  let eastErr = ''
   try {
-    const east = await withRetry(() => fetchQfqDailyByEastmoney(args), 2)
+    const east = await withRetry(() => fetchQfqDailyByEastmoney(args), 2 + extra)
     if (east.length > 0) return { source: 'eastmoney:qfq', series: east }
     throw new Error('eastmoney empty')
-  } catch {
-    const ak = await withRetry(() => fetchQfqDailyByAkshare(args), 2)
+  } catch (e) {
+    eastErr = e instanceof Error ? e.message : String(e)
+  }
+  try {
+    const ak = await withRetry(() => fetchQfqDailyByAkshare(args), 2 + extra)
     if (ak.length > 0) return { source: 'akshare:qfq', series: ak }
-    throw new Error(`qfq empty: ${args.ticker}`)
+    throw new Error('akshare empty')
+  } catch (e) {
+    const akErr = e instanceof Error ? e.message : String(e)
+    throw new Error(`qfq failed: ${args.ticker}; eastmoney=${eastErr || 'unknown'}; akshare=${akErr || 'unknown'}`)
   }
 }
 
@@ -286,7 +295,12 @@ export async function computeRpsStyleDataset(args: {
   const endDate = normalizeYmd10(args.endDate)
   if (!startDate || !endDate) throw new Error('bad date range')
 
-  const bmk = await fetchQfqDailyWithFallback({ ticker: RPS_BENCHMARK_TICKER, startDate, endDate })
+  const bmk = await fetchQfqDailyWithFallback({
+    ticker: RPS_BENCHMARK_TICKER,
+    startDate,
+    endDate,
+    extraRetries: 2,
+  })
   const benchmarkMap = new Map<string, number>()
   for (const p of bmk.series) benchmarkMap.set(p.date, p.close)
 

@@ -55,6 +55,9 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CHINAMONEY_FETCH_MAX_ATTEMPTS: '7'
+          CHINAMONEY_FETCH_BASE_DELAY_MS: '1800'
+          CHINAMONEY_FETCH_TIMEOUT_MAX_MS: '120000'
         run: |
           if [ "${{ github.event_name }}" = "schedule" ]; then
             export MARKET_DATA_SOURCE="financedata"

@@ -209,6 +209,10 @@ async function main() {
         qualitySummary: {
           failedRunId: runId,
           error: msg,
+          errorContext: {
+            benchmarkTicker: '512890.SH',
+            phase: 'compute_or_publish',
+          },
           failedAt: new Date().toISOString(),
         },
       })

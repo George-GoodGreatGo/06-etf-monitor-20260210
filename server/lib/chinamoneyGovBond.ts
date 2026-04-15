@@ -22,7 +22,9 @@ function sleep(ms: number) {
 }
 
 async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
-  const ms = Math.max(1_000, Math.min(60_000, Math.floor(timeoutMs)))
+  const timeoutMaxRaw = Number(process.env.CHINAMONEY_FETCH_TIMEOUT_MAX_MS)
+  const timeoutMaxMs = Number.isFinite(timeoutMaxRaw) ? Math.max(10_000, Math.min(180_000, Math.floor(timeoutMaxRaw))) : 120_000
+  const ms = Math.max(1_000, Math.min(timeoutMaxMs, Math.floor(timeoutMs)))
   const ac = new AbortController()
   const id = setTimeout(() => ac.abort(), ms)
   try {
@@ -87,7 +89,7 @@ async function fetchYearXlsx(year: number): Promise<Buffer> {
 
   let lastErr: Error | null = null
   const maxAttemptsRaw = Number(process.env.CHINAMONEY_FETCH_MAX_ATTEMPTS)
-  const maxAttempts = Number.isFinite(maxAttemptsRaw) ? Math.max(1, Math.min(8, Math.floor(maxAttemptsRaw))) : 5
+  const maxAttempts = Number.isFinite(maxAttemptsRaw) ? Math.max(1, Math.min(8, Math.floor(maxAttemptsRaw))) : 6
   const baseDelayRaw = Number(process.env.CHINAMONEY_FETCH_BASE_DELAY_MS)
   const baseDelayMs = Number.isFinite(baseDelayRaw) ? Math.max(0, Math.min(30_000, Math.floor(baseDelayRaw))) : 1_500
   const startedAt = Date.now()
@@ -112,7 +114,10 @@ async function fetchYearXlsx(year: number): Promise<Buffer> {
       logEvent({ event: 'chinamoney.10y.year.done', year, attempt, timeoutMs, bytes: arrayBuf.byteLength, ms: Date.now() - startedAt })
       return Buffer.from(arrayBuf)
     } catch (e) {
-      lastErr = e instanceof Error ? e : new Error(String(e))
+      const err = e instanceof Error ? e : new Error(String(e))
+      const isAbort = String((err as any)?.name || '').toLowerCase() === 'aborterror' || /aborted/i.test(String(err.message || ''))
+      const tagged = isAbort ? new Error(`timeout_aborted: ${err.message}`) : err
+      lastErr = tagged
       if (attempt < maxAttempts) {
         const base = Math.min(30_000, baseDelayMs * 2 ** (attempt - 1))
         const jitter = Math.floor(Math.random() * 350)
@@ -124,6 +129,7 @@ async function fetchYearXlsx(year: number): Promise<Buffer> {
           timeoutMs: 20_000 + attempt * 5_000,
           waitMs,
           error: String(lastErr.message || '').slice(0, 220),
+          errorType: isAbort ? 'abort' : 'other',
         })
         await sleep(waitMs)
       } else {
@@ -134,6 +140,7 @@ async function fetchYearXlsx(year: number): Promise<Buffer> {
           timeoutMs: 20_000 + attempt * 5_000,
           ms: Date.now() - startedAt,
           error: String(lastErr.message || '').slice(0, 320),
+          errorType: isAbort ? 'abort' : 'other',
         })
       }
     }

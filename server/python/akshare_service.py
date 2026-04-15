@@ -1281,6 +1281,52 @@ def index_valuation_baseline(index_code: str, file_path: str):
     )
 
 
+def _normalize_hist_date_close(df):
+    if df is None or df.empty:
+        return []
+    date_col = _pick_col(df, ["日期", "date", "交易日期"])
+    close_col = _pick_col(df, ["收盘", "close", "收盘价"])
+    if not date_col or not close_col:
+        return []
+    d2 = df.copy()
+    d2[date_col] = d2[date_col].apply(_fmt_ymd)
+    d2[close_col] = d2[close_col].apply(_to_float)
+    d2 = d2.sort_values(by=date_col)
+    out = []
+    for _, r in d2.iterrows():
+        d = str(r.get(date_col) or "").strip()
+        c = _to_float(r.get(close_col))
+        if not d or c is None:
+            continue
+        out.append({"date": d, "close": c})
+    return out
+
+
+def _hist_fund_etf_em_qfq(code: str, start_date: str, end_date: str):
+    import akshare as ak
+
+    retries = int(os.environ.get("AKSHARE_RETRIES", "3") or "3")
+    base_sleep = float(os.environ.get("AKSHARE_RETRY_SLEEP_SEC", "0.6") or "0.6")
+    last_err = None
+
+    for i in range(max(1, retries)):
+        try:
+            df = ak.fund_etf_hist_em(
+                symbol=code,
+                period="daily",
+                start_date=start_date,
+                end_date=end_date,
+                adjust="qfq",
+            )
+            if df is None or df.empty:
+                return None
+            return df
+        except Exception as e:
+            last_err = e
+            time.sleep(base_sleep * (i + 1))
+    raise last_err
+
+
 def rps_qfq(ticker: str, start_date: str, end_date: str):
     fetched_at = _iso_now()
     tk = str(ticker or "").strip().upper()
@@ -1295,33 +1341,50 @@ def rps_qfq(ticker: str, start_date: str, end_date: str):
     if not (len(code) == 6 and code.isdigit()):
         return _err("bad_request", f"非法 ticker: {ticker}")
 
-    df = _hist_daily_custom(code, st, ed, 1)
-    if df is None or df.empty:
-        return _err("akshare_error", f"无法获取前复权日线: {ticker}")
-    if "日期" not in df.columns or "收盘" not in df.columns:
-        return _err("akshare_error", "前复权日线缺少 日期/收盘 字段")
-
-    d2 = df.copy()
-    d2["日期"] = d2["日期"].apply(_fmt_ymd)
-    d2["收盘"] = d2["收盘"].apply(_to_float)
-    d2 = d2.sort_values(by="日期")
+    source_path = []
+    err_msgs = []
 
     series = []
-    for _, r in d2.iterrows():
-        d = str(r.get("日期") or "").strip()
-        c = _to_float(r.get("收盘"))
-        if not d or c is None:
-            continue
-        series.append({"date": d, "close": c})
+    try:
+        df = _hist_daily_custom(code, st, ed, 1)
+        source_path.append("custom_eastmoney")
+        series = _normalize_hist_date_close(df)
+    except Exception as e:
+        err_msgs.append(f"custom_eastmoney={e}")
+
     if not series:
-        return _err("akshare_error", f"前复权日线有效数据为空: {ticker}")
+        try:
+            df_em = _hist_fund_etf_em_qfq(code, st, ed)
+            source_path.append("fund_etf_hist_em_qfq")
+            series = _normalize_hist_date_close(df_em)
+        except Exception as e:
+            err_msgs.append(f"fund_etf_hist_em_qfq={e}")
+
+    if not series:
+        try:
+            sym = _sina_symbol_from_code(code)
+            df_sina = _hist_sina(sym)
+            source_path.append("fund_etf_hist_sina")
+            series = _normalize_hist_date_close(df_sina)
+            if series:
+                st10 = _fmt_ymd(st)
+                ed10 = _fmt_ymd(ed)
+                series = [x for x in series if st10 <= x["date"] <= ed10]
+        except Exception as e:
+            err_msgs.append(f"fund_etf_hist_sina={e}")
+
+    if not series:
+        msg = f"无法获取前复权日线: {ticker}"
+        if err_msgs:
+            msg = f"{msg}; " + " | ".join(err_msgs)
+        return _err("akshare_error", msg)
 
     return _ok(
         {
             "fetchedAt": fetched_at,
             "dataDate": series[-1]["date"],
-            "source": "akshare:eastmoney_qfq",
-            "notes": [f"ticker={tk}", "fqt=1", "klt=101"],
+            "source": f"akshare:{source_path[-1] if source_path else 'unknown'}",
+            "notes": [f"ticker={tk}", "qfq=true", f"source_path={' -> '.join(source_path) if source_path else 'none'}"],
         },
         {"series": series},
     )
