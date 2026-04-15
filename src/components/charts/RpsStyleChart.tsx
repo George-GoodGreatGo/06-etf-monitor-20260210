@@ -4,6 +4,8 @@ import type { RpsStyleSeriesPoint } from '@/utils/marketApi'
 
 type Props = {
   seriesByTicker: Record<string, RpsStyleSeriesPoint[]>
+  viewMode: 'raw' | 'relative'
+  baseLabel?: string
 }
 
 function ymdToUtcSeconds(ymd: string): UTCTimestamp | null {
@@ -18,7 +20,7 @@ function ymdToUtcSeconds(ymd: string): UTCTimestamp | null {
 
 const COLORS = ['#60A5FA', '#F59E0B', '#34D399', '#F87171'] as const
 
-export default function RpsStyleChart({ seriesByTicker }: Props) {
+export default function RpsStyleChart({ seriesByTicker, viewMode, baseLabel = '515080.SH=1' }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const lineRefs = useRef<Array<ISeriesApi<'Line', Time>>>([])
@@ -29,17 +31,31 @@ export default function RpsStyleChart({ seriesByTicker }: Props) {
       const src = Array.isArray(seriesByTicker[ticker]) ? seriesByTicker[ticker] : []
       const rps: LineData<Time>[] = []
       const ma50: LineData<Time>[] = []
+      let startRpsRaw: number | null = null
       for (const p of src) {
         const t = ymdToUtcSeconds(p.date)
         if (!t) continue
-        if (typeof p.rpsRaw === 'number' && Number.isFinite(p.rpsRaw)) rps.push({ time: t, value: p.rpsRaw })
-        if (typeof p.rpsMa50 === 'number' && Number.isFinite(p.rpsMa50)) ma50.push({ time: t, value: p.rpsMa50 })
+        if (typeof p.rpsRaw === 'number' && Number.isFinite(p.rpsRaw)) {
+          if (startRpsRaw == null && p.rpsRaw !== 0) startRpsRaw = p.rpsRaw
+          const rpsVal = viewMode === 'relative' && startRpsRaw != null ? p.rpsRaw / startRpsRaw : p.rpsRaw
+          if (Number.isFinite(rpsVal)) rps.push({ time: t, value: rpsVal })
+        }
+        if (typeof p.rpsMa50 === 'number' && Number.isFinite(p.rpsMa50)) {
+          if (viewMode === 'relative') {
+            if (startRpsRaw != null) {
+              const maVal = p.rpsMa50 / startRpsRaw
+              if (Number.isFinite(maVal)) ma50.push({ time: t, value: maVal })
+            }
+          } else {
+            ma50.push({ time: t, value: p.rpsMa50 })
+          }
+        }
       }
       rps.sort((a, b) => (a.time as number) - (b.time as number))
       ma50.sort((a, b) => (a.time as number) - (b.time as number))
       return { ticker, color: COLORS[idx % COLORS.length], rps, ma50 }
     })
-  }, [seriesByTicker])
+  }, [seriesByTicker, viewMode])
 
   useEffect(() => {
     const el = hostRef.current
@@ -87,6 +103,16 @@ export default function RpsStyleChart({ seriesByTicker }: Props) {
         lastValueVisible: true,
       })
       rpsSeries.setData(item.rps)
+      if (viewMode === 'relative') {
+        rpsSeries.createPriceLine({
+          price: 1,
+          color: 'rgba(169,182,204,0.35)',
+          lineWidth: 1,
+          lineStyle: 2,
+          axisLabelVisible: false,
+          title: '',
+        })
+      }
       lineRefs.current.push(rpsSeries)
 
       const maSeries = chart.addSeries(LineSeries, {
@@ -100,7 +126,7 @@ export default function RpsStyleChart({ seriesByTicker }: Props) {
       lineRefs.current.push(maSeries)
     }
     chart.timeScale().fitContent()
-  }, [prepared])
+  }, [prepared, viewMode])
 
   return (
     <div className="space-y-2">
@@ -109,9 +135,10 @@ export default function RpsStyleChart({ seriesByTicker }: Props) {
           <div key={x.ticker} className="inline-flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: x.color }} />
             <span className="font-mono">{x.ticker}</span>
-            <span className="text-[#64748B]">RPS 实线 / MA50 虚线</span>
+            <span className="text-[#64748B]">{viewMode === 'relative' ? '归一化RPS 实线 / 归一化MA50 虚线' : 'RPS 实线 / MA50 虚线'}</span>
           </div>
         ))}
+        {viewMode === 'relative' ? <div className="text-[#64748B]">参考线：{baseLabel}</div> : null}
       </div>
       <div ref={hostRef} className="h-[360px] w-full rounded-lg border border-white/10 bg-[#111B2E]" />
     </div>

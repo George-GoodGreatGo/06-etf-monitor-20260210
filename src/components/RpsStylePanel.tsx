@@ -6,6 +6,66 @@ import { fetchRpsStyleMatrix, fetchRpsStyleSeries, fetchRpsStyleSummary, type Rp
 import type { Top100Meta } from '@/utils/etfApi'
 
 const DEFAULT_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH']
+const RANGE_OPTIONS = [
+  { key: '1w', label: '最近1周' },
+  { key: '2w', label: '最近2周' },
+  { key: '1m', label: '最近1个月' },
+  { key: '3m', label: '最近3个月' },
+  { key: '6m', label: '最近6个月' },
+  { key: '1y', label: '最近1年' },
+  { key: '2y', label: '最近2年' },
+  { key: '3y', label: '最近3年' },
+  { key: '5y', label: '最近5年' },
+  { key: 'ytd', label: '年初至今' },
+  { key: 'custom', label: '自定义起点日期' },
+] as const
+
+type RpsViewMode = 'raw' | 'relative'
+type RpsRangeKey = (typeof RANGE_OPTIONS)[number]['key']
+
+function ymd(d: Date): string {
+  return d.toISOString().slice(0, 10)
+}
+
+function addDays(base: Date, days: number): Date {
+  const d = new Date(base.getTime())
+  d.setUTCDate(d.getUTCDate() + days)
+  return d
+}
+
+function addMonths(base: Date, months: number): Date {
+  const d = new Date(base.getTime())
+  d.setUTCMonth(d.getUTCMonth() + months)
+  return d
+}
+
+function addYears(base: Date, years: number): Date {
+  const d = new Date(base.getTime())
+  d.setUTCFullYear(d.getUTCFullYear() + years)
+  return d
+}
+
+function clampStartDate(start: string, end: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return end
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(end)) return start
+  return start > end ? end : start
+}
+
+function resolveDateRange(rangeKey: RpsRangeKey, customStartDate: string): { startDate: string; endDate: string } {
+  const end = new Date()
+  const endDate = ymd(end)
+  if (rangeKey === 'custom') return { startDate: clampStartDate(customStartDate, endDate), endDate }
+  if (rangeKey === '1w') return { startDate: ymd(addDays(end, -7)), endDate }
+  if (rangeKey === '2w') return { startDate: ymd(addDays(end, -14)), endDate }
+  if (rangeKey === '1m') return { startDate: ymd(addMonths(end, -1)), endDate }
+  if (rangeKey === '3m') return { startDate: ymd(addMonths(end, -3)), endDate }
+  if (rangeKey === '6m') return { startDate: ymd(addMonths(end, -6)), endDate }
+  if (rangeKey === '1y') return { startDate: ymd(addYears(end, -1)), endDate }
+  if (rangeKey === '2y') return { startDate: ymd(addYears(end, -2)), endDate }
+  if (rangeKey === '3y') return { startDate: ymd(addYears(end, -3)), endDate }
+  if (rangeKey === '5y') return { startDate: ymd(addYears(end, -5)), endDate }
+  return { startDate: `${endDate.slice(0, 4)}-01-01`, endDate }
+}
 
 function fmt(v: number | null | undefined, digits = 2): string {
   if (typeof v !== 'number' || !Number.isFinite(v)) return '—'
@@ -16,12 +76,16 @@ export default function RpsStylePanel() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [meta, setMeta] = useState<Top100Meta | null>(null)
+  const [chartView, setChartView] = useState<RpsViewMode>('relative')
+  const [rangeKey, setRangeKey] = useState<RpsRangeKey>('3m')
+  const [customStartDate, setCustomStartDate] = useState<string>(() => ymd(addMonths(new Date(), -3)))
   const [mode, setMode] = useState<'risk_on' | 'risk_off'>('risk_off')
   const [leaderTicker, setLeaderTicker] = useState<string | null>(null)
   const [positionPct, setPositionPct] = useState<number>(0)
   const [isFallback, setIsFallback] = useState(false)
   const [items, setItems] = useState<RpsStyleMatrixItem[]>([])
   const [seriesByTicker, setSeriesByTicker] = useState<Record<string, RpsStyleSeriesPoint[]>>({})
+  const resolvedRange = useMemo(() => resolveDateRange(rangeKey, customStartDate), [rangeKey, customStartDate])
 
   useEffect(() => {
     const ac = new AbortController()
@@ -53,7 +117,16 @@ export default function RpsStylePanel() {
         setItems(matrixItems)
 
         const tickers = matrixItems.length ? matrixItems.map((x) => x.ticker) : DEFAULT_TICKERS
-        const all = await Promise.all(tickers.map((ticker) => fetchRpsStyleSeries({ ticker, signal: ac.signal })))
+        const all = await Promise.all(
+          tickers.map((ticker) =>
+            fetchRpsStyleSeries({
+              ticker,
+              startDate: resolvedRange.startDate,
+              endDate: resolvedRange.endDate,
+              signal: ac.signal,
+            }),
+          ),
+        )
         const byTicker: Record<string, RpsStyleSeriesPoint[]> = {}
         for (let i = 0; i < tickers.length; i += 1) {
           const r = all[i]
@@ -73,7 +146,7 @@ export default function RpsStylePanel() {
       }
     })()
     return () => ac.abort()
-  }, [])
+  }, [resolvedRange.endDate, resolvedRange.startDate])
 
   const modeCls = useMemo(() => {
     return mode === 'risk_on'
@@ -92,6 +165,7 @@ export default function RpsStylePanel() {
             <p><span className="font-medium text-[#CBD5E1]">MA50</span>：RPS 的 50 日简单移动平均线。</p>
             <p><span className="font-medium text-[#CBD5E1]">Score</span>：((RPS / MA50) - 1) × 100%。</p>
             <p><span className="font-medium text-[#CBD5E1]">判定</span>：全部 Score&lt;0 为防守（0%进攻仓）；存在 Score&gt;0 时选择最高分主攻，建议 33%。</p>
+            <p><span className="font-medium text-[#CBD5E1]">相对视图</span>：按所选起点将各标的 RPS 与 MA50 同步归一化到 1，便于横向比较（分母基准 515080.SH）。</p>
           </div>
         </div>
 
@@ -159,7 +233,62 @@ export default function RpsStylePanel() {
       </div>
 
       <div className="mt-4">
-        <RpsStyleChart seriesByTicker={seriesByTicker} />
+        <div className="mb-3 flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[#94A3B8]">图表视图</span>
+            <button
+              type="button"
+              onClick={() => setChartView('raw')}
+              className={cn(
+                'rounded-md border px-2 py-1 transition',
+                chartView === 'raw' ? 'border-white/20 bg-white/10 text-[#E6EDF7]' : 'border-white/10 text-[#A9B6CC] hover:border-white/20',
+              )}
+            >
+              原始视图
+            </button>
+            <button
+              type="button"
+              onClick={() => setChartView('relative')}
+              className={cn(
+                'rounded-md border px-2 py-1 transition',
+                chartView === 'relative' ? 'border-white/20 bg-white/10 text-[#E6EDF7]' : 'border-white/10 text-[#A9B6CC] hover:border-white/20',
+              )}
+            >
+              相对视图
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[#94A3B8]">时间范围</span>
+            {RANGE_OPTIONS.map((x) => (
+              <button
+                key={x.key}
+                type="button"
+                onClick={() => setRangeKey(x.key)}
+                className={cn(
+                  'rounded-md border px-2 py-1 transition',
+                  rangeKey === x.key ? 'border-white/20 bg-white/10 text-[#E6EDF7]' : 'border-white/10 text-[#A9B6CC] hover:border-white/20',
+                )}
+              >
+                {x.label}
+              </button>
+            ))}
+            {rangeKey === 'custom' ? (
+              <input
+                type="date"
+                value={customStartDate}
+                max={resolvedRange.endDate}
+                onChange={(e) => {
+                  setCustomStartDate(e.target.value)
+                }}
+                className="rounded-md border border-white/15 bg-[#0B1220] px-2 py-1 text-[#E6EDF7] outline-none focus:border-white/30"
+              />
+            ) : null}
+          </div>
+          <div className="text-[#64748B]">
+            当前范围：{resolvedRange.startDate} ~ {resolvedRange.endDate}
+          </div>
+        </div>
+        <RpsStyleChart seriesByTicker={seriesByTicker} viewMode={chartView} baseLabel="515080.SH=1" />
       </div>
     </section>
   )
