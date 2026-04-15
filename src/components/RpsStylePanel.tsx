@@ -6,6 +6,13 @@ import { fetchRpsStyleMatrix, fetchRpsStyleSeries, fetchRpsStyleSummary, type Rp
 import type { Top100Meta } from '@/utils/etfApi'
 
 const DEFAULT_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH']
+const ETF_NAME_MAP: Record<string, string> = {
+  '512890.SH': '红利低波ETF',
+  '159915.SZ': '创业板ETF',
+  '588000.SH': '科创50ETF',
+  '513180.SH': '恒生科技ETF',
+  '510300.SH': '沪深300ETF',
+}
 const RANGE_OPTIONS = [
   { key: '1w', label: '最近1周' },
   { key: '2w', label: '最近2周' },
@@ -169,12 +176,12 @@ export default function RpsStylePanel() {
         <div>
           <div className="text-xl font-semibold tracking-tight text-white">市场风格 RPS</div>
           <div className="mt-2 space-y-1 text-[13px] leading-relaxed text-[#94A3B8]">
-            <p><span className="font-medium text-[#CBD5E1]">基准分母</span>：515080.SH（中证红利 ETF）。</p>
+            <p><span className="font-medium text-[#CBD5E1]">基准分母</span>：512890.SH（{ETF_NAME_MAP['512890.SH']}）。</p>
             <p><span className="font-medium text-[#CBD5E1]">RPS</span>：目标ETF前复权收盘价 / 红利ETF前复权收盘价。</p>
             <p><span className="font-medium text-[#CBD5E1]">MA50</span>：RPS 的 50 日简单移动平均线。</p>
             <p><span className="font-medium text-[#CBD5E1]">Score</span>：((RPS / MA50) - 1) × 100%。</p>
             <p><span className="font-medium text-[#CBD5E1]">判定</span>：全部 Score&lt;0 为防守（0%进攻仓）；存在 Score&gt;0 时选择最高分主攻，建议 33%。</p>
-            <p><span className="font-medium text-[#CBD5E1]">相对视图</span>：按所选起点将各标的 RPS 与 MA50 同步归一化到 1，便于横向比较（分母基准 515080.SH）。</p>
+            <p><span className="font-medium text-[#CBD5E1]">相对视图</span>：按所选起点将各标的 RPS 与 MA50 同步归一化到 1，便于横向比较（分母基准 512890.SH）。</p>
           </div>
         </div>
 
@@ -218,7 +225,7 @@ export default function RpsStylePanel() {
         <table className="min-w-full text-sm">
           <thead className="bg-white/5 text-[#A9B6CC]">
             <tr>
-              <th className="px-3 py-2 text-left">Ticker</th>
+              <th className="px-3 py-2 text-left">Ticker / 中文名</th>
               <th className="px-3 py-2 text-right">RPS</th>
               <th className="px-3 py-2 text-right">MA50</th>
               <th className="px-3 py-2 text-right">Score%</th>
@@ -228,7 +235,10 @@ export default function RpsStylePanel() {
           <tbody>
             {items.map((x) => (
               <tr key={x.ticker} className="border-t border-white/5">
-                <td className="px-3 py-2 font-mono text-[#E6EDF7]">{x.ticker}</td>
+                <td className="px-3 py-2 text-[#E6EDF7]">
+                  <div className="font-mono">{x.ticker}</div>
+                  <div className="text-xs text-[#94A3B8]">{ETF_NAME_MAP[x.ticker] || '—'}</div>
+                </td>
                 <td className="px-3 py-2 text-right font-mono text-[#E6EDF7]">{fmt(x.rpsRaw, 4)}</td>
                 <td className="px-3 py-2 text-right font-mono text-[#E6EDF7]">{fmt(x.rpsMa50, 4)}</td>
                 <td className={cn('px-3 py-2 text-right font-mono', (x.scorePct ?? 0) > 0 ? 'text-[#34D399]' : (x.scorePct ?? 0) < 0 ? 'text-[#F87171]' : 'text-[#A9B6CC]')}>
@@ -312,7 +322,13 @@ export default function RpsStylePanel() {
             </>
           ) : null}
         </div>
-        <RpsStyleChart seriesByTicker={seriesByTicker} viewMode={chartView} baseLabel="515080.SH=1" lockEdges />
+        <RpsStyleChart
+          seriesByTicker={seriesByTicker}
+          viewMode={chartView}
+          baseLabel={`512890.SH(${ETF_NAME_MAP['512890.SH']})=1`}
+          tickerNameMap={ETF_NAME_MAP}
+          lockEdges
+        />
       </div>
     </section>
   )

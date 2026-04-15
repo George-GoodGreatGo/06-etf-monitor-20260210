@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ColorType, CrosshairMode, LineSeries, createChart, type IChartApi, type ISeriesApi, type LineData, type Time, type UTCTimestamp } from 'lightweight-charts'
 import type { RpsStyleSeriesPoint } from '@/utils/marketApi'
 
@@ -6,6 +6,7 @@ type Props = {
   seriesByTicker: Record<string, RpsStyleSeriesPoint[]>
   viewMode: 'raw' | 'relative'
   baseLabel?: string
+  tickerNameMap?: Record<string, string>
   lockEdges?: boolean
 }
 
@@ -21,14 +22,43 @@ function ymdToUtcSeconds(ymd: string): UTCTimestamp | null {
 
 const COLORS = ['#60A5FA', '#F59E0B', '#34D399', '#F87171'] as const
 
-export default function RpsStyleChart({ seriesByTicker, viewMode, baseLabel = '515080.SH=1', lockEdges = true }: Props) {
+function normalizeTime(t: Time | undefined): number | null {
+  if (t == null) return null
+  if (typeof t === 'number') return Number(t)
+  if (typeof t === 'object' && 'year' in t && 'month' in t && 'day' in t) {
+    const y = Number((t as { year: unknown }).year)
+    const m = Number((t as { month: unknown }).month)
+    const d = Number((t as { day: unknown }).day)
+    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null
+    return Math.floor(Date.UTC(y, m - 1, d) / 1000)
+  }
+  return null
+}
+
+function fmt(v: number | null | undefined, digits = 4): string {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return '—'
+  return v.toFixed(digits)
+}
+
+type HoverRow = { ticker: string; rps: number | null; ma50: number | null }
+type HoverState = { date: string; rows: HoverRow[] }
+
+export default function RpsStyleChart({
+  seriesByTicker,
+  viewMode,
+  baseLabel = '512890.SH=1',
+  tickerNameMap = {},
+  lockEdges = true,
+}: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const lineRefs = useRef<Array<ISeriesApi<'Line', Time>>>([])
+  const [hover, setHover] = useState<HoverState | null>(null)
 
   const prepared = useMemo(() => {
     const tickers = Object.keys(seriesByTicker).sort()
-    return tickers.map((ticker, idx) => {
+    const byTime = new Map<number, { date: string; rows: Record<string, { rps: number | null; ma50: number | null }> }>()
+    const lines = tickers.map((ticker, idx) => {
       const src = Array.isArray(seriesByTicker[ticker]) ? seriesByTicker[ticker] : []
       const rps: LineData<Time>[] = []
       const ma50: LineData<Time>[] = []
@@ -39,16 +69,32 @@ export default function RpsStyleChart({ seriesByTicker, viewMode, baseLabel = '5
         if (typeof p.rpsRaw === 'number' && Number.isFinite(p.rpsRaw)) {
           if (startRpsRaw == null && p.rpsRaw !== 0) startRpsRaw = p.rpsRaw
           const rpsVal = viewMode === 'relative' && startRpsRaw != null ? p.rpsRaw / startRpsRaw : p.rpsRaw
-          if (Number.isFinite(rpsVal)) rps.push({ time: t, value: rpsVal })
+          if (Number.isFinite(rpsVal)) {
+            rps.push({ time: t, value: rpsVal })
+            const hit = byTime.get(Number(t)) || { date: p.date, rows: {} }
+            const prev = hit.rows[ticker] || { rps: null, ma50: null }
+            hit.rows[ticker] = { ...prev, rps: rpsVal }
+            byTime.set(Number(t), hit)
+          }
         }
         if (typeof p.rpsMa50 === 'number' && Number.isFinite(p.rpsMa50)) {
           if (viewMode === 'relative') {
             if (startRpsRaw != null) {
               const maVal = p.rpsMa50 / startRpsRaw
-              if (Number.isFinite(maVal)) ma50.push({ time: t, value: maVal })
+              if (Number.isFinite(maVal)) {
+                ma50.push({ time: t, value: maVal })
+                const hit = byTime.get(Number(t)) || { date: p.date, rows: {} }
+                const prev = hit.rows[ticker] || { rps: null, ma50: null }
+                hit.rows[ticker] = { ...prev, ma50: maVal }
+                byTime.set(Number(t), hit)
+              }
             }
           } else {
             ma50.push({ time: t, value: p.rpsMa50 })
+            const hit = byTime.get(Number(t)) || { date: p.date, rows: {} }
+            const prev = hit.rows[ticker] || { rps: null, ma50: null }
+            hit.rows[ticker] = { ...prev, ma50: p.rpsMa50 }
+            byTime.set(Number(t), hit)
           }
         }
       }
@@ -56,6 +102,7 @@ export default function RpsStyleChart({ seriesByTicker, viewMode, baseLabel = '5
       ma50.sort((a, b) => (a.time as number) - (b.time as number))
       return { ticker, color: COLORS[idx % COLORS.length], rps, ma50 }
     })
+    return { lines, byTime }
   }, [seriesByTicker, viewMode])
 
   useEffect(() => {
@@ -83,7 +130,7 @@ export default function RpsStyleChart({ seriesByTicker, viewMode, baseLabel = '5
         minBarSpacing: 0.6,
       },
       crosshair: { mode: CrosshairMode.Normal },
-      handleScale: { mouseWheel: false, axisPressedMouseMove: false },
+      handleScale: { mouseWheel: true, axisPressedMouseMove: false },
       handleScroll: { mouseWheel: false },
     })
     chartRef.current = chart
@@ -97,10 +144,11 @@ export default function RpsStyleChart({ seriesByTicker, viewMode, baseLabel = '5
   useEffect(() => {
     const chart = chartRef.current
     if (!chart) return
+    setHover(null)
     for (const s of lineRefs.current) chart.removeSeries(s)
     lineRefs.current = []
 
-    for (const item of prepared) {
+    for (const item of prepared.lines) {
       const rpsSeries = chart.addSeries(LineSeries, {
         color: item.color,
         lineWidth: 2,
@@ -133,7 +181,7 @@ export default function RpsStyleChart({ seriesByTicker, viewMode, baseLabel = '5
     if (lockEdges) {
       let minTime = Number.POSITIVE_INFINITY
       let maxTime = Number.NEGATIVE_INFINITY
-      for (const item of prepared) {
+      for (const item of prepared.lines) {
         for (const p of item.rps) {
           const t = Number(p.time)
           if (Number.isFinite(t)) {
@@ -157,19 +205,64 @@ export default function RpsStyleChart({ seriesByTicker, viewMode, baseLabel = '5
     }
   }, [lockEdges, prepared, viewMode])
 
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart) return
+    const onMove = (param: { time?: Time } | null) => {
+      const t = normalizeTime(param?.time)
+      if (!t) {
+        setHover(null)
+        return
+      }
+      const hit = prepared.byTime.get(t)
+      if (!hit) {
+        setHover(null)
+        return
+      }
+      const rows = Object.keys(hit.rows)
+        .sort()
+        .map((ticker) => ({ ticker, rps: hit.rows[ticker]?.rps ?? null, ma50: hit.rows[ticker]?.ma50 ?? null }))
+      setHover({ date: hit.date, rows })
+    }
+    chart.subscribeCrosshairMove(onMove)
+    return () => chart.unsubscribeCrosshairMove(onMove)
+  }, [prepared])
+
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#A9B6CC]">
-        {prepared.map((x) => (
+        {prepared.lines.map((x) => (
           <div key={x.ticker} className="inline-flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: x.color }} />
-            <span className="font-mono">{x.ticker}</span>
+            <span className="font-mono">
+              {x.ticker}
+              {tickerNameMap[x.ticker] ? `（${tickerNameMap[x.ticker]}）` : ''}
+            </span>
             <span className="text-[#64748B]">{viewMode === 'relative' ? '归一化RPS 实线 / 归一化MA50 虚线' : 'RPS 实线 / MA50 虚线'}</span>
           </div>
         ))}
         {viewMode === 'relative' ? <div className="text-[#64748B]">参考线：{baseLabel}</div> : null}
       </div>
-      <div ref={hostRef} className="h-[540px] w-full rounded-lg border border-white/10 bg-[#111B2E]" />
+      <div className="relative">
+        {hover ? (
+          <div className="pointer-events-none absolute right-3 top-3 z-10 rounded-lg border border-white/10 bg-black/35 px-3 py-2 text-xs text-[#E6EDF7] backdrop-blur">
+            <div className="font-mono text-[11px] text-[#A9B6CC]">{hover.date}</div>
+            <div className="mt-1 space-y-1">
+              {hover.rows.map((r) => (
+                <div key={r.ticker} className="grid grid-cols-[150px_110px_110px] items-center gap-2">
+                  <div className="font-mono text-[#CBD5E1]">
+                    {r.ticker}
+                    {tickerNameMap[r.ticker] ? `（${tickerNameMap[r.ticker]}）` : ''}
+                  </div>
+                  <div className="text-right font-mono">RPS {fmt(r.rps, 4)}</div>
+                  <div className="text-right font-mono">MA50 {fmt(r.ma50, 4)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        <div ref={hostRef} className="h-[540px] w-full rounded-lg border border-white/10 bg-[#111B2E]" />
+      </div>
     </div>
   )
 }

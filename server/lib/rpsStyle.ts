@@ -2,7 +2,7 @@ import { fetchEastmoneyDailyKline } from './eastmoneyKline.js'
 import { runAkshare } from './akshare.js'
 import { readRpsStyleMeta, readRpsStylePointsRange, type RpsStylePointRow } from './supabaseRest.js'
 
-export const RPS_BENCHMARK_TICKER = '515080.SH'
+export const RPS_BENCHMARK_TICKER = '512890.SH'
 export const RPS_TARGET_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH'] as const
 const RPS_RUN_STALE_MAX_DAYS = 14
 
@@ -440,7 +440,7 @@ export async function getRpsStyleMatrix(args?: {
       dataDate: globalDate,
       source: 'supabase:rps_style_point',
       notes: [
-        'RPS=目标ETF前复权收盘价/515080前复权收盘价',
+        'RPS=目标ETF前复权收盘价/512890前复权收盘价',
         'MA50=RPS 50日简单均线',
         'Score=(RPS/MA50-1)*100%',
         ...runNotes,
