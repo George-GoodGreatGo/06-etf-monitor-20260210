@@ -12,25 +12,31 @@ type Props = {
 }
 
 export default function ValueTimingChart({ series, indexCode, indexLabel, indexDesc, biasBasis, className }: Props) {
+  const toNullable = (v: number | null | undefined) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
   const mapped = useMemo<LowVolH30269Point[]>(
     () =>
-      (Array.isArray(series) ? series : []).map((p) => ({
-        date: p.date,
-        close: p.close,
-        ma60: p.ma60 ?? null,
-        ma250: p.ma250 ?? null,
-        bias60: p.bias60 ?? null,
-        bias250: p.bias250 ?? null,
-        biasPct3y60: p.biasPct3y60 ?? null,
-        biasPct3y: p.biasPct3y ?? null,
-        dividendYieldPct: p.earningsYieldPct ?? null,
-        yield10yPct: p.yield10yPct ?? null,
-        spreadRawPct: p.spreadPct ?? null,
-        spreadSmoothPct: p.spreadPct ?? null,
-        spreadPct: p.spreadPct ?? null,
-        spreadPctRank3y: null,
-        spreadPctRank10y: p.spreadPctRank5y ?? null,
-      })),
+      (Array.isArray(series) ? series : []).flatMap((p) => {
+        if (typeof p.close !== 'number' || !Number.isFinite(p.close)) return []
+        return [
+          {
+            date: p.date,
+            close: p.close,
+            ma60: toNullable(p.ma60),
+            ma250: toNullable(p.ma250),
+            bias60: toNullable(p.bias60),
+            bias250: toNullable(p.bias250),
+            biasPct3y60: toNullable(p.biasPct3y60),
+            biasPct3y: toNullable(p.biasPct3y),
+            dividendYieldPct: toNullable(p.earningsYieldPct),
+            yield10yPct: toNullable(p.yield10yPct),
+            spreadRawPct: toNullable(p.spreadPct),
+            spreadSmoothPct: toNullable(p.spreadPct),
+            spreadPct: toNullable(p.spreadPct),
+            spreadPctRank3y: null,
+            spreadPctRank10y: toNullable(p.spreadPctRank5y),
+          },
+        ]
+      }),
     [series],
   )
 

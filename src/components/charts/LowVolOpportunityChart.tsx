@@ -42,6 +42,62 @@ function normalizeTime(t: Time | undefined): UTCTimestamp | null {
   return null
 }
 
+function isFiniteNumber(v: unknown): v is number {
+  return typeof v === 'number' && Number.isFinite(v)
+}
+
+function hasValidLogicalRange(range: LogicalRange | null | undefined): range is LogicalRange {
+  if (!range) return false
+  const from = Number((range as { from?: unknown }).from)
+  const to = Number((range as { to?: unknown }).to)
+  return Number.isFinite(from) && Number.isFinite(to)
+}
+
+function safeSetVisibleLogicalRange(chart: IChartApi | null | undefined, range: LogicalRange | null | undefined): boolean {
+  if (!chart || !hasValidLogicalRange(range)) return false
+  try {
+    chart.timeScale().setVisibleLogicalRange(range)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function safeClearCrosshair(chart: IChartApi | null | undefined): boolean {
+  if (!chart) return false
+  try {
+    chart.clearCrosshairPosition()
+    return true
+  } catch {
+    return false
+  }
+}
+
+function safeSetCrosshair(
+  chart: IChartApi | null | undefined,
+  price: number | undefined,
+  time: UTCTimestamp | null,
+  series: ISeriesApi<'Line', Time> | null | undefined,
+): boolean {
+  if (!chart || !series || !time || !isFiniteNumber(price)) return false
+  try {
+    chart.setCrosshairPosition(price, time, series)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function safeSetTimeScaleVisible(chart: IChartApi | null | undefined, visible: boolean): boolean {
+  if (!chart) return false
+  try {
+    chart.applyOptions({ timeScale: { visible } })
+    return true
+  } catch {
+    return false
+  }
+}
+
 function fmt(v: number | null | undefined, digits = 2): string {
   if (typeof v !== 'number' || !Number.isFinite(v)) return '—'
   const s = v.toFixed(digits)
@@ -688,12 +744,12 @@ export default function LowVolOpportunityChart({
 
     const onVisibleLogicalRange = (src: IChartApi) => (range: LogicalRange | null) => {
       if (syncingRef.current) return
-      if (!range) return
+      if (!hasValidLogicalRange(range)) return
       syncingRef.current = true
       try {
         for (const c of charts) {
           if (c === src) continue
-          c.timeScale().setVisibleLogicalRange(range)
+          safeSetVisibleLogicalRange(c, range)
         }
       } finally {
         syncingRef.current = false
@@ -709,7 +765,7 @@ export default function LowVolOpportunityChart({
         try {
           for (const c of charts) {
             if (c === src) continue
-            c.clearCrosshairPosition()
+            safeClearCrosshair(c)
           }
         } finally {
           syncingRef.current = false
@@ -732,19 +788,13 @@ export default function LowVolOpportunityChart({
       try {
         for (const c of charts) {
           if (c === src) continue
-          if (c === main && mainClose && typeof h?.close === 'number' && Number.isFinite(h.close)) {
-            c.setCrosshairPosition(h.close, t, mainClose)
-          } else if (c === bias && biasSeries && typeof hvBias === 'number' && Number.isFinite(hvBias)) {
-            c.setCrosshairPosition(hvBias, t, biasSeries)
-          } else if (c === biasPct && biasPctSeries && typeof hvBiasPct === 'number' && Number.isFinite(hvBiasPct)) {
-            c.setCrosshairPosition(hvBiasPct, t, biasPctSeries)
-          } else if (c === spread && spreadSeries && typeof h?.spreadSmooth === 'number' && Number.isFinite(h.spreadSmooth)) {
-            c.setCrosshairPosition(h.spreadSmooth, t, spreadSeries)
-          } else if (c === spreadPct && spreadPctSeries && typeof h?.spreadPctRank10y === 'number' && Number.isFinite(h.spreadPctRank10y)) {
-            c.setCrosshairPosition(h.spreadPctRank10y, t, spreadPctSeries)
-          } else {
-            c.clearCrosshairPosition()
-          }
+          const synced =
+            (c === main && safeSetCrosshair(c, h?.close, t, mainClose)) ||
+            (c === bias && safeSetCrosshair(c, isFiniteNumber(hvBias) ? hvBias : undefined, t, biasSeries)) ||
+            (c === biasPct && safeSetCrosshair(c, isFiniteNumber(hvBiasPct) ? hvBiasPct : undefined, t, biasPctSeries)) ||
+            (c === spread && safeSetCrosshair(c, h?.spreadSmooth, t, spreadSeries)) ||
+            (c === spreadPct && safeSetCrosshair(c, h?.spreadPctRank10y, t, spreadPctSeries))
+          if (!synced) safeClearCrosshair(c)
         }
       } finally {
         syncingRef.current = false
@@ -809,11 +859,11 @@ export default function LowVolOpportunityChart({
     if (showSpreadPane) visiblePanes.push('spread')
     if (showSpreadPctPane) visiblePanes.push('spreadPct')
     const lastPane = visiblePanes.length ? visiblePanes[visiblePanes.length - 1] : null
-    main.applyOptions({ timeScale: { visible: lastPane == null } })
-    if (bias) bias.applyOptions({ timeScale: { visible: lastPane === 'bias' } })
-    if (biasPct) biasPct.applyOptions({ timeScale: { visible: lastPane === 'biasPct' } })
-    if (spread) spread.applyOptions({ timeScale: { visible: lastPane === 'spread' } })
-    if (spreadPct) spreadPct.applyOptions({ timeScale: { visible: lastPane === 'spreadPct' } })
+    safeSetTimeScaleVisible(main, lastPane == null)
+    safeSetTimeScaleVisible(bias, lastPane === 'bias')
+    safeSetTimeScaleVisible(biasPct, lastPane === 'biasPct')
+    safeSetTimeScaleVisible(spread, lastPane === 'spread')
+    safeSetTimeScaleVisible(spreadPct, lastPane === 'spreadPct')
 
     const key = data.close.length ? `${data.close.length}:${String(data.close[data.close.length - 1]?.time ?? '')}` : ''
     if (key && initViewKeyRef.current !== key) {
@@ -821,18 +871,43 @@ export default function LowVolOpportunityChart({
       const total = data.close.length
       const to = Math.max(0, total - 1)
       const from = total > 720 ? total - 720 : 0
-      main.timeScale().setVisibleLogicalRange({ from, to })
+      safeSetVisibleLogicalRange(main, { from, to } as LogicalRange)
     }
 
     const range = main.timeScale().getVisibleLogicalRange()
-    if (range) {
-      if (showBiasPane && bias) bias.timeScale().setVisibleLogicalRange(range)
-      if (showBiasPctPane && biasPct) biasPct.timeScale().setVisibleLogicalRange(range)
-      if (showSpreadPane && spread) spread.timeScale().setVisibleLogicalRange(range)
-      if (showSpreadPctPane && spreadPct) spreadPct.timeScale().setVisibleLogicalRange(range)
+    if (hasValidLogicalRange(range)) {
+      if (showBiasPane) safeSetVisibleLogicalRange(bias, range)
+      if (showBiasPctPane) safeSetVisibleLogicalRange(biasPct, range)
+      if (showSpreadPane) safeSetVisibleLogicalRange(spread, range)
+      if (showSpreadPctPane) safeSetVisibleLogicalRange(spreadPct, range)
     }
     requestAnimationFrame(updateSpreadPctZones)
   }, [biasBasis, data, showBiasPane, showBiasPctPane, showMa250, showSma60, showSpreadPane, showSpreadPctPane, updateSpreadPctZones])
+
+  useEffect(() => {
+    const main = chartsRef.current.main
+    if (!main) return
+    const allCharts = [
+      chartsRef.current.main,
+      chartsRef.current.bias,
+      chartsRef.current.biasPct,
+      chartsRef.current.spread,
+      chartsRef.current.spreadPct,
+    ]
+    syncingRef.current = true
+    try {
+      for (const chart of allCharts) safeClearCrosshair(chart)
+    } finally {
+      syncingRef.current = false
+    }
+    const range = main.timeScale().getVisibleLogicalRange()
+    if (!hasValidLogicalRange(range)) return
+    if (showBiasPane) safeSetVisibleLogicalRange(chartsRef.current.bias, range)
+    if (showBiasPctPane) safeSetVisibleLogicalRange(chartsRef.current.biasPct, range)
+    if (showSpreadPane) safeSetVisibleLogicalRange(chartsRef.current.spread, range)
+    if (showSpreadPctPane) safeSetVisibleLogicalRange(chartsRef.current.spreadPct, range)
+    requestAnimationFrame(updateSpreadPctZones)
+  }, [showBiasPane, showBiasPctPane, showSpreadPane, showSpreadPctPane, updateSpreadPctZones])
 
   useEffect(() => {
     if (!showSpreadPctPane || !spreadPctElRef.current) return

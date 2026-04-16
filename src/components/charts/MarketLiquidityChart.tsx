@@ -48,6 +48,52 @@ function normalizeTime(t: Time | undefined): UTCTimestamp | null {
   return null
 }
 
+function isFiniteNumber(v: unknown): v is number {
+  return typeof v === 'number' && Number.isFinite(v)
+}
+
+function hasValidLogicalRange(range: LogicalRange | null | undefined): range is LogicalRange {
+  if (!range) return false
+  const from = Number((range as { from?: unknown }).from)
+  const to = Number((range as { to?: unknown }).to)
+  return Number.isFinite(from) && Number.isFinite(to)
+}
+
+function safeSetVisibleLogicalRange(chart: IChartApi | null | undefined, range: LogicalRange | null | undefined): boolean {
+  if (!chart || !hasValidLogicalRange(range)) return false
+  try {
+    chart.timeScale().setVisibleLogicalRange(range)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function safeClearCrosshair(chart: IChartApi | null | undefined): boolean {
+  if (!chart) return false
+  try {
+    chart.clearCrosshairPosition()
+    return true
+  } catch {
+    return false
+  }
+}
+
+function safeSetCrosshair(
+  chart: IChartApi | null | undefined,
+  price: number | undefined,
+  time: UTCTimestamp | null,
+  series: ISeriesApi<'Line', Time> | null | undefined,
+): boolean {
+  if (!chart || !series || !time || !isFiniteNumber(price)) return false
+  try {
+    chart.setCrosshairPosition(price, time, series)
+    return true
+  } catch {
+    return false
+  }
+}
+
 type Props = {
   series: LiquidityV5Point[]
   equityBond?: EquityBondPoint[]
@@ -753,12 +799,12 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
 
     const onVisibleLogicalRange = (src: IChartApi) => (range: LogicalRange | null) => {
       if (syncingRef.current) return
-      if (!range) return
+      if (!hasValidLogicalRange(range)) return
       syncingRef.current = true
       try {
         for (const c of charts) {
           if (c === src) continue
-          c.timeScale().setVisibleLogicalRange(range)
+          safeSetVisibleLogicalRange(c, range)
         }
       } finally {
         syncingRef.current = false
@@ -776,7 +822,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
         try {
           for (const c of charts) {
             if (c === src) continue
-            c.clearCrosshairPosition()
+            safeClearCrosshair(c)
           }
         } finally {
           syncingRef.current = false
@@ -798,17 +844,12 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       try {
         for (const c of charts) {
           if (c === src) continue
-          if (c === price && hsSeries && typeof h?.close === 'number' && Number.isFinite(h.close)) {
-            c.setCrosshairPosition(h.close, t, hsSeries)
-          } else if (c === v5 && v5Series && typeof h?.v5 === 'number' && Number.isFinite(h.v5)) {
-            c.setCrosshairPosition(h.v5, t, v5Series)
-          } else if (c === v5Pct && v5PctSeries && typeof h?.v5Pct === 'number' && Number.isFinite(h.v5Pct)) {
-            c.setCrosshairPosition(h.v5Pct, t, v5PctSeries)
-          } else if (c === eb && ebSeries && typeof h?.ebPct === 'number' && Number.isFinite(h.ebPct)) {
-            c.setCrosshairPosition(h.ebPct, t, ebSeries)
-          } else {
-            c.clearCrosshairPosition()
-          }
+          const synced =
+            (c === price && safeSetCrosshair(c, h?.close, t, hsSeries)) ||
+            (c === v5 && safeSetCrosshair(c, h?.v5, t, v5Series)) ||
+            (c === v5Pct && safeSetCrosshair(c, h?.v5Pct, t, v5PctSeries)) ||
+            (c === eb && safeSetCrosshair(c, h?.ebPct, t, ebSeries))
+          if (!synced) safeClearCrosshair(c)
         }
       } finally {
         syncingRef.current = false
@@ -904,13 +945,13 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       const total = data.hs.length
       const to = Math.max(0, total - 1)
       const from = total > 720 ? total - 720 : 0
-      price.timeScale().setVisibleLogicalRange({ from, to })
+      safeSetVisibleLogicalRange(price, { from, to } as LogicalRange)
     }
 
     const range = price.timeScale().getVisibleLogicalRange()
-    if (range && showLiquidityPane && v5) v5.timeScale().setVisibleLogicalRange(range)
-    if (range && showLiquidityPctPane && v5Pct) v5Pct.timeScale().setVisibleLogicalRange(range)
-    if (range && showEquityBondPane && eb) eb.timeScale().setVisibleLogicalRange(range)
+    if (hasValidLogicalRange(range) && showLiquidityPane) safeSetVisibleLogicalRange(v5, range)
+    if (hasValidLogicalRange(range) && showLiquidityPctPane) safeSetVisibleLogicalRange(v5Pct, range)
+    if (hasValidLogicalRange(range) && showEquityBondPane) safeSetVisibleLogicalRange(eb, range)
     requestAnimationFrame(() => {
       requestAnimationFrame(updateV5ZoneBg)
       requestAnimationFrame(updateV5PctZoneBg)
@@ -920,11 +961,20 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
   useEffect(() => {
     const price = chartsRef.current.price
     if (!price) return
+    syncingRef.current = true
+    try {
+      safeClearCrosshair(chartsRef.current.price)
+      safeClearCrosshair(chartsRef.current.v5)
+      safeClearCrosshair(chartsRef.current.v5Pct)
+      safeClearCrosshair(chartsRef.current.eb)
+    } finally {
+      syncingRef.current = false
+    }
     const range = price.timeScale().getVisibleLogicalRange()
-    if (!range) return
-    if (showLiquidityPane && chartsRef.current.v5) chartsRef.current.v5.timeScale().setVisibleLogicalRange(range)
-    if (showLiquidityPctPane && chartsRef.current.v5Pct) chartsRef.current.v5Pct.timeScale().setVisibleLogicalRange(range)
-    if (showEquityBondPane && chartsRef.current.eb) chartsRef.current.eb.timeScale().setVisibleLogicalRange(range)
+    if (!hasValidLogicalRange(range)) return
+    if (showLiquidityPane) safeSetVisibleLogicalRange(chartsRef.current.v5, range)
+    if (showLiquidityPctPane) safeSetVisibleLogicalRange(chartsRef.current.v5Pct, range)
+    if (showEquityBondPane) safeSetVisibleLogicalRange(chartsRef.current.eb, range)
     requestAnimationFrame(updateV5ZoneBg)
     requestAnimationFrame(updateV5PctZoneBg)
   }, [showEquityBondPane, showLiquidityPane, showLiquidityPctPane, updateV5PctZoneBg, updateV5ZoneBg])
