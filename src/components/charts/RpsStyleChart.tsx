@@ -33,6 +33,23 @@ function ymdToUtcSeconds(ymd: string): UTCTimestamp | null {
 }
 
 const COLORS = ['#60A5FA', '#F59E0B', '#34D399', '#F87171'] as const
+const TICKER_COLOR_MAP: Record<string, string> = {
+  '159915.SZ': '#60A5FA',
+  '588000.SH': '#F59E0B',
+  '513180.SH': '#34D399',
+  '510300.SH': '#F87171',
+  '512890.SH': '#A78BFA',
+}
+
+function getTickerColor(ticker: string): string {
+  const fixed = TICKER_COLOR_MAP[ticker]
+  if (fixed) return fixed
+  let hash = 0
+  for (let i = 0; i < ticker.length; i += 1) {
+    hash = (hash * 31 + ticker.charCodeAt(i)) >>> 0
+  }
+  return COLORS[hash % COLORS.length]
+}
 
 function normalizeTime(t: Time | undefined): number | null {
   if (t == null) return null
@@ -72,7 +89,7 @@ export default function RpsStyleChart({
   const prepared = useMemo(() => {
     const tickers = Object.keys(seriesByTicker).sort().filter((ticker) => enabledTickers[ticker] !== false)
     const byTime = new Map<number, { date: string; rows: Record<string, { rps: number | null; ma50: number | null }> }>()
-    const lines = tickers.map((ticker, idx) => {
+    const lines = tickers.map((ticker) => {
       const src = Array.isArray(seriesByTicker[ticker]) ? seriesByTicker[ticker] : []
       const rps: LineData<Time>[] = []
       const ma50: LineData<Time>[] = []
@@ -120,7 +137,7 @@ export default function RpsStyleChart({
       }
       rps.sort((a, b) => (a.time as number) - (b.time as number))
       ma50.sort((a, b) => (a.time as number) - (b.time as number))
-      return { ticker, color: COLORS[idx % COLORS.length], rps, ma50 }
+      return { ticker, color: getTickerColor(ticker), rps, ma50 }
     })
     let scoreMin = Number.POSITIVE_INFINITY
     let scoreMax = Number.NEGATIVE_INFINITY
