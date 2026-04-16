@@ -755,11 +755,14 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       if (syncingRef.current) return
       if (!range) return
       syncingRef.current = true
-      for (const c of charts) {
-        if (c === src) continue
-        c.timeScale().setVisibleLogicalRange(range)
+      try {
+        for (const c of charts) {
+          if (c === src) continue
+          c.timeScale().setVisibleLogicalRange(range)
+        }
+      } finally {
+        syncingRef.current = false
       }
-      syncingRef.current = false
       requestAnimationFrame(() => updateV5ZoneBgRef.current())
       requestAnimationFrame(() => updateV5PctZoneBgRef.current())
     }
@@ -770,11 +773,14 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       if (!t) {
         setHover(null)
         syncingRef.current = true
-        for (const c of charts) {
-          if (c === src) continue
-          c.clearCrosshairPosition()
+        try {
+          for (const c of charts) {
+            if (c === src) continue
+            c.clearCrosshairPosition()
+          }
+        } finally {
+          syncingRef.current = false
         }
-        syncingRef.current = false
         requestAnimationFrame(() => updateV5ZoneBgRef.current())
         requestAnimationFrame(() => updateV5PctZoneBgRef.current())
         return
@@ -789,21 +795,24 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       const h = data.map.get(t)
 
       syncingRef.current = true
-      for (const c of charts) {
-        if (c === src) continue
-        if (c === price && hsSeries && typeof h?.close === 'number') {
-          c.setCrosshairPosition(h.close, t, hsSeries)
-        } else if (c === v5 && v5Series && typeof h?.v5 === 'number') {
-          c.setCrosshairPosition(h.v5, t, v5Series)
-        } else if (c === v5Pct && v5PctSeries && typeof h?.v5Pct === 'number') {
-          c.setCrosshairPosition(h.v5Pct, t, v5PctSeries)
-        } else if (c === eb && ebSeries && typeof h?.ebPct === 'number') {
-          c.setCrosshairPosition(h.ebPct, t, ebSeries)
-        } else {
-          c.clearCrosshairPosition()
+      try {
+        for (const c of charts) {
+          if (c === src) continue
+          if (c === price && hsSeries && typeof h?.close === 'number' && Number.isFinite(h.close)) {
+            c.setCrosshairPosition(h.close, t, hsSeries)
+          } else if (c === v5 && v5Series && typeof h?.v5 === 'number' && Number.isFinite(h.v5)) {
+            c.setCrosshairPosition(h.v5, t, v5Series)
+          } else if (c === v5Pct && v5PctSeries && typeof h?.v5Pct === 'number' && Number.isFinite(h.v5Pct)) {
+            c.setCrosshairPosition(h.v5Pct, t, v5PctSeries)
+          } else if (c === eb && ebSeries && typeof h?.ebPct === 'number' && Number.isFinite(h.ebPct)) {
+            c.setCrosshairPosition(h.ebPct, t, ebSeries)
+          } else {
+            c.clearCrosshairPosition()
+          }
         }
+      } finally {
+        syncingRef.current = false
       }
-      syncingRef.current = false
       requestAnimationFrame(() => updateV5ZoneBgRef.current())
       requestAnimationFrame(() => updateV5PctZoneBgRef.current())
     }

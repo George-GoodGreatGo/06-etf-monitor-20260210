@@ -28,8 +28,8 @@ globalThis.fetch = (async () => {
   const wb = xlsx.utils.book_new()
   xlsx.utils.book_append_sheet(wb, ws1, 'S1')
   xlsx.utils.book_append_sheet(wb, ws2, 'S2')
-  const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xls' }) as Buffer
-  return new Response(buf, { status: 200 })
+  const arr = xlsx.write(wb, { type: 'array', bookType: 'xls' }) as ArrayBuffer
+  return new Response(arr, { status: 200 })
 }) as typeof fetch
 
 const series = await fetchCsindexIndexValuationSeries({ indexCode: '932315', cacheTtlMs: 0 })

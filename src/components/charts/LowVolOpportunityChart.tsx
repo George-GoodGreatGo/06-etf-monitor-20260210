@@ -690,11 +690,14 @@ export default function LowVolOpportunityChart({
       if (syncingRef.current) return
       if (!range) return
       syncingRef.current = true
-      for (const c of charts) {
-        if (c === src) continue
-        c.timeScale().setVisibleLogicalRange(range)
+      try {
+        for (const c of charts) {
+          if (c === src) continue
+          c.timeScale().setVisibleLogicalRange(range)
+        }
+      } finally {
+        syncingRef.current = false
       }
-      syncingRef.current = false
     }
 
     const onCrosshair = (src: IChartApi) => (param: { time?: Time } | null) => {
@@ -703,11 +706,14 @@ export default function LowVolOpportunityChart({
       if (!t) {
         setHover(null)
         syncingRef.current = true
-        for (const c of charts) {
-          if (c === src) continue
-          c.clearCrosshairPosition()
+        try {
+          for (const c of charts) {
+            if (c === src) continue
+            c.clearCrosshairPosition()
+          }
+        } finally {
+          syncingRef.current = false
         }
-        syncingRef.current = false
         return
       }
 
@@ -723,23 +729,26 @@ export default function LowVolOpportunityChart({
       const hvBiasPct = biasBasis === 'sma60' ? h?.biasPct3y60 : h?.biasPct3y250
 
       syncingRef.current = true
-      for (const c of charts) {
-        if (c === src) continue
-        if (c === main && mainClose && typeof h?.close === 'number') {
-          c.setCrosshairPosition(h.close, t, mainClose)
-        } else if (c === bias && biasSeries && typeof hvBias === 'number') {
-          c.setCrosshairPosition(hvBias, t, biasSeries)
-        } else if (c === biasPct && biasPctSeries && typeof hvBiasPct === 'number') {
-          c.setCrosshairPosition(hvBiasPct, t, biasPctSeries)
-        } else if (c === spread && spreadSeries && typeof h?.spreadSmooth === 'number') {
-          c.setCrosshairPosition(h.spreadSmooth, t, spreadSeries)
-        } else if (c === spreadPct && spreadPctSeries && typeof h?.spreadPctRank10y === 'number') {
-          c.setCrosshairPosition(h.spreadPctRank10y, t, spreadPctSeries)
-        } else {
-          c.clearCrosshairPosition()
+      try {
+        for (const c of charts) {
+          if (c === src) continue
+          if (c === main && mainClose && typeof h?.close === 'number' && Number.isFinite(h.close)) {
+            c.setCrosshairPosition(h.close, t, mainClose)
+          } else if (c === bias && biasSeries && typeof hvBias === 'number' && Number.isFinite(hvBias)) {
+            c.setCrosshairPosition(hvBias, t, biasSeries)
+          } else if (c === biasPct && biasPctSeries && typeof hvBiasPct === 'number' && Number.isFinite(hvBiasPct)) {
+            c.setCrosshairPosition(hvBiasPct, t, biasPctSeries)
+          } else if (c === spread && spreadSeries && typeof h?.spreadSmooth === 'number' && Number.isFinite(h.spreadSmooth)) {
+            c.setCrosshairPosition(h.spreadSmooth, t, spreadSeries)
+          } else if (c === spreadPct && spreadPctSeries && typeof h?.spreadPctRank10y === 'number' && Number.isFinite(h.spreadPctRank10y)) {
+            c.setCrosshairPosition(h.spreadPctRank10y, t, spreadPctSeries)
+          } else {
+            c.clearCrosshairPosition()
+          }
         }
+      } finally {
+        syncingRef.current = false
       }
-      syncingRef.current = false
     }
 
     const rangeHandlers = charts.map((c) => ({ chart: c, fn: onVisibleLogicalRange(c) }))
@@ -801,10 +810,10 @@ export default function LowVolOpportunityChart({
     if (showSpreadPctPane) visiblePanes.push('spreadPct')
     const lastPane = visiblePanes.length ? visiblePanes[visiblePanes.length - 1] : null
     main.applyOptions({ timeScale: { visible: lastPane == null } })
-    bias.applyOptions({ timeScale: { visible: lastPane === 'bias' } })
-    biasPct.applyOptions({ timeScale: { visible: lastPane === 'biasPct' } })
-    spread.applyOptions({ timeScale: { visible: lastPane === 'spread' } })
-    spreadPct.applyOptions({ timeScale: { visible: lastPane === 'spreadPct' } })
+    if (bias) bias.applyOptions({ timeScale: { visible: lastPane === 'bias' } })
+    if (biasPct) biasPct.applyOptions({ timeScale: { visible: lastPane === 'biasPct' } })
+    if (spread) spread.applyOptions({ timeScale: { visible: lastPane === 'spread' } })
+    if (spreadPct) spreadPct.applyOptions({ timeScale: { visible: lastPane === 'spreadPct' } })
 
     const key = data.close.length ? `${data.close.length}:${String(data.close[data.close.length - 1]?.time ?? '')}` : ''
     if (key && initViewKeyRef.current !== key) {
