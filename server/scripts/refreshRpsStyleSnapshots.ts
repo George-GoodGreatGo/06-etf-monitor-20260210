@@ -6,6 +6,8 @@ const FULL_BACKFILL_START = '20160101'
 const RUN_HISTORY_KEEP = 5
 const STALE_MAX_DAYS = 14
 const SCORE_COVER_THRESHOLD = 0.9
+const SCORE_COVER_WINDOW = 504
+const SCORE_WARMUP_DAYS = 49
 
 function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n)
@@ -61,6 +63,23 @@ function scoreCoverage(rows: Array<{ score_pct: number | null }>): number {
   let ok = 0
   for (const r of rows) if (typeof r.score_pct === 'number' && Number.isFinite(r.score_pct)) ok += 1
   return ok / rows.length
+}
+
+function scoreCoverageRows(rows: Array<{ score_pct: number | null }>): {
+  cover: number
+  windowRows: number
+  warmupExcluded: number
+  effectiveRows: number
+} {
+  const tailRows = rows.slice(-SCORE_COVER_WINDOW)
+  const isShortSample = rows.length < SCORE_COVER_WINDOW
+  const sampledRows = isShortSample ? tailRows.slice(SCORE_WARMUP_DAYS) : tailRows
+  return {
+    cover: scoreCoverage(sampledRows),
+    windowRows: tailRows.length,
+    warmupExcluded: isShortSample ? Math.min(SCORE_WARMUP_DAYS, tailRows.length) : 0,
+    effectiveRows: sampledRows.length,
+  }
 }
 
 function toPointRows(args: {
@@ -143,11 +162,15 @@ async function main() {
         ticker,
         rows: points,
       })
-      const cover = scoreCoverage(rows.slice(-504))
+      const coverage = scoreCoverageRows(rows)
+      const cover = coverage.cover
       qualityByTicker[ticker] = {
         rows: rows.length,
         dataDate: rows[rows.length - 1]?.data_date || null,
         scoreCoverTail: cover,
+        coverWindowRows: coverage.windowRows,
+        coverWarmupExcluded: coverage.warmupExcluded,
+        coverEffectiveRows: coverage.effectiveRows,
         source: dataset.tickerSources[ticker],
       }
       if (rows.length >= 200 && cover < SCORE_COVER_THRESHOLD) {
@@ -158,7 +181,9 @@ async function main() {
         await sleep(120)
       }
       totalRows += rows.length
-      process.stdout.write(`[rps] ticker=${ticker} rows=${rows.length} scoreCoverTail=${cover.toFixed(3)}\n`)
+      process.stdout.write(
+        `[rps] ticker=${ticker} rows=${rows.length} scoreCoverTail=${cover.toFixed(3)} effectiveRows=${coverage.effectiveRows}\n`,
+      )
     }
 
     const historyRunIds = dedupeRunIds([runId, ...(meta0?.historyRunIds || []), prevVisible, meta0?.previousRunId]).slice(0, RUN_HISTORY_KEEP)
