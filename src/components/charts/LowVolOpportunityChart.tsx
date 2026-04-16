@@ -685,7 +685,6 @@ export default function LowVolOpportunityChart({
     if (showBiasPctPane && biasPct) charts.push(biasPct)
     if (showSpreadPane && spread) charts.push(spread)
     if (showSpreadPctPane && spreadPct) charts.push(spreadPct)
-    if (charts.length <= 1) return
 
     const onVisibleLogicalRange = (src: IChartApi) => (range: LogicalRange | null) => {
       if (syncingRef.current) return
@@ -775,7 +774,7 @@ export default function LowVolOpportunityChart({
     const biasPct = chartsRef.current.biasPct
     const spread = chartsRef.current.spread
     const spreadPct = chartsRef.current.spreadPct
-    if (!main || !bias || !biasPct || !spread || !spreadPct) return
+    if (!main) return
 
     for (const s of mainSegRef.current) main.removeSeries(s)
     mainSegRef.current = []
@@ -818,10 +817,10 @@ export default function LowVolOpportunityChart({
 
     const range = main.timeScale().getVisibleLogicalRange()
     if (range) {
-      if (showBiasPane) bias.timeScale().setVisibleLogicalRange(range)
-      if (showBiasPctPane) biasPct.timeScale().setVisibleLogicalRange(range)
-      if (showSpreadPane) spread.timeScale().setVisibleLogicalRange(range)
-      if (showSpreadPctPane) spreadPct.timeScale().setVisibleLogicalRange(range)
+      if (showBiasPane && bias) bias.timeScale().setVisibleLogicalRange(range)
+      if (showBiasPctPane && biasPct) biasPct.timeScale().setVisibleLogicalRange(range)
+      if (showSpreadPane && spread) spread.timeScale().setVisibleLogicalRange(range)
+      if (showSpreadPctPane && spreadPct) spreadPct.timeScale().setVisibleLogicalRange(range)
     }
     requestAnimationFrame(updateSpreadPctZones)
   }, [biasBasis, data, showBiasPane, showBiasPctPane, showMa250, showSma60, showSpreadPane, showSpreadPctPane, updateSpreadPctZones])

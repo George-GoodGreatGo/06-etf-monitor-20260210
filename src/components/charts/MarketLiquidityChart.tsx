@@ -750,7 +750,6 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     if (showLiquidityPane && v5) charts.push(v5)
     if (showLiquidityPctPane && v5Pct) charts.push(v5Pct)
     if (showEquityBondPane && eb) charts.push(eb)
-    if (charts.length <= 1) return
 
     const onVisibleLogicalRange = (src: IChartApi) => (range: LogicalRange | null) => {
       if (syncingRef.current) return
