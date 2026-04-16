@@ -142,18 +142,6 @@ export default function RpsStyleChart({
     }
   }, [enabledTickers, seriesByTicker, viewMode])
 
-  const scoreFixedRange = useMemo(() => {
-    const min = prepared.scoreRange?.min
-    const max = prepared.scoreRange?.max
-    if (typeof min === 'number' && Number.isFinite(min) && typeof max === 'number' && Number.isFinite(max)) {
-      return {
-        minValue: Math.min(-20, min) - 10,
-        maxValue: Math.max(20, max) + 10,
-      }
-    }
-    return { minValue: -30, maxValue: 30 }
-  }, [prepared.scoreRange?.max, prepared.scoreRange?.min])
-
   useEffect(() => {
     const el = hostRef.current
     if (!el || chartRef.current) return
@@ -191,17 +179,6 @@ export default function RpsStyleChart({
     }
   }, [lockEdges])
 
-  useEffect(() => {
-    const chart = chartRef.current
-    if (!chart) return
-    chart.applyOptions({
-      handleScale:
-        viewMode === 'score'
-          ? { mouseWheel: true, axisPressedMouseMove: false, pinch: true }
-          : { mouseWheel: true, axisPressedMouseMove: true, pinch: true },
-    })
-  }, [viewMode])
-
   function buildScoreBgBands(range: { min: number; max: number }): Array<{ top: number; bottom: number; color: string }> {
     const upper = Math.max(20, range.max) + 10
     const lower = Math.min(-20, range.min) - 10
@@ -219,6 +196,8 @@ export default function RpsStyleChart({
   useEffect(() => {
     const chart = chartRef.current
     if (!chart) return
+    // Re-enable autoscale during data/view rebuild so each view gets a reasonable initial Y range.
+    chart.priceScale('right').applyOptions({ autoScale: true })
     setHover(null)
     for (const s of bgRefs.current) chart.removeSeries(s)
     bgRefs.current = []
@@ -269,16 +248,6 @@ export default function RpsStyleChart({
         lineWidth: 2,
         priceLineVisible: false,
         lastValueVisible: true,
-        ...(viewMode === 'score'
-          ? {
-              autoscaleInfoProvider: () => ({
-                priceRange: {
-                  minValue: scoreFixedRange.minValue,
-                  maxValue: scoreFixedRange.maxValue,
-                },
-              }),
-            }
-          : {}),
       })
       rpsSeries.setData(item.rps)
       if (viewMode === 'relative') {
@@ -343,6 +312,8 @@ export default function RpsStyleChart({
     } else {
       chart.timeScale().fitContent()
     }
+    // Lock Y autoscale after initial fit: no automatic Y rescale on X-range changes, but keep manual Y scaling available.
+    chart.priceScale('right').applyOptions({ autoScale: false })
   }, [lockEdges, prepared, viewMode])
 
   useEffect(() => {
