@@ -299,7 +299,13 @@ export default function RpsStyleChart({
         }
       }
       if (Number.isFinite(minTime) && Number.isFinite(maxTime) && minTime <= maxTime) {
-        chart.timeScale().setVisibleRange({ from: minTime as UTCTimestamp, to: maxTime as UTCTimestamp })
+        if (viewMode === 'score') {
+          const twoYearsSec = 730 * 24 * 60 * 60
+          const from = Math.max(minTime, maxTime - twoYearsSec)
+          chart.timeScale().setVisibleRange({ from: from as UTCTimestamp, to: maxTime as UTCTimestamp })
+        } else {
+          chart.timeScale().setVisibleRange({ from: minTime as UTCTimestamp, to: maxTime as UTCTimestamp })
+        }
       }
     } else {
       chart.timeScale().fitContent()

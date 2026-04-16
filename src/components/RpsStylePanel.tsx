@@ -101,7 +101,7 @@ export default function RpsStylePanel() {
   const controlsDisabled = loading
 
   useEffect(() => {
-    if (chartView !== 'raw' && rangeKey === 'custom' && !customStartDateApplied) return
+    if (chartView === 'relative' && rangeKey === 'custom' && !customStartDateApplied) return
     const ac = new AbortController()
     ;(async () => {
       setLoading(true)
@@ -140,7 +140,7 @@ export default function RpsStylePanel() {
           tickers.map((ticker) =>
             fetchRpsStyleSeries({
               ticker,
-              ...(chartView !== 'raw'
+              ...(chartView === 'relative'
                 ? {
                     startDate: resolvedRange.startDate,
                     endDate: resolvedRange.endDate,
@@ -321,7 +321,7 @@ export default function RpsStylePanel() {
                 </button>
               ))}
           </div>
-          {chartView !== 'raw' ? (
+          {chartView === 'relative' ? (
             <>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[#94A3B8]">时间范围</span>
