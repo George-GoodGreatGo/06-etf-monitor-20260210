@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ColorType,
   CrosshairMode,
@@ -154,9 +154,9 @@ export default function LowVolOpportunityChart({
       biasPct3y: biasPct,
       thresh,
     })
-  }, [biasBasis, hover?.biasPct3y250, hover?.biasPct3y60, hover?.spreadPctRank10y, thresh])
+  }, [biasBasis, hover, thresh])
 
-  const updateSpreadPctZones = () => {
+  const updateSpreadPctZones = useCallback(() => {
     if (!showSpreadPctPane) return
     const chart = chartsRef.current.spreadPct
     const cheapBg = spreadPctCheapBgRef.current
@@ -181,7 +181,11 @@ export default function LowVolOpportunityChart({
     expBg.style.top = `${expTop}px`
     expBg.style.height = `${Math.max(0, expBottom - expTop)}px`
     expBg.style.right = `${SCALE_MIN_WIDTH}px`
-  }
+  }, [showSpreadPctPane, thresh])
+  const updateSpreadPctZonesRef = useRef<() => void>(() => {})
+  useEffect(() => {
+    updateSpreadPctZonesRef.current = updateSpreadPctZones
+  }, [updateSpreadPctZones])
 
   const data = useMemo(() => {
     const close: LineData<Time>[] = []
@@ -322,6 +326,8 @@ export default function LowVolOpportunityChart({
   useEffect(() => {
     const el = mainElRef.current
     if (!el || chartsRef.current.main) return
+    const charts = chartsRef.current
+    const seriesStore = seriesRef.current
 
     const chart = createChart(el, {
       autoSize: true,
@@ -379,23 +385,25 @@ export default function LowVolOpportunityChart({
       crosshairMarkerVisible: false,
     })
 
-    chartsRef.current.main = chart
-    seriesRef.current.mainClose = closeSeries
-    seriesRef.current.mainSma60 = sma60Series
-    seriesRef.current.mainMa = maSeries
+    charts.main = chart
+    seriesStore.mainClose = closeSeries
+    seriesStore.mainSma60 = sma60Series
+    seriesStore.mainMa = maSeries
 
     return () => {
       chart.remove()
-      if (chartsRef.current.main === chart) chartsRef.current.main = null
-      seriesRef.current.mainClose = null
-      seriesRef.current.mainSma60 = null
-      seriesRef.current.mainMa = null
+      if (charts.main === chart) charts.main = null
+      seriesStore.mainClose = null
+      seriesStore.mainSma60 = null
+      seriesStore.mainMa = null
     }
   }, [])
 
   useEffect(() => {
     const el = biasElRef.current
     if (!el || chartsRef.current.bias) return
+    const charts = chartsRef.current
+    const seriesStore = seriesRef.current
 
     const chart = createChart(el, {
       autoSize: true,
@@ -445,21 +453,23 @@ export default function LowVolOpportunityChart({
     })
     align.applyOptions({ visible: false })
 
-    chartsRef.current.bias = chart
-    seriesRef.current.bias = metric
-    seriesRef.current.biasAlign = align
+    charts.bias = chart
+    seriesStore.bias = metric
+    seriesStore.biasAlign = align
 
     return () => {
       chart.remove()
-      if (chartsRef.current.bias === chart) chartsRef.current.bias = null
-      seriesRef.current.bias = null
-      seriesRef.current.biasAlign = null
+      if (charts.bias === chart) charts.bias = null
+      seriesStore.bias = null
+      seriesStore.biasAlign = null
     }
   }, [])
 
   useEffect(() => {
     const el = biasPctElRef.current
     if (!el || chartsRef.current.biasPct) return
+    const charts = chartsRef.current
+    const seriesStore = seriesRef.current
 
     const chart = createChart(el, {
       autoSize: true,
@@ -512,21 +522,23 @@ export default function LowVolOpportunityChart({
     })
     align.applyOptions({ visible: false })
 
-    chartsRef.current.biasPct = chart
-    seriesRef.current.biasPct = metric
-    seriesRef.current.biasPctAlign = align
+    charts.biasPct = chart
+    seriesStore.biasPct = metric
+    seriesStore.biasPctAlign = align
 
     return () => {
       chart.remove()
-      if (chartsRef.current.biasPct === chart) chartsRef.current.biasPct = null
-      seriesRef.current.biasPct = null
-      seriesRef.current.biasPctAlign = null
+      if (charts.biasPct === chart) charts.biasPct = null
+      seriesStore.biasPct = null
+      seriesStore.biasPctAlign = null
     }
   }, [])
 
   useEffect(() => {
     const el = spreadElRef.current
     if (!el || chartsRef.current.spread) return
+    const charts = chartsRef.current
+    const seriesStore = seriesRef.current
 
     const chart = createChart(el, {
       autoSize: true,
@@ -576,21 +588,23 @@ export default function LowVolOpportunityChart({
     })
     align.applyOptions({ visible: false })
 
-    chartsRef.current.spread = chart
-    seriesRef.current.spread = metric
-    seriesRef.current.spreadAlign = align
+    charts.spread = chart
+    seriesStore.spread = metric
+    seriesStore.spreadAlign = align
 
     return () => {
       chart.remove()
-      if (chartsRef.current.spread === chart) chartsRef.current.spread = null
-      seriesRef.current.spread = null
-      seriesRef.current.spreadAlign = null
+      if (charts.spread === chart) charts.spread = null
+      seriesStore.spread = null
+      seriesStore.spreadAlign = null
     }
   }, [])
 
   useEffect(() => {
     const el = spreadPctElRef.current
     if (!el || chartsRef.current.spreadPct) return
+    const charts = chartsRef.current
+    const seriesStore = seriesRef.current
 
     const chart = createChart(el, {
       autoSize: true,
@@ -643,20 +657,18 @@ export default function LowVolOpportunityChart({
     })
     align.applyOptions({ visible: false })
 
-    chartsRef.current.spreadPct = chart
-    seriesRef.current.spreadPct = metric
-    seriesRef.current.spreadPctAlign = align
-    const onRange = () => {
-      requestAnimationFrame(updateSpreadPctZones)
-    }
+    charts.spreadPct = chart
+    seriesStore.spreadPct = metric
+    seriesStore.spreadPctAlign = align
+    const onRange = () => requestAnimationFrame(() => updateSpreadPctZonesRef.current())
     chart.timeScale().subscribeVisibleLogicalRangeChange(onRange)
 
     return () => {
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRange)
       chart.remove()
-      if (chartsRef.current.spreadPct === chart) chartsRef.current.spreadPct = null
-      seriesRef.current.spreadPct = null
-      seriesRef.current.spreadPctAlign = null
+      if (charts.spreadPct === chart) charts.spreadPct = null
+      seriesStore.spreadPct = null
+      seriesStore.spreadPctAlign = null
     }
   }, [])
 
@@ -812,7 +824,7 @@ export default function LowVolOpportunityChart({
       if (showSpreadPctPane) spreadPct.timeScale().setVisibleLogicalRange(range)
     }
     requestAnimationFrame(updateSpreadPctZones)
-  }, [biasBasis, data, showBiasPane, showBiasPctPane, showMa250, showSma60, showSpreadPane, showSpreadPctPane])
+  }, [biasBasis, data, showBiasPane, showBiasPctPane, showMa250, showSma60, showSpreadPane, showSpreadPctPane, updateSpreadPctZones])
 
   useEffect(() => {
     if (!showSpreadPctPane || !spreadPctElRef.current) return
@@ -825,7 +837,7 @@ export default function LowVolOpportunityChart({
     if (ro) ro.observe(spreadPctElRef.current)
     requestAnimationFrame(updateSpreadPctZones)
     return () => ro?.disconnect()
-  }, [showSpreadPctPane])
+  }, [showSpreadPctPane, updateSpreadPctZones])
 
   return (
     <div className={cn('relative', className)}>

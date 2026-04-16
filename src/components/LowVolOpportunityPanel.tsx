@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import DataStatusBanner from '@/components/DataStatusBanner'
 import LowVolOpportunityChart from '@/components/charts/LowVolOpportunityChart'
 import { cn } from '@/lib/utils'
@@ -34,7 +34,7 @@ export default function LowVolOpportunityPanel(props: {
   const [meta, setMeta] = useState<Top100Meta | null>(null)
   const [series, setSeries] = useState<LowVolH30269Point[]>([])
 
-  const run = async () => {
+  const run = useCallback(async () => {
     const code = String(indexCode || '').trim()
     setLoading(true)
     setError(null)
@@ -61,11 +61,11 @@ export default function LowVolOpportunityPanel(props: {
     } finally {
       window.clearTimeout(id)
     }
-  }
+  }, [indexCode])
 
   useEffect(() => {
     void run()
-  }, [indexCode])
+  }, [run])
 
   const latest = series.length ? series[series.length - 1] : null
   const biasPct = biasBasis === 'sma60' ? latest?.biasPct3y60 : latest?.biasPct3y

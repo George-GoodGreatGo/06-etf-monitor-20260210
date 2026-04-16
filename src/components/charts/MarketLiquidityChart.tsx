@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ColorType,
   CrosshairMode,
@@ -218,7 +218,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
   const [showEquityBondPane, setShowEquityBondPane] = useState(true)
   const [showRuleInfo, setShowRuleInfo] = useState(true)
 
-  const updateV5ZoneBg = () => {
+  const updateV5ZoneBg = useCallback(() => {
     if (!showLiquidityPane) return
     const el = v5ElRef.current
     const overEl = v5OverboughtBgRef.current
@@ -245,9 +245,9 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
 
     underEl.style.top = `${bottomY}px`
     underEl.style.height = `${Math.max(0, h - bottomY)}px`
-  }
+  }, [showLiquidityPane])
 
-  const updateV5PctZoneBg = () => {
+  const updateV5PctZoneBg = useCallback(() => {
     if (!showLiquidityPctPane) return
     const el = v5PctElRef.current
     const overEl = v5PctOverboughtBgRef.current
@@ -274,7 +274,15 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
 
     underEl.style.top = `${bottomY}px`
     underEl.style.height = `${Math.max(0, h - bottomY)}px`
-  }
+  }, [showLiquidityPctPane])
+  const updateV5ZoneBgRef = useRef<() => void>(() => {})
+  const updateV5PctZoneBgRef = useRef<() => void>(() => {})
+  useEffect(() => {
+    updateV5ZoneBgRef.current = updateV5ZoneBg
+  }, [updateV5ZoneBg])
+  useEffect(() => {
+    updateV5PctZoneBgRef.current = updateV5PctZoneBg
+  }, [updateV5PctZoneBg])
 
   const data = useMemo(() => {
     const hs: LineData<Time>[] = []
@@ -386,6 +394,9 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
 
   useEffect(() => {
     if (!priceElRef.current || chartsRef.current.price) return
+    const charts = chartsRef.current
+    const seriesStore = seriesRef.current
+    const segStore = hsSegRef.current
 
     const chart = createChart(priceElRef.current, {
       autoSize: true,
@@ -462,25 +473,25 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       priceFormat: { type: 'custom', formatter: (v) => fmt(v, 2) },
     })
 
-    chartsRef.current.price = chart
-    seriesRef.current.hs300 = hs
-    seriesRef.current.ema20 = ema20
-    seriesRef.current.ema60 = ema60
-    seriesRef.current.bbMid = bbMid
-    seriesRef.current.bbUpper = bbUpper
-    seriesRef.current.bbLower = bbLower
+    charts.price = chart
+    seriesStore.hs300 = hs
+    seriesStore.ema20 = ema20
+    seriesStore.ema60 = ema60
+    seriesStore.bbMid = bbMid
+    seriesStore.bbUpper = bbUpper
+    seriesStore.bbLower = bbLower
 
     return () => {
       chart.remove()
-      if (chartsRef.current.price === chart) chartsRef.current.price = null
-      seriesRef.current.hs300 = null
-      seriesRef.current.ema20 = null
-      seriesRef.current.ema60 = null
-      seriesRef.current.bbMid = null
-      seriesRef.current.bbUpper = null
-      seriesRef.current.bbLower = null
-      hsSegRef.current.hot = []
-      hsSegRef.current.cold = []
+      if (charts.price === chart) charts.price = null
+      seriesStore.hs300 = null
+      seriesStore.ema20 = null
+      seriesStore.ema60 = null
+      seriesStore.bbMid = null
+      seriesStore.bbUpper = null
+      seriesStore.bbLower = null
+      segStore.hot = []
+      segStore.cold = []
     }
   }, [])
 
@@ -500,6 +511,8 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
 
   useEffect(() => {
     if (!v5ElRef.current || chartsRef.current.v5) return
+    const charts = chartsRef.current
+    const seriesStore = seriesRef.current
 
     const chart = createChart(v5ElRef.current, {
       autoSize: true,
@@ -566,20 +579,22 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       axisLabelVisible: false,
     })
 
-    chartsRef.current.v5 = chart
-    seriesRef.current.v5 = v5
-    seriesRef.current.v5Align = align
+    charts.v5 = chart
+    seriesStore.v5 = v5
+    seriesStore.v5Align = align
 
     return () => {
       chart.remove()
-      if (chartsRef.current.v5 === chart) chartsRef.current.v5 = null
-      seriesRef.current.v5 = null
-      seriesRef.current.v5Align = null
+      if (charts.v5 === chart) charts.v5 = null
+      seriesStore.v5 = null
+      seriesStore.v5Align = null
     }
   }, [])
 
   useEffect(() => {
     if (!ebElRef.current || chartsRef.current.eb) return
+    const charts = chartsRef.current
+    const seriesStore = seriesRef.current
 
     const chart = createChart(ebElRef.current, {
       autoSize: true,
@@ -630,20 +645,22 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     })
     align.applyOptions({ visible: false })
 
-    chartsRef.current.eb = chart
-    seriesRef.current.eb = eb
-    seriesRef.current.ebAlign = align
+    charts.eb = chart
+    seriesStore.eb = eb
+    seriesStore.ebAlign = align
 
     return () => {
       chart.remove()
-      if (chartsRef.current.eb === chart) chartsRef.current.eb = null
-      seriesRef.current.eb = null
-      seriesRef.current.ebAlign = null
+      if (charts.eb === chart) charts.eb = null
+      seriesStore.eb = null
+      seriesStore.ebAlign = null
     }
   }, [])
 
   useEffect(() => {
     if (!v5PctElRef.current || chartsRef.current.v5Pct) return
+    const charts = chartsRef.current
+    const seriesStore = seriesRef.current
 
     const chart = createChart(v5PctElRef.current, {
       autoSize: true,
@@ -710,15 +727,15 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       axisLabelVisible: false,
     })
 
-    chartsRef.current.v5Pct = chart
-    seriesRef.current.v5Pct = v5Pct
-    seriesRef.current.v5PctAlign = align
+    charts.v5Pct = chart
+    seriesStore.v5Pct = v5Pct
+    seriesStore.v5PctAlign = align
 
     return () => {
       chart.remove()
-      if (chartsRef.current.v5Pct === chart) chartsRef.current.v5Pct = null
-      seriesRef.current.v5Pct = null
-      seriesRef.current.v5PctAlign = null
+      if (charts.v5Pct === chart) charts.v5Pct = null
+      seriesStore.v5Pct = null
+      seriesStore.v5PctAlign = null
     }
   }, [])
 
@@ -744,8 +761,8 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
         c.timeScale().setVisibleLogicalRange(range)
       }
       syncingRef.current = false
-      requestAnimationFrame(updateV5ZoneBg)
-      requestAnimationFrame(updateV5PctZoneBg)
+      requestAnimationFrame(() => updateV5ZoneBgRef.current())
+      requestAnimationFrame(() => updateV5PctZoneBgRef.current())
     }
 
     const onCrosshair = (src: IChartApi) => (param: { time?: Time } | null) => {
@@ -759,8 +776,8 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
           c.clearCrosshairPosition()
         }
         syncingRef.current = false
-        requestAnimationFrame(updateV5ZoneBg)
-        requestAnimationFrame(updateV5PctZoneBg)
+        requestAnimationFrame(() => updateV5ZoneBgRef.current())
+        requestAnimationFrame(() => updateV5PctZoneBgRef.current())
         return
       }
 
@@ -788,8 +805,8 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
         }
       }
       syncingRef.current = false
-      requestAnimationFrame(updateV5ZoneBg)
-      requestAnimationFrame(updateV5PctZoneBg)
+      requestAnimationFrame(() => updateV5ZoneBgRef.current())
+      requestAnimationFrame(() => updateV5PctZoneBgRef.current())
     }
 
     const rangeHandlers: Array<{ chart: IChartApi; fn: (range: LogicalRange | null) => void }> = charts.map((c) => ({
@@ -809,8 +826,8 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       typeof ResizeObserver === 'undefined'
         ? null
         : new ResizeObserver(() => {
-            requestAnimationFrame(updateV5ZoneBg)
-            requestAnimationFrame(updateV5PctZoneBg)
+            requestAnimationFrame(() => updateV5ZoneBgRef.current())
+            requestAnimationFrame(() => updateV5PctZoneBgRef.current())
           })
     if (ro && v5ElRef.current && showLiquidityPane) ro.observe(v5ElRef.current)
     if (ro && v5PctElRef.current && showLiquidityPctPane) ro.observe(v5PctElRef.current)
@@ -890,7 +907,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
       requestAnimationFrame(updateV5ZoneBg)
       requestAnimationFrame(updateV5PctZoneBg)
     })
-  }, [data])
+  }, [data, showEquityBondPane, showLiquidityPane, showLiquidityPctPane, updateV5PctZoneBg, updateV5ZoneBg])
 
   useEffect(() => {
     const price = chartsRef.current.price
@@ -902,7 +919,7 @@ export default function MarketLiquidityChart({ series, equityBond, className }: 
     if (showEquityBondPane && chartsRef.current.eb) chartsRef.current.eb.timeScale().setVisibleLogicalRange(range)
     requestAnimationFrame(updateV5ZoneBg)
     requestAnimationFrame(updateV5PctZoneBg)
-  }, [showEquityBondPane, showLiquidityPane, showLiquidityPctPane])
+  }, [showEquityBondPane, showLiquidityPane, showLiquidityPctPane, updateV5PctZoneBg, updateV5ZoneBg])
 
   return (
     <div className={cn('relative', className)}>
