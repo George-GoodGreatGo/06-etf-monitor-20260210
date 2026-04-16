@@ -9,7 +9,7 @@ process.env.ETF_PROXY_BASE_DELAY_MS = '0'
 
 const origFetch = globalThis.fetch
 
-globalThis.fetch = (async (url: any) => {
+globalThis.fetch = (async (url: Parameters<typeof fetch>[0]) => {
   const u = String(url || '')
   if (u.includes('yield.chinabond.com.cn')) {
     return new Response('<html><title>504</title></html>', { status: 504, headers: { 'content-type': 'text/html' } })
@@ -18,7 +18,7 @@ globalThis.fetch = (async (url: any) => {
     return new Response(JSON.stringify({ data: { f162: 0 } }), { status: 200, headers: { 'content-type': 'application/json' } })
   }
   return new Response('{"code":0}', { status: 200, headers: { 'content-type': 'application/json' } })
-}) as any
+}) as typeof fetch
 
 const r1 = await fetchGovBond10yYieldPctByDateSafe({ year: 2020, cacheTtlMs: 0 })
 assert.equal(r1.map.size, 0)

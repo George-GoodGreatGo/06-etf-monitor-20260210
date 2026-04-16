@@ -26,6 +26,10 @@ function logEvent(event: Record<string, unknown>) {
   process.stdout.write(`${JSON.stringify({ ts: new Date().toISOString(), ...event })}\n`)
 }
 
+function asRecord(raw: unknown): Record<string, unknown> | null {
+  return raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null
+}
+
 function readCacheGet<T>(key: string): T | null {
   const hit = readCache.get(key)
   if (hit && hit.expiresAt > Date.now()) return hit.value as T
@@ -181,13 +185,15 @@ async function fetchCsindexIndexCloseSeries(args: {
     const text = await res.text().catch(() => '')
     throw new Error(`csindex failed: HTTP ${res.status}${text ? ` ${text.slice(0, 240)}` : ''}`)
   }
-  const j = (await res.json().catch(() => null)) as any
-  const rows = Array.isArray(j?.data) ? j.data : []
+  const j = (await res.json().catch(() => null)) as unknown
+  const payload = asRecord(j)
+  const rows = Array.isArray(payload?.data) ? payload.data : []
   const out: Array<{ date: string; close: number }> = []
   for (const r of rows) {
-    if (!r || typeof r !== 'object') continue
-    const d = normalizeYmd10((r as any).tradeDate)
-    const c = toNum((r as any).close)
+    const row = asRecord(r)
+    if (!row) continue
+    const d = normalizeYmd10(row.tradeDate)
+    const c = toNum(row.close)
     if (!d || c == null) continue
     out.push({ date: d, close: c })
   }
@@ -220,11 +226,13 @@ async function fetchCnindexIndexCloseSeries(args: {
       Referer: 'https://www.cnindex.com.cn/',
     },
   })
-  const json = (await res.json().catch(() => null)) as any
+  const json = (await res.json().catch(() => null)) as unknown
+  const payload = asRecord(json)
+  const payloadData = asRecord(payload?.data)
   if (res.ok !== true) throw new Error(`cnindex hq request failed: ${res.status}`)
-  if (json?.code !== 200) throw new Error(`cnindex hq response not ok: ${json?.code ?? 'unknown'}`)
+  if (payload?.code !== 200) throw new Error(`cnindex hq response not ok: ${typeof payload?.code === 'number' ? payload.code : 'unknown'}`)
 
-  const rows = Array.isArray(json?.data?.data) ? json.data.data : []
+  const rows = Array.isArray(payloadData?.data) ? payloadData.data : []
   const out: Array<{ date: string; close: number }> = []
   for (const row of rows) {
     const ms = Array.isArray(row) ? row[0] : null
@@ -268,8 +276,9 @@ async function fetchEtfProxyPe(args: {
         clearTimeout(id)
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const j = (await res.json().catch(() => null)) as any
-      const data = j?.data && typeof j.data === 'object' ? j.data : null
+      const j = (await res.json().catch(() => null)) as unknown
+      const payload = asRecord(j)
+      const data = asRecord(payload?.data)
       const peRaw = toNum(data?.f162)
       const pe = peRaw != null && peRaw > 0 ? peRaw : null
       logEvent({
@@ -386,13 +395,17 @@ async function fetchCnindex980081LatestPeWithTradeDate(): Promise<{ tradeDate: s
       fetch('https://www.cnindex.com.cn/index/running?type=1', { headers }),
       fetch('https://www.cnindex.com.cn/market/market/getMarketDay?codesValue=980081', { headers }),
     ])
-    const runJ = (await runRes.json().catch(() => null)) as any
-    const dayJ = (await dayRes.json().catch(() => null)) as any
-    const runRows = Array.isArray(runJ?.data) ? runJ.data : []
-    const row = runRows.find((x: any) => String(x?.indexcode || '') === '980081')
-    const pe = toNum(row?.peDynamic)
-    const dayRows = Array.isArray(dayJ?.data) ? dayJ.data : []
-    const tradeDate = normalizeYmd10(dayRows[0]?.lastMarketDay)
+    const runJ = (await runRes.json().catch(() => null)) as unknown
+    const dayJ = (await dayRes.json().catch(() => null)) as unknown
+    const runPayload = asRecord(runJ)
+    const dayPayload = asRecord(dayJ)
+    const runRows = Array.isArray(runPayload?.data) ? runPayload.data : []
+    const row = runRows.find((x) => String(asRecord(x)?.indexcode || '') === '980081')
+    const rowRec = asRecord(row)
+    const pe = toNum(rowRec?.peDynamic)
+    const dayRows = Array.isArray(dayPayload?.data) ? dayPayload.data : []
+    const dayFirst = asRecord(dayRows[0])
+    const tradeDate = normalizeYmd10(dayFirst?.lastMarketDay)
     if (!tradeDate) notes.push('cnindex_lastMarketDay_missing=1')
     if (pe == null || pe <= 0) notes.push('cnindex_peDynamic_missing=1')
     return { tradeDate: tradeDate || null, pe: pe != null && pe > 0 ? pe : null, notes }
@@ -734,8 +747,9 @@ export async function getValueTimingIndexSeries(args: {
     const peEnd8 = lastDate ? lastDate.replace(/-/g, '') : end8
     const series = await fetchCsindexIndexPeSeries({ indexCode: String(cfg.peIndexCode || cfg.code), startDate: peStart8, endDate: peEnd8 })
     for (const r of series) {
-      const trade8 = typeof (r as any).trade_date === 'string' ? String((r as any).trade_date) : ''
-      const pe = typeof (r as any).pe === 'number' ? (r as any).pe : null
+      const row = asRecord(r)
+      const trade8 = typeof row?.trade_date === 'string' ? String(row.trade_date) : ''
+      const pe = toNum(row?.pe)
       const d = ymd10FromYmd8(trade8)
       if (!d) continue
       peByDate.set(d, pe)

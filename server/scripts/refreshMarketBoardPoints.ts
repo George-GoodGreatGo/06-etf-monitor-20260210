@@ -1,6 +1,12 @@
 import { getMarketLiquidityV5 } from '../lib/marketLiquidityV5Service.js'
 import { randomUUID } from 'node:crypto'
-import { publishMarketBoardRun, readMarketBoardMeta, upsertMarketBoardMeta, upsertMarketBoardPoints } from '../lib/supabaseRest.js'
+import {
+  publishMarketBoardRun,
+  readMarketBoardMeta,
+  upsertMarketBoardMeta,
+  upsertMarketBoardPoints,
+  type MarketBoardPointRow,
+} from '../lib/supabaseRest.js'
 import { fetchCsindexHs300PeSeries } from '../lib/csindex.js'
 import { fetchNorthboundTotalTurnoverSeries } from '../lib/hkex.js'
 import { fetchGovBond10yYieldPctByDateSafe } from '../lib/chinamoneyGovBond.js'
@@ -274,7 +280,7 @@ function nonNullRatio(rows: Array<Record<string, unknown>>, key: string): number
   if (!rows.length) return 0
   let ok = 0
   for (const r of rows) {
-    const v = (r as any)[key]
+    const v = r[key]
     if (typeof v === 'number' && Number.isFinite(v)) ok += 1
   }
   return ok / rows.length
@@ -319,7 +325,7 @@ async function main() {
       if (y0 == null || y1 == null) throw new Error('bad startDate/endDate year')
       let totalWrite = 0
       let maxDate: string | null = null
-      const recentRows: Array<Record<string, unknown>> = []
+      const recentRows: Array<Omit<MarketBoardPointRow, 'updated_at'>> = []
       for (let y = y0; y <= y1; y += 2) {
         const segStart = maxYmd8(startDate, `${y}0101`)
         const segEnd = minYmd8(endDate, `${Math.min(y + 1, y1)}1231`)
@@ -347,7 +353,7 @@ async function main() {
 
         const data = out.data && typeof out.data === 'object' ? out.data : {}
         const seriesAll = mustArray((data as Record<string, unknown>).series)
-        const allLast = seriesAll.length ? (seriesAll[seriesAll.length - 1] as any) : null
+        const allLast = seriesAll.length ? seriesAll[seriesAll.length - 1] : null
         const allLastDate = allLast && typeof allLast.date === 'string' ? String(allLast.date) : ''
         if (allLastDate) {
           const lag = diffDaysUtc(segEnd10, allLastDate)
@@ -388,29 +394,29 @@ async function main() {
               source,
               notes,
               close,
-              amount: finiteOrNull((p as any).amount),
-              tr: finiteOrNull((p as any).tr),
-              north_money: finiteOrNull((p as any).northMoney),
-              amount_pct: finiteOrNull((p as any).amountPct),
-              tr_pct: finiteOrNull((p as any).trPct),
-              north_pct: finiteOrNull((p as any).northPct),
-              v5: finiteOrNull((p as any).v5),
-              v5_pct: finiteOrNull((p as any).v5Pct),
-              pe: finiteOrNull(eb && (eb as any).pe),
-              earnings_yield: finiteOrNull(eb && (eb as any).earningsYield),
-              yield10y_pct: finiteOrNull(eb && (eb as any).yield10yPct),
-              equity_bond_value: finiteOrNull(eb && (eb as any).value),
-              equity_bond_pct: finiteOrNull(eb && (eb as any).pct),
+              amount: finiteOrNull(p.amount),
+              tr: finiteOrNull(p.tr),
+              north_money: finiteOrNull(p.northMoney),
+              amount_pct: finiteOrNull(p.amountPct),
+              tr_pct: finiteOrNull(p.trPct),
+              north_pct: finiteOrNull(p.northPct),
+              v5: finiteOrNull(p.v5),
+              v5_pct: finiteOrNull(p.v5Pct),
+              pe: finiteOrNull(eb?.pe),
+              earnings_yield: finiteOrNull(eb?.earningsYield),
+              yield10y_pct: finiteOrNull(eb?.yield10yPct),
+              equity_bond_value: finiteOrNull(eb?.value),
+              equity_bond_pct: finiteOrNull(eb?.pct),
             }
           })
-          .filter((x) => x != null)
+          .filter((x): x is NonNullable<typeof x> => x != null)
 
         if (rows.length === 0) {
           throw new Error(`segment produced no rows: out=${segStart}..${segEnd}`)
         }
 
         for (const part of chunk(rows, 200)) {
-          await withRetry(() => upsertMarketBoardPoints(part as any), `upsert batch size=${part.length}`, 4)
+          await withRetry(() => upsertMarketBoardPoints(part as Array<Omit<MarketBoardPointRow, 'updated_at'>>), `upsert batch size=${part.length}`, 4)
           await sleep(jitterMs(350, 0.6))
         }
         totalWrite += rows.length
@@ -556,27 +562,27 @@ async function main() {
           source,
           notes,
           close,
-          amount: finiteOrNull((p as any).amount),
-          tr: finiteOrNull((p as any).tr),
-          north_money: finiteOrNull((p as any).northMoney),
-          amount_pct: finiteOrNull((p as any).amountPct),
-          tr_pct: finiteOrNull((p as any).trPct),
-          north_pct: finiteOrNull((p as any).northPct),
-          v5: finiteOrNull((p as any).v5),
-          v5_pct: finiteOrNull((p as any).v5Pct),
-          pe: finiteOrNull(eb && (eb as any).pe),
-          earnings_yield: finiteOrNull(eb && (eb as any).earningsYield),
-          yield10y_pct: finiteOrNull(eb && (eb as any).yield10yPct),
-          equity_bond_value: finiteOrNull(eb && (eb as any).value),
-          equity_bond_pct: finiteOrNull(eb && (eb as any).pct),
+          amount: finiteOrNull(p.amount),
+          tr: finiteOrNull(p.tr),
+          north_money: finiteOrNull(p.northMoney),
+          amount_pct: finiteOrNull(p.amountPct),
+          tr_pct: finiteOrNull(p.trPct),
+          north_pct: finiteOrNull(p.northPct),
+          v5: finiteOrNull(p.v5),
+          v5_pct: finiteOrNull(p.v5Pct),
+          pe: finiteOrNull(eb?.pe),
+          earnings_yield: finiteOrNull(eb?.earningsYield),
+          yield10y_pct: finiteOrNull(eb?.yield10yPct),
+          equity_bond_value: finiteOrNull(eb?.value),
+          equity_bond_pct: finiteOrNull(eb?.pct),
         }
       })
-      .filter((x) => x != null)
+      .filter((x): x is NonNullable<typeof x> => x != null)
 
     const finalRows = rows.slice(-5)
     const dates = finalRows.map((r) => r.data_date)
     for (const part of chunk(finalRows, 200)) {
-      await withRetry(() => upsertMarketBoardPoints(part as any), `upsert batch size=${part.length}`, 4)
+      await withRetry(() => upsertMarketBoardPoints(part as Array<Omit<MarketBoardPointRow, 'updated_at'>>), `upsert batch size=${part.length}`, 4)
       await sleep(jitterMs(350, 0.6))
     }
     process.stdout.write(`mode=${mode} write=${finalRows.length} dates=${dates.join(',')}\n`)

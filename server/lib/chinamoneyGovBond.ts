@@ -115,7 +115,7 @@ async function fetchYearXlsx(year: number): Promise<Buffer> {
       return Buffer.from(arrayBuf)
     } catch (e) {
       const err = e instanceof Error ? e : new Error(String(e))
-      const isAbort = String((err as any)?.name || '').toLowerCase() === 'aborterror' || /aborted/i.test(String(err.message || ''))
+      const isAbort = String(err.name || '').toLowerCase() === 'aborterror' || /aborted/i.test(String(err.message || ''))
       const tagged = isAbort ? new Error(`timeout_aborted: ${err.message}`) : err
       lastErr = tagged
       if (attempt < maxAttempts) {

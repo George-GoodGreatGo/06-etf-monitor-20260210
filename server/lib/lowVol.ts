@@ -280,11 +280,18 @@ async function fetchCnindexIndexCloseSeries(args: {
       Referer: 'https://www.cnindex.com.cn/',
     },
   })
-  const json = (await res.json().catch(() => null)) as any
+  const json = (await res.json().catch(() => null)) as unknown
+  const payload =
+    json && typeof json === 'object'
+      ? (json as {
+          code?: unknown
+          data?: { data?: unknown }
+        })
+      : null
   if (res.ok !== true) throw new Error(`cnindex hq request failed: ${res.status}`)
-  if (json?.code !== 200) throw new Error(`cnindex hq response not ok: ${json?.code ?? 'unknown'}`)
+  if (payload?.code !== 200) throw new Error(`cnindex hq response not ok: ${typeof payload?.code === 'number' ? payload.code : 'unknown'}`)
 
-  const rows = Array.isArray(json?.data?.data) ? json.data.data : []
+  const rows = Array.isArray(payload?.data?.data) ? payload.data.data : []
   const out: Array<{ date: string; close: number }> = []
   for (const row of rows) {
     const ms = Array.isArray(row) ? row[0] : null
@@ -485,19 +492,6 @@ let lowVolSummaryInflight: Promise<{
   data: { items: LowVolSummaryItem[] }
 }> | null = null
 
-function pad2(n: number): string {
-  return n < 10 ? `0${n}` : String(n)
-}
-
-function ymd8Of(d: Date): string {
-  return `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}`
-}
-
-function ymd8YearsAgoJan1(years: number): string {
-  const y = new Date().getUTCFullYear() - years
-  return `${y}0101`
-}
-
 export async function getLowVolSummary(): Promise<{
   meta: { fetchedAt: string; dataDate: string | null; source: string; notes: string[] }
   data: { items: LowVolSummaryItem[] }
@@ -650,9 +644,7 @@ export async function getLowVolIndexSeries(args: {
   let overlap = 0
   for (const p of closeSeries) if (triByDate.has(p.date)) overlap += 1
   if (overlap < 253) {
-    const priFirst = closeSeries.length ? closeSeries[0].date : ''
     const priLast = closeSeries.length ? closeSeries[closeSeries.length - 1].date : ''
-    const triFirst = triSeries.length ? triSeries[0].date : ''
     const triLast = triSeries.length ? triSeries[triSeries.length - 1].date : ''
     throw new Error(
       `TRI 数据不足或无法对齐，无法计算股息率/利差：${cfg.code}（priLen=${closeSeries.length}, triLen=${triSeries.length}, overlap=${overlap}, priLast=${priLast}, triLast=${triLast}, range=${start8}-${end8}）`,

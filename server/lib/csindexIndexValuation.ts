@@ -12,11 +12,12 @@ function sleep(ms: number) {
 }
 
 function excelSerialToYmd8(raw: number): string {
-  const ssf = (xlsx as unknown as { SSF?: { parse_date_code?: (n: number) => any } }).SSF
+  const ssf = (xlsx as unknown as { SSF?: { parse_date_code?: (n: number) => unknown } }).SSF
   const parsed = ssf?.parse_date_code ? ssf.parse_date_code(raw) : null
-  const y = parsed && Number.isFinite(parsed.y) ? Number(parsed.y) : NaN
-  const m = parsed && Number.isFinite(parsed.m) ? Number(parsed.m) : NaN
-  const d = parsed && Number.isFinite(parsed.d) ? Number(parsed.d) : NaN
+  const rec = parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null
+  const y = rec && Number.isFinite(rec.y) ? Number(rec.y) : NaN
+  const m = rec && Number.isFinite(rec.m) ? Number(rec.m) : NaN
+  const d = rec && Number.isFinite(rec.d) ? Number(rec.d) : NaN
   if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return ''
   if (y < 1900 || y > 2100) return ''
   return `${String(y).padStart(4, '0')}${pad2(m)}${pad2(d)}`

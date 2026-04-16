@@ -136,11 +136,6 @@ function mapSeriesToPointRows(args: {
   }))
 }
 
-function isWafError(e: unknown): boolean {
-  const msg = e instanceof Error ? e.message : String(e)
-  return msg.includes('csindex blocked by WAF') || msg.includes('熔断中')
-}
-
 function logEvent(event: Record<string, unknown>) {
   process.stdout.write(`${JSON.stringify({ ts: new Date().toISOString(), ...event })}\n`)
 }

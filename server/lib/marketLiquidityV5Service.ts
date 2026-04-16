@@ -271,7 +271,6 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
   const now = Date.now()
   const hit = cache.get(cacheKey)
   if (hit && hit.expiresAt > now) return hit.value as Record<string, unknown>
-  const forceRefresh = args?.forceRefresh === true
   const isDefaultRange = start === '20150101' && end === ymdToday()
 
   void isDefaultRange

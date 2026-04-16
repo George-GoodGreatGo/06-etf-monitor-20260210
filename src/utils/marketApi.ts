@@ -1,6 +1,6 @@
 import { apiUrl } from '@/utils/apiBase'
 import { adminAuthHeaders } from '@/utils/adminAccess'
-import type { ApiErr, ApiOk, Top100Meta } from '@/utils/etfApi'
+import type { ApiErr, ApiOk } from '@/utils/etfApi'
 
 export type LiquidityV5Point = {
   date: string

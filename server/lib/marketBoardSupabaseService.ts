@@ -158,7 +158,7 @@ export async function getMarketLiquidityV5FromSupabase(args?: { startDate?: stri
       return { success: false as const, error: 'no_data', message: 'Supabase 尚无大盘看板数据（meta 未初始化）' }
     }
 
-    let rows: any[] = []
+    let rows: Awaited<ReturnType<typeof readMarketBoardPointsRange>> = []
     let usedRunId: string | null = null
     let fallbackReason: string | null = null
     for (const rid of candidates) {

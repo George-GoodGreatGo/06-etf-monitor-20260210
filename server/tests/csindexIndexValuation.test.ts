@@ -30,7 +30,7 @@ globalThis.fetch = (async () => {
   xlsx.utils.book_append_sheet(wb, ws2, 'S2')
   const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xls' }) as Buffer
   return new Response(buf, { status: 200 })
-}) as any
+}) as typeof fetch
 
 const series = await fetchCsindexIndexValuationSeries({ indexCode: '932315', cacheTtlMs: 0 })
 assert.equal(series.length, 3)
@@ -40,4 +40,3 @@ assert.equal(series[2]?.pe, 12.5)
 assert.equal(series[2]?.dividendYieldPct, 2.3)
 
 globalThis.fetch = origFetch
-
