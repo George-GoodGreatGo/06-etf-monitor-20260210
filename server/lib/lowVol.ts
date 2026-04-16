@@ -1,8 +1,10 @@
 import { fetchGovBond10yYieldPctByDate } from './chinamoneyGovBond.js'
-import { readLowVolIndexPointsRange, readLowVolMeta, type LowVolIndexPointRow } from './supabaseRest.js'
+import { readLowVolIndexPointsRange, readLowVolLatestPointsByCodes, readLowVolMeta, type LowVolIndexPointRow } from './supabaseRest.js'
 
 type CacheEntry<T> = { expiresAt: number; value: T }
 const cache = new Map<string, CacheEntry<unknown>>()
+const readInflight = new Map<string, Promise<unknown>>()
+const READ_CACHE_TTL_MS = 5 * 60_000
 let csindexCooldownUntilMs = 0
 const csindexInflight = new Map<string, Promise<Array<{ date: string; close: number }>>>()
 
@@ -46,6 +48,32 @@ function toNum(v: unknown): number | null {
   if (v == null) return null
   const n = Number(v)
   return Number.isFinite(n) ? n : null
+}
+
+function readCacheGet<T>(key: string): T | null {
+  const hit = cache.get(key)
+  if (hit && hit.expiresAt > Date.now()) return hit.value as T
+  return null
+}
+
+function readCacheSet<T>(key: string, value: T, ttlMs = READ_CACHE_TTL_MS) {
+  cache.set(key, { expiresAt: Date.now() + ttlMs, value })
+}
+
+async function readCacheRemember<T>(key: string, task: () => Promise<T>, ttlMs = READ_CACHE_TTL_MS): Promise<T> {
+  const hit = readCacheGet<T>(key)
+  if (hit != null) return hit
+  const inflight = readInflight.get(key)
+  if (inflight) return inflight as Promise<T>
+  const p = (async () => {
+    const out = await task()
+    readCacheSet(key, out, ttlMs)
+    return out
+  })().finally(() => {
+    readInflight.delete(key)
+  })
+  readInflight.set(key, p as Promise<unknown>)
+  return p
 }
 
 export type LowVolDailyPoint = {
@@ -474,6 +502,13 @@ export async function getLowVolSummary(): Promise<{
   meta: { fetchedAt: string; dataDate: string | null; source: string; notes: string[] }
   data: { items: LowVolSummaryItem[] }
 }> {
+  const cacheKey = 'lowvol:summary:v1'
+  const hit = readCacheGet<{
+    meta: { fetchedAt: string; dataDate: string | null; source: string; notes: string[] }
+    data: { items: LowVolSummaryItem[] }
+  }>(cacheKey)
+  if (hit) return hit
+
   const now = Date.now()
   if (lowVolSummaryCache && lowVolSummaryCache.expiresAt > now) return lowVolSummaryCache.value
   if (lowVolSummaryInflight) return lowVolSummaryInflight
@@ -483,41 +518,36 @@ export async function getLowVolSummary(): Promise<{
     const codes = getLowVolSupportedIndexCodes()
     const items: LowVolSummaryItem[] = []
     const endDate = new Date().toISOString().slice(0, 10)
-    const startDate = ymd8ToYmd10(ymd8YearsAgoJan1(10))
+    const meta = await readLowVolMeta()
+    const runIds = (meta?.historyRunIds || []).filter(Boolean)
+    const latestRows = await readLowVolLatestPointsByCodes({ codes, endDate, runIds })
     let ok = 0
     let fail = 0
     let dataDate: string | null = null
-    for (const code of codes) {
-      try {
-        const out = await getLowVolIndexSeriesFromSupabaseRuns({ code, startDate, endDate })
-        const series = out.series
-        const last = series.length ? series[series.length - 1] : null
-        if (!last) {
-          items.push({ code, latest: null, sourceType: 'supabase-table', snapshotAt: null, stale: true, error: 'no_data', message: '暂无已发布数据' })
-          fail += 1
-          continue
-        }
-        const rowDate = out.dataDate || last.date || null
-        if (rowDate && (!dataDate || rowDate > dataDate)) dataDate = rowDate
-        items.push({
-          code,
-          latest: {
-            date: last.date,
-            spreadPctRank10y: last.spreadPctRank10y ?? null,
-            biasPct3y: last.biasPct3y ?? null,
-            biasPct3y60: last.biasPct3y60 ?? null,
-            dividendYieldPct: last.dividendYieldPct ?? null,
-          },
-          sourceType: 'supabase-table',
-          snapshotAt: out.fetchedAt,
-          stale: false,
-        })
-        ok += 1
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e)
-        items.push({ code, latest: null, sourceType: 'supabase-table', snapshotAt: null, stale: true, error: 'no_data', message: msg || '暂无可用数据' })
+    for (const it of latestRows) {
+      const row = it.row
+      if (!row) {
+        items.push({ code: it.code, latest: null, sourceType: 'supabase-table', snapshotAt: null, stale: true, error: 'no_data', message: it.fallbackReason || '暂无可用数据' })
         fail += 1
+        continue
       }
+      const lag = row.data_date ? diffDaysUtc(endDate, row.data_date) : null
+      const stale = lag != null && lag > LOWVOL_RUN_STALE_MAX_DAYS
+      if (row.data_date && (!dataDate || row.data_date > dataDate)) dataDate = row.data_date
+      items.push({
+        code: it.code,
+        latest: {
+          date: row.data_date,
+          spreadPctRank10y: row.spread_pct_rank_10y ?? null,
+          biasPct3y: row.bias_pct_3y ?? null,
+          biasPct3y60: row.bias_pct_3y_60 ?? null,
+          dividendYieldPct: row.dividend_yield_pct ?? null,
+        },
+        sourceType: 'supabase-table',
+        snapshotAt: row.fetched_at,
+        stale,
+      })
+      ok += 1
     }
 
     const value = {
@@ -530,6 +560,7 @@ export async function getLowVolSummary(): Promise<{
       data: { items },
     }
     lowVolSummaryCache = { expiresAt: now + 2 * 60_000, value }
+    readCacheSet(cacheKey, value)
     return value
   })().finally(() => {
     lowVolSummaryInflight = null
@@ -558,24 +589,25 @@ export async function getLowVolIndexSnapshotSeries(args: {
   const code = String(args.code || '').trim().toUpperCase()
   const startYmd = normalizeYmd10(args.startDate)
   const endYmd = normalizeYmd10(args.endDate) || new Date().toISOString().slice(0, 10)
-  const out = await getLowVolIndexSeriesFromSupabaseRuns({ code, startDate: startYmd, endDate: endYmd })
-  const series = out.series
-
-  const cooldownUntil = csindexCooldownUntilMs > Date.now() ? new Date(csindexCooldownUntilMs).toISOString() : null
-
-  return {
-    meta: {
-      fetchedAt: out.fetchedAt,
-      dataDate: out.dataDate,
-      source: 'supabase:lowvol_index_point',
-      notes: [...out.notes, ...(out.usedRunId ? [`run_id=${out.usedRunId}`] : []), ...(out.fallbackReason ? [`run_fallback=${out.fallbackReason}`] : [])],
-      sourceType: 'supabase-table',
-      snapshotAt: out.fetchedAt,
-      stale: false,
-      ...(cooldownUntil ? { cooldownUntil } : {}),
-    },
-    data: { series },
-  }
+  const cacheKey = `lowvol:index:${code}:${startYmd || 'na'}:${endYmd}`
+  return await readCacheRemember(cacheKey, async () => {
+    const out = await getLowVolIndexSeriesFromSupabaseRuns({ code, startDate: startYmd, endDate: endYmd })
+    const series = out.series
+    const cooldownUntil = csindexCooldownUntilMs > Date.now() ? new Date(csindexCooldownUntilMs).toISOString() : null
+    return {
+      meta: {
+        fetchedAt: out.fetchedAt,
+        dataDate: out.dataDate,
+        source: 'supabase:lowvol_index_point',
+        notes: [...out.notes, ...(out.usedRunId ? [`run_id=${out.usedRunId}`] : []), ...(out.fallbackReason ? [`run_fallback=${out.fallbackReason}`] : [])],
+        sourceType: 'supabase-table',
+        snapshotAt: out.fetchedAt,
+        stale: false,
+        ...(cooldownUntil ? { cooldownUntil } : {}),
+      },
+      data: { series },
+    }
+  })
 }
 
 export async function getLowVolIndexSeries(args: {
@@ -740,6 +772,11 @@ export async function getLowVolIndexSeries(args: {
 }
 
 export async function getLowVolH30269Series(args?: { startDate?: string; endDate?: string }) {
-  return getLowVolIndexSeries({ code: 'H30269', startDate: args?.startDate, endDate: args?.endDate })
+  const start = normalizeYmd10(args?.startDate)
+  const end = normalizeYmd10(args?.endDate) || ''
+  const cacheKey = `lowvol:h30269:${start || 'na'}:${end || 'na'}`
+  return await readCacheRemember(cacheKey, async () => {
+    return await getLowVolIndexSeries({ code: 'H30269', startDate: args?.startDate, endDate: args?.endDate })
+  })
 }
 

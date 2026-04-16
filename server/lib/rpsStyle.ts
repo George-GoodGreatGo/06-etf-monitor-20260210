@@ -2,11 +2,42 @@ import { fetchEastmoneyDailyKline } from './eastmoneyKline.js'
 import { runAkshare } from './akshare.js'
 import { readRpsStyleMeta, readRpsStylePointsRange, type RpsStylePointRow } from './supabaseRest.js'
 
+type CacheEntry<T> = { expiresAt: number; value: T }
+const readCache = new Map<string, CacheEntry<unknown>>()
+const readInflight = new Map<string, Promise<unknown>>()
+const READ_CACHE_TTL_MS = 5 * 60_000
+
 export const RPS_BENCHMARK_TICKER = '512890.SH'
 export const RPS_TARGET_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH', '512050.SH', '560010.SH'] as const
 const RPS_RUN_STALE_MAX_DAYS = 14
 
 type DataSourceName = 'eastmoney:qfq' | 'akshare:qfq'
+
+function readCacheGet<T>(key: string): T | null {
+  const hit = readCache.get(key)
+  if (hit && hit.expiresAt > Date.now()) return hit.value as T
+  return null
+}
+
+function readCacheSet<T>(key: string, value: T, ttlMs = READ_CACHE_TTL_MS) {
+  readCache.set(key, { expiresAt: Date.now() + ttlMs, value })
+}
+
+async function readCacheRemember<T>(key: string, task: () => Promise<T>, ttlMs = READ_CACHE_TTL_MS): Promise<T> {
+  const hit = readCacheGet<T>(key)
+  if (hit != null) return hit
+  const inflight = readInflight.get(key)
+  if (inflight) return inflight as Promise<T>
+  const p = (async () => {
+    const out = await task()
+    readCacheSet(key, out, ttlMs)
+    return out
+  })().finally(() => {
+    readInflight.delete(key)
+  })
+  readInflight.set(key, p as Promise<unknown>)
+  return p
+}
 
 export type RpsComputedPoint = {
   date: string
@@ -360,26 +391,31 @@ export async function getRpsStyleSeries(args: {
   if (!RPS_TARGET_TICKERS.includes(ticker as (typeof RPS_TARGET_TICKERS)[number])) {
     throw new Error(`不支持的 ticker：${ticker}`)
   }
-  const out = await getSeriesFromSupabaseRuns({ ticker, startDate: args.startDate, endDate: args.endDate })
-  const meta = await readRpsStyleMeta()
-  const isFallback = Boolean(out.usedRunId && meta?.currentRunId && out.usedRunId !== meta.currentRunId)
-  return {
-    meta: {
-      fetchedAt: out.fetchedAt,
-      dataDate: out.dataDate,
-      source: 'supabase:rps_style_point',
-      notes: [...out.notes, ...(out.usedRunId ? [`run_id=${out.usedRunId}`] : []), ...(out.fallbackReason ? [`run_fallback=${out.fallbackReason}`] : [])],
-      sourceType: 'supabase-table',
-      snapshotAt: out.fetchedAt,
-      stale: false,
-      isFallback,
-    },
-    data: {
-      ticker,
-      benchmarkTicker: RPS_BENCHMARK_TICKER,
-      series: out.series,
-    },
-  }
+  const startYmd = normalizeYmd10(args.startDate)
+  const endYmd = normalizeYmd10(args.endDate) || new Date().toISOString().slice(0, 10)
+  const cacheKey = `rps:series:${ticker}:${startYmd || 'na'}:${endYmd}`
+  return await readCacheRemember(cacheKey, async () => {
+    const out = await getSeriesFromSupabaseRuns({ ticker, startDate: args.startDate, endDate: args.endDate })
+    const meta = await readRpsStyleMeta()
+    const isFallback = Boolean(out.usedRunId && meta?.currentRunId && out.usedRunId !== meta.currentRunId)
+    return {
+      meta: {
+        fetchedAt: out.fetchedAt,
+        dataDate: out.dataDate,
+        source: 'supabase:rps_style_point',
+        notes: [...out.notes, ...(out.usedRunId ? [`run_id=${out.usedRunId}`] : []), ...(out.fallbackReason ? [`run_fallback=${out.fallbackReason}`] : [])],
+        sourceType: 'supabase-table',
+        snapshotAt: out.fetchedAt,
+        stale: false,
+        isFallback,
+      },
+      data: {
+        ticker,
+        benchmarkTicker: RPS_BENCHMARK_TICKER,
+        series: out.series,
+      },
+    }
+  })
 }
 
 export async function getRpsStyleMatrix(args?: {
@@ -412,77 +448,80 @@ export async function getRpsStyleMatrix(args?: {
 }> {
   const startDate = normalizeYmd10(args?.startDate) || '2016-01-01'
   const endDate = normalizeYmd10(args?.endDate) || new Date().toISOString().slice(0, 10)
-  const rows: Array<{
-    ticker: string
-    point: RpsComputedPoint
-    usedRunId: string | null
-    fallbackReason: string | null
-    fetchedAt: string
-  }> = []
+  const cacheKey = `rps:matrix:${startDate}:${endDate}`
+  return await readCacheRemember(cacheKey, async () => {
+    const rows: Array<{
+      ticker: string
+      point: RpsComputedPoint
+      usedRunId: string | null
+      fallbackReason: string | null
+      fetchedAt: string
+    }> = []
 
-  let globalDate: string | null = null
-  let globalFetchedAt = new Date(0).toISOString()
-  const runNotes: string[] = []
-  const currentMeta = await readRpsStyleMeta()
-  let isFallback = false
+    let globalDate: string | null = null
+    let globalFetchedAt = new Date(0).toISOString()
+    const runNotes: string[] = []
+    const currentMeta = await readRpsStyleMeta()
+    let isFallback = false
 
-  for (const ticker of RPS_TARGET_TICKERS) {
-    const out = await getSeriesFromSupabaseRuns({ ticker, startDate, endDate })
-    const last = out.series.length ? out.series[out.series.length - 1] : null
-    if (!last) continue
-    rows.push({ ticker, point: last, usedRunId: out.usedRunId, fallbackReason: out.fallbackReason, fetchedAt: out.fetchedAt })
-    if (!globalDate || last.date > globalDate) globalDate = last.date
-    if (out.fetchedAt > globalFetchedAt) globalFetchedAt = out.fetchedAt
-    if (out.usedRunId && currentMeta?.currentRunId && out.usedRunId !== currentMeta.currentRunId) isFallback = true
-    if (out.usedRunId) runNotes.push(`${ticker}:run_id=${out.usedRunId}`)
-    if (out.fallbackReason) runNotes.push(`${ticker}:fallback=${out.fallbackReason}`)
-  }
-  if (!rows.length) throw new Error('暂无可用 RPS 矩阵数据')
+    for (const ticker of RPS_TARGET_TICKERS) {
+      const out = await getSeriesFromSupabaseRuns({ ticker, startDate, endDate })
+      const last = out.series.length ? out.series[out.series.length - 1] : null
+      if (!last) continue
+      rows.push({ ticker, point: last, usedRunId: out.usedRunId, fallbackReason: out.fallbackReason, fetchedAt: out.fetchedAt })
+      if (!globalDate || last.date > globalDate) globalDate = last.date
+      if (out.fetchedAt > globalFetchedAt) globalFetchedAt = out.fetchedAt
+      if (out.usedRunId && currentMeta?.currentRunId && out.usedRunId !== currentMeta.currentRunId) isFallback = true
+      if (out.usedRunId) runNotes.push(`${ticker}:run_id=${out.usedRunId}`)
+      if (out.fallbackReason) runNotes.push(`${ticker}:fallback=${out.fallbackReason}`)
+    }
+    if (!rows.length) throw new Error('暂无可用 RPS 矩阵数据')
 
-  const sorted = [...rows].sort((a, b) => {
-    const sa = typeof a.point.scorePct === 'number' ? a.point.scorePct : -Infinity
-    const sb = typeof b.point.scorePct === 'number' ? b.point.scorePct : -Infinity
-    return sb - sa
+    const sorted = [...rows].sort((a, b) => {
+      const sa = typeof a.point.scorePct === 'number' ? a.point.scorePct : -Infinity
+      const sb = typeof b.point.scorePct === 'number' ? b.point.scorePct : -Infinity
+      return sb - sa
+    })
+    const positive = sorted.filter((x) => typeof x.point.scorePct === 'number' && (x.point.scorePct as number) > 0)
+    const leader = positive.length ? positive[0] : null
+    const mode: 'risk_on' | 'risk_off' = positive.length > 0 ? 'risk_on' : 'risk_off'
+
+    return {
+      meta: {
+        fetchedAt: globalFetchedAt,
+        dataDate: globalDate,
+        source: 'supabase:rps_style_point',
+        notes: [
+          'RPS=目标ETF前复权收盘价/512890前复权收盘价',
+          'MA50=RPS 50日简单均线',
+          'Score=(RPS/MA50-1)*100%',
+          ...runNotes,
+        ],
+        isFallback,
+      },
+      data: {
+        benchmarkTicker: RPS_BENCHMARK_TICKER,
+        mode,
+        leaderTicker: leader?.ticker ?? null,
+        suggestedAttackPositionPct: mode === 'risk_on' ? 33 : 0,
+        items: sorted.map((x) => ({
+          ticker: x.ticker,
+          date: x.point.date,
+          targetCloseQfq: x.point.targetCloseQfq,
+          benchmarkCloseQfq: x.point.benchmarkCloseQfq,
+          rpsRaw: x.point.rpsRaw,
+          rpsMa50: x.point.rpsMa50,
+          scorePct: x.point.scorePct,
+          trend:
+            typeof x.point.scorePct === 'number' && x.point.scorePct > 0
+              ? 'up'
+              : typeof x.point.scorePct === 'number' && x.point.scorePct < 0
+                ? 'down'
+                : 'flat',
+        })),
+      },
+    }
   })
-  const positive = sorted.filter((x) => typeof x.point.scorePct === 'number' && (x.point.scorePct as number) > 0)
-  const leader = positive.length ? positive[0] : null
-  const mode: 'risk_on' | 'risk_off' = positive.length > 0 ? 'risk_on' : 'risk_off'
-
-  return {
-    meta: {
-      fetchedAt: globalFetchedAt,
-      dataDate: globalDate,
-      source: 'supabase:rps_style_point',
-      notes: [
-        'RPS=目标ETF前复权收盘价/512890前复权收盘价',
-        'MA50=RPS 50日简单均线',
-        'Score=(RPS/MA50-1)*100%',
-        ...runNotes,
-      ],
-      isFallback,
-    },
-    data: {
-      benchmarkTicker: RPS_BENCHMARK_TICKER,
-      mode,
-      leaderTicker: leader?.ticker ?? null,
-      suggestedAttackPositionPct: mode === 'risk_on' ? 33 : 0,
-      items: sorted.map((x) => ({
-        ticker: x.ticker,
-        date: x.point.date,
-        targetCloseQfq: x.point.targetCloseQfq,
-        benchmarkCloseQfq: x.point.benchmarkCloseQfq,
-        rpsRaw: x.point.rpsRaw,
-        rpsMa50: x.point.rpsMa50,
-        scorePct: x.point.scorePct,
-        trend:
-          typeof x.point.scorePct === 'number' && x.point.scorePct > 0
-            ? 'up'
-            : typeof x.point.scorePct === 'number' && x.point.scorePct < 0
-              ? 'down'
-              : 'flat',
-      })),
-    },
-  }
 }
 
 export async function getRpsStyleSummary(): Promise<{
@@ -501,22 +540,95 @@ export async function getRpsStyleSummary(): Promise<{
     leaderScorePct: number | null
   }
 }> {
-  const m = await getRpsStyleMatrix()
-  const leader = m.data.items.length ? m.data.items[0] : null
-  return {
-    meta: {
-      fetchedAt: m.meta.fetchedAt,
-      dataDate: m.meta.dataDate,
-      source: m.meta.source,
-      notes: m.meta.notes,
-    },
-    data: {
-      benchmarkTicker: m.data.benchmarkTicker,
-      mode: m.data.mode,
-      leaderTicker: m.data.leaderTicker,
-      suggestedAttackPositionPct: m.data.suggestedAttackPositionPct,
-      isFallback: m.meta.isFallback,
-      leaderScorePct: leader?.scorePct ?? null,
-    },
+  return await readCacheRemember('rps:summary:v1', async () => {
+    const m = await getRpsStyleMatrix()
+    const leader = m.data.items.length ? m.data.items[0] : null
+    return {
+      meta: {
+        fetchedAt: m.meta.fetchedAt,
+        dataDate: m.meta.dataDate,
+        source: m.meta.source,
+        notes: m.meta.notes,
+      },
+      data: {
+        benchmarkTicker: m.data.benchmarkTicker,
+        mode: m.data.mode,
+        leaderTicker: m.data.leaderTicker,
+        suggestedAttackPositionPct: m.data.suggestedAttackPositionPct,
+        isFallback: m.meta.isFallback,
+        leaderScorePct: leader?.scorePct ?? null,
+      },
+    }
+  })
+}
+
+export async function getRpsStylePanel(args?: {
+  startDate?: string
+  endDate?: string
+}): Promise<{
+  meta: {
+    fetchedAt: string
+    dataDate: string | null
+    source: string
+    notes: string[]
+    isFallback: boolean
   }
+  data: {
+    summary: {
+      benchmarkTicker: string
+      mode: 'risk_on' | 'risk_off'
+      leaderTicker: string | null
+      suggestedAttackPositionPct: number
+      isFallback: boolean
+      leaderScorePct: number | null
+    }
+    matrix: {
+      benchmarkTicker: string
+      mode: 'risk_on' | 'risk_off'
+      leaderTicker: string | null
+      suggestedAttackPositionPct: number
+      items: Array<{
+        ticker: string
+        date: string
+        targetCloseQfq: number
+        benchmarkCloseQfq: number
+        rpsRaw: number
+        rpsMa50: number | null
+        scorePct: number | null
+        trend: 'up' | 'down' | 'flat'
+      }>
+    }
+    seriesByTicker: Record<string, RpsComputedPoint[]>
+  }
+}> {
+  const startDate = normalizeYmd10(args?.startDate) || '2016-01-01'
+  const endDate = normalizeYmd10(args?.endDate) || new Date().toISOString().slice(0, 10)
+  const cacheKey = `rps:panel:${startDate}:${endDate}`
+  return await readCacheRemember(cacheKey, async () => {
+    const matrix = await getRpsStyleMatrix({ startDate, endDate })
+    const leader = matrix.data.items.length ? matrix.data.items[0] : null
+    const summary = {
+      benchmarkTicker: matrix.data.benchmarkTicker,
+      mode: matrix.data.mode,
+      leaderTicker: matrix.data.leaderTicker,
+      suggestedAttackPositionPct: matrix.data.suggestedAttackPositionPct,
+      isFallback: matrix.meta.isFallback,
+      leaderScorePct: leader?.scorePct ?? null,
+    }
+    const tickers = matrix.data.items.map((x) => x.ticker)
+    const allSeries = await Promise.all(
+      tickers.map(async (ticker) => {
+        const out = await getRpsStyleSeries({ ticker, startDate, endDate })
+        return [ticker, out.data.series] as const
+      }),
+    )
+    return {
+      meta: matrix.meta,
+      data: {
+        summary,
+        matrix: matrix.data,
+        seriesByTicker: Object.fromEntries(allSeries),
+      },
+    }
+  })
 }

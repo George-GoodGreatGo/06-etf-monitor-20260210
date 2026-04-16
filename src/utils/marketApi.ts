@@ -31,6 +31,20 @@ export type MarketLiquidityV5 = {
   } | null
 }
 
+type FrontCacheEntry = { expiresAt: number; value: unknown }
+const FRONT_CACHE_TTL_MS = 5 * 60_000
+const frontCache = new Map<string, FrontCacheEntry>()
+
+function getFrontCache<T>(key: string): T | null {
+  const hit = frontCache.get(key)
+  if (hit && hit.expiresAt > Date.now()) return hit.value as T
+  return null
+}
+
+function setFrontCache<T>(key: string, value: T, ttlMs = FRONT_CACHE_TTL_MS) {
+  frontCache.set(key, { expiresAt: Date.now() + ttlMs, value })
+}
+
 export type LowVolH30269Point = {
   date: string
   close: number
@@ -160,8 +174,17 @@ export type RpsStyleSummaryData = {
   leaderScorePct: number | null
 }
 
+export type RpsStylePanelData = {
+  summary: RpsStyleSummaryData
+  matrix: RpsStyleMatrixData
+  seriesByTicker: Record<string, RpsStyleSeriesPoint[]>
+}
+
 export async function fetchLowVolIndex(args: { code: string; signal?: AbortSignal }): Promise<ApiOk<LowVolH30269Data> | ApiErr> {
   const code = String(args.code || '').trim()
+  const cacheKey = `lowvol:index:${code}`
+  const cached = getFrontCache<ApiOk<LowVolH30269Data> | ApiErr>(cacheKey)
+  if (cached) return cached
   let res: Response
   try {
     res = await fetch(apiUrl(`/api/lowvol/index/${encodeURIComponent(code)}`), {
@@ -192,10 +215,15 @@ export async function fetchLowVolIndex(args: { code: string; signal?: AbortSigna
         : `HTTP ${res.status}`
     return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
   }
-  return json as ApiOk<LowVolH30269Data> | ApiErr
+  const out = json as ApiOk<LowVolH30269Data> | ApiErr
+  if (out && typeof out === 'object' && out.success === true) setFrontCache(cacheKey, out)
+  return out
 }
 
 export async function fetchLowVolSummary(args?: { signal?: AbortSignal }): Promise<ApiOk<LowVolSummaryData> | ApiErr> {
+  const cacheKey = 'lowvol:summary'
+  const cached = getFrontCache<ApiOk<LowVolSummaryData> | ApiErr>(cacheKey)
+  if (cached) return cached
   let res: Response
   try {
     res = await fetch(apiUrl('/api/lowvol/summary'), {
@@ -226,11 +254,16 @@ export async function fetchLowVolSummary(args?: { signal?: AbortSignal }): Promi
         : `HTTP ${res.status}`
     return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
   }
-  return json as ApiOk<LowVolSummaryData> | ApiErr
+  const out = json as ApiOk<LowVolSummaryData> | ApiErr
+  if (out && typeof out === 'object' && out.success === true) setFrontCache(cacheKey, out)
+  return out
 }
 
 export async function fetchValueTimingIndex(args: { code: string; signal?: AbortSignal }): Promise<ApiOk<ValueTimingData> | ApiErr> {
   const code = String(args.code || '').trim()
+  const cacheKey = `value:index:${code}`
+  const cached = getFrontCache<ApiOk<ValueTimingData> | ApiErr>(cacheKey)
+  if (cached) return cached
   let res: Response
   try {
     res = await fetch(apiUrl(`/api/value/index/${encodeURIComponent(code)}`), {
@@ -261,10 +294,15 @@ export async function fetchValueTimingIndex(args: { code: string; signal?: Abort
         : `HTTP ${res.status}`
     return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
   }
-  return json as ApiOk<ValueTimingData> | ApiErr
+  const out = json as ApiOk<ValueTimingData> | ApiErr
+  if (out && typeof out === 'object' && out.success === true) setFrontCache(cacheKey, out)
+  return out
 }
 
 export async function fetchValueTimingSummary(args?: { signal?: AbortSignal }): Promise<ApiOk<ValueTimingSummaryData> | ApiErr> {
+  const cacheKey = 'value:summary'
+  const cached = getFrontCache<ApiOk<ValueTimingSummaryData> | ApiErr>(cacheKey)
+  if (cached) return cached
   let res: Response
   try {
     res = await fetch(apiUrl('/api/value/summary'), {
@@ -295,10 +333,15 @@ export async function fetchValueTimingSummary(args?: { signal?: AbortSignal }): 
         : `HTTP ${res.status}`
     return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
   }
-  return json as ApiOk<ValueTimingSummaryData> | ApiErr
+  const out = json as ApiOk<ValueTimingSummaryData> | ApiErr
+  if (out && typeof out === 'object' && out.success === true) setFrontCache(cacheKey, out)
+  return out
 }
 
 export async function fetchRpsStyleSummary(args?: { signal?: AbortSignal }): Promise<ApiOk<RpsStyleSummaryData> | ApiErr> {
+  const cacheKey = 'rps:summary'
+  const cached = getFrontCache<ApiOk<RpsStyleSummaryData> | ApiErr>(cacheKey)
+  if (cached) return cached
   let res: Response
   try {
     res = await fetch(apiUrl('/api/rps/summary'), {
@@ -329,7 +372,9 @@ export async function fetchRpsStyleSummary(args?: { signal?: AbortSignal }): Pro
         : `HTTP ${res.status}`
     return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
   }
-  return json as ApiOk<RpsStyleSummaryData> | ApiErr
+  const out = json as ApiOk<RpsStyleSummaryData> | ApiErr
+  if (out && typeof out === 'object' && out.success === true) setFrontCache(cacheKey, out)
+  return out
 }
 
 export async function fetchRpsStyleMatrix(args?: {
@@ -341,6 +386,9 @@ export async function fetchRpsStyleMatrix(args?: {
   if (args?.startDate) qs.set('startDate', args.startDate)
   if (args?.endDate) qs.set('endDate', args.endDate)
   const url = qs.toString() ? `/api/rps/matrix?${qs.toString()}` : '/api/rps/matrix'
+  const cacheKey = `rps:matrix:${url}`
+  const cached = getFrontCache<ApiOk<RpsStyleMatrixData> | ApiErr>(cacheKey)
+  if (cached) return cached
   let res: Response
   try {
     res = await fetch(apiUrl(url), {
@@ -371,7 +419,9 @@ export async function fetchRpsStyleMatrix(args?: {
         : `HTTP ${res.status}`
     return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
   }
-  return json as ApiOk<RpsStyleMatrixData> | ApiErr
+  const out = json as ApiOk<RpsStyleMatrixData> | ApiErr
+  if (out && typeof out === 'object' && out.success === true) setFrontCache(cacheKey, out)
+  return out
 }
 
 export async function fetchRpsStyleSeries(args: {
@@ -385,6 +435,9 @@ export async function fetchRpsStyleSeries(args: {
   if (args.startDate) qs.set('startDate', args.startDate)
   if (args.endDate) qs.set('endDate', args.endDate)
   const url = qs.toString() ? `/api/rps/series/${encodeURIComponent(ticker)}?${qs.toString()}` : `/api/rps/series/${encodeURIComponent(ticker)}`
+  const cacheKey = `rps:series:${url}`
+  const cached = getFrontCache<ApiOk<RpsStyleSeriesData> | ApiErr>(cacheKey)
+  if (cached) return cached
   let res: Response
   try {
     res = await fetch(apiUrl(url), {
@@ -415,10 +468,62 @@ export async function fetchRpsStyleSeries(args: {
         : `HTTP ${res.status}`
     return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
   }
-  return json as ApiOk<RpsStyleSeriesData> | ApiErr
+  const out = json as ApiOk<RpsStyleSeriesData> | ApiErr
+  if (out && typeof out === 'object' && out.success === true) setFrontCache(cacheKey, out)
+  return out
+}
+
+export async function fetchRpsStylePanel(args?: {
+  startDate?: string
+  endDate?: string
+  signal?: AbortSignal
+}): Promise<ApiOk<RpsStylePanelData> | ApiErr> {
+  const qs = new URLSearchParams()
+  if (args?.startDate) qs.set('startDate', args.startDate)
+  if (args?.endDate) qs.set('endDate', args.endDate)
+  const url = qs.toString() ? `/api/rps/panel?${qs.toString()}` : '/api/rps/panel'
+  const cacheKey = `rps:panel:${url}`
+  const cached = getFrontCache<ApiOk<RpsStylePanelData> | ApiErr>(cacheKey)
+  if (cached) return cached
+  let res: Response
+  try {
+    res = await fetch(apiUrl(url), {
+      ...(args?.signal ? { signal: args.signal } : {}),
+      credentials: 'include',
+      headers: {
+        ...adminAuthHeaders(),
+      },
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    const name = e instanceof Error ? e.name : ''
+    const aborted = name === 'AbortError' || msg.toLowerCase().includes('aborted')
+    return { success: false, error: 'api_error', message: aborted ? '请求已取消' : msg || '网络异常或 API 不可用' }
+  }
+
+  const text = await res.text()
+  let json: unknown = null
+  try {
+    json = text ? (JSON.parse(text) as unknown) : null
+  } catch {
+    json = null
+  }
+  if (!res.ok) {
+    const msg =
+      json && typeof json === 'object' && json && 'message' in (json as Record<string, unknown>) && typeof (json as Record<string, unknown>).message === 'string'
+        ? String((json as Record<string, unknown>).message)
+        : `HTTP ${res.status}`
+    return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
+  }
+  const out = json as ApiOk<RpsStylePanelData> | ApiErr
+  if (out && typeof out === 'object' && out.success === true) setFrontCache(cacheKey, out)
+  return out
 }
 
 export async function fetchMarketLiquidityV5(signal?: AbortSignal): Promise<ApiOk<MarketLiquidityV5> | ApiErr> {
+  const cacheKey = 'market:v5'
+  const cached = getFrontCache<ApiOk<MarketLiquidityV5> | ApiErr>(cacheKey)
+  if (cached) return cached
   let res: Response
   try {
     res = await fetch(apiUrl('/api/market/liquidity/v5'), {
@@ -450,10 +555,9 @@ export async function fetchMarketLiquidityV5(signal?: AbortSignal): Promise<ApiO
     return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
   }
 
-  const ok = json as ApiOk<MarketLiquidityV5>
-  const meta = ok && typeof ok === 'object' && ok.meta && typeof ok.meta === 'object' ? (ok.meta as Top100Meta) : null
-  if (!meta) return json as ApiOk<MarketLiquidityV5> | ApiErr
-  return json as ApiOk<MarketLiquidityV5> | ApiErr
+  const out = json as ApiOk<MarketLiquidityV5> | ApiErr
+  if (out && typeof out === 'object' && out.success === true) setFrontCache(cacheKey, out)
+  return out
 }
 
 export async function fetchLowVolH30269(signal?: AbortSignal): Promise<ApiOk<LowVolH30269Data> | ApiErr> {

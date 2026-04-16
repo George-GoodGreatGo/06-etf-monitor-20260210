@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import DataStatusBanner from '@/components/DataStatusBanner'
 import RpsStyleChart from '@/components/charts/RpsStyleChart'
 import { cn } from '@/lib/utils'
-import { fetchRpsStyleMatrix, fetchRpsStyleSeries, fetchRpsStyleSummary, type RpsStyleMatrixItem, type RpsStyleSeriesPoint } from '@/utils/marketApi'
+import { fetchRpsStyleMatrix, fetchRpsStylePanel, fetchRpsStyleSeries, fetchRpsStyleSummary, type RpsStyleMatrixItem, type RpsStyleSeriesPoint } from '@/utils/marketApi'
 import type { Top100Meta } from '@/utils/etfApi'
 
 const DEFAULT_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH', '512050.SH', '560010.SH']
@@ -109,17 +109,53 @@ export default function RpsStylePanel() {
       setLoading(true)
       setError(null)
       try {
+        const panelRes = await fetchRpsStylePanel({
+          ...(chartView === 'relative'
+            ? {
+                startDate: resolvedRange.startDate,
+                endDate: resolvedRange.endDate,
+              }
+            : {}),
+          signal: ac.signal,
+        })
+
+        if (panelRes.success === true) {
+          const sum = panelRes.data.summary
+          const matrix = panelRes.data.matrix
+          setMeta(panelRes.meta || null)
+          setMode(sum.mode)
+          setLeaderTicker(sum.leaderTicker)
+          setPositionPct(sum.suggestedAttackPositionPct)
+          setIsFallback(Boolean(sum.isFallback || (panelRes.meta as unknown as { isFallback?: boolean })?.isFallback))
+          const matrixItems = Array.isArray(matrix.items) ? matrix.items : []
+          setItems(matrixItems)
+          const tickers = matrixItems.length ? matrixItems.map((x) => x.ticker) : DEFAULT_TICKERS
+          setEnabledTickers((prev) => {
+            const next: Record<string, boolean> = {}
+            for (const t of tickers) next[t] = prev[t] ?? true
+            return next
+          })
+          const byTicker: Record<string, RpsStyleSeriesPoint[]> = {}
+          for (const ticker of tickers) {
+            const s = panelRes.data.seriesByTicker?.[ticker]
+            byTicker[ticker] = Array.isArray(s) ? s : []
+          }
+          setSeriesByTicker(byTicker)
+          setLoading(false)
+          return
+        }
+
         const [sumRes, matrixRes] = await Promise.all([
           fetchRpsStyleSummary({ signal: ac.signal }),
           fetchRpsStyleMatrix({ signal: ac.signal }),
         ])
         if (sumRes.success !== true) {
-          setError(sumRes.message || '获取RPS摘要失败')
+          setError(sumRes.message || panelRes.message || '获取RPS摘要失败')
           setLoading(false)
           return
         }
         if (matrixRes.success !== true) {
-          setError(matrixRes.message || '获取RPS矩阵失败')
+          setError(matrixRes.message || panelRes.message || '获取RPS矩阵失败')
           setLoading(false)
           return
         }
@@ -155,11 +191,8 @@ export default function RpsStylePanel() {
         const byTicker: Record<string, RpsStyleSeriesPoint[]> = {}
         for (let i = 0; i < tickers.length; i += 1) {
           const r = all[i]
-          if (r.success === true && Array.isArray(r.data?.series)) {
-            byTicker[tickers[i]] = r.data.series
-          } else {
-            byTicker[tickers[i]] = []
-          }
+          if (r.success === true && Array.isArray(r.data?.series)) byTicker[tickers[i]] = r.data.series
+          else byTicker[tickers[i]] = []
         }
         setSeriesByTicker(byTicker)
         setLoading(false)

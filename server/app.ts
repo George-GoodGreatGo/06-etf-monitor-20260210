@@ -8,6 +8,7 @@ import express, {
   type NextFunction,
 } from 'express'
 import cors from 'cors'
+import compression from 'compression'
 import dotenv from 'dotenv'
 import authRoutes from './routes/auth.js'
 import etfRoutes from './routes/etf.js'
@@ -31,6 +32,7 @@ app.use(
     credentials: true,
   }),
 )
+app.use(compression())
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 

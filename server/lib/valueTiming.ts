@@ -4,10 +4,16 @@ import { runAkshare } from './akshare.js'
 import path from 'node:path'
 import {
   readLatestValueTimingIndexSnapshot,
+  readValueTimingLatestPointsByCodes,
   readValueTimingIndexPointsRange,
   readValueTimingMeta,
   type ValueTimingIndexPointRow,
 } from './supabaseRest.js'
+
+type CacheEntry<T> = { expiresAt: number; value: T }
+const readCache = new Map<string, CacheEntry<unknown>>()
+const readInflight = new Map<string, Promise<unknown>>()
+const READ_CACHE_TTL_MS = 5 * 60_000
 
 function shouldVerboseLog(): boolean {
   const v = String(process.env.VALUE_TIMING_VERBOSE || '').trim()
@@ -18,6 +24,32 @@ function shouldVerboseLog(): boolean {
 function logEvent(event: Record<string, unknown>) {
   if (!shouldVerboseLog()) return
   process.stdout.write(`${JSON.stringify({ ts: new Date().toISOString(), ...event })}\n`)
+}
+
+function readCacheGet<T>(key: string): T | null {
+  const hit = readCache.get(key)
+  if (hit && hit.expiresAt > Date.now()) return hit.value as T
+  return null
+}
+
+function readCacheSet<T>(key: string, value: T, ttlMs = READ_CACHE_TTL_MS) {
+  readCache.set(key, { expiresAt: Date.now() + ttlMs, value })
+}
+
+async function readCacheRemember<T>(key: string, task: () => Promise<T>, ttlMs = READ_CACHE_TTL_MS): Promise<T> {
+  const hit = readCacheGet<T>(key)
+  if (hit != null) return hit
+  const inflight = readInflight.get(key)
+  if (inflight) return inflight as Promise<T>
+  const p = (async () => {
+    const out = await task()
+    readCacheSet(key, out, ttlMs)
+    return out
+  })().finally(() => {
+    readInflight.delete(key)
+  })
+  readInflight.set(key, p as Promise<unknown>)
+  return p
 }
 
 type ValueTimingIndexConfig = {
@@ -970,53 +1002,50 @@ export async function getValueTimingSummary(): Promise<{
   meta: { fetchedAt: string; dataDate: string | null; source: string; notes: string[] }
   data: { items: ValueTimingSummaryItem[] }
 }> {
-  const fetchedAt = new Date().toISOString()
-  const codes = getValueTimingSupportedIndexCodes()
-  const items: ValueTimingSummaryItem[] = []
-  let ok = 0
-  let fail = 0
-  let dataDate: string | null = null
-  for (const code of codes) {
-    try {
-      const out = await getValueIndexSeriesFromSupabaseRuns({ code })
-      const series = out.series
-      const last = series.length ? series[series.length - 1] : null
-      if (!last) {
-        items.push({ code, latest: null, error: 'no_data', message: '暂无已发布数据' })
+  return await readCacheRemember('value:summary:v1', async () => {
+    const fetchedAt = new Date().toISOString()
+    const codes = getValueTimingSupportedIndexCodes()
+    const meta = await readValueTimingMeta()
+    const runIds = (meta?.historyRunIds || []).filter(Boolean)
+    const endDate = new Date().toISOString().slice(0, 10)
+    const latestRows = await readValueTimingLatestPointsByCodes({ codes, endDate, runIds })
+    const items: ValueTimingSummaryItem[] = []
+    let ok = 0
+    let fail = 0
+    let dataDate: string | null = null
+    for (const it of latestRows) {
+      const row = it.row
+      if (!row) {
+        items.push({ code: it.code, latest: null, error: 'no_data', message: it.fallbackReason || '暂无可用数据' })
         fail += 1
         continue
       }
-      const rowDate = out.dataDate || last.date || null
-      if (rowDate && (!dataDate || rowDate > dataDate)) dataDate = rowDate
+      if (row.data_date && (!dataDate || row.data_date > dataDate)) dataDate = row.data_date
       items.push({
-        code,
+        code: it.code,
         latest: {
-          date: last.date,
-          spreadPctRank5y: last.spreadPctRank5y ?? null,
-          pe: last.pe ?? null,
-          earningsYieldPct: last.earningsYieldPct ?? null,
-          biasPct3y: last.biasPct3y ?? null,
-          biasPct3y60: last.biasPct3y60 ?? null,
-          peSource: last.peSource ?? null,
+          date: row.data_date,
+          spreadPctRank5y: row.spread_pct_rank_5y ?? null,
+          pe: row.pe ?? null,
+          earningsYieldPct: row.earnings_yield_pct ?? null,
+          biasPct3y: row.bias_pct_3y ?? null,
+          biasPct3y60: row.bias_pct_3y_60 ?? null,
+          peSource: row.pe_source ?? null,
         },
       })
       ok += 1
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      items.push({ code, latest: null, error: 'no_data', message: msg || '暂无可用数据' })
-      fail += 1
     }
-  }
 
-  return {
-    meta: {
-      fetchedAt,
-      dataDate,
-      source: 'supabase:value_timing_index_point',
-      notes: [`ok=${ok}`, `fail=${fail}`],
-    },
-    data: { items },
-  }
+    return {
+      meta: {
+        fetchedAt,
+        dataDate,
+        source: 'supabase:value_timing_index_point',
+        notes: [`ok=${ok}`, `fail=${fail}`],
+      },
+      data: { items },
+    }
+  })
 }
 
 export async function getValueTimingIndexSnapshotSeries(args: {
@@ -1038,52 +1067,55 @@ export async function getValueTimingIndexSnapshotSeries(args: {
   const code = String(args.code || '').trim()
   const startYmd = normalizeYmd10(args.startDate)
   const endYmd = normalizeYmd10(args.endDate) || new Date().toISOString().slice(0, 10)
-  try {
-    const out = await getValueIndexSeriesFromSupabaseRuns({ code, startDate: startYmd, endDate: endYmd })
-    return {
-      meta: {
-        fetchedAt: out.fetchedAt,
-        dataDate: out.dataDate,
-        source: 'supabase:value_timing_index_point',
-        notes: [...out.notes, ...(out.usedRunId ? [`run_id=${out.usedRunId}`] : []), ...(out.fallbackReason ? [`run_fallback=${out.fallbackReason}`] : [])],
-        sourceType: 'supabase-table',
-        snapshotAt: out.fetchedAt,
-        stale: false,
-      },
-      data: { series: out.series },
-    }
-  } catch {
-    const row = await readLatestValueTimingIndexSnapshot(code)
-    if (!row) throw new Error(`暂无快照，请等待晚间刷新：${code}`)
-    const payload = row.payload && typeof row.payload === 'object' ? (row.payload as { series?: unknown }) : null
-    const hydrated = hydrateValueTimingSeriesWithDerivedMetrics(payload?.series)
-    const full = hydrated.series
-    const series =
-      startYmd || endYmd
-        ? full.filter((p) => {
-            if (!p || typeof p !== 'object') return false
-            const d = String((p as ValueTimingDailyPoint).date || '')
-            if (!d) return false
-            if (startYmd && d < startYmd) return false
-            if (endYmd && d > endYmd) return false
-            return true
-          })
-        : full
+  const cacheKey = `value:index:${code}:${startYmd || 'na'}:${endYmd}`
+  return await readCacheRemember(cacheKey, async () => {
+    try {
+      const out = await getValueIndexSeriesFromSupabaseRuns({ code, startDate: startYmd, endDate: endYmd })
+      return {
+        meta: {
+          fetchedAt: out.fetchedAt,
+          dataDate: out.dataDate,
+          source: 'supabase:value_timing_index_point',
+          notes: [...out.notes, ...(out.usedRunId ? [`run_id=${out.usedRunId}`] : []), ...(out.fallbackReason ? [`run_fallback=${out.fallbackReason}`] : [])],
+          sourceType: 'supabase-table',
+          snapshotAt: out.fetchedAt,
+          stale: false,
+        },
+        data: { series: out.series },
+      }
+    } catch {
+      const row = await readLatestValueTimingIndexSnapshot(code)
+      if (!row) throw new Error(`暂无快照，请等待晚间刷新：${code}`)
+      const payload = row.payload && typeof row.payload === 'object' ? (row.payload as { series?: unknown }) : null
+      const hydrated = hydrateValueTimingSeriesWithDerivedMetrics(payload?.series)
+      const full = hydrated.series
+      const series =
+        startYmd || endYmd
+          ? full.filter((p) => {
+              if (!p || typeof p !== 'object') return false
+              const d = String((p as ValueTimingDailyPoint).date || '')
+              if (!d) return false
+              if (startYmd && d < startYmd) return false
+              if (endYmd && d > endYmd) return false
+              return true
+            })
+          : full
 
-    return {
-      meta: {
-        fetchedAt: row.snapshot_at,
-        dataDate: row.data_date ?? null,
-        source: row.source ?? 'supabase:value_timing_index_daily',
-        notes: [
-          ...(Array.isArray(row.notes) ? (row.notes as string[]) : []),
-          ...(hydrated.hydrationApplied ? hydrated.notes : []),
-        ],
-        sourceType: 'snapshot',
-        snapshotAt: row.snapshot_at ?? null,
-        stale: true,
-      },
-      data: { series },
+      return {
+        meta: {
+          fetchedAt: row.snapshot_at,
+          dataDate: row.data_date ?? null,
+          source: row.source ?? 'supabase:value_timing_index_daily',
+          notes: [
+            ...(Array.isArray(row.notes) ? (row.notes as string[]) : []),
+            ...(hydrated.hydrationApplied ? hydrated.notes : []),
+          ],
+          sourceType: 'snapshot',
+          snapshotAt: row.snapshot_at ?? null,
+          stale: true,
+        },
+        data: { series },
+      }
     }
-  }
+  })
 }

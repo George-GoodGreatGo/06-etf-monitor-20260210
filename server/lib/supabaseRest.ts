@@ -763,6 +763,72 @@ export async function readLowVolIndexPointsRange(args: {
   })
 }
 
+async function readLowVolLatestPoint(args: {
+  code: string
+  endDate: string
+  runId?: string | null
+}): Promise<LowVolIndexPointRow | null> {
+  const supabaseUrl = String(process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '')
+  const anonKey = String(process.env.SUPABASE_ANON_KEY || '').trim()
+  const serviceKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
+  const readKey = serviceKey || anonKey
+  const code = String(args.code || '').trim()
+  const endDate = String(args.endDate || '').trim()
+  const runId = args.runId ? String(args.runId).trim() : ''
+  if (!supabaseUrl || !readKey || !code || !endDate) return null
+  const url =
+    `${supabaseUrl}/rest/v1/lowvol_index_point?select=*` +
+    `&code=eq.${encodeURIComponent(code)}` +
+    `&data_date=lte.${encodeURIComponent(endDate)}` +
+    (runId ? `&run_id=eq.${encodeURIComponent(runId)}` : '') +
+    `&order=data_date.desc&limit=1`
+  const res = await fetch(url, {
+    headers: {
+      apikey: readKey,
+      Authorization: `Bearer ${readKey}`,
+    },
+  })
+  if (!res.ok) return null
+  const j = (await res.json().catch(() => null)) as unknown
+  if (!Array.isArray(j) || j.length === 0) return null
+  const first = j[0]
+  if (!first || typeof first !== 'object') return null
+  return first as LowVolIndexPointRow
+}
+
+export async function readLowVolLatestPointsByCodes(args: {
+  codes: string[]
+  endDate: string
+  runIds: string[]
+}): Promise<Array<{ code: string; row: LowVolIndexPointRow | null; usedRunId: string | null; fallbackReason: string | null }>> {
+  const codes = Array.isArray(args.codes) ? args.codes.map((x) => String(x || '').trim().toUpperCase()).filter(Boolean) : []
+  const endDate = String(args.endDate || '').trim()
+  const runIds = Array.isArray(args.runIds) ? args.runIds.map((x) => String(x || '').trim()).filter(Boolean) : []
+  const out: Array<{ code: string; row: LowVolIndexPointRow | null; usedRunId: string | null; fallbackReason: string | null }> = []
+  for (const code of codes) {
+    let hit: LowVolIndexPointRow | null = null
+    let usedRunId: string | null = null
+    let fallbackReason: string | null = null
+    for (const runId of runIds) {
+      const row = await readLowVolLatestPoint({ code, endDate, runId })
+      if (!row) {
+        fallbackReason = fallbackReason ? `${fallbackReason}; run=${runId}:empty` : `run=${runId}:empty`
+        continue
+      }
+      hit = row
+      usedRunId = runId
+      break
+    }
+    if (!hit) {
+      hit = await readLowVolLatestPoint({ code, endDate })
+      if (hit) fallbackReason = fallbackReason ? `${fallbackReason}; run=all:ok` : 'run=all:ok'
+      else fallbackReason = fallbackReason ? `${fallbackReason}; run=all:empty` : 'run=all:empty'
+    }
+    out.push({ code, row: hit, usedRunId, fallbackReason })
+  }
+  return out
+}
+
 export async function upsertLowVolIndexPoints(payload: Array<Omit<LowVolIndexPointRow, 'updated_at'>>): Promise<void> {
   const supabaseUrl = mustEnv('SUPABASE_URL').replace(/\/+$/, '')
   const serviceKey = mustEnv('SUPABASE_SERVICE_ROLE_KEY')
@@ -993,6 +1059,73 @@ export async function readValueTimingIndexPointsRange(args: {
     pageSize: 1000,
     maxRows: 50_000,
   })
+}
+
+async function readValueTimingLatestPoint(args: {
+  code: string
+  endDate: string
+  runId?: string | null
+}): Promise<ValueTimingIndexPointRow | null> {
+  const supabaseUrl = String(process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '')
+  const anonKey = String(process.env.SUPABASE_ANON_KEY || '').trim()
+  const serviceKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
+  const readKey = serviceKey || anonKey
+  const code = String(args.code || '').trim()
+  const endDate = String(args.endDate || '').trim()
+  const runId = args.runId ? String(args.runId).trim() : ''
+  if (!supabaseUrl || !readKey || !code || !endDate) return null
+
+  const url =
+    `${supabaseUrl}/rest/v1/value_timing_index_point?select=*` +
+    `&code=eq.${encodeURIComponent(code)}` +
+    `&data_date=lte.${encodeURIComponent(endDate)}` +
+    (runId ? `&run_id=eq.${encodeURIComponent(runId)}` : '') +
+    `&order=data_date.desc&limit=1`
+  const res = await fetch(url, {
+    headers: {
+      apikey: readKey,
+      Authorization: `Bearer ${readKey}`,
+    },
+  })
+  if (!res.ok) return null
+  const j = (await res.json().catch(() => null)) as unknown
+  if (!Array.isArray(j) || j.length === 0) return null
+  const first = j[0]
+  if (!first || typeof first !== 'object') return null
+  return first as ValueTimingIndexPointRow
+}
+
+export async function readValueTimingLatestPointsByCodes(args: {
+  codes: string[]
+  endDate: string
+  runIds: string[]
+}): Promise<Array<{ code: string; row: ValueTimingIndexPointRow | null; usedRunId: string | null; fallbackReason: string | null }>> {
+  const codes = Array.isArray(args.codes) ? args.codes.map((x) => String(x || '').trim()).filter(Boolean) : []
+  const endDate = String(args.endDate || '').trim()
+  const runIds = Array.isArray(args.runIds) ? args.runIds.map((x) => String(x || '').trim()).filter(Boolean) : []
+  const out: Array<{ code: string; row: ValueTimingIndexPointRow | null; usedRunId: string | null; fallbackReason: string | null }> = []
+  for (const code of codes) {
+    let hit: ValueTimingIndexPointRow | null = null
+    let usedRunId: string | null = null
+    let fallbackReason: string | null = null
+    for (const runId of runIds) {
+      const row = await readValueTimingLatestPoint({ code, endDate, runId })
+      if (!row) {
+        fallbackReason = fallbackReason ? `${fallbackReason}; run=${runId}:empty` : `run=${runId}:empty`
+        continue
+      }
+      hit = row
+      usedRunId = runId
+      break
+    }
+    if (!hit) {
+      hit = await readValueTimingLatestPoint({ code, endDate })
+      if (hit) fallbackReason = fallbackReason ? `${fallbackReason}; run=all:ok` : 'run=all:ok'
+      else fallbackReason = fallbackReason ? `${fallbackReason}; run=all:empty` : 'run=all:empty'
+    }
+    out.push({ code, row: hit, usedRunId, fallbackReason })
+  }
+  return out
 }
 
 export async function upsertValueTimingIndexPoints(payload: Array<Omit<ValueTimingIndexPointRow, 'updated_at'>>): Promise<void> {
