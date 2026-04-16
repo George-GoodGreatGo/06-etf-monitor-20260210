@@ -142,6 +142,18 @@ export default function RpsStyleChart({
     }
   }, [enabledTickers, seriesByTicker, viewMode])
 
+  const scoreFixedRange = useMemo(() => {
+    const min = prepared.scoreRange?.min
+    const max = prepared.scoreRange?.max
+    if (typeof min === 'number' && Number.isFinite(min) && typeof max === 'number' && Number.isFinite(max)) {
+      return {
+        minValue: Math.min(-20, min) - 10,
+        maxValue: Math.max(20, max) + 10,
+      }
+    }
+    return { minValue: -30, maxValue: 30 }
+  }, [prepared.scoreRange?.max, prepared.scoreRange?.min])
+
   useEffect(() => {
     const el = hostRef.current
     if (!el || chartRef.current) return
@@ -178,6 +190,17 @@ export default function RpsStyleChart({
       bgRefs.current = []
     }
   }, [lockEdges])
+
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart) return
+    chart.applyOptions({
+      handleScale:
+        viewMode === 'score'
+          ? { mouseWheel: true, axisPressedMouseMove: false, pinch: true }
+          : { mouseWheel: true, axisPressedMouseMove: true, pinch: true },
+    })
+  }, [viewMode])
 
   function buildScoreBgBands(range: { min: number; max: number }): Array<{ top: number; bottom: number; color: string }> {
     const upper = Math.max(20, range.max) + 10
@@ -246,6 +269,16 @@ export default function RpsStyleChart({
         lineWidth: 2,
         priceLineVisible: false,
         lastValueVisible: true,
+        ...(viewMode === 'score'
+          ? {
+              autoscaleInfoProvider: () => ({
+                priceRange: {
+                  minValue: scoreFixedRange.minValue,
+                  maxValue: scoreFixedRange.maxValue,
+                },
+              }),
+            }
+          : {}),
       })
       rpsSeries.setData(item.rps)
       if (viewMode === 'relative') {
