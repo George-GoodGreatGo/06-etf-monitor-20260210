@@ -3,7 +3,7 @@ import { runAkshare } from './akshare.js'
 import { readRpsStyleMeta, readRpsStylePointsRange, type RpsStylePointRow } from './supabaseRest.js'
 
 export const RPS_BENCHMARK_TICKER = '512890.SH'
-export const RPS_TARGET_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH'] as const
+export const RPS_TARGET_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH', '512050.SH', '560010.SH'] as const
 const RPS_RUN_STALE_MAX_DAYS = 14
 
 type DataSourceName = 'eastmoney:qfq' | 'akshare:qfq'

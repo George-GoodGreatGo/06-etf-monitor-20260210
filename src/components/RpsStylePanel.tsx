@@ -5,13 +5,15 @@ import { cn } from '@/lib/utils'
 import { fetchRpsStyleMatrix, fetchRpsStyleSeries, fetchRpsStyleSummary, type RpsStyleMatrixItem, type RpsStyleSeriesPoint } from '@/utils/marketApi'
 import type { Top100Meta } from '@/utils/etfApi'
 
-const DEFAULT_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH']
+const DEFAULT_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH', '512050.SH', '560010.SH']
 const ETF_NAME_MAP: Record<string, string> = {
   '512890.SH': '红利低波ETF',
   '159915.SZ': '创业板ETF',
   '588000.SH': '科创50ETF',
   '513180.SH': '恒生科技ETF',
   '510300.SH': '沪深300ETF',
+  '512050.SH': '中证A500ETF',
+  '560010.SH': '中证1000ETF',
 }
 const RANGE_OPTIONS = [
   { key: '1w', label: '最近1周' },

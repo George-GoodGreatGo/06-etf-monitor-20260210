@@ -38,6 +38,8 @@ const TICKER_COLOR_MAP: Record<string, string> = {
   '588000.SH': '#F59E0B',
   '513180.SH': '#34D399',
   '510300.SH': '#F87171',
+  '512050.SH': '#22D3EE',
+  '560010.SH': '#FBBF24',
   '512890.SH': '#A78BFA',
 }
 
