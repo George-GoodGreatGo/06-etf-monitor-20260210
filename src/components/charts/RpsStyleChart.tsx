@@ -7,6 +7,7 @@ type Props = {
   viewMode: 'raw' | 'relative' | 'score'
   baseLabel?: string
   tickerNameMap?: Record<string, string>
+  enabledTickers?: Record<string, boolean>
   lockEdges?: boolean
 }
 
@@ -48,6 +49,7 @@ export default function RpsStyleChart({
   viewMode,
   baseLabel = '512890.SH=1',
   tickerNameMap = {},
+  enabledTickers = {},
   lockEdges = true,
 }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null)
@@ -56,7 +58,7 @@ export default function RpsStyleChart({
   const [hover, setHover] = useState<HoverState | null>(null)
 
   const prepared = useMemo(() => {
-    const tickers = Object.keys(seriesByTicker).sort()
+    const tickers = Object.keys(seriesByTicker).sort().filter((ticker) => enabledTickers[ticker] !== false)
     const byTime = new Map<number, { date: string; rows: Record<string, { rps: number | null; ma50: number | null }> }>()
     const lines = tickers.map((ticker, idx) => {
       const src = Array.isArray(seriesByTicker[ticker]) ? seriesByTicker[ticker] : []
@@ -109,7 +111,7 @@ export default function RpsStyleChart({
       return { ticker, color: COLORS[idx % COLORS.length], rps, ma50 }
     })
     return { lines, byTime }
-  }, [seriesByTicker, viewMode])
+  }, [enabledTickers, seriesByTicker, viewMode])
 
   useEffect(() => {
     const el = hostRef.current
@@ -136,7 +138,7 @@ export default function RpsStyleChart({
         minBarSpacing: 0.6,
       },
       crosshair: { mode: CrosshairMode.Normal },
-      handleScale: { mouseWheel: true, axisPressedMouseMove: false },
+      handleScale: { mouseWheel: true, axisPressedMouseMove: true, pinch: true },
       handleScroll: { mouseWheel: false },
     })
     chartRef.current = chart
@@ -266,6 +268,11 @@ export default function RpsStyleChart({
         {viewMode === 'score' ? <div className="text-[#64748B]">参考线：Y=0（MA50归一基线）</div> : null}
       </div>
       <div className="relative">
+        {prepared.lines.length === 0 ? (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-lg border border-white/10 bg-black/25 text-sm text-[#A9B6CC]">
+            请至少选择一个指数
+          </div>
+        ) : null}
         {hover ? (
           <div className="pointer-events-none absolute right-3 top-3 z-10 rounded-lg border border-white/10 bg-black/35 px-3 py-2 text-xs text-[#E6EDF7] backdrop-blur">
             <div className="font-mono text-[11px] text-[#A9B6CC]">{hover.date}</div>

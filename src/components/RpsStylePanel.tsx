@@ -93,6 +93,7 @@ export default function RpsStylePanel() {
   const [isFallback, setIsFallback] = useState(false)
   const [items, setItems] = useState<RpsStyleMatrixItem[]>([])
   const [seriesByTicker, setSeriesByTicker] = useState<Record<string, RpsStyleSeriesPoint[]>>({})
+  const [enabledTickers, setEnabledTickers] = useState<Record<string, boolean>>({})
   const resolvedRange = useMemo(
     () => resolveDateRange(rangeKey, customStartDateApplied || ymd(addYears(new Date(), -1))),
     [rangeKey, customStartDateApplied],
@@ -128,8 +129,13 @@ export default function RpsStylePanel() {
         setIsFallback(Boolean(sumRes.data.isFallback || (matrixRes.meta as unknown as { isFallback?: boolean })?.isFallback))
         const matrixItems = Array.isArray(matrixRes.data.items) ? matrixRes.data.items : []
         setItems(matrixItems)
-
         const tickers = matrixItems.length ? matrixItems.map((x) => x.ticker) : DEFAULT_TICKERS
+        setEnabledTickers((prev) => {
+          const next: Record<string, boolean> = {}
+          for (const t of tickers) next[t] = prev[t] ?? true
+          return next
+        })
+
         const all = await Promise.all(
           tickers.map((ticker) =>
             fetchRpsStyleSeries({
@@ -290,6 +296,31 @@ export default function RpsStylePanel() {
               原始视图
             </button>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[#94A3B8]">图表指标（Ticker）</span>
+            {Object.keys(enabledTickers)
+              .sort()
+              .map((ticker) => (
+                <button
+                  key={ticker}
+                  type="button"
+                  disabled={controlsDisabled}
+                  onClick={() => {
+                    setEnabledTickers((prev) => ({ ...prev, [ticker]: !(prev[ticker] ?? true) }))
+                  }}
+                  className={cn(
+                    'rounded-md border px-2 py-1 transition disabled:cursor-not-allowed disabled:opacity-50',
+                    enabledTickers[ticker]
+                      ? 'border-white/20 bg-white/10 text-[#E6EDF7]'
+                      : 'border-white/10 bg-transparent text-[#64748B] hover:border-white/15',
+                  )}
+                  title={ETF_NAME_MAP[ticker] || ticker}
+                >
+                  <span className="font-mono">{ticker}</span>
+                  <span className="ml-1 text-[#94A3B8]">{ETF_NAME_MAP[ticker] || ''}</span>
+                </button>
+              ))}
+          </div>
           {chartView !== 'raw' ? (
             <>
               <div className="flex flex-wrap items-center gap-2">
@@ -353,6 +384,7 @@ export default function RpsStylePanel() {
             viewMode={chartView}
             baseLabel={`512890.SH(${ETF_NAME_MAP['512890.SH']})=1`}
             tickerNameMap={ETF_NAME_MAP}
+            enabledTickers={enabledTickers}
             lockEdges
           />
         </div>
