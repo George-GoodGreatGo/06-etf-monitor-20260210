@@ -4,7 +4,7 @@ import type { RpsStyleSeriesPoint } from '@/utils/marketApi'
 
 type Props = {
   seriesByTicker: Record<string, RpsStyleSeriesPoint[]>
-  viewMode: 'raw' | 'relative'
+  viewMode: 'raw' | 'relative' | 'score'
   baseLabel?: string
   tickerNameMap?: Record<string, string>
   lockEdges?: boolean
@@ -66,13 +66,23 @@ export default function RpsStyleChart({
       for (const p of src) {
         const t = ymdToUtcSeconds(p.date)
         if (!t) continue
+        const hit = byTime.get(Number(t)) || { date: p.date, rows: {} }
+        const prev = hit.rows[ticker] || { rps: null, ma50: null }
+        if (viewMode === 'score') {
+          if (typeof p.scorePct === 'number' && Number.isFinite(p.scorePct)) {
+            rps.push({ time: t, value: p.scorePct })
+            ma50.push({ time: t, value: 0 })
+            hit.rows[ticker] = { rps: p.scorePct, ma50: 0 }
+            byTime.set(Number(t), hit)
+          }
+          continue
+        }
+
         if (typeof p.rpsRaw === 'number' && Number.isFinite(p.rpsRaw)) {
           if (startRpsRaw == null && p.rpsRaw !== 0) startRpsRaw = p.rpsRaw
           const rpsVal = viewMode === 'relative' && startRpsRaw != null ? p.rpsRaw / startRpsRaw : p.rpsRaw
           if (Number.isFinite(rpsVal)) {
             rps.push({ time: t, value: rpsVal })
-            const hit = byTime.get(Number(t)) || { date: p.date, rows: {} }
-            const prev = hit.rows[ticker] || { rps: null, ma50: null }
             hit.rows[ticker] = { ...prev, rps: rpsVal }
             byTime.set(Number(t), hit)
           }
@@ -83,17 +93,13 @@ export default function RpsStyleChart({
               const maVal = p.rpsMa50 / startRpsRaw
               if (Number.isFinite(maVal)) {
                 ma50.push({ time: t, value: maVal })
-                const hit = byTime.get(Number(t)) || { date: p.date, rows: {} }
-                const prev = hit.rows[ticker] || { rps: null, ma50: null }
-                hit.rows[ticker] = { ...prev, ma50: maVal }
+                hit.rows[ticker] = { ...(hit.rows[ticker] || prev), ma50: maVal }
                 byTime.set(Number(t), hit)
               }
             }
           } else {
             ma50.push({ time: t, value: p.rpsMa50 })
-            const hit = byTime.get(Number(t)) || { date: p.date, rows: {} }
-            const prev = hit.rows[ticker] || { rps: null, ma50: null }
-            hit.rows[ticker] = { ...prev, ma50: p.rpsMa50 }
+            hit.rows[ticker] = { ...(hit.rows[ticker] || prev), ma50: p.rpsMa50 }
             byTime.set(Number(t), hit)
           }
         }
@@ -159,6 +165,15 @@ export default function RpsStyleChart({
       if (viewMode === 'relative') {
         rpsSeries.createPriceLine({
           price: 1,
+          color: 'rgba(169,182,204,0.35)',
+          lineWidth: 1,
+          lineStyle: 2,
+          axisLabelVisible: false,
+          title: '',
+        })
+      } else if (viewMode === 'score') {
+        rpsSeries.createPriceLine({
+          price: 0,
           color: 'rgba(169,182,204,0.35)',
           lineWidth: 1,
           lineStyle: 2,
@@ -238,10 +253,17 @@ export default function RpsStyleChart({
               {x.ticker}
               {tickerNameMap[x.ticker] ? `（${tickerNameMap[x.ticker]}）` : ''}
             </span>
-            <span className="text-[#64748B]">{viewMode === 'relative' ? '归一化RPS 实线 / 归一化MA50 虚线' : 'RPS 实线 / MA50 虚线'}</span>
+            <span className="text-[#64748B]">
+              {viewMode === 'relative'
+                ? '归一化RPS 实线 / 归一化MA50 虚线'
+                : viewMode === 'score'
+                  ? 'Score 实线 / MA50归一基线(0) 虚线'
+                  : 'RPS 实线 / MA50 虚线'}
+            </span>
           </div>
         ))}
         {viewMode === 'relative' ? <div className="text-[#64748B]">参考线：{baseLabel}</div> : null}
+        {viewMode === 'score' ? <div className="text-[#64748B]">参考线：Y=0（MA50归一基线）</div> : null}
       </div>
       <div className="relative">
         {hover ? (
@@ -254,8 +276,8 @@ export default function RpsStyleChart({
                     {r.ticker}
                     {tickerNameMap[r.ticker] ? `（${tickerNameMap[r.ticker]}）` : ''}
                   </div>
-                  <div className="text-right font-mono">RPS {fmt(r.rps, 4)}</div>
-                  <div className="text-right font-mono">MA50 {fmt(r.ma50, 4)}</div>
+                  <div className="text-right font-mono">{viewMode === 'score' ? `Score ${fmt(r.rps, 4)}` : `RPS ${fmt(r.rps, 4)}`}</div>
+                  <div className="text-right font-mono">{viewMode === 'score' ? `基线 ${fmt(r.ma50, 4)}` : `MA50 ${fmt(r.ma50, 4)}`}</div>
                 </div>
               ))}
             </div>

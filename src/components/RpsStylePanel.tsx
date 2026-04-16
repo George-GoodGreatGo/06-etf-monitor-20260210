@@ -27,7 +27,7 @@ const RANGE_OPTIONS = [
   { key: 'custom', label: '自定义起点日期' },
 ] as const
 
-type RpsViewMode = 'raw' | 'relative'
+type RpsViewMode = 'raw' | 'relative' | 'score'
 type RpsRangeKey = (typeof RANGE_OPTIONS)[number]['key']
 
 function ymd(d: Date): string {
@@ -100,7 +100,7 @@ export default function RpsStylePanel() {
   const controlsDisabled = loading
 
   useEffect(() => {
-    if (chartView === 'relative' && rangeKey === 'custom' && !customStartDateApplied) return
+    if (chartView !== 'raw' && rangeKey === 'custom' && !customStartDateApplied) return
     const ac = new AbortController()
     ;(async () => {
       setLoading(true)
@@ -134,7 +134,7 @@ export default function RpsStylePanel() {
           tickers.map((ticker) =>
             fetchRpsStyleSeries({
               ticker,
-              ...(chartView === 'relative'
+              ...(chartView !== 'raw'
                 ? {
                     startDate: resolvedRange.startDate,
                     endDate: resolvedRange.endDate,
@@ -182,7 +182,7 @@ export default function RpsStylePanel() {
             <p><span className="font-medium text-[#CBD5E1]">MA50</span>：RPS 的 50 日简单移动平均线。</p>
             <p><span className="font-medium text-[#CBD5E1]">Score</span>：((RPS / MA50) - 1) × 100%。</p>
             <p><span className="font-medium text-[#CBD5E1]">判定</span>：全部 Score&lt;0 为防守（0%进攻仓）；存在 Score&gt;0 时选择最高分主攻，建议 33%。</p>
-            <p><span className="font-medium text-[#CBD5E1]">起点视图</span>：按所选起点将各标的 RPS 与 MA50 同步归一化到 1，便于横向比较（分母基准 512890.SH）。</p>
+            <p><span className="font-medium text-[#CBD5E1]">RPS起点归一</span>：按所选起点将各标的 RPS 与 MA50 同步归一化到 1，便于横向比较（分母基准 512890.SH）。</p>
           </div>
         </div>
 
@@ -265,7 +265,18 @@ export default function RpsStylePanel() {
                 chartView === 'relative' ? 'border-white/20 bg-white/10 text-[#E6EDF7]' : 'border-white/10 text-[#A9B6CC] hover:border-white/20',
               )}
             >
-              起点视图
+              RPS起点归一
+            </button>
+            <button
+              type="button"
+              disabled={controlsDisabled}
+              onClick={() => setChartView('score')}
+              className={cn(
+                'rounded-md border px-2 py-1 transition disabled:cursor-not-allowed disabled:opacity-50',
+                chartView === 'score' ? 'border-white/20 bg-white/10 text-[#E6EDF7]' : 'border-white/10 text-[#A9B6CC] hover:border-white/20',
+              )}
+            >
+              MA50归一视图（Score走势）
             </button>
             <button
               type="button"
@@ -279,7 +290,7 @@ export default function RpsStylePanel() {
               原始视图
             </button>
           </div>
-          {chartView === 'relative' ? (
+          {chartView !== 'raw' ? (
             <>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[#94A3B8]">时间范围</span>
