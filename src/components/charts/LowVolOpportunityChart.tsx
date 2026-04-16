@@ -201,6 +201,13 @@ export default function LowVolOpportunityChart({
 
   const syncingRef = useRef(false)
   const initViewKeyRef = useRef('')
+  const replaySyncRafRef = useRef<number[]>([])
+  const prevPaneVisibleRef = useRef({
+    showBiasPane: true,
+    showBiasPctPane: true,
+    showSpreadPane: true,
+    showSpreadPctPane: true,
+  })
 
   const signal = useMemo(() => {
     if (!hover) return null
@@ -242,6 +249,44 @@ export default function LowVolOpportunityChart({
   useEffect(() => {
     updateSpreadPctZonesRef.current = updateSpreadPctZones
   }, [updateSpreadPctZones])
+
+  const clearReplaySyncQueue = useCallback(() => {
+    for (const id of replaySyncRafRef.current) {
+      cancelAnimationFrame(id)
+    }
+    replaySyncRafRef.current = []
+  }, [])
+
+  const syncVisibleRangeToVisiblePanes = useCallback((): boolean => {
+    const main = chartsRef.current.main
+    if (!main) return false
+    const range = main.timeScale().getVisibleLogicalRange()
+    if (!hasValidLogicalRange(range)) return false
+    if (showBiasPane) safeSetVisibleLogicalRange(chartsRef.current.bias, range)
+    if (showBiasPctPane) safeSetVisibleLogicalRange(chartsRef.current.biasPct, range)
+    if (showSpreadPane) safeSetVisibleLogicalRange(chartsRef.current.spread, range)
+    if (showSpreadPctPane) safeSetVisibleLogicalRange(chartsRef.current.spreadPct, range)
+    return true
+  }, [showBiasPane, showBiasPctPane, showSpreadPane, showSpreadPctPane])
+
+  const scheduleCompensatedPaneSync = useCallback(() => {
+    clearReplaySyncQueue()
+    let attempt = 0
+    const maxAttempts = 5
+    const run = () => {
+      const synced = syncVisibleRangeToVisiblePanes()
+      requestAnimationFrame(updateSpreadPctZonesRef.current)
+      if (synced || attempt >= maxAttempts) return
+      attempt += 1
+      const nextId = requestAnimationFrame(run)
+      replaySyncRafRef.current.push(nextId)
+    }
+    const firstId = requestAnimationFrame(() => {
+      const secondId = requestAnimationFrame(run)
+      replaySyncRafRef.current.push(secondId)
+    })
+    replaySyncRafRef.current.push(firstId)
+  }, [clearReplaySyncQueue, syncVisibleRangeToVisiblePanes])
 
   const data = useMemo(() => {
     const close: LineData<Time>[] = []
@@ -874,15 +919,25 @@ export default function LowVolOpportunityChart({
       safeSetVisibleLogicalRange(main, { from, to } as LogicalRange)
     }
 
-    const range = main.timeScale().getVisibleLogicalRange()
-    if (hasValidLogicalRange(range)) {
-      if (showBiasPane) safeSetVisibleLogicalRange(bias, range)
-      if (showBiasPctPane) safeSetVisibleLogicalRange(biasPct, range)
-      if (showSpreadPane) safeSetVisibleLogicalRange(spread, range)
-      if (showSpreadPctPane) safeSetVisibleLogicalRange(spreadPct, range)
+    const synced = syncVisibleRangeToVisiblePanes()
+    if (!synced) {
+      scheduleCompensatedPaneSync()
+    } else {
+      requestAnimationFrame(updateSpreadPctZones)
     }
-    requestAnimationFrame(updateSpreadPctZones)
-  }, [biasBasis, data, showBiasPane, showBiasPctPane, showMa250, showSma60, showSpreadPane, showSpreadPctPane, updateSpreadPctZones])
+  }, [
+    biasBasis,
+    data,
+    scheduleCompensatedPaneSync,
+    showBiasPane,
+    showBiasPctPane,
+    showMa250,
+    showSma60,
+    showSpreadPane,
+    showSpreadPctPane,
+    syncVisibleRangeToVisiblePanes,
+    updateSpreadPctZones,
+  ])
 
   useEffect(() => {
     const main = chartsRef.current.main
@@ -900,14 +955,35 @@ export default function LowVolOpportunityChart({
     } finally {
       syncingRef.current = false
     }
-    const range = main.timeScale().getVisibleLogicalRange()
-    if (!hasValidLogicalRange(range)) return
-    if (showBiasPane) safeSetVisibleLogicalRange(chartsRef.current.bias, range)
-    if (showBiasPctPane) safeSetVisibleLogicalRange(chartsRef.current.biasPct, range)
-    if (showSpreadPane) safeSetVisibleLogicalRange(chartsRef.current.spread, range)
-    if (showSpreadPctPane) safeSetVisibleLogicalRange(chartsRef.current.spreadPct, range)
+    const prev = prevPaneVisibleRef.current
+    const paneOpened =
+      (!prev.showBiasPane && showBiasPane) ||
+      (!prev.showBiasPctPane && showBiasPctPane) ||
+      (!prev.showSpreadPane && showSpreadPane) ||
+      (!prev.showSpreadPctPane && showSpreadPctPane)
+    prevPaneVisibleRef.current = { showBiasPane, showBiasPctPane, showSpreadPane, showSpreadPctPane }
+
+    if (paneOpened) {
+      scheduleCompensatedPaneSync()
+      return
+    }
+    const synced = syncVisibleRangeToVisiblePanes()
+    if (!synced) {
+      scheduleCompensatedPaneSync()
+      return
+    }
     requestAnimationFrame(updateSpreadPctZones)
-  }, [showBiasPane, showBiasPctPane, showSpreadPane, showSpreadPctPane, updateSpreadPctZones])
+  }, [
+    scheduleCompensatedPaneSync,
+    showBiasPane,
+    showBiasPctPane,
+    showSpreadPane,
+    showSpreadPctPane,
+    syncVisibleRangeToVisiblePanes,
+    updateSpreadPctZones,
+  ])
+
+  useEffect(() => clearReplaySyncQueue, [clearReplaySyncQueue])
 
   useEffect(() => {
     if (!showSpreadPctPane || !spreadPctElRef.current) return
