@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ColorType, CrosshairMode, LineSeries, createChart, type IChartApi, type ISeriesApi, type LineData, type Time, type UTCTimestamp } from 'lightweight-charts'
+import {
+  ColorType,
+  CrosshairMode,
+  LineSeries,
+  BaselineSeries,
+  createChart,
+  type IChartApi,
+  type ISeriesApi,
+  type LineData,
+  type Time,
+  type UTCTimestamp,
+} from 'lightweight-charts'
 import type { RpsStyleSeriesPoint } from '@/utils/marketApi'
 
 type Props = {
@@ -55,6 +66,7 @@ export default function RpsStyleChart({
   const hostRef = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const lineRefs = useRef<Array<ISeriesApi<'Line', Time>>>([])
+  const bgRefs = useRef<Array<ISeriesApi<'Baseline', Time>>>([])
   const [hover, setHover] = useState<HoverState | null>(null)
 
   const prepared = useMemo(() => {
@@ -110,7 +122,24 @@ export default function RpsStyleChart({
       ma50.sort((a, b) => (a.time as number) - (b.time as number))
       return { ticker, color: COLORS[idx % COLORS.length], rps, ma50 }
     })
-    return { lines, byTime }
+    let scoreMin = Number.POSITIVE_INFINITY
+    let scoreMax = Number.NEGATIVE_INFINITY
+    for (const item of lines) {
+      for (const p of item.rps) {
+        const v = Number(p.value)
+        if (!Number.isFinite(v)) continue
+        if (v < scoreMin) scoreMin = v
+        if (v > scoreMax) scoreMax = v
+      }
+    }
+    return {
+      lines,
+      byTime,
+      scoreRange:
+        Number.isFinite(scoreMin) && Number.isFinite(scoreMax)
+          ? { min: scoreMin, max: scoreMax }
+          : null,
+    }
   }, [enabledTickers, seriesByTicker, viewMode])
 
   useEffect(() => {
@@ -146,15 +175,70 @@ export default function RpsStyleChart({
       chart.remove()
       chartRef.current = null
       lineRefs.current = []
+      bgRefs.current = []
     }
   }, [lockEdges])
+
+  function buildScoreBgBands(range: { min: number; max: number }): Array<{ top: number; bottom: number; color: string }> {
+    const upper = Math.max(20, range.max) + 10
+    const lower = Math.min(-20, range.min) - 10
+    return [
+      { top: -20, bottom: lower, color: 'rgba(22, 101, 52, 0.18)' }, // < -20
+      { top: -10, bottom: -20, color: 'rgba(21, 128, 61, 0.16)' }, // [-20, -10)
+      { top: 0, bottom: -10, color: 'rgba(74, 222, 128, 0.14)' }, // [-10, 0]
+      { top: 10, bottom: 0, color: 'rgba(250, 204, 21, 0.14)' }, // (0, 10]
+      { top: 20, bottom: 10, color: 'rgba(251, 146, 60, 0.14)' }, // (10, 20]
+      { top: upper, bottom: 20, color: 'rgba(239, 68, 68, 0.16)' }, // > 20
+    ]
+      .filter((b) => b.top !== b.bottom)
+  }
 
   useEffect(() => {
     const chart = chartRef.current
     if (!chart) return
     setHover(null)
+    for (const s of bgRefs.current) chart.removeSeries(s)
+    bgRefs.current = []
     for (const s of lineRefs.current) chart.removeSeries(s)
     lineRefs.current = []
+
+    // Score background bands (behind lines)
+    if (viewMode === 'score' && prepared.lines.length > 0) {
+      let minTime = Number.POSITIVE_INFINITY
+      let maxTime = Number.NEGATIVE_INFINITY
+      for (const item of prepared.lines) {
+        for (const p of item.rps) {
+          const t = Number(p.time)
+          if (Number.isFinite(t)) {
+            if (t < minTime) minTime = t
+            if (t > maxTime) maxTime = t
+          }
+        }
+      }
+      if (Number.isFinite(minTime) && Number.isFinite(maxTime) && minTime <= maxTime && prepared.scoreRange) {
+        const bands = buildScoreBgBands(prepared.scoreRange)
+        for (const b of bands) {
+          const top = Math.max(b.top, b.bottom)
+          const bottom = Math.min(b.top, b.bottom)
+          const s = chart.addSeries(BaselineSeries, {
+            baseValue: { type: 'price', price: bottom },
+            topLineColor: 'rgba(0,0,0,0)',
+            topFillColor1: b.color,
+            topFillColor2: b.color,
+            bottomLineColor: 'rgba(0,0,0,0)',
+            bottomFillColor1: 'rgba(0,0,0,0)',
+            bottomFillColor2: 'rgba(0,0,0,0)',
+            priceLineVisible: false,
+            lastValueVisible: false,
+          })
+          s.setData([
+            { time: minTime as UTCTimestamp, value: top },
+            { time: maxTime as UTCTimestamp, value: top },
+          ])
+          bgRefs.current.push(s)
+        }
+      }
+    }
 
     for (const item of prepared.lines) {
       const rpsSeries = chart.addSeries(LineSeries, {
@@ -266,6 +350,7 @@ export default function RpsStyleChart({
         ))}
         {viewMode === 'relative' ? <div className="text-[#64748B]">参考线：{baseLabel}</div> : null}
         {viewMode === 'score' ? <div className="text-[#64748B]">参考线：Y=0（MA50归一基线）</div> : null}
+        {viewMode === 'score' ? <div className="text-[#64748B]">阈值：&lt;-20 深绿 | -20~-10 绿 | -10~0 浅绿 | 0~10 黄 | 10~20 橙 | &gt;20 红</div> : null}
       </div>
       <div className="relative">
         {prepared.lines.length === 0 ? (
