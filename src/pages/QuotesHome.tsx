@@ -33,15 +33,14 @@ function authorLabel(a: QuoteAuthor): string {
   return '霍华德·马克思'
 }
 
+const QUOTE_CAROUSEL_CYCLE_MS = 10_000
+
 function QuoteCarousel({
   quotes,
-  intervalMs,
 }: {
   quotes: Quote[]
-  intervalMs?: number
 }) {
   const reducedMotion = usePrefersReducedMotion()
-  const interval = typeof intervalMs === 'number' && intervalMs > 2000 ? intervalMs : 7200
 
   const [idx, setIdx] = useState(0)
   const [hovering, setHovering] = useState(false)
@@ -51,8 +50,8 @@ function QuoteCarousel({
   )
   const [progressPct, setProgressPct] = useState(0)
 
-  const activeSinceRef = useRef<number>(Date.now())
-  const elapsedWhenPausedRef = useRef<number>(0)
+  const cycleStartMsRef = useRef<number>(0)
+  const elapsedMsRef = useRef<number>(0)
   const rafRef = useRef<number | null>(null)
   const tickIdRef = useRef<number | null>(null)
 
@@ -60,15 +59,23 @@ function QuoteCarousel({
 
   const active = quotes[idx]
 
-  const go = useCallback((nextIdx: number, reason: 'auto' | 'manual') => {
+  const nowMs = useCallback(
+    () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
+    [],
+  )
+
+  const resetCycle = useCallback(() => {
+    cycleStartMsRef.current = nowMs()
+    elapsedMsRef.current = 0
+    setProgressPct(0)
+  }, [nowMs])
+
+  const go = useCallback((nextIdx: number) => {
     const total = quotes.length || 1
     const safe = ((nextIdx % total) + total) % total
     setIdx(safe)
-    activeSinceRef.current = Date.now()
-    elapsedWhenPausedRef.current = 0
-    setProgressPct(0)
-    void reason
-  }, [quotes.length])
+    resetCycle()
+  }, [quotes.length, resetCycle])
 
   useEffect(() => {
     const onVisibilityChange = () => {
@@ -79,30 +86,35 @@ function QuoteCarousel({
   }, [])
 
   useEffect(() => {
+    resetCycle()
+  }, [resetCycle])
+
+  useEffect(() => {
     if (reducedMotion) {
-      activeSinceRef.current = Date.now()
-      elapsedWhenPausedRef.current = 0
-      setProgressPct(0)
+      resetCycle()
       return
     }
     if (paused) {
-      elapsedWhenPausedRef.current = Math.max(0, Date.now() - activeSinceRef.current)
+      elapsedMsRef.current = Math.max(0, nowMs() - cycleStartMsRef.current)
       return
     }
-    activeSinceRef.current = Date.now() - elapsedWhenPausedRef.current
-  }, [paused, reducedMotion, idx])
+    cycleStartMsRef.current = nowMs() - elapsedMsRef.current
+  }, [idx, nowMs, paused, reducedMotion, resetCycle])
 
   useEffect(() => {
     if (!quotes.length) return
     if (reducedMotion || paused) return
     if (tickIdRef.current) window.clearTimeout(tickIdRef.current)
-    const remaining = Math.max(0, interval - elapsedWhenPausedRef.current)
-    tickIdRef.current = window.setTimeout(() => go(idx + 1, 'auto'), remaining)
+    const remaining = Math.max(0, QUOTE_CAROUSEL_CYCLE_MS - elapsedMsRef.current)
+    tickIdRef.current = window.setTimeout(() => {
+      setProgressPct(100)
+      go(idx + 1)
+    }, remaining)
     return () => {
       if (tickIdRef.current) window.clearTimeout(tickIdRef.current)
       tickIdRef.current = null
     }
-  }, [go, idx, interval, paused, quotes.length, reducedMotion])
+  }, [go, idx, paused, quotes.length, reducedMotion])
 
   useEffect(() => {
     if (!quotes.length) return
@@ -112,10 +124,17 @@ function QuoteCarousel({
       rafRef.current = null
       return
     }
+    if (paused) {
+      const pct = Math.max(0, Math.min(1, elapsedMsRef.current / QUOTE_CAROUSEL_CYCLE_MS))
+      setProgressPct(pct * 100)
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+      return
+    }
     const loop = () => {
-      const elapsed = paused ? elapsedWhenPausedRef.current : Date.now() - activeSinceRef.current
-      const pct = Math.max(0, Math.min(1, elapsed / interval))
-      setProgressPct(Math.round(pct * 1000) / 10)
+      elapsedMsRef.current = Math.max(0, nowMs() - cycleStartMsRef.current)
+      const pct = Math.max(0, Math.min(1, elapsedMsRef.current / QUOTE_CAROUSEL_CYCLE_MS))
+      setProgressPct(pct * 100)
       rafRef.current = requestAnimationFrame(loop)
     }
     rafRef.current = requestAnimationFrame(loop)
@@ -123,7 +142,7 @@ function QuoteCarousel({
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       rafRef.current = null
     }
-  }, [interval, paused, quotes.length, reducedMotion])
+  }, [nowMs, paused, quotes.length, reducedMotion])
 
   if (!active) return null
 
@@ -182,7 +201,7 @@ function QuoteCarousel({
               <button
                 type="button"
                 className="ui-btn ui-btn-glass h-10 w-10 rounded-full border-white/10 text-[#E6EDF7] hover:border-white/20"
-                onClick={() => go(idx - 1, 'manual')}
+                onClick={() => go(idx - 1)}
                 aria-label="上一条语录"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -190,7 +209,7 @@ function QuoteCarousel({
               <button
                 type="button"
                 className="ui-btn ui-btn-glass h-10 w-10 rounded-full border-white/10 text-[#E6EDF7] hover:border-white/20"
-                onClick={() => go(idx + 1, 'manual')}
+                onClick={() => go(idx + 1)}
                 aria-label="下一条语录"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -204,7 +223,7 @@ function QuoteCarousel({
                   <button
                     key={q.id}
                     type="button"
-                    onClick={() => go(i, 'manual')}
+                    onClick={() => go(i)}
                     className={cn(
                       'h-2 w-2 rounded-full transition-[transform,opacity,background-color] duration-200',
                       isActive ? 'bg-[#FF8A66] opacity-100 scale-110' : 'bg-white/20 opacity-60 hover:opacity-100',
@@ -219,7 +238,7 @@ function QuoteCarousel({
 
           <div className="mt-4 h-[2px] w-full overflow-hidden rounded-full bg-white/10 sm:mt-5">
             <div
-              className={cn('h-full rounded-full bg-[linear-gradient(90deg,#FFFFFF_0%,#FF8A50_60%,#E65100_100%)]', reducedMotion ? '' : 'transition-[width] duration-150')}
+              className="h-full rounded-full bg-[linear-gradient(90deg,#FFFFFF_0%,#FF8A50_60%,#E65100_100%)]"
               style={{ width: `${reducedMotion ? 0 : progressPct}%` }}
               aria-hidden="true"
             />
