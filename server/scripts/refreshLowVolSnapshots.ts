@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { getLowVolIndexSeries, getLowVolSupportedIndexCodes, type LowVolDailyPoint } from '../lib/lowVol.js'
+import { probeRiskfree10y } from '../lib/riskfree10yService.js'
 import { publishLowVolRun, readLowVolMeta, type LowVolIndexPointRow, upsertLowVolIndexPoints } from '../lib/supabaseRest.js'
 
 const FULL_BACKFILL_START = '20160101'
@@ -155,6 +156,20 @@ async function main() {
   logEvent({ type: 'start', mode: 'full_backfill_publish', runId, prevVisible, startDate8, endDate8, codes: codes.length })
 
   try {
+    const y10Probe = await withRetry(() => probeRiskfree10y({ date: endDate10, forceRefresh: true }), 'probe riskfree10y lowvol', 2)
+    if (!y10Probe.ok || y10Probe.valuePct == null || !y10Probe.matchedDate) {
+      throw new Error(`riskfree10y probe failed: ${y10Probe.notes.join('; ') || 'unknown'}`)
+    }
+    logEvent({
+      type: 'riskfree10y_probe',
+      ok: true,
+      date: endDate10,
+      matchedDate: y10Probe.matchedDate,
+      valuePct: y10Probe.valuePct,
+      source: y10Probe.source,
+      lookbackDaysUsed: y10Probe.lookbackDaysUsed,
+    })
+
     let maxDataDate: string | null = null
     let totalRows = 0
     for (let idx = 0; idx < codes.length; idx += 1) {

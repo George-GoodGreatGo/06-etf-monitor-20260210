@@ -1,4 +1,4 @@
-import { fetchGovBond10yYieldPctByDateSafe } from './chinamoneyGovBond.js'
+import { getRiskfree10ySeries, getRiskfree10yValueByDate } from './riskfree10yService.js'
 import { fetchCsindexIndexPeSeries } from './csindex.js'
 import { runAkshare } from './akshare.js'
 import path from 'node:path'
@@ -838,46 +838,15 @@ export async function getValueTimingIndexSeries(args: {
     notes.push(`pe_cover=${withPe}/${closeSeries.length}`)
   }
 
-  const years = new Set<number>()
-  for (const p of closeSeries) {
-    const y = Number(p.date.slice(0, 4))
-    if (Number.isFinite(y)) years.add(y)
-  }
-  const yieldByDate = new Map<string, number>()
-  const yieldFailYears: Array<{ year: number; error: string }> = []
-  const sortedYears = Array.from(years).sort((a, b) => a - b)
-  for (const y of sortedYears) {
-    const yStartedAt = Date.now()
-    logEvent({ event: 'value_timing.index.y10.year.start', code: cfg.code, year: y })
-    const r = await fetchGovBond10yYieldPctByDateSafe({ year: y })
-    if (r.error) {
-      yieldFailYears.push({ year: y, error: r.error })
-      logEvent({ event: 'value_timing.index.y10.year.fail', code: cfg.code, year: y, ms: Date.now() - yStartedAt, error: String(r.error).slice(0, 240) })
-      continue
-    }
-    for (const [d, v] of r.map) yieldByDate.set(d, v)
-    logEvent({ event: 'value_timing.index.y10.year.done', code: cfg.code, year: y, points: r.map.size, ms: Date.now() - yStartedAt })
-  }
-  if (yieldFailYears.length) {
-    for (const it of yieldFailYears) notes.push(`yield10y_year_missing=${it.year}:${String(it.error).slice(0, 180)}`)
-  }
-  let yieldFallbackByDate: Map<string, number> | null = null
-  let usedYieldFallback = false
-  if (yieldFailYears.length || yieldByDate.size === 0) {
-    const fbStartedAt = Date.now()
-    const prev = await readLatestValueTimingIndexSnapshot(cfg.code).catch(() => null)
-    const payload = prev?.payload && typeof prev.payload === 'object' ? (prev.payload as { series?: unknown }) : null
-    const prevSeries = payload && Array.isArray(payload.series) ? (payload.series as Array<Record<string, unknown>>) : []
-    const m = new Map<string, number>()
-    for (const p of prevSeries) {
-      const d = typeof p.date === 'string' ? p.date : ''
-      const y10 = typeof p.yield10yPct === 'number' && Number.isFinite(p.yield10yPct) ? p.yield10yPct : null
-      if (d && y10 != null) m.set(d, y10)
-    }
-    yieldFallbackByDate = m.size ? m : null
-    if (yieldFallbackByDate) notes.push('yield10y_fallback=prev_snapshot')
-    logEvent({ event: 'value_timing.index.y10.fallback', code: cfg.code, points: m.size, enabled: Boolean(yieldFallbackByDate), ms: Date.now() - fbStartedAt })
-  }
+  const yieldSeries = await getRiskfree10ySeries({
+    startDate: closeSeries[0]?.date || '2016-01-01',
+    endDate: closeSeries[closeSeries.length - 1]?.date || new Date().toISOString().slice(0, 10),
+  })
+  const yieldByDate = yieldSeries.byDate
+  if (yieldByDate.size === 0) notes.push('yield10y_missing=all')
+  notes.push(`yield10y_resolved_points=${yieldByDate.size}`)
+  notes.push(...yieldSeries.meta.notes)
+  notes.push(...yieldSeries.meta.providerNotes)
 
   const spreads: Array<number | null> = []
   const peSources: Array<string | null> = []
@@ -924,36 +893,13 @@ export async function getValueTimingIndexSeries(args: {
       if (notesByDate.length) peSourceNotesByDate.set(p.date, notesByDate)
     }
     const earningsYieldPct = calcEarningsYieldPctFromPe(pe)
-    let y10 = yieldByDate.get(p.date) ?? null
-    if (y10 == null) {
-      for (let i = 1; i <= 7; i += 1) {
-        const prev = ymd10MinusDays(p.date, i)
-        if (!prev) continue
-        const hit = yieldByDate.get(prev)
-        if (typeof hit === 'number' && Number.isFinite(hit)) {
-          y10 = hit
-          break
-        }
-      }
-    }
-    if (y10 == null && yieldFallbackByDate) {
-      const direct = yieldFallbackByDate.get(p.date)
-      if (typeof direct === 'number' && Number.isFinite(direct)) {
-        y10 = direct
-        usedYieldFallback = true
-      } else {
-        for (let i = 1; i <= 7; i += 1) {
-          const prev = ymd10MinusDays(p.date, i)
-          if (!prev) continue
-          const hit = yieldFallbackByDate.get(prev)
-          if (typeof hit === 'number' && Number.isFinite(hit)) {
-            y10 = hit
-            usedYieldFallback = true
-            break
-          }
-        }
-      }
-    }
+    const y10Picked = getRiskfree10yValueByDate({
+      date: p.date,
+      byDate: yieldByDate,
+      resolved: yieldSeries.resolved,
+      lookbackDays: 7,
+    })
+    const y10 = y10Picked.valuePct
     const spread = calcSpreadPct(earningsYieldPct, y10)
     spreads.push(spread)
     series.push({
@@ -975,16 +921,14 @@ export async function getValueTimingIndexSeries(args: {
     })
   }
   if (peForwardFilled > 0) notes.push(`pe_forward_filled=${peForwardFilled}`)
-  if (yieldByDate.size === 0) notes.push('yield10y_missing=all')
-  if (usedYieldFallback) notes.push('yield10y_used_fallback=1')
 
   logEvent({
     event: 'value_timing.index.compute.done',
     code: cfg.code,
     closePoints: closeSeries.length,
     yieldPoints: yieldByDate.size,
-    failYears: yieldFailYears.length,
-    usedYieldFallback,
+    failYears: 0,
+    usedYieldFallback: false,
     ms: Date.now() - jobStartedAt,
   })
 

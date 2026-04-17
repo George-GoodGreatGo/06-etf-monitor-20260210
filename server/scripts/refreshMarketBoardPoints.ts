@@ -9,7 +9,7 @@ import {
 } from '../lib/supabaseRest.js'
 import { fetchCsindexHs300PeSeries } from '../lib/csindex.js'
 import { fetchNorthboundTotalTurnoverSeries } from '../lib/hkex.js'
-import { fetchGovBond10yYieldPctByDateSafe } from '../lib/chinamoneyGovBond.js'
+import { probeRiskfree10y } from '../lib/riskfree10yService.js'
 
 const FULL_BACKFILL_START = '20160101'
 const RUN_HISTORY_KEEP = 5
@@ -264,10 +264,11 @@ async function runSourceConnectivityProbe(args: { endDate: string }): Promise<Pr
 
   const y10Check: ProbeDetail = await Promise.resolve(
     withRetry(async () => {
-      const out = await fetchGovBond10yYieldPctByDateSafe({ year: endYear })
-      if (out.error) throw new Error(out.error)
-      if (!(out.map instanceof Map) || out.map.size === 0) throw new Error('yield10y empty')
-      return out.map.size
+      const out = await probeRiskfree10y({ date: ymd8ToYmd10(endDate) || undefined, forceRefresh: true })
+      if (!out.ok || out.valuePct == null || !out.matchedDate) {
+        throw new Error(out.notes.join('; ') || 'riskfree10y probe failed')
+      }
+      return out.details.reduce((sum, item) => sum + item.points, 0)
     }, 'probe:yield10y', 2),
   )
     .then((count) => ({ source: 'yield10y' as const, ok: true, count }))
@@ -279,7 +280,7 @@ async function runSourceConnectivityProbe(args: { endDate: string }): Promise<Pr
   if (y10Check.ok) process.stdout.write(`[probe] ok yield10y count=${y10Check.count}\n`)
   else process.stderr.write(`[probe] warn yield10y err=${y10Check.error}\n`)
 
-  const hardFailed = !hs300Check.ok
+  const hardFailed = !hs300Check.ok || !y10Check.ok
   return {
     ok: !hardFailed,
     hardFailed,

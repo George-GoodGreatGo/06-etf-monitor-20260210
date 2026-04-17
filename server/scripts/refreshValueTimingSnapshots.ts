@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { getValueTimingIndexSeries, getValueTimingSupportedIndexCodes, type ValueTimingDailyPoint } from '../lib/valueTiming.js'
+import { probeRiskfree10y } from '../lib/riskfree10yService.js'
 import { publishValueTimingRun, readValueTimingMeta, type ValueTimingIndexPointRow, upsertValueTimingIndexPoints } from '../lib/supabaseRest.js'
 
 const FULL_BACKFILL_START = '20160101'
@@ -141,6 +142,20 @@ async function main() {
   logEvent({ event: 'value_timing.refresh.start', mode: 'full_backfill_publish', runId, prevVisible, startDate8, endDate8, count: codes.length })
 
   try {
+    const y10Probe = await probeRiskfree10y({ date: endDate10, forceRefresh: true })
+    if (!y10Probe.ok || y10Probe.valuePct == null || !y10Probe.matchedDate) {
+      throw new Error(`riskfree10y probe failed: ${y10Probe.notes.join('; ') || 'unknown'}`)
+    }
+    logEvent({
+      event: 'value_timing.refresh.riskfree10y_probe',
+      ok: true,
+      date: endDate10,
+      matchedDate: y10Probe.matchedDate,
+      valuePct: y10Probe.valuePct,
+      source: y10Probe.source,
+      lookbackDaysUsed: y10Probe.lookbackDaysUsed,
+    })
+
     let maxDataDate: string | null = null
     let totalRows = 0
     for (let idx = 0; idx < codes.length; idx += 1) {

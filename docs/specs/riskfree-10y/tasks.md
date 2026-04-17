@@ -1,50 +1,101 @@
-# 任务拆解（CN10Y多源稳健获取）
+# 任务拆解（10Y国债收益率统一多源改造）
 
-## 模块与工单
-- riskfree10yService（后端新模块）
-  - T1：创建Provider接口定义（fetch(date): Result）
-  - T2：实现S1-Chinamoney提供器（解析、重试、时间预算、指纹）
-  - T3：实现S2-Eastmoney提供器（直接或经AkShare包装；限速与UA策略）
-  - T4：实现S3-Sina与S3b-TE/Investing提供器（可选开关，满足≥3源）
-  - T5：聚合器：并发抓取、过滤、加权中位数、30bp阈值离群剔除
-  - T6：服务层缓存（24h）、calcVersion快照隔离与日志notes输出
-  - T7：REST接口 /riskfree/10y 与 SDK 封装
-  - T8：指标埋点与告警（成功率、偏差、超时、回退触发）
-- 三模块接入改造
-  - T9：大盘看板改为调用riskfree10yService（保持现有run发布链路）
-  - T10：低波机会改造读取层
-  - T11：价值择时改造读取层
-  - T12：保留旧直连抓取为紧急兜底开关（默认关闭）
-- 测试与发布
-  - T13：单元测试：解析器/异常/结构变更/时间预算与重试
-  - T14：集成测试：多源并发、离群剔除、中位数一致性
-  - T15：端到端：T+1夜间任务跑近90个交易日验证；原子发布回归
-  - T16：CI校验与回归报告输出；阈值告警联调
+## P0 统一服务
+- T1：新增 `server/lib/riskfree10yService.ts`
+  - 定义统一返回类型、错误码、notes 结构和公共工具函数
+- T2：抽象 provider 接口
+  - `fetchRange({ startDate, endDate })`
+  - 统一输出 `date/valuePct/source/observedAt/sourceDetail`
+- T3：落地 `chinamoney` provider
+  - 面向近端/当日确认
+  - 独立超时、重试、UA、结构化错误
+- T4：落地 `chinabond` provider
+  - 迁移现有 `chinamoneyGovBond.ts`
+  - 支持历史区间、按年缓存、解析异常识别
+- T5：落地 `eastmoney` provider
+  - 仅实现首版稳定可用能力，不引入额外收费或带 key 依赖
+- T6：实现统一聚合器
+  - 三源并发
+  - 基础过滤
+  - 20bp 双源确认规则
+  - 单源严格兜底规则
+- T7：实现统一日期对齐能力
+  - 同日命中
+  - 最近 7 日回看
+  - 超窗返回空值
+- T8：实现统一缓存能力
+  - 日级 TTL
+  - in-flight 去重
+  - `forceRefresh=true` 禁止 stale fallback
 
-## 设计与实现要点
-- Provider接口
-  - 输入：日期（默认最近交易日）；输出：{ value, source, observedAt, raw?, notes? }
-  - 需内置：connect/read超时、重试次数、幂等策略、UA/Referer与限速
-- 聚合器
-  - 同步并发抓取（受控并发数≤3）；先快返回，后续源用于校验
-  - 过滤规则与30bp偏差阈值；仅剩单源时需通过“可信值判定”
-  - 最终选择与notes记录（参与源、偏差分布、剔除原因）
-- 发布链路
-  - point落表→整批校验→meta原子切换可见run→保留最近5个run
-  - 失败保持旧run；不进行“以昨日值回填今日”的非真实发布
+## P0 模块接入
+- T9：改造 `marketLiquidityV5Service.ts`
+  - 删除内部 `buildYield10yPctByDate` 分散逻辑
+  - 改为调用统一服务
+- T10：改造 `valueTiming.ts`
+  - 删除模块内年度抓取、7 日回看、旧快照 10Y 兜底
+  - 统一改走 `riskfree10yService`
+- T11：改造 `lowVol.ts`
+  - 删除静默吞错式 10Y 拉取
+  - 统一改走 `riskfree10yService`
+- T12：兼容适配
+  - 旧 `chinamoneyGovBond.ts` 保留短期兼容层或转发层
+  - 明确后续下线点
 
-## 配置项（示例）
-- riskfree10y.enabledSources: ["chinamoney","eastmoney","sina","te","investing"]
-- riskfree10y.timeoutMs: { connect: 1500, read: 1500 }
-- riskfree10y.retry: { max: 2, backoffMs: 300 }
-- riskfree10y.deviationBp: 30
-- riskfree10y.cacheTTL: "24h"
-- riskfree10y.calcVersion: "cn10y-v1"
-- te.apiKey?: "..."
+## P0 刷新脚本与发布守卫
+- T13：改造 `refreshMarketBoardPoints.ts`
+  - 用统一 `probeRiskfree10y` 替代当前弱探针
+  - 在发布前校验 10Y 可用性与来源一致性
+- T14：改造 `refreshLowVolSnapshots.ts`
+  - 增加统一 probe
+  - 将 10Y 覆盖率纳入失败不发布条件
+- T15：改造 `refreshValueTimingSnapshots.ts`
+  - 增加统一 probe
+  - 移除对旧快照 10Y 的隐式依赖
 
-## 交付物
-- 代码与接口：riskfree10yService模块、REST与SDK、三模块接入改造
-- 文档：数据源解析说明、异常与回退策略、告警阈值说明
-- 测试：单元/集成/E2E报告与覆盖率
-- 运维：仪表盘与告警规则
+## P1 测试
+- T16：provider 单元测试
+  - 成功样例
+  - 空数据
+  - HTML 结构变化
+  - 504/超时/Abort/非预期 content-type
+- T17：service 聚合测试
+  - S1 成功且被 S2/S3 确认
+  - S1 失败但 S2/S3 一致
+  - 单源成功但跳变过大被拒绝
+  - 三源分歧过大被拒绝
+  - 7 日回看对齐
+- T18：模块回归测试
+  - 大盘看板 `yield10yPct` 与股债性价比序列回归
+  - 低波机会 `yield10yPct/spreadPct/spreadPctRank10y` 回归
+  - 价值择时 `yield10yPct/spreadPct/spreadPctRank5y` 回归
+- T19：脚本级回归测试
+  - 三个刷新脚本在 10Y 源异常时均能阻止误发布
+  - 保留旧 run 可见性
+- T20：live smoke
+  - 最近 90 个交易日实测
+  - 记录三源成功率、确认方式、拒绝次数
 
+## P1 可观测性
+- T21：统一日志字段
+  - provider、耗时、值、日期、选值规则、剔除原因
+- T22：统一指标
+  - success ratio
+  - timeout ratio
+  - disagreement bp
+  - single-source accept count
+- T23：输出回归报告
+  - 最近 90 日 live smoke 汇总
+  - 三模块接入前后差异说明
+
+## 建议实施顺序
+- 第 1 天：T1-T8
+- 第 2 天：T9-T15
+- 第 3 天：T16-T20
+- 第 4 天：T21-T23，整理发布说明
+
+## 完成定义
+- 三个模块不再直接依赖旧的分散式 10Y 抓取逻辑
+- `riskfree10yService` 成为唯一入口
+- 自动化测试覆盖 provider、service、模块接入、刷新脚本四层
+- 最近 90 个交易日 smoke 结果达标并形成可复核报告

@@ -1,6 +1,6 @@
 import { buildLiquidityV5Series } from './liquidityV5.js'
 import { buildEquityBondValuePctSeries } from './equityBondValue.js'
-import { fetchGovBond10yYieldPctByDateSafe } from './chinamoneyGovBond.js'
+import { getRiskfree10ySeries } from './riskfree10yService.js'
 import { runAkshare } from './akshare.js'
 import { fetchCsindexHs300PeSeries } from './csindex.js'
 import { fetchNorthboundTotalTurnoverSeries } from './hkex.js'
@@ -101,31 +101,21 @@ async function buildYield10yPctByDate(args: { start8: string; end8: string }): P
   yield10yPctByDate: Map<string, number>
   notes: string[]
 }> {
-  const startY = ymd8ToYear(args.start8)
-  const endY = ymd8ToYear(args.end8)
-  const yield10yPctByDate = new Map<string, number>()
-  const notes: string[] = []
-  const failYears: Array<{ year: number; error: string }> = []
-
-  if (startY != null && endY != null) {
-    const years: number[] = []
-    for (let y = startY; y <= endY; y += 1) years.push(y)
-    for (const year of years) {
-      const r = await fetchGovBond10yYieldPctByDateSafe({ year })
-      if (r.error) {
-        failYears.push({ year, error: r.error })
-        continue
-      }
-      for (const [d, y10] of r.map) yield10yPctByDate.set(d, y10)
-    }
+  void ymd8ToYear
+  const startDate = ymd8ToYmd10(args.start8)
+  const endDate = ymd8ToYmd10(args.end8)
+  if (!startDate || !endDate) {
+    return { yield10yPctByDate: new Map<string, number>(), notes: ['yield10y_bad_range=1'] }
   }
-  if (failYears.length) {
-    for (const it of failYears) notes.push(`yield10y_year_missing=${it.year}:${String(it.error).slice(0, 120)}`)
+  const out = await getRiskfree10ySeries({ startDate, endDate })
+  return {
+    yield10yPctByDate: out.byDate,
+    notes: [
+      `yield10y_resolved_points=${out.byDate.size}`,
+      ...out.meta.notes,
+      ...out.meta.providerNotes,
+    ],
   }
-
-  if (yield10yPctByDate.size > 0) return { yield10yPctByDate, notes }
-  notes.push('yield10y_unavailable=no_snapshot_fallback')
-  return { yield10yPctByDate, notes }
 }
 
 function sleep(ms: number) {

@@ -1,4 +1,4 @@
-import { fetchGovBond10yYieldPctByDate } from './chinamoneyGovBond.js'
+import { getRiskfree10ySeries, getRiskfree10yValueByDate } from './riskfree10yService.js'
 import { readLowVolIndexPointsRange, readLowVolLatestPointsByCodes, readLowVolMeta, type LowVolIndexPointRow } from './supabaseRest.js'
 
 type CacheEntry<T> = { expiresAt: number; value: T }
@@ -667,21 +667,11 @@ export async function getLowVolIndexSeries(args: {
   })
   const biasPct3y = buildRollingPercentile(bias250, 1260, 252)
 
-  const y10ByDate = new Map<string, number>()
-  if (closeSeries.length) {
-    const y0 = Number(closeSeries[0].date.slice(0, 4))
-    const y1 = Number(closeSeries[closeSeries.length - 1].date.slice(0, 4))
-    const startYear = Number.isFinite(y0) ? y0 : new Date().getUTCFullYear()
-    const endYear = Number.isFinite(y1) ? y1 : new Date().getUTCFullYear()
-    for (let y = startYear; y <= endYear; y += 1) {
-      try {
-        const m = await fetchGovBond10yYieldPctByDate({ year: y })
-        for (const [d, v] of m.entries()) y10ByDate.set(d, v)
-      } catch {
-        void 0
-      }
-    }
-  }
+  const y10Series = await getRiskfree10ySeries({
+    startDate: closeSeries[0]?.date || '2016-01-01',
+    endDate: closeSeries[closeSeries.length - 1]?.date || new Date().toISOString().slice(0, 10),
+  })
+  const y10ByDate = y10Series.byDate
 
   const dividendPointsRaw: Array<number | null> = closeSeries.map((p, i) => {
     const lookback = i - 252
@@ -707,7 +697,14 @@ export async function getLowVolIndexSeries(args: {
     const y = (d / p.close) * 100
     return Number.isFinite(y) ? y : null
   })
-  const yield10yPct: Array<number | null> = closeSeries.map((p) => y10ByDate.get(p.date) ?? null)
+  const yield10yPct: Array<number | null> = closeSeries.map((p) => {
+    return getRiskfree10yValueByDate({
+      date: p.date,
+      byDate: y10ByDate,
+      resolved: y10Series.resolved,
+      lookbackDays: 7,
+    }).valuePct
+  })
   const spreadCorePct: Array<number | null> = closeSeries.map((p, i) => {
     const dy = dividendYieldPct[i]
     const y = yield10yPct[i]
@@ -756,7 +753,10 @@ export async function getLowVolIndexSeries(args: {
       '利差分位：基于spreadCore做5年滚动分位（window≈1260，minPeriods=252）。',
       '乖离率BIAS口径：60日/250日简单移动平均，BIAS=(close-ma)/ma。',
       '滚动分位数窗口：BIAS分位与利差分位均为5年≈1260个交易日（最小有效252个样本）。',
-      '10Y国债收益率数据源：chinamoney。',
+      '10Y国债收益率数据源：riskfree10yService（chinamoney + chinabond + eastmoney，多源校验）。',
+      `10Y解析点数：${y10ByDate.size}。`,
+      ...y10Series.meta.notes,
+      ...y10Series.meta.providerNotes,
     ].filter(Boolean),
   }
 
