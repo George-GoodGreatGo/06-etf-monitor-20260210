@@ -40,9 +40,20 @@
   - [x] 手工验证：登录态已存在时进入登录页，跳转前无抖动
   - [x] 运行现有检查命令并确认无新增错误
 
+- [x] Task 9: 修复登录后顶部账号信息延迟显示
+  - [x] 定位顶部账号信息缺失根因（会话缓存命中但 username 为空、壳层仅初始化拉取一次等）
+  - [x] 调整账号读取策略：鉴权可走缓存，但账号展示字段缺失时自动补拉会话信息
+  - [x] 确保登录后首次进入系统页即显示账号，无需手动刷新
+
+- [x] Task 10: 顶部账号信息专项回归
+  - [x] 手工验证：账号登录后首次进入系统页，右上角账号信息立即显示
+  - [x] 手工验证：谷歌登录路径不受影响，账号显示仍正确
+  - [x] 运行现有检查命令并确认无新增错误
+
 # Task Dependencies
 - Task 2 depends on Task 1
 - Task 3 depends on Task 1
 - Task 4 depends on Task 2-3
 - Task 6 depends on Task 5
 - Task 8 depends on Task 7
+- Task 10 depends on Task 9

@@ -21,6 +21,12 @@ export default function AppShell() {
       try {
         const session = await getAuthSession()
         if (ac.signal.aborted) return
+        if (session.authenticated && !session.username) {
+          const refreshed = await getAuthSession({ forceRefresh: true })
+          if (ac.signal.aborted) return
+          setUsername(refreshed.username)
+          return
+        }
         setUsername(session.username)
       } catch {
         setUsername(null)
