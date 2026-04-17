@@ -2,26 +2,87 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { apiUrl } from '@/utils/apiBase'
 
+type LoginPhase = 'checking' | 'initializing' | 'ready' | 'triggering' | 'callback' | 'redirecting' | 'failed'
+
+type GsiIdApi = {
+  initialize: (opts: {
+    client_id: string
+    callback: (resp: { credential?: string }) => void
+    auto_select?: boolean
+    cancel_on_tap_outside?: boolean
+  }) => void
+  renderButton: (el: HTMLElement, options: Record<string, unknown>) => void
+}
+
+function resolveGsiIdApi(): GsiIdApi | null {
+  type GsiWindow = {
+    google?: {
+      accounts?: {
+        id?: GsiIdApi
+      }
+    }
+  }
+  return (window as unknown as GsiWindow).google?.accounts?.id ?? null
+}
+
+function ensureGsiScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (resolveGsiIdApi()) {
+      resolve()
+      return
+    }
+    const onLoad = () => resolve()
+    const onError = () => reject(new Error('加载 Google 登录组件失败'))
+    const existing = document.querySelector('script[data-google-gsi="1"]') as HTMLScriptElement | null
+    if (existing) {
+      existing.addEventListener('load', onLoad, { once: true })
+      existing.addEventListener('error', onError, { once: true })
+      return
+    }
+    const s = document.createElement('script')
+    s.src = 'https://accounts.google.com/gsi/client'
+    s.async = true
+    s.defer = true
+    s.dataset.googleGsi = '1'
+    s.addEventListener('load', onLoad, { once: true })
+    s.addEventListener('error', onError, { once: true })
+    document.head.appendChild(s)
+  })
+}
+
 export default function Login() {
   const nav = useNavigate()
   const [sp] = useSearchParams()
   const next = sp.get('next') || '/'
 
   const [remember, setRemember] = useState(true)
-  const [loading, setLoading] = useState(false)
+  const [phase, setPhase] = useState<LoginPhase>('checking')
   const [error, setError] = useState<string | null>(null)
+  const [reloadSeed, setReloadSeed] = useState(0)
 
-  const initializedRef = useRef(false)
   const gsiBtnRef = useRef<HTMLDivElement | null>(null)
   const rememberRef = useRef(true)
+  const triggerResetTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     rememberRef.current = remember
   }, [remember])
 
   useEffect(() => {
+    return () => {
+      if (triggerResetTimerRef.current !== null) {
+        window.clearTimeout(triggerResetTimerRef.current)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
     void (async () => {
       try {
+        setPhase('checking')
+        setError(null)
         const res = await fetch(apiUrl('/api/auth/me'), { cache: 'no-store', credentials: 'include' })
         const j = (await res.json().catch(() => null)) as unknown
         const authed = Boolean(j && typeof j === 'object' && (j as Record<string, unknown>).authenticated === true)
@@ -36,93 +97,121 @@ export default function Login() {
       const clientId = String(import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim()
       if (!clientId) {
         setError('缺少 VITE_GOOGLE_CLIENT_ID')
+        setPhase('failed')
         return
       }
-      if (initializedRef.current) return
-      initializedRef.current = true
 
-      const init = () => {
-        type Gsi = {
-          accounts?: {
-            id?: {
-              initialize: (opts: {
-                client_id: string
-                callback: (resp: { credential?: string }) => void
-                auto_select?: boolean
-                cancel_on_tap_outside?: boolean
-              }) => void
-              renderButton: (el: HTMLElement, options: Record<string, unknown>) => void
-              disableAutoSelect?: () => void
-            }
+      setPhase('initializing')
+      try {
+        await ensureGsiScript()
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : String(e))
+          setPhase('failed')
+        }
+        return
+      }
+      if (cancelled) return
+
+      const id = resolveGsiIdApi()
+      if (!id) {
+        setError('Google 登录组件未就绪，请稍后重试')
+        setPhase('failed')
+        return
+      }
+      id.initialize({
+        client_id: clientId,
+        callback: async (resp: { credential?: string }) => {
+          const credential = typeof resp?.credential === 'string' ? resp.credential : ''
+          if (!credential) {
+            setError('未获取到 Google 凭证，请重试')
+            setPhase('failed')
+            return
           }
-        }
-
-        const g = (window as unknown as { google?: Gsi }).google
-        const id = g?.accounts?.id
-        if (!id) return
-
-        id.initialize({
-          client_id: clientId,
-          callback: async (resp: { credential?: string }) => {
-            const credential = typeof resp?.credential === 'string' ? resp.credential : ''
-            if (!credential) return
-            setLoading(true)
-            setError(null)
-            try {
-              const r = await fetch(apiUrl('/api/auth/google'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ credential, remember: rememberRef.current }),
-                credentials: 'include',
-              })
-              const j = (await r.json().catch(() => null)) as unknown
-              if (!r.ok) {
-                const msg =
-                  j && typeof j === 'object' && (j as Record<string, unknown>).message
-                    ? String((j as Record<string, unknown>).message)
-                    : `HTTP ${r.status}`
-                throw new Error(msg)
-              }
-              nav(next, { replace: true })
-            } catch (e) {
-              setError(e instanceof Error ? e.message : String(e))
-            } finally {
-              setLoading(false)
+          if (triggerResetTimerRef.current !== null) {
+            window.clearTimeout(triggerResetTimerRef.current)
+            triggerResetTimerRef.current = null
+          }
+          setPhase('callback')
+          setError(null)
+          try {
+            const r = await fetch(apiUrl('/api/auth/google'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ credential, remember: rememberRef.current }),
+              credentials: 'include',
+            })
+            const j = (await r.json().catch(() => null)) as unknown
+            if (!r.ok) {
+              const msg =
+                j && typeof j === 'object' && (j as Record<string, unknown>).message
+                  ? String((j as Record<string, unknown>).message)
+                  : `HTTP ${r.status}`
+              throw new Error(msg)
             }
-          },
-          auto_select: false,
-          cancel_on_tap_outside: true,
-        })
-
-        const el = gsiBtnRef.current
-        if (el) {
-          el.innerHTML = ''
-          id.renderButton(el, { type: 'standard', theme: 'outline', size: 'large', width: 302 })
-        }
-      }
-
-      if ((window as unknown as { google?: { accounts?: { id?: unknown } } }).google?.accounts?.id) {
-        init()
+            setPhase('redirecting')
+            nav(next, { replace: true })
+          } catch (e) {
+            setError(e instanceof Error ? e.message : String(e))
+            setPhase('failed')
+          }
+        },
+        auto_select: false,
+        cancel_on_tap_outside: true,
+      })
+      const el = gsiBtnRef.current
+      if (!el) {
+        setError('登录组件挂载失败，请刷新重试')
+        setPhase('failed')
         return
       }
-
-      const existing = document.querySelector('script[data-google-gsi="1"]') as HTMLScriptElement | null
-      if (existing) {
-        existing.addEventListener('load', init, { once: true })
-        return
-      }
-
-      const s = document.createElement('script')
-      s.src = 'https://accounts.google.com/gsi/client'
-      s.async = true
-      s.defer = true
-      s.dataset.googleGsi = '1'
-      s.addEventListener('load', init, { once: true })
-      s.addEventListener('error', () => setError('加载 Google 登录组件失败'), { once: true })
-      document.head.appendChild(s)
+      el.innerHTML = ''
+      id.renderButton(el, {
+        type: 'standard',
+        theme: 'outline',
+        size: 'large',
+        text: 'signin_with',
+        shape: 'rectangular',
+        width: 302,
+      })
+      setPhase('ready')
+      setError(null)
     })()
+
+    return () => {
+      cancelled = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [reloadSeed])
+
+  const isBusy = phase === 'checking' || phase === 'initializing' || phase === 'callback' || phase === 'redirecting'
+
+  const statusText =
+    phase === 'checking'
+      ? '正在检查登录状态...'
+      : phase === 'initializing'
+        ? '正在加载 Google 登录组件...'
+        : phase === 'ready'
+          ? 'Google 登录已就绪'
+          : phase === 'triggering'
+            ? '正在拉起 Google 授权窗口...'
+            : phase === 'callback'
+              ? '验证成功，正在建立会话...'
+              : phase === 'redirecting'
+                ? '正在进入系统...'
+                : error || '登录失败，请重试'
+
+  const handleTriggerAttempt = () => {
+    if (phase !== 'ready') return
+    setPhase('triggering')
+    if (triggerResetTimerRef.current !== null) {
+      window.clearTimeout(triggerResetTimerRef.current)
+    }
+    triggerResetTimerRef.current = window.setTimeout(() => {
+      setPhase((prev) => (prev === 'triggering' ? 'ready' : prev))
+      triggerResetTimerRef.current = null
+    }, 1800)
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#050A0B] text-[#E6EDF7]">
@@ -189,7 +278,7 @@ export default function Login() {
           </section>
 
           <section className="mx-auto w-full max-w-[398px]">
-            <div className="relative overflow-hidden rounded-2xl border border-[rgba(230,81,0,0.15)] bg-[rgba(13,26,28,0.85)] p-12 shadow-[0_0_50px_-15px_rgba(230,81,0,0.25)] backdrop-blur-[24px]">
+            <div className="relative min-h-[432px] overflow-hidden rounded-2xl border border-[rgba(230,81,0,0.15)] bg-[rgba(13,26,28,0.85)] p-12 shadow-[0_0_50px_-15px_rgba(230,81,0,0.25)] backdrop-blur-[24px]">
               <div className="pointer-events-none absolute right-10 top-[-40px] h-32 w-32 rounded-xl bg-[rgba(230,81,0,0.2)] blur-[60px]" />
 
               <div className="flex flex-col items-center gap-2">
@@ -198,25 +287,19 @@ export default function Login() {
               </div>
 
               <div className="mt-8 flex flex-col gap-6">
-                <div className="relative">
-                  <button
-                    type="button"
-                    disabled={loading}
-                    className="relative inline-flex h-14 w-full cursor-pointer items-center justify-center gap-3 rounded-md bg-[#E65100] px-6 text-base font-bold text-white shadow-[0px_4px_6px_-4px_rgba(230,81,0,0.2),0px_10px_15px_-3px_rgba(230,81,0,0.2)] transition hover:brightness-110 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    <img
-                      src="/figma/login/login_google_icon.svg"
-                      alt=""
-                      className="h-5 w-5 select-none"
-                      aria-hidden="true"
-                    />
-                    通过 Google 账号登录
-                  </button>
+                <div className="flex justify-center">
                   <div
-                    ref={gsiBtnRef}
-                    style={{ opacity: 0.01 }}
-                    className={loading ? 'pointer-events-none absolute inset-0 z-10 cursor-pointer' : 'absolute inset-0 z-10 cursor-pointer'}
-                  />
+                    className={`rounded-md border border-[rgba(255,255,255,0.08)] bg-white/95 p-2 ${
+                      phase === 'ready' || phase === 'triggering' ? '' : 'opacity-80'
+                    }`}
+                    onClickCapture={handleTriggerAttempt}
+                  >
+                    <div
+                      ref={gsiBtnRef}
+                      className={isBusy ? 'pointer-events-none opacity-70' : ''}
+                      aria-label="Google 标准登录按钮"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex justify-center">
@@ -245,14 +328,25 @@ export default function Login() {
                   SECURE ACCESS · DATA ENCRYPTED
                 </div>
 
-                {error ? (
-                  <div className="rounded-lg border border-[#EF4444]/40 bg-black/10 px-3 py-2 text-xs text-[#A9B6CC]">
-                    <div className="text-[#E6EDF7]">登录失败</div>
-                    <div className="mt-0.5">{error}</div>
-                  </div>
-                ) : null}
-
-                {loading ? <div className="text-center text-xs text-[#A9B6CC]">登录中…</div> : null}
+                <div
+                  className={`min-h-[74px] rounded-lg px-3 py-2 text-xs ${
+                    phase === 'failed'
+                      ? 'border border-[#EF4444]/40 bg-black/10 text-[#A9B6CC]'
+                      : 'border border-[rgba(255,255,255,0.08)] bg-black/10 text-[#A9B6CC]'
+                  }`}
+                >
+                  <div className={phase === 'failed' ? 'text-[#E6EDF7]' : 'text-[#CBD5E1]'}>{phase === 'failed' ? '登录失败' : '登录状态'}</div>
+                  <div className="mt-1">{statusText}</div>
+                  {phase === 'failed' ? (
+                    <button
+                      type="button"
+                      className="mt-2 inline-flex items-center rounded-md border border-[rgba(230,81,0,0.35)] px-2 py-1 text-[11px] text-[#F8BFA2] transition hover:bg-[rgba(230,81,0,0.12)]"
+                      onClick={() => setReloadSeed((v) => v + 1)}
+                    >
+                      重新加载登录组件
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </div>
           </section>
