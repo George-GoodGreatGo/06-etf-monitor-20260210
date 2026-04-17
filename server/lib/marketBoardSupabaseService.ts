@@ -87,6 +87,23 @@ function ymd8BeijingYearsAgo(years: number): string {
   return `${y}${m}${day}`
 }
 
+function normalizeAmountToYiyuanIfNeeded(rows: Awaited<ReturnType<typeof readMarketBoardPointsRange>>) {
+  const values: number[] = []
+  for (const r of rows) {
+    const v = r.amount
+    if (typeof v === 'number' && Number.isFinite(v)) values.push(v)
+  }
+  if (values.length === 0) return { rows, converted: false as const }
+  values.sort((a, b) => a - b)
+  const median = values[Math.floor(values.length / 2)]
+  if (median < 100000) return { rows, converted: false as const }
+  const converted = rows.map((r) => ({
+    ...r,
+    amount: typeof r.amount === 'number' && Number.isFinite(r.amount) ? r.amount / 100000 : r.amount,
+  }))
+  return { rows: converted, converted: true as const }
+}
+
 type LiquidityPoint = {
   date: string
   close: number
@@ -215,7 +232,9 @@ export async function getMarketLiquidityV5FromSupabase(args?: { startDate?: stri
       }
     }
 
-    const series: LiquidityPoint[] = rows.map((r) => ({
+    const normalized = normalizeAmountToYiyuanIfNeeded(rows)
+    const normalizedRows = normalized.rows
+    const series: LiquidityPoint[] = normalizedRows.map((r) => ({
       date: r.data_date,
       close: r.close,
       amount: r.amount ?? null,
@@ -228,7 +247,7 @@ export async function getMarketLiquidityV5FromSupabase(args?: { startDate?: stri
       v5Pct: r.v5_pct ?? null,
     }))
 
-    const equityBondSeries: EquityBondPoint[] = rows.map((r) => ({
+    const equityBondSeries: EquityBondPoint[] = normalizedRows.map((r) => ({
       date: r.data_date,
       pe: r.pe ?? null,
       earningsYield: r.earnings_yield ?? null,
@@ -237,7 +256,7 @@ export async function getMarketLiquidityV5FromSupabase(args?: { startDate?: stri
       pct: r.equity_bond_pct ?? null,
     }))
 
-    const last = rows[rows.length - 1]
+    const last = normalizedRows[normalizedRows.length - 1]
     const notes = Array.isArray(last.notes) ? (last.notes as unknown[]) : null
     logRead('market_board.read.success', {
       start10,
@@ -259,6 +278,7 @@ export async function getMarketLiquidityV5FromSupabase(args?: { startDate?: stri
         source: 'supabase:market_board_point',
         notes: [
           ...(notes || []),
+          ...(normalized.converted ? ['amount_unit_compat=auto_converted_to_yiyuan_from_legacy_storage'] : []),
           ...(usedRunId ? [`run_id=${usedRunId}`] : []),
           ...(fallbackReason ? [`run_fallback=${fallbackReason}`] : []),
         ],

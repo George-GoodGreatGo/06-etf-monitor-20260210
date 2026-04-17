@@ -276,7 +276,7 @@ export function buildMarketBoardInsightContextV2(input: {
       boll120_lb: { meaning: 'BOLL120下轨', unit: '点', notes: '中轨 - 2*样本标准差' },
       boll120_bw: { meaning: 'BOLL120带宽', unit: '无量纲', notes: '(上轨-下轨)/中轨，反映波动收敛/扩张' },
       boll120_bwChangePct20d: { meaning: '带宽近20日相对变化', unit: '%', notes: '正值代表带宽扩张，负值代表收敛' },
-      amount: { meaning: '两市成交额（沪+深）', unit: '千元', notes: '来自市场日度数据口径' },
+      amount: { meaning: '两市成交额（沪+深）', unit: '亿元', notes: '来自市场日度数据口径' },
       amountPct: { meaning: '成交额滚动分位数', unit: '%', notes: '0-100，越高代表成交越活跃' },
       tr: { meaning: '换手率（均值口径）', unit: '%', notes: '两市口径合成，越高代表交易更活跃' },
       trPct: { meaning: '换手率滚动分位数', unit: '%', notes: '0-100，越高代表换手更活跃' },

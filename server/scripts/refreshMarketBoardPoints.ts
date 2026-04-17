@@ -68,6 +68,27 @@ function finiteOrNull(raw: unknown): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+function amountKyuanToYiyuan(raw: unknown): number | null {
+  const n = finiteOrNull(raw)
+  if (n == null) return null
+  return n / 100000
+}
+
+function normalizeAmountUnitNotes(rawNotes: unknown): unknown[] | null {
+  if (!Array.isArray(rawNotes)) return null
+  const out: unknown[] = []
+  for (const it of rawNotes) {
+    if (typeof it !== 'string') {
+      out.push(it)
+      continue
+    }
+    let s = it.replace(/“千元”/g, '“亿元”')
+    s = s.replace(/千元/g, '亿元')
+    out.push(s)
+  }
+  return out
+}
+
 function ymd8ToYear(ymd8: string): number | null {
   const s = String(ymd8 || '').trim()
   if (!/^\d{8}$/.test(s)) return null
@@ -349,7 +370,7 @@ async function main() {
         const fetchedAt = typeof meta.fetchedAt === 'string' ? meta.fetchedAt : new Date().toISOString()
         const sourceType = typeof meta.sourceType === 'string' ? meta.sourceType : null
         const source = typeof meta.source === 'string' ? meta.source : null
-        const notes = Array.isArray(meta.notes) ? meta.notes : null
+        const notes = normalizeAmountUnitNotes(meta.notes)
 
         const data = out.data && typeof out.data === 'object' ? out.data : {}
         const seriesAll = mustArray((data as Record<string, unknown>).series)
@@ -394,7 +415,7 @@ async function main() {
               source,
               notes,
               close,
-              amount: finiteOrNull(p.amount),
+              amount: amountKyuanToYiyuan(p.amount),
               tr: finiteOrNull(p.tr),
               north_money: finiteOrNull(p.northMoney),
               amount_pct: finiteOrNull(p.amountPct),
@@ -534,7 +555,7 @@ async function main() {
     const fetchedAt = typeof meta.fetchedAt === 'string' ? meta.fetchedAt : new Date().toISOString()
     const sourceType = typeof meta.sourceType === 'string' ? meta.sourceType : null
     const source = typeof meta.source === 'string' ? meta.source : null
-    const notes = Array.isArray(meta.notes) ? meta.notes : null
+    const notes = normalizeAmountUnitNotes(meta.notes)
 
     const data = out.data && typeof out.data === 'object' ? out.data : {}
     const series = mustArray((data as Record<string, unknown>).series)
@@ -562,7 +583,7 @@ async function main() {
           source,
           notes,
           close,
-          amount: finiteOrNull(p.amount),
+          amount: amountKyuanToYiyuan(p.amount),
           tr: finiteOrNull(p.tr),
           north_money: finiteOrNull(p.northMoney),
           amount_pct: finiteOrNull(p.amountPct),

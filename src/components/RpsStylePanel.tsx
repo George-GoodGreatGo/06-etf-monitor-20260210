@@ -85,14 +85,12 @@ export default function RpsStylePanel() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [meta, setMeta] = useState<Top100Meta | null>(null)
-  const [chartView, setChartView] = useState<RpsViewMode>('relative')
+  const [chartView, setChartView] = useState<RpsViewMode>('score')
   const [rangeKey, setRangeKey] = useState<RpsRangeKey>('1y')
   const [customStartDateDraft, setCustomStartDateDraft] = useState<string>(() => ymd(addYears(new Date(), -1)))
   const [customStartDateApplied, setCustomStartDateApplied] = useState<string | null>(null)
   const [mode, setMode] = useState<'risk_on' | 'risk_off'>('risk_off')
   const [leaderTicker, setLeaderTicker] = useState<string | null>(null)
-  const [positionPct, setPositionPct] = useState<number>(0)
-  const [isFallback, setIsFallback] = useState(false)
   const [items, setItems] = useState<RpsStyleMatrixItem[]>([])
   const [seriesByTicker, setSeriesByTicker] = useState<Record<string, RpsStyleSeriesPoint[]>>({})
   const [enabledTickers, setEnabledTickers] = useState<Record<string, boolean>>({})
@@ -125,8 +123,6 @@ export default function RpsStylePanel() {
           setMeta(panelRes.meta || null)
           setMode(sum.mode)
           setLeaderTicker(sum.leaderTicker)
-          setPositionPct(sum.suggestedAttackPositionPct)
-          setIsFallback(Boolean(sum.isFallback || (panelRes.meta as unknown as { isFallback?: boolean })?.isFallback))
           const matrixItems = Array.isArray(matrix.items) ? matrix.items : []
           setItems(matrixItems)
           const tickers = matrixItems.length ? matrixItems.map((x) => x.ticker) : DEFAULT_TICKERS
@@ -163,8 +159,6 @@ export default function RpsStylePanel() {
         setMeta(matrixRes.meta || null)
         setMode(sumRes.data.mode)
         setLeaderTicker(sumRes.data.leaderTicker)
-        setPositionPct(sumRes.data.suggestedAttackPositionPct)
-        setIsFallback(Boolean(sumRes.data.isFallback || (matrixRes.meta as unknown as { isFallback?: boolean })?.isFallback))
         const matrixItems = Array.isArray(matrixRes.data.items) ? matrixRes.data.items : []
         setItems(matrixItems)
         const tickers = matrixItems.length ? matrixItems.map((x) => x.ticker) : DEFAULT_TICKERS
@@ -222,7 +216,7 @@ export default function RpsStylePanel() {
             <p><span className="font-medium text-[#CBD5E1]">RPS</span>：目标ETF前复权收盘价 / 红利ETF前复权收盘价。</p>
             <p><span className="font-medium text-[#CBD5E1]">MA50</span>：RPS 的 50 日简单移动平均线。</p>
             <p><span className="font-medium text-[#CBD5E1]">Score</span>：((RPS / MA50) - 1) × 100%。</p>
-            <p><span className="font-medium text-[#CBD5E1]">判定</span>：全部 Score&lt;0 为防守（0%进攻仓）；存在 Score&gt;0 时选择最高分主攻，建议 33%。</p>
+            <p><span className="font-medium text-[#CBD5E1]">Score说明</span>：Score数值较高，说明该标的在近期（以MA 50天为观察）动量水平较高，可能存在阶段性追涨机会，但需警惕回调）。Score数值较低，说明动量不足，但也有可能存在抄底机会。</p>
             <p><span className="font-medium text-[#CBD5E1]">RPS起点归一</span>：按所选起点将各标的 RPS 与 MA50 同步归一化到 1，便于横向比较（分母基准 512890.SH）。</p>
           </div>
         </div>
@@ -237,16 +231,6 @@ export default function RpsStylePanel() {
           <div className="mt-1 flex items-center justify-between gap-3">
             <div className="text-[#94A3B8]">主攻标的</div>
             <div className="font-mono text-[#E6EDF7]">{leaderTicker ?? '—'}</div>
-          </div>
-          <div className="mt-1 flex items-center justify-between gap-3">
-            <div className="text-[#94A3B8]">建议进攻仓位</div>
-            <div className="font-mono text-[#E6EDF7]">{positionPct}%</div>
-          </div>
-          <div className="mt-1 flex items-center justify-between gap-3">
-            <div className="text-[#94A3B8]">回退状态</div>
-            <div className={cn('font-mono', isFallback ? 'text-[#FBBF24]' : 'text-[#34D399]')}>
-              {isFallback ? 'Fallback' : '正常'}
-            </div>
           </div>
         </div>
       </div>
@@ -300,17 +284,6 @@ export default function RpsStylePanel() {
             <button
               type="button"
               disabled={controlsDisabled}
-              onClick={() => setChartView('relative')}
-              className={cn(
-                'rounded-md border px-2 py-1 transition disabled:cursor-not-allowed disabled:opacity-50',
-                chartView === 'relative' ? 'border-white/20 bg-white/10 text-[#E6EDF7]' : 'border-white/10 text-[#A9B6CC] hover:border-white/20',
-              )}
-            >
-              RPS起点归一
-            </button>
-            <button
-              type="button"
-              disabled={controlsDisabled}
               onClick={() => setChartView('score')}
               className={cn(
                 'rounded-md border px-2 py-1 transition disabled:cursor-not-allowed disabled:opacity-50',
@@ -318,6 +291,17 @@ export default function RpsStylePanel() {
               )}
             >
               MA50归一视图（Score走势）
+            </button>
+            <button
+              type="button"
+              disabled={controlsDisabled}
+              onClick={() => setChartView('relative')}
+              className={cn(
+                'rounded-md border px-2 py-1 transition disabled:cursor-not-allowed disabled:opacity-50',
+                chartView === 'relative' ? 'border-white/20 bg-white/10 text-[#E6EDF7]' : 'border-white/10 text-[#A9B6CC] hover:border-white/20',
+              )}
+            >
+              RPS起点归一
             </button>
             <button
               type="button"

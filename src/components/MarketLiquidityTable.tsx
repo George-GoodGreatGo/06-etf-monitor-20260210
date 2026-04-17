@@ -93,18 +93,6 @@ export default function MarketLiquidityTable({ series, equityBond, className }: 
     }
   }, [series])
 
-  const v5PctSampleInsufficientByDate = useMemo(() => {
-    const out = new Map<string, boolean>()
-    let validCount = 0
-    for (const p of series || []) {
-      const d = String(p?.date || '').trim()
-      if (!d) continue
-      if (typeof p.v5Pct === 'number' && Number.isFinite(p.v5Pct)) validCount += 1
-      out.set(d, validCount < 630)
-    }
-    return out
-  }, [series])
-
   const rows = useMemo(() => {
     const ebByDate = new Map<string, EquityBondPoint>()
     for (const p of equityBond || []) {
@@ -158,7 +146,7 @@ export default function MarketLiquidityTable({ series, equityBond, className }: 
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">BOLL120(LB,点)</th>
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">BOLL120(BW)</th>
 
-              <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">成交额(沪+深,千元)</th>
+              <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">成交额（沪+深，亿元）</th>
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">成交额分位(%)</th>
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">换手率(均,%)</th>
               <th className="whitespace-nowrap border-b border-white/10 px-3 py-2 text-right font-medium">换手率分位(%)</th>
@@ -179,8 +167,6 @@ export default function MarketLiquidityTable({ series, equityBond, className }: 
               const ema20 = derivedByDate.ema20.get(p.date)
               const ema60 = derivedByDate.ema60.get(p.date)
               const bb = derivedByDate.boll.get(p.date)
-              const sampleInsufficient = v5PctSampleInsufficientByDate.get(p.date) ?? true
-              const v5PctText = fmt(p.v5Pct, 1)
               return (
               <tr key={p.date} className="border-b border-white/5 text-[#E6EDF7]">
                 <td className="whitespace-nowrap px-3 py-2 font-mono text-[#A9B6CC]">{p.date}</td>
@@ -192,16 +178,14 @@ export default function MarketLiquidityTable({ series, equityBond, className }: 
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(bb?.lower, 2)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(bb?.bandwidth, 4)}</td>
 
-                <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(p.amount, 0)}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(p.amount, 2)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(p.amountPct, 1)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(p.tr, 2)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(p.trPct, 1)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(p.northMoney, 2)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(p.northPct, 1)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(p.v5, 1)}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-right font-mono">
-                  {sampleInsufficient ? `${v5PctText}（样本不足）` : v5PctText}
-                </td>
+                <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(p.v5Pct, 1)}</td>
 
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(eb?.pe, 2)}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono">{fmt(eb?.earningsYield, 4)}</td>
