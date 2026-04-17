@@ -56,3 +56,28 @@
 - Task 8 depends on Task 7
 - Task 9 can run in parallel with Task 8
 - Task 10 depends on Task 8-9
+
+## 第三批回归修复（奇偶次开关交替失败）
+- [x] Task 11: 定位“第一轮失败、第二轮成功、第三轮失败”交替模式的状态残留根因
+  - [x] 排查补偿队列（raf/replay）是否在补偿完成后被完整清理
+  - [x] 排查 `prevPaneVisible` 快照是否在每轮开关后正确更新
+  - [x] 排查 `syncing`/range 缓存是否存在跨轮复用
+
+- [x] Task 12: 修复补偿生命周期隔离，确保每轮开关独立执行
+  - [x] 对补偿任务队列建立“入队-执行-清理”闭环，避免陈旧任务参与下一轮
+  - [x] 对可见状态快照建立明确更新时机（同步后提交快照）
+  - [x] 对 range 不可用重试增加幂等保护，避免重复回放抖动
+
+- [x] Task 13: 对照大盘看板验证同路径生命周期管理
+  - [x] 对比大盘中对应开关路径的状态初始化与清理策略
+  - [x] 仅在确认缺失时补齐最小保护；若已具备，记录对照结论
+
+- [x] Task 14: 交替场景专项回归
+  - [x] 执行至少三轮连续“关闭->开启”验证（低波与价值各一轮）
+  - [x] 验证每轮开启均有数据且联动/TIPS正常
+  - [x] 执行 `npm run lint` 与 `npm run check` 并更新 checklist 勾选
+
+## 第三批依赖
+- Task 12 depends on Task 11
+- Task 13 can run in parallel with Task 12
+- Task 14 depends on Task 12-13
