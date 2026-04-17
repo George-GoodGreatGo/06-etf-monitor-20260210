@@ -13,6 +13,13 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+@layer base {
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
 @layer components {
   .ui-glass-card {
     position: relative;

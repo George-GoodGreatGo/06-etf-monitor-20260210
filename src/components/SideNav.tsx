@@ -51,7 +51,7 @@ export default function SideNav({
         type="button"
         onClick={onToggleCollapse}
         className={cn(
-          'group mt-2 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 text-xs font-semibold text-[#A9B6CC] transition-all hover:border-white/20 hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/50',
+          'group mt-2 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 text-xs font-semibold text-[#A9B6CC] transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-out hover:border-white/20 hover:bg-white/10 hover:text-white active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0',
           collapsedValue ? 'px-0' : 'px-2',
         )}
         title={collapseTitle}
@@ -107,10 +107,10 @@ export default function SideNav({
               itemRefs.current['home'] = el
             }}
             className={cn(
-              'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/50',
+              'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-[color,background-color,box-shadow,transform] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0',
               isHome
-                ? 'text-white'
-                : 'text-[#A9B6CC] hover:-translate-y-[1px] hover:bg-white/5 hover:text-white hover:shadow-[0_10px_30px_rgba(0,0,0,0.25)] active:translate-y-0',
+                ? 'bg-white/8 text-white shadow-[0_10px_26px_rgba(0,0,0,0.22)]'
+                : 'text-[#A9B6CC] hover:bg-white/5 hover:text-white hover:shadow-[0_10px_26px_rgba(0,0,0,0.22)] active:scale-[0.99]',
               collapsedValue ? 'justify-start' : 'justify-between',
             )}
             title={collapsedValue ? '首页' : undefined}
@@ -148,10 +148,10 @@ export default function SideNav({
                   itemRefs.current[`market:${x.tab}`] = el
                 }}
                 className={cn(
-                  'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/50',
+                  'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-[color,background-color,box-shadow,transform] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0',
                   active
-                    ? 'text-white'
-                    : 'text-[#A9B6CC] hover:-translate-y-[1px] hover:bg-white/5 hover:text-white hover:shadow-[0_10px_30px_rgba(0,0,0,0.25)] active:translate-y-0',
+                    ? 'bg-white/8 text-white shadow-[0_10px_26px_rgba(0,0,0,0.22)]'
+                    : 'text-[#A9B6CC] hover:bg-white/5 hover:text-white hover:shadow-[0_10px_26px_rgba(0,0,0,0.22)] active:scale-[0.99]',
                   collapsedValue ? 'justify-start' : 'justify-between',
                 )}
                 title={collapsedValue ? x.label : undefined}
@@ -178,8 +178,10 @@ export default function SideNav({
             to="/methodology"
             className={({ isActive }) =>
               cn(
-                'group mt-2 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5722]/50',
-                isActive ? 'text-white' : 'text-[#A9B6CC] hover:-translate-y-[1px] hover:bg-white/5 hover:text-white hover:shadow-[0_10px_30px_rgba(0,0,0,0.25)] active:translate-y-0',
+                'group mt-2 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-[color,background-color,box-shadow,transform] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0',
+                isActive
+                  ? 'bg-white/8 text-white shadow-[0_10px_26px_rgba(0,0,0,0.22)]'
+                  : 'text-[#A9B6CC] hover:bg-white/5 hover:text-white hover:shadow-[0_10px_26px_rgba(0,0,0,0.22)] active:scale-[0.99]',
                 collapsedValue ? 'justify-start' : 'justify-between',
               )
             }
@@ -195,7 +197,13 @@ export default function SideNav({
               {collapsedValue ? null : <span className="truncate">数据与方法</span>}
             </span>
             {collapsedValue ? null : (
-              <span className="h-1.5 w-1.5 rounded-full bg-[#FF5722] opacity-0 transition-opacity duration-200 group-hover:opacity-60" aria-hidden="true" />
+              <span
+                className={cn(
+                  'h-1.5 w-1.5 rounded-full bg-[#FF5722] transition-all duration-200',
+                  isMethod ? 'opacity-100 scale-100' : 'opacity-0 scale-50 group-hover:opacity-60 group-hover:scale-90',
+                )}
+                aria-hidden="true"
+              />
             )}
           </NavLink>
         </div>
