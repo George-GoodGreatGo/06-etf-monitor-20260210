@@ -44,12 +44,19 @@ function QuoteCarousel({
   const interval = typeof intervalMs === 'number' && intervalMs > 2000 ? intervalMs : 7200
 
   const [idx, setIdx] = useState(0)
-  const [paused, setPaused] = useState(false)
+  const [hovering, setHovering] = useState(false)
+  const [pressing, setPressing] = useState(false)
+  const [pageHidden, setPageHidden] = useState<boolean>(() =>
+    typeof document !== 'undefined' ? document.visibilityState === 'hidden' : false,
+  )
   const [progressPct, setProgressPct] = useState(0)
 
   const activeSinceRef = useRef<number>(Date.now())
+  const elapsedWhenPausedRef = useRef<number>(0)
   const rafRef = useRef<number | null>(null)
   const tickIdRef = useRef<number | null>(null)
+
+  const paused = hovering || pressing || pageHidden
 
   const active = quotes[idx]
 
@@ -58,31 +65,55 @@ function QuoteCarousel({
     const safe = ((nextIdx % total) + total) % total
     setIdx(safe)
     activeSinceRef.current = Date.now()
+    elapsedWhenPausedRef.current = 0
     setProgressPct(0)
     void reason
   }, [quotes.length])
 
   useEffect(() => {
+    const onVisibilityChange = () => {
+      setPageHidden(document.visibilityState === 'hidden')
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, [])
+
+  useEffect(() => {
+    if (reducedMotion) {
+      activeSinceRef.current = Date.now()
+      elapsedWhenPausedRef.current = 0
+      setProgressPct(0)
+      return
+    }
+    if (paused) {
+      elapsedWhenPausedRef.current = Math.max(0, Date.now() - activeSinceRef.current)
+      return
+    }
+    activeSinceRef.current = Date.now() - elapsedWhenPausedRef.current
+  }, [paused, reducedMotion, idx])
+
+  useEffect(() => {
     if (!quotes.length) return
     if (reducedMotion || paused) return
-    if (tickIdRef.current) window.clearInterval(tickIdRef.current)
-    tickIdRef.current = window.setInterval(() => go(idx + 1, 'auto'), interval)
+    if (tickIdRef.current) window.clearTimeout(tickIdRef.current)
+    const remaining = Math.max(0, interval - elapsedWhenPausedRef.current)
+    tickIdRef.current = window.setTimeout(() => go(idx + 1, 'auto'), remaining)
     return () => {
-      if (tickIdRef.current) window.clearInterval(tickIdRef.current)
+      if (tickIdRef.current) window.clearTimeout(tickIdRef.current)
       tickIdRef.current = null
     }
   }, [go, idx, interval, paused, quotes.length, reducedMotion])
 
   useEffect(() => {
     if (!quotes.length) return
-    if (reducedMotion || paused) {
+    if (reducedMotion) {
       setProgressPct(0)
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       rafRef.current = null
       return
     }
     const loop = () => {
-      const elapsed = Date.now() - activeSinceRef.current
+      const elapsed = paused ? elapsedWhenPausedRef.current : Date.now() - activeSinceRef.current
       const pct = Math.max(0, Math.min(1, elapsed / interval))
       setProgressPct(Math.round(pct * 1000) / 10)
       rafRef.current = requestAnimationFrame(loop)
@@ -99,13 +130,15 @@ function QuoteCarousel({
   return (
     <section
       className="relative mx-auto w-full max-w-[980px]"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocusCapture={() => setPaused(true)}
-      onBlurCapture={() => setPaused(false)}
-      onPointerDown={() => setPaused(true)}
-      onPointerUp={() => setPaused(false)}
-      onPointerCancel={() => setPaused(false)}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => {
+        setHovering(false)
+        setPressing(false)
+      }}
+      onPointerDown={() => setPressing(true)}
+      onPointerUp={() => setPressing(false)}
+      onPointerCancel={() => setPressing(false)}
+      onPointerLeave={() => setPressing(false)}
     >
       <div
         className={cn(
@@ -187,7 +220,7 @@ function QuoteCarousel({
           <div className="mt-4 h-[2px] w-full overflow-hidden rounded-full bg-white/10 sm:mt-5">
             <div
               className={cn('h-full rounded-full bg-[linear-gradient(90deg,#FFFFFF_0%,#FF8A50_60%,#E65100_100%)]', reducedMotion ? '' : 'transition-[width] duration-150')}
-              style={{ width: `${paused || reducedMotion ? 0 : progressPct}%` }}
+              style={{ width: `${reducedMotion ? 0 : progressPct}%` }}
               aria-hidden="true"
             />
           </div>
