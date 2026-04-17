@@ -264,13 +264,15 @@ async function writeDiskCache(value: Record<string, unknown>) {
 export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?: string; forceRefresh?: boolean }) {
   const start = typeof args?.startDate === 'string' && args.startDate.trim() ? args.startDate.trim() : '20150101'
   const end = typeof args?.endDate === 'string' && args.endDate.trim() ? args.endDate.trim() : ymdToday()
+  const forceRefresh = args?.forceRefresh === true
   const liquidityStart = start < '20200101' ? '20200101' : start
 
   const cacheKey = `liquidity:v5:${calcVersion}:${start}:${end}`
   const now = Date.now()
   const hit = cache.get(cacheKey)
-  if (hit && hit.expiresAt > now) return hit.value as Record<string, unknown>
+  if (!forceRefresh && hit && hit.expiresAt > now) return hit.value as Record<string, unknown>
   const isDefaultRange = start === '20150101' && end === ymdToday()
+  const allowStaleFallback = !forceRefresh && isDefaultRange
 
   void isDefaultRange
   const noPythonRuntime = Boolean(process.env.VERCEL) || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME)
@@ -451,6 +453,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
   }
 
   const applyStaleFallback = async (reason: string) => {
+    if (!allowStaleFallback) return null
     const stale = await readDiskCache()
     if (!stale) return null
     const staleObj = stale as Record<string, unknown>
