@@ -30,6 +30,13 @@ type Hs300CloseResolved = {
   attempts: ProviderAttempt[]
 }
 
+type MarketTurnoverResolved = {
+  sh: Record<string, unknown>[]
+  sz: Record<string, unknown>[]
+  provider: string
+  attempts: ProviderAttempt[]
+}
+
 export type MarketBoardCoreProbeDetail = {
   source: 'hs300_close' | 'market_turnover'
   ok: boolean
@@ -282,6 +289,26 @@ async function fetchAkshareSinaHs300CloseSeries(args: { startDate8: string; endD
   return rows
 }
 
+async function fetchBaostockMarketTurnoverSeries(args: {
+  startDate8: string
+  endDate8: string
+}): Promise<{ sh: Record<string, unknown>[]; sz: Record<string, unknown>[] }> {
+  const out = await runBaostock<{ sh?: Record<string, unknown>[]; sz?: Record<string, unknown>[] }>(
+    `market-turnover:${args.startDate8}:${args.endDate8}`,
+    ['market-turnover', args.startDate8, args.endDate8],
+    { cacheTtlMs: 3 * 60_000, timeoutMs: 60_000 },
+  )
+  if (!out.success) {
+    throw new Error((out as { message?: string }).message || 'baostock market turnover failed')
+  }
+  const data = out.data && typeof out.data === 'object' ? out.data : {}
+  const shRaw = Array.isArray((data as { sh?: unknown[] }).sh) ? ((data as { sh?: unknown[] }).sh as unknown[]) : []
+  const szRaw = Array.isArray((data as { sz?: unknown[] }).sz) ? ((data as { sz?: unknown[] }).sz as unknown[]) : []
+  const sh = shRaw.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object')
+  const sz = szRaw.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object')
+  return { sh, sz }
+}
+
 async function fetchEastmoneyIndexDaily(args: {
   secid: string
   start: string
@@ -334,6 +361,13 @@ function getHs300CloseProviderOrder(sourcePolicyRaw: string): string[] {
   if (sourcePolicyRaw === 'runner-stable') return ['csindex', 'baostock', 'akshare:sina']
   if (sourcePolicyRaw === 'akshare-first') return ['akshare:sina', 'csindex', 'baostock', 'eastmoney']
   return ['eastmoney', 'csindex', 'baostock', 'akshare:sina']
+}
+
+function getMarketTurnoverProviderOrder(sourcePolicyRaw: string): string[] {
+  if (sourcePolicyRaw === 'runner-stable') return ['baostock', 'eastmoney']
+  if (sourcePolicyRaw === 'eastmoney-http') return ['eastmoney', 'baostock']
+  if (sourcePolicyRaw === 'akshare-first') return ['baostock', 'eastmoney']
+  return ['eastmoney', 'baostock']
 }
 
 async function resolveHs300CloseSeries(args: {
@@ -392,6 +426,82 @@ async function resolveHs300CloseSeries(args: {
   throw new Error(`hs300_close providers failed: ${summarizeProviderAttempts(attempts)}`)
 }
 
+async function resolveMarketTurnoverSeries(args: {
+  startDate8: string
+  endDate8: string
+  sourcePolicyRaw: string
+}): Promise<MarketTurnoverResolved> {
+  const { startDate8, endDate8, sourcePolicyRaw } = args
+  const attempts: ProviderAttempt[] = []
+  const providers = getMarketTurnoverProviderOrder(sourcePolicyRaw)
+  const end10 = ymd8ToYmd10(endDate8)
+
+  const validateRows = (provider: string, label: 'sh' | 'sz', rows: Record<string, unknown>[]) => {
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return `${provider}:${label}=empty rows`
+    }
+    const validCount = rows.filter(
+      (r) =>
+        Number.isFinite(Number((r as Record<string, unknown>).amount)) &&
+        Number.isFinite(Number((r as Record<string, unknown>).tr)),
+    ).length
+    if (validCount <= 0) {
+      return `${provider}:${label}=no valid amount/tr`
+    }
+    const last = rows[rows.length - 1]
+    const lastDate8 = typeof last?.trade_date === 'string' ? String(last.trade_date) : ''
+    const lastDate10 = normalizeTradeDate(lastDate8)
+    if (lastDate10 && end10) {
+      const lag = diffDaysUtc(end10, lastDate10)
+      if (lag != null && lag > 7) return `${provider}:${label}=stale lag=${lag}d last=${lastDate10}`
+    }
+    return ''
+  }
+
+  for (const provider of providers) {
+    try {
+      const raw =
+        provider === 'baostock'
+          ? await fetchBaostockMarketTurnoverSeries({ startDate8, endDate8 })
+          : await Promise.all([
+              fetchEastmoneyIndexDaily({ secid: '1.000001', start: startDate8, end: endDate8 }),
+              fetchEastmoneyIndexDaily({ secid: '0.399001', start: startDate8, end: endDate8 }),
+            ]).then(([sh, sz]) => ({ sh, sz }))
+      const sh = normalizeMarketAmountToKyuan(raw.sh).map((r) => ({
+        trade_date: r.trade_date,
+        amount: r.amount,
+        tr: r.tr,
+      }))
+      const sz = normalizeMarketAmountToKyuan(raw.sz).map((r) => ({
+        trade_date: r.trade_date,
+        amount: r.amount,
+        tr: r.tr,
+      }))
+      const shErr = validateRows(provider, 'sh', sh)
+      const szErr = validateRows(provider, 'sz', sz)
+      if (!shErr && !szErr) {
+        attempts.push({ provider, ok: true, count: sh.length + sz.length })
+        return { sh, sz, provider, attempts }
+      }
+      attempts.push({
+        provider,
+        ok: false,
+        kind: 'empty',
+        error: [shErr, szErr].filter(Boolean).join('; '),
+      })
+    } catch (e) {
+      attempts.push({
+        provider,
+        ok: false,
+        kind: classifyProviderError(e),
+        error: e instanceof Error ? e.message : String(e),
+      })
+    }
+  }
+
+  throw new Error(`market_turnover providers failed: ${summarizeProviderAttempts(attempts)}`)
+}
+
 export async function probeMarketBoardCoreDependencies(args: {
   startDate: string
   endDate: string
@@ -419,18 +529,15 @@ export async function probeMarketBoardCoreDependencies(args: {
 
   try {
     const liquidityStart = startDate < '20200101' ? '20200101' : startDate
-    const [sh, sz] = await Promise.all([
-      fetchEastmoneyIndexDaily({ secid: '1.000001', start: liquidityStart, end: endDate }),
-      fetchEastmoneyIndexDaily({ secid: '0.399001', start: liquidityStart, end: endDate }),
-    ])
-    const shCount = sh.filter((r) => Number.isFinite(Number((r as Record<string, unknown>).amount)) && Number.isFinite(Number((r as Record<string, unknown>).tr))).length
-    const szCount = sz.filter((r) => Number.isFinite(Number((r as Record<string, unknown>).amount)) && Number.isFinite(Number((r as Record<string, unknown>).tr))).length
-    if (shCount <= 0 || szCount <= 0) throw new Error(`sh_count=${shCount} sz_count=${szCount}`)
+    const turnover = await resolveMarketTurnoverSeries({ startDate8: liquidityStart, endDate8: endDate, sourcePolicyRaw })
+    const shCount = turnover.sh.filter((r) => Number.isFinite(Number((r as Record<string, unknown>).amount)) && Number.isFinite(Number((r as Record<string, unknown>).tr))).length
+    const szCount = turnover.sz.filter((r) => Number.isFinite(Number((r as Record<string, unknown>).amount)) && Number.isFinite(Number((r as Record<string, unknown>).tr))).length
+    if (shCount <= 0 || szCount <= 0) throw new Error(`provider=${turnover.provider} sh_count=${shCount} sz_count=${szCount}`)
     details.push({
       source: 'market_turnover',
       ok: true,
       count: shCount + szCount,
-      note: `provider=eastmoney; sh=${shCount}; sz=${szCount}`,
+      note: `provider=${turnover.provider}; sh=${shCount}; sz=${szCount}; attempts=${summarizeProviderAttempts(turnover.attempts)}`,
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -483,15 +590,14 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
 
   const tryEastmoneyHttpFallback = async (reason: string) => {
     try {
-      const [hs300Resolved, shRaw, szRaw] = await Promise.all([
+      const [hs300Resolved, turnoverResolved] = await Promise.all([
         resolveHs300CloseSeries({ startDate8: start, endDate8: end, sourcePolicyRaw }),
-        fetchEastmoneyIndexDaily({ secid: '1.000001', start: liquidityStart, end }),
-        fetchEastmoneyIndexDaily({ secid: '0.399001', start: liquidityStart, end }),
+        resolveMarketTurnoverSeries({ startDate8: liquidityStart, endDate8: end, sourcePolicyRaw }),
       ])
 
       const hs300 = hs300Resolved.rows.map((r) => ({ trade_date: r.trade_date, close: r.close }))
-      const sh = shRaw.map((r) => ({ trade_date: r.trade_date, amount: r.amount, tr: r.tr }))
-      const sz = szRaw.map((r) => ({ trade_date: r.trade_date, amount: r.amount, tr: r.tr }))
+      const sh = turnoverResolved.sh.map((r) => ({ trade_date: r.trade_date, amount: r.amount, tr: r.tr }))
+      const sz = turnoverResolved.sz.map((r) => ({ trade_date: r.trade_date, amount: r.amount, tr: r.tr }))
       const [north, hs300Pe] = await Promise.all([
         fetchNorthboundTotalTurnoverSeries({ startDate: liquidityStart, endDate: end }),
         fetchCsindexHs300PeSeries({ startDate: start, endDate: end }),
@@ -521,8 +627,10 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
           : []
       const northTailMissing = countNorthTailMissing(series)
       const notes: string[] = [
-        '已使用 Eastmoney HTTP 替代数据源（无 Python 依赖），缺失字段保持 null，不做推测补值。',
-        `成交额口径：来自 Eastmoney kline 成交额，已换算为“千元”（与表格视图一致）。`,
+        '已使用稳定优先替代链路；缺失字段保持 null，不做推测补值。',
+        `market_turnover provider=${turnoverResolved.provider}。`,
+        `market_turnover attempts=${summarizeProviderAttempts(turnoverResolved.attempts)}。`,
+        `成交额展示口径统一为“千元”；不同 provider 如口径不同，会在服务端进行单位归一化。`,
         `HS300 close provider=${hs300Resolved.provider}。`,
         `HS300 close attempts=${summarizeProviderAttempts(hs300Resolved.attempts)}。`,
         '沪深300PE数据源：中证指数（csindex）。',
@@ -541,7 +649,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
           fetchedAt: new Date().toISOString(),
           dataDate: last?.date ?? null,
           sourceType: 'fallback-realtime',
-          source: `eastmoney:shsz + hs300:${hs300Resolved.provider} + csindex:pe + eastmoney:datacenter + yield.chinabond.com.cn`,
+          source: `turnover:${turnoverResolved.provider} + hs300:${hs300Resolved.provider} + csindex:pe + eastmoney:datacenter + yield.chinabond.com.cn`,
           notes,
         },
         data: {
@@ -707,7 +815,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
     throw new Error(`实时数据源均不可用：AkShare=${akFirst.err}；Eastmoney=${emAfterAk.err}`)
   }
 
-  if (sourcePolicyRaw === 'runner-stable') return runEastmoneyFirst('优先策略：runner-stable（HS300 close=csindex->baostock->akshare:sina，SH/SZ=Eastmoney）。')
+  if (sourcePolicyRaw === 'runner-stable') return runEastmoneyFirst('优先策略：runner-stable（HS300 close=csindex->baostock->akshare:sina，market_turnover=baostock->eastmoney）。')
   if (sourcePolicyRaw === 'akshare-first') return runAkshareFirst()
   if (sourcePolicyRaw === 'eastmoney-http') return runEastmoneyFirst('优先策略：Eastmoney HTTP（无 Python 依赖）')
   if (sourcePolicyRaw === 'hybrid') return runEastmoneyFirst('优先策略：hybrid（Eastmoney-first，AkShare 回退）。')

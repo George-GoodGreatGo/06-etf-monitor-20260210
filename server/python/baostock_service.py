@@ -1,5 +1,7 @@
 import json
 import sys
+import io
+from contextlib import redirect_stdout
 from datetime import datetime, timezone
 
 
@@ -78,6 +80,37 @@ def _fetch_hs300_close(bs, start_date: str, end_date: str):
     return out, None
 
 
+def _fetch_index_turnover(bs, code: str, start_date: str, end_date: str):
+    rs = bs.query_history_k_data_plus(
+        code,
+        "date,amount,turn",
+        start_date=start_date,
+        end_date=end_date,
+        frequency="d",
+        adjustflag="3",
+    )
+    if getattr(rs, "error_code", "") != "0":
+        return [], f"query_history_k_data_plus({code}, amount, turn) failed: {rs.error_code} {rs.error_msg}"
+
+    out = []
+    while rs.next():
+        row = rs.get_row_data()
+        if not row or len(row) < 3:
+            continue
+        d = _ymd8_to_ymd10(row[0])
+        try:
+            amount = float(row[1])
+        except Exception:
+            amount = None
+        try:
+            turn = float(row[2])
+        except Exception:
+            turn = None
+        if d and amount is not None and turn is not None:
+            out.append({"trade_date": d.replace("-", ""), "amount": amount, "tr": turn})
+    return out, None
+
+
 def _fetch_cn10y_yield(bs, start_date: str, end_date: str):
     fn = getattr(bs, "query_bond_yield_data", None)
     if fn is None:
@@ -123,7 +156,7 @@ def main():
     start_date = _ymd8_to_ymd10(start_ymd8) or "2020-01-01"
     end_date = _ymd8_to_ymd10(end_ymd8) or datetime.now().strftime("%Y-%m-%d")
 
-    if cmd not in {"equity-bond", "hs300-close"}:
+    if cmd not in {"equity-bond", "hs300-close", "market-turnover"}:
         _err("unknown command")
         return
 
@@ -134,7 +167,8 @@ def main():
         return
 
     try:
-        lg = bs.login()
+        with redirect_stdout(io.StringIO()):
+            lg = bs.login()
         if getattr(lg, "error_code", "") != "0":
             _err(f"baostock login failed: {lg.error_code} {lg.error_msg}")
             return
@@ -154,6 +188,31 @@ def main():
                         "notes": [n for n in [close_err] if n],
                     },
                     "data": {"hs300": close_rows},
+                }
+            )
+            return
+
+        if cmd == "market-turnover":
+            sh_rows, sh_err = _fetch_index_turnover(bs, "sh.000001", start_date, end_date)
+            sz_rows, sz_err = _fetch_index_turnover(bs, "sz.399001", start_date, end_date)
+            if (sh_err and not sh_rows) or (sz_err and not sz_rows):
+                _err("; ".join([n for n in [sh_err, sz_err] if n]))
+                return
+            data_date = None
+            if sh_rows:
+                data_date = sh_rows[-1]["trade_date"]
+            if sz_rows and (data_date is None or sz_rows[-1]["trade_date"] > data_date):
+                data_date = sz_rows[-1]["trade_date"]
+            _emit(
+                {
+                    "success": True,
+                    "meta": {
+                        "fetchedAt": _utc_now_iso(),
+                        "dataDate": data_date,
+                        "source": "baostock:query_history_k_data_plus(date,amount,turn)",
+                        "notes": [n for n in [sh_err, sz_err] if n],
+                    },
+                    "data": {"sh": sh_rows, "sz": sz_rows},
                 }
             )
             return
@@ -178,7 +237,8 @@ def main():
         )
     finally:
         try:
-            bs.logout()
+            with redirect_stdout(io.StringIO()):
+                bs.logout()
         except Exception:
             pass
 

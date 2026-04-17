@@ -1,0 +1,9 @@
+- [x] `SH/SZ amount+tr` 不再只依赖 `Eastmoney` 单一 provider，GitHub Runner 上默认走 `Baostock`
+- [x] `runner-stable` 同时覆盖 `HS300 close` 与 `market_turnover` 两条关键链路
+- [x] `market_turnover` 在 GitHub Runner 上具备可稳定返回 `sh.000001 + sz.399001` 的 `amount + tr` 主链路
+- [x] `market_turnover` probe 日志能输出 provider 顺序、命中的 provider、字段覆盖率与摘要错误
+- [x] `market_turnover` 不会因首个 `Eastmoney` 请求失败就立刻硬失败
+- [x] 仅当全部候选 provider 失败或覆盖率不足时，backfill 才会 fail-fast
+- [x] 失败不切换旧 run 的既有发布语义保持不变
+- [x] 规格说明保留本次调研基线：`Baostock` 可稳定提供 `amount+turn`；`AkShare-东方财富` 不稳，`AkShare-新浪` 缺少 `amount/tr`，`csindex` 覆盖不足
+- [x] 相关构建与回归验证通过
