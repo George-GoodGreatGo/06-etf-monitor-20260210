@@ -1,4 +1,4 @@
-import { getMarketLiquidityV5 } from '../lib/marketLiquidityV5Service.js'
+import { getMarketLiquidityV5, probeMarketBoardCoreDependencies } from '../lib/marketLiquidityV5Service.js'
 import { randomUUID } from 'node:crypto'
 import {
   publishMarketBoardRun,
@@ -188,7 +188,7 @@ function summarizeCoverage(rows: Array<Record<string, unknown>>) {
 }
 
 type ProbeDetail = {
-  source: 'northbound' | 'hs300_pe' | 'yield10y'
+  source: 'northbound' | 'hs300_pe' | 'yield10y' | 'hs300_close' | 'market_turnover'
   ok: boolean
   count: number
   note?: string
@@ -226,10 +226,35 @@ async function runSourceConnectivityProbe(args: { endDate: string }): Promise<Pr
   const oneYearAgo = shiftYmd8Years(endDate, -1) || FULL_BACKFILL_START
   const probeStart = maxYmd8(FULL_BACKFILL_START, oneYearAgo)
   const endYear = ymd8ToYear(endDate) || new Date().getUTCFullYear()
+  const sourcePolicy = String(process.env.MARKET_DATA_SOURCE || '').trim() || 'hybrid'
 
-  process.stdout.write(`[probe] start=${probeStart} end=${endDate} year=${endYear}\n`)
+  process.stdout.write(`[probe] start=${probeStart} end=${endDate} year=${endYear} policy=${sourcePolicy}\n`)
 
   const details: ProbeDetail[] = []
+
+  const coreChecks: ProbeDetail[] = await Promise.resolve(
+    withRetry(
+      () => probeMarketBoardCoreDependencies({ startDate: probeStart, endDate, sourcePolicy }),
+      'probe:market_board_core',
+      2,
+    ),
+  ).catch((e) => {
+    const msg = e instanceof Error ? e.message : String(e)
+    return [
+      { source: 'hs300_close' as const, ok: false, count: 0, error: msg },
+      { source: 'market_turnover' as const, ok: false, count: 0, error: msg },
+    ]
+  })
+  for (const detail of coreChecks) {
+    details.push(detail)
+    if (detail.ok) {
+      process.stdout.write(
+        `[probe] ok ${detail.source} count=${detail.count}${detail.note ? ` note=${detail.note}` : ''}\n`,
+      )
+    } else {
+      process.stderr.write(`[probe] failed ${detail.source} err=${detail.error}\n`)
+    }
+  }
 
   const hs300Check: ProbeDetail = await Promise.resolve(
     withRetry(async () => {
@@ -280,12 +305,35 @@ async function runSourceConnectivityProbe(args: { endDate: string }): Promise<Pr
   if (y10Check.ok) process.stdout.write(`[probe] ok yield10y count=${y10Check.count}\n`)
   else process.stderr.write(`[probe] warn yield10y err=${y10Check.error}\n`)
 
-  const hardFailed = !hs300Check.ok || !y10Check.ok
+  const hardFailed = details.some((d) => !d.ok && (d.source === 'hs300_close' || d.source === 'market_turnover' || d.source === 'hs300_pe' || d.source === 'yield10y'))
   return {
     ok: !hardFailed,
     hardFailed,
     details,
   }
+}
+
+async function runPreflightComputeSmoke(args: { endDate: string }) {
+  const endDate = String(args.endDate || '').trim()
+  const startDate = maxYmd8(FULL_BACKFILL_START, shiftYmd8Years(endDate, -1) || FULL_BACKFILL_START)
+  const out = (await withRetry(
+    () => getMarketLiquidityV5({ startDate, endDate, forceRefresh: true }),
+    'probe:compute_smoke',
+    2,
+  )) as Out
+  if (out.success !== true) throw new Error('preflight compute smoke returned success!=true')
+  const data = out.data && typeof out.data === 'object' ? out.data : {}
+  const series = mustArray((data as Record<string, unknown>).series)
+  if (series.length === 0) throw new Error('preflight compute smoke empty series')
+  const last = series[series.length - 1]
+  const lastDate = typeof last?.date === 'string' ? String(last.date) : ''
+  const lag = lastDate ? diffDaysUtc(ymd8ToYmd10(endDate), lastDate) : null
+  if (lag != null && lag > 7) {
+    throw new Error(`preflight compute smoke stale: last=${lastDate} lag=${lag}d`)
+  }
+  const meta = out.meta && typeof out.meta === 'object' ? out.meta : {}
+  const source = typeof meta.source === 'string' ? meta.source : 'unknown'
+  process.stdout.write(`[probe] ok compute_smoke count=${series.length} last=${lastDate || 'null'} source=${source}\n`)
 }
 
 type Out = {
@@ -341,6 +389,7 @@ async function main() {
           `[probe] soft-fail continue: ${probeWarn.map((d) => `${d.source}=${d.error || 'failed'}`).join('; ')}\n`,
         )
       }
+      await runPreflightComputeSmoke({ endDate })
 
       const y0 = ymd8ToYear(startDate)
       const y1 = ymd8ToYear(endDate)

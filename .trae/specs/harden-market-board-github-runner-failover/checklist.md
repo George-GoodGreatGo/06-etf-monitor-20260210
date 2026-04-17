@@ -1,0 +1,10 @@
+- [x] backfill 在进入分段循环前会验证 `HS300 close`、`SH/SZ amount+tr`、`northbound`、`HS300 PE`、`10Y` 等关键链路
+- [x] `HS300 close` 的 fallback 不再依赖 AkShare 整包成功，AkShare 直接报错时后续 provider 仍会继续尝试
+- [x] `HS300 close` 在 GitHub Runner 上采用基于实测的稳定优先顺序：`csindex -> baostock -> akshare:sina`
+- [x] GitHub Actions 的 schedule 默认使用稳定优先策略，手动触发仍可覆盖
+- [x] `AkShare-东方财富` 不再作为 `HS300 close` 的 GitHub Runner 首选链路
+- [x] 失败日志能看到字段名、provider 顺序、归一化错误类型与最终失败摘要
+- [x] 关键字段硬失败时会 fail-fast，不会继续做高成本整段重试
+- [x] 现有 run 原子发布与失败不切换行为保持不变
+- [x] 规格说明保留本次实测基线：`AkShare-东方财富` 连续失败，`AkShare-新浪` / `Baostock close` / `csindex` 连续成功
+- [x] 相关构建或验证命令通过

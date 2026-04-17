@@ -1,6 +1,6 @@
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def _ymd8_to_ymd10(s: str) -> str:
@@ -14,6 +14,10 @@ def _ymd8_to_ymd10(s: str) -> str:
 
 def _emit(obj):
     sys.stdout.write(json.dumps(obj, ensure_ascii=False))
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _err(msg: str):
@@ -44,6 +48,33 @@ def _fetch_hs300_pe(bs, start_date: str, end_date: str):
             pe = None
         if d and pe is not None:
             out.append({"date": d, "pe": pe})
+    return out, None
+
+
+def _fetch_hs300_close(bs, start_date: str, end_date: str):
+    rs = bs.query_history_k_data_plus(
+        "sh.000300",
+        "date,close",
+        start_date=start_date,
+        end_date=end_date,
+        frequency="d",
+        adjustflag="3",
+    )
+    if getattr(rs, "error_code", "") != "0":
+        return [], f"query_history_k_data_plus(close) failed: {rs.error_code} {rs.error_msg}"
+
+    out = []
+    while rs.next():
+        row = rs.get_row_data()
+        if not row or len(row) < 2:
+            continue
+        d = _ymd8_to_ymd10(row[0])
+        try:
+            close = float(row[1])
+        except Exception:
+            close = None
+        if d and close is not None:
+            out.append({"trade_date": d.replace("-", ""), "close": close})
     return out, None
 
 
@@ -92,7 +123,7 @@ def main():
     start_date = _ymd8_to_ymd10(start_ymd8) or "2020-01-01"
     end_date = _ymd8_to_ymd10(end_ymd8) or datetime.now().strftime("%Y-%m-%d")
 
-    if cmd != "equity-bond":
+    if cmd not in {"equity-bond", "hs300-close"}:
         _err("unknown command")
         return
 
@@ -108,6 +139,25 @@ def main():
             _err(f"baostock login failed: {lg.error_code} {lg.error_msg}")
             return
 
+        if cmd == "hs300-close":
+            close_rows, close_err = _fetch_hs300_close(bs, start_date, end_date)
+            if close_err and not close_rows:
+                _err(close_err)
+                return
+            _emit(
+                {
+                    "success": True,
+                    "meta": {
+                        "fetchedAt": _utc_now_iso(),
+                        "dataDate": (close_rows[-1]["trade_date"] if close_rows else None),
+                        "source": "baostock:query_history_k_data_plus",
+                        "notes": [n for n in [close_err] if n],
+                    },
+                    "data": {"hs300": close_rows},
+                }
+            )
+            return
+
         pe, pe_err = _fetch_hs300_pe(bs, start_date, end_date)
         y10, y_err = _fetch_cn10y_yield(bs, start_date, end_date)
         if pe_err and not pe:
@@ -118,7 +168,7 @@ def main():
             {
                 "success": True,
                 "meta": {
-                    "fetchedAt": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "fetchedAt": _utc_now_iso(),
                     "dataDate": (pe[-1]["date"] if pe else None),
                     "source": "baostock",
                     "notes": [n for n in [pe_err, y_err] if n],
@@ -135,4 +185,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

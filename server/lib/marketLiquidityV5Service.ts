@@ -2,6 +2,7 @@ import { buildLiquidityV5Series } from './liquidityV5.js'
 import { buildEquityBondValuePctSeries } from './equityBondValue.js'
 import { getRiskfree10ySeries } from './riskfree10yService.js'
 import { runAkshare } from './akshare.js'
+import { runBaostock } from './baostock.js'
 import { fetchCsindexHs300PeSeries } from './csindex.js'
 import { fetchNorthboundTotalTurnoverSeries } from './hkex.js'
 import type { LiquidityV5Point } from './liquidityV5.js'
@@ -12,6 +13,59 @@ type CacheEntry<T> = { expiresAt: number; value: T }
 const cache = new Map<string, CacheEntry<unknown>>()
 const calcVersion = 'pct-window-v5pct-5y-v1'
 const diskCacheFile = path.join(process.cwd(), 'server', '.cache', `market-liquidity-v5.${calcVersion}.json`)
+
+type ProviderErrorKind = 'network' | 'http' | 'empty' | 'waf' | 'python' | 'unknown'
+
+type ProviderAttempt = {
+  provider: string
+  ok: boolean
+  count?: number
+  kind?: ProviderErrorKind
+  error?: string
+}
+
+type Hs300CloseResolved = {
+  rows: Record<string, unknown>[]
+  provider: string
+  attempts: ProviderAttempt[]
+}
+
+export type MarketBoardCoreProbeDetail = {
+  source: 'hs300_close' | 'market_turnover'
+  ok: boolean
+  count: number
+  note?: string
+  error?: string
+}
+
+function classifyProviderError(err: unknown): ProviderErrorKind {
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase()
+  if (
+    msg.includes('proxyerror') ||
+    msg.includes('fetch failed') ||
+    msg.includes('econnreset') ||
+    msg.includes('timed out') ||
+    msg.includes('timeout') ||
+    msg.includes('unable to connect')
+  ) {
+    return 'network'
+  }
+  if (msg.includes('http ')) return 'http'
+  if (msg.includes('blocked by waf') || msg.includes('访问被阻断') || msg.includes('应用防火墙')) return 'waf'
+  if (msg.includes('python') || msg.includes('not available')) return 'python'
+  if (msg.includes('empty') || msg.includes('为空') || msg.includes('未获取到')) return 'empty'
+  return 'unknown'
+}
+
+function summarizeProviderAttempts(attempts: ProviderAttempt[]): string {
+  return attempts
+    .map((it) =>
+      it.ok
+        ? `${it.provider}=ok(count=${it.count ?? 0})`
+        : `${it.provider}=${it.kind || 'unknown'}:${String(it.error || 'failed').slice(0, 160)}`,
+    )
+    .join(' | ')
+}
 
 function rollingPercentilePct(values: Array<number | null>, window: number, minPeriods: number): Array<number | null> {
   const out: Array<number | null> = new Array(values.length).fill(null)
@@ -88,6 +142,24 @@ function ymd8ToYmd10(raw: unknown): string {
   const s = typeof raw === 'string' ? raw.trim() : ''
   if (!/^\d{8}$/.test(s)) return ''
   return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`
+}
+
+function ymd10ToUtcMs(ymd10: string): number | null {
+  const s = String(ymd10 || '').trim()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null
+  const y = Number(s.slice(0, 4))
+  const m = Number(s.slice(5, 7))
+  const d = Number(s.slice(8, 10))
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null
+  const ms = Date.UTC(y, m - 1, d)
+  return Number.isFinite(ms) ? ms : null
+}
+
+function diffDaysUtc(aYmd10: string, bYmd10: string): number | null {
+  const a = ymd10ToUtcMs(aYmd10)
+  const b = ymd10ToUtcMs(bYmd10)
+  if (a == null || b == null) return null
+  return Math.floor((a - b) / 86_400_000)
 }
 
 function normalizeTradeDate(raw: unknown): string {
@@ -180,6 +252,36 @@ async function fetchCsindexHs300CloseSeries(args: { startDate8: string; endDate8
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr))
 }
 
+async function fetchBaostockHs300CloseSeries(args: { startDate8: string; endDate8: string }): Promise<Record<string, unknown>[]> {
+  const out = await runBaostock<{ hs300?: Record<string, unknown>[] }>(
+    `hs300-close:${args.startDate8}:${args.endDate8}`,
+    ['hs300-close', args.startDate8, args.endDate8],
+    { cacheTtlMs: 3 * 60_000, timeoutMs: 60_000 },
+  )
+  if (!out.success) {
+    throw new Error((out as { message?: string }).message || 'baostock hs300 close failed')
+  }
+  const data = out.data && typeof out.data === 'object' ? out.data : {}
+  const rawRows = Array.isArray((data as { hs300?: unknown[] }).hs300) ? ((data as { hs300?: unknown[] }).hs300 as unknown[]) : []
+  const rows = rawRows.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object')
+  return rows
+}
+
+async function fetchAkshareSinaHs300CloseSeries(args: { startDate8: string; endDate8: string }): Promise<Record<string, unknown>[]> {
+  const out = await runAkshare<{ hs300?: Record<string, unknown>[] }>(
+    `hs300-close-sina:${args.startDate8}:${args.endDate8}`,
+    ['hs300-close-sina', '--start-date', args.startDate8, '--end-date', args.endDate8],
+    { cacheTtlMs: 3 * 60_000, timeoutMs: 60_000 },
+  )
+  if (!out.success) {
+    throw new Error((out as { message?: string }).message || 'akshare sina hs300 close failed')
+  }
+  const data = out.data && typeof out.data === 'object' ? out.data : {}
+  const rawRows = Array.isArray((data as { hs300?: unknown[] }).hs300) ? ((data as { hs300?: unknown[] }).hs300 as unknown[]) : []
+  const rows = rawRows.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object')
+  return rows
+}
+
 async function fetchEastmoneyIndexDaily(args: {
   secid: string
   start: string
@@ -228,6 +330,116 @@ function ymd8ToYear(ymd8: string): number | null {
   return Number.isFinite(y) ? y : null
 }
 
+function getHs300CloseProviderOrder(sourcePolicyRaw: string): string[] {
+  if (sourcePolicyRaw === 'runner-stable') return ['csindex', 'baostock', 'akshare:sina']
+  if (sourcePolicyRaw === 'akshare-first') return ['akshare:sina', 'csindex', 'baostock', 'eastmoney']
+  return ['eastmoney', 'csindex', 'baostock', 'akshare:sina']
+}
+
+async function resolveHs300CloseSeries(args: {
+  startDate8: string
+  endDate8: string
+  sourcePolicyRaw: string
+}): Promise<Hs300CloseResolved> {
+  const { startDate8, endDate8, sourcePolicyRaw } = args
+  const attempts: ProviderAttempt[] = []
+  const providers = getHs300CloseProviderOrder(sourcePolicyRaw)
+  const end10 = ymd8ToYmd10(endDate8)
+
+  const validate = (provider: string, rows: Record<string, unknown>[]) => {
+    if (!Array.isArray(rows) || rows.length === 0) {
+      attempts.push({ provider, ok: false, kind: 'empty', error: 'empty rows' })
+      return false
+    }
+    const last = rows[rows.length - 1]
+    const lastDate8 = typeof last?.trade_date === 'string' ? String(last.trade_date) : ''
+    const lastDate10 = normalizeTradeDate(lastDate8)
+    if (lastDate10 && end10) {
+      const lag = diffDaysUtc(end10, lastDate10)
+      if (lag != null && lag > 7) {
+        attempts.push({ provider, ok: false, kind: 'empty', error: `stale rows lag=${lag}d last=${lastDate10}` })
+        return false
+      }
+    }
+    attempts.push({ provider, ok: true, count: rows.length })
+    return true
+  }
+
+  for (const provider of providers) {
+    try {
+      const rows =
+        provider === 'eastmoney'
+          ? (await fetchEastmoneyIndexDaily({ secid: '1.000300', start: startDate8, end: endDate8 })).map((r) => ({
+              trade_date: r.trade_date,
+              close: r.close,
+            }))
+          : provider === 'csindex'
+            ? await fetchCsindexHs300CloseSeries({ startDate8, endDate8 })
+            : provider === 'baostock'
+              ? await fetchBaostockHs300CloseSeries({ startDate8, endDate8 })
+              : await fetchAkshareSinaHs300CloseSeries({ startDate8, endDate8 })
+      if (validate(provider, rows)) return { rows, provider, attempts }
+    } catch (e) {
+      attempts.push({
+        provider,
+        ok: false,
+        kind: classifyProviderError(e),
+        error: e instanceof Error ? e.message : String(e),
+      })
+    }
+  }
+
+  throw new Error(`hs300_close providers failed: ${summarizeProviderAttempts(attempts)}`)
+}
+
+export async function probeMarketBoardCoreDependencies(args: {
+  startDate: string
+  endDate: string
+  sourcePolicy?: string
+}): Promise<MarketBoardCoreProbeDetail[]> {
+  const startDate = String(args.startDate || '').trim()
+  const endDate = String(args.endDate || '').trim()
+  const sourcePolicyRaw = String(args.sourcePolicy || process.env.MARKET_DATA_SOURCE || 'hybrid')
+    .trim()
+    .toLowerCase()
+  const details: MarketBoardCoreProbeDetail[] = []
+
+  try {
+    const hs300 = await resolveHs300CloseSeries({ startDate8: startDate, endDate8: endDate, sourcePolicyRaw })
+    details.push({
+      source: 'hs300_close',
+      ok: true,
+      count: hs300.rows.length,
+      note: `provider=${hs300.provider}; attempts=${summarizeProviderAttempts(hs300.attempts)}`,
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    details.push({ source: 'hs300_close', ok: false, count: 0, error: msg })
+  }
+
+  try {
+    const liquidityStart = startDate < '20200101' ? '20200101' : startDate
+    const [sh, sz] = await Promise.all([
+      fetchEastmoneyIndexDaily({ secid: '1.000001', start: liquidityStart, end: endDate }),
+      fetchEastmoneyIndexDaily({ secid: '0.399001', start: liquidityStart, end: endDate }),
+    ])
+    const shCount = sh.filter((r) => Number.isFinite(Number((r as Record<string, unknown>).amount)) && Number.isFinite(Number((r as Record<string, unknown>).tr))).length
+    const szCount = sz.filter((r) => Number.isFinite(Number((r as Record<string, unknown>).amount)) && Number.isFinite(Number((r as Record<string, unknown>).tr))).length
+    if (shCount <= 0 || szCount <= 0) throw new Error(`sh_count=${shCount} sz_count=${szCount}`)
+    details.push({
+      source: 'market_turnover',
+      ok: true,
+      count: shCount + szCount,
+      note: `provider=eastmoney; sh=${shCount}; sz=${szCount}`,
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    details.push({ source: 'market_turnover', ok: false, count: 0, error: msg })
+  }
+
+  return details
+}
+
 async function readDiskCache(): Promise<Record<string, unknown> | null> {
   try {
     const raw = await fs.readFile(diskCacheFile, 'utf8')
@@ -266,18 +478,18 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
 
   void isDefaultRange
   const noPythonRuntime = Boolean(process.env.VERCEL) || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME)
-  const defaultPolicy = noPythonRuntime ? 'eastmoney-http' : 'hybrid'
+  const defaultPolicy = Boolean(process.env.GITHUB_ACTIONS) ? 'runner-stable' : noPythonRuntime ? 'eastmoney-http' : 'hybrid'
   const sourcePolicyRaw = String(process.env.MARKET_DATA_SOURCE || defaultPolicy).trim().toLowerCase()
 
   const tryEastmoneyHttpFallback = async (reason: string) => {
     try {
-      const [hs300Raw, shRaw, szRaw] = await Promise.all([
-        fetchEastmoneyIndexDaily({ secid: '1.000300', start, end }),
+      const [hs300Resolved, shRaw, szRaw] = await Promise.all([
+        resolveHs300CloseSeries({ startDate8: start, endDate8: end, sourcePolicyRaw }),
         fetchEastmoneyIndexDaily({ secid: '1.000001', start: liquidityStart, end }),
         fetchEastmoneyIndexDaily({ secid: '0.399001', start: liquidityStart, end }),
       ])
 
-      const hs300 = hs300Raw.map((r) => ({ trade_date: r.trade_date, close: r.close }))
+      const hs300 = hs300Resolved.rows.map((r) => ({ trade_date: r.trade_date, close: r.close }))
       const sh = shRaw.map((r) => ({ trade_date: r.trade_date, amount: r.amount, tr: r.tr }))
       const sz = szRaw.map((r) => ({ trade_date: r.trade_date, amount: r.amount, tr: r.tr }))
       const [north, hs300Pe] = await Promise.all([
@@ -311,6 +523,8 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       const notes: string[] = [
         '已使用 Eastmoney HTTP 替代数据源（无 Python 依赖），缺失字段保持 null，不做推测补值。',
         `成交额口径：来自 Eastmoney kline 成交额，已换算为“千元”（与表格视图一致）。`,
+        `HS300 close provider=${hs300Resolved.provider}。`,
+        `HS300 close attempts=${summarizeProviderAttempts(hs300Resolved.attempts)}。`,
         '沪深300PE数据源：中证指数（csindex）。',
         '北向资金总成交额数据源：东方财富数据中心（reportName=RPT_MUTUAL_DEAL_HISTORY, MUTUAL_TYPE=005, 字段 DEAL_AMT；分页拉取并合并去重；本服务端输出单位为“亿元”）。',
         'v5Pct=rollingPercentilePct(v5,1260,630)，即独家流动性指数 v5 的 5 年滚动分位（0–100）。',
@@ -327,7 +541,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
           fetchedAt: new Date().toISOString(),
           dataDate: last?.date ?? null,
           sourceType: 'fallback-realtime',
-          source: 'eastmoney:http + csindex + eastmoney:datacenter + yield.chinabond.com.cn',
+          source: `eastmoney:shsz + hs300:${hs300Resolved.provider} + csindex:pe + eastmoney:datacenter + yield.chinabond.com.cn`,
           notes,
         },
         data: {
@@ -375,7 +589,15 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
     const sh = Array.isArray(data.sh) ? (data.sh as Record<string, unknown>[]) : []
     const sz = Array.isArray(data.sz) ? (data.sz as Record<string, unknown>[]) : []
     const hs300PeRaw = Array.isArray(data.hs300Pe) ? (data.hs300Pe as Record<string, unknown>[]) : []
-    const hs300 = hs300Raw.length ? hs300Raw : await fetchCsindexHs300CloseSeries({ startDate8: start, endDate8: end })
+    const hs300Resolved =
+      hs300Raw.length > 0
+        ? {
+            rows: hs300Raw,
+            provider: 'akshare:eastmoney',
+            attempts: [{ provider: 'akshare:eastmoney', ok: true, count: hs300Raw.length }] satisfies ProviderAttempt[],
+          }
+        : await resolveHs300CloseSeries({ startDate8: start, endDate8: end, sourcePolicyRaw: 'runner-stable' })
+    const hs300 = hs300Resolved.rows
     const hs300Pe =
       hs300PeRaw.length > 0 ? hs300PeRaw : await fetchCsindexHs300PeSeries({ startDate: start, endDate: end })
 
@@ -411,6 +633,8 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       '独家流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为5年滚动（≈1260），最小有效≈630。',
       '股债利差=1/沪深300PE-中国10Y国债收益率，value再取5年滚动分位（≈1260，最小有效≈630），分位越高代表股票相对于国债更有性价比。',
       '已使用 AkShare 替代数据源；缺失字段保持 null，不做推测补值。',
+      `HS300 close provider=${hs300Resolved.provider}。`,
+      `HS300 close attempts=${summarizeProviderAttempts(hs300Resolved.attempts)}。`,
       '成交额展示口径统一为“千元”；若 AkShare 返回口径不同，会在服务端进行单位归一化。',
       '北向资金展示口径统一为“总成交额(亿元)”；本分支北向数据使用东方财富数据中心替代源（分页拉取并合并去重）。',
       ...(primaryFailReason ? [`主源失败原因：${primaryFailReason}`] : []),
@@ -426,7 +650,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
         calcVersion,
         fetchedAt: new Date().toISOString(),
         dataDate: last?.date ?? null,
-        source: 'akshare:eastmoney + eastmoney:datacenter + yield.chinabond.com.cn',
+          source: `akshare:shsz + hs300:${hs300Resolved.provider} + eastmoney:datacenter + yield.chinabond.com.cn`,
         notes,
       },
       data: {
@@ -483,6 +707,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
     throw new Error(`实时数据源均不可用：AkShare=${akFirst.err}；Eastmoney=${emAfterAk.err}`)
   }
 
+  if (sourcePolicyRaw === 'runner-stable') return runEastmoneyFirst('优先策略：runner-stable（HS300 close=csindex->baostock->akshare:sina，SH/SZ=Eastmoney）。')
   if (sourcePolicyRaw === 'akshare-first') return runAkshareFirst()
   if (sourcePolicyRaw === 'eastmoney-http') return runEastmoneyFirst('优先策略：Eastmoney HTTP（无 Python 依赖）')
   if (sourcePolicyRaw === 'hybrid') return runEastmoneyFirst('优先策略：hybrid（Eastmoney-first，AkShare 回退）。')

@@ -1168,6 +1168,39 @@ def market_board_daily(start_date: str, end_date: str):
     return _ok(meta, {"hs300": hs300, "sh": sh, "sz": sz, "north": north, "hs300Pe": pe})
 
 
+def hs300_close_sina(start_date: str, end_date: str):
+    fetched_at = _iso_now()
+    import akshare as ak
+
+    df = ak.stock_zh_index_daily(symbol="sh000300")
+    rows = _to_records_trade_date(
+        df,
+        ["date", "日期", "交易日期"],
+        {"close": ["close", "收盘"]},
+    )
+    start8 = str(start_date or "").strip()
+    end8 = str(end_date or "").strip()
+    if start8 and end8:
+        rows = [
+            r
+            for r in rows
+            if start8 <= str(r.get("trade_date") or "").replace("-", "") <= end8
+        ]
+    if not rows:
+        return _err("akshare_error", "AkShare-Sina 未获取到沪深300日线")
+
+    data_date = max((r.get("trade_date") for r in rows if r.get("trade_date")), default=None)
+    meta = {
+        "fetchedAt": fetched_at,
+        "dataDate": data_date,
+        "source": "akshare:sina",
+        "notes": [
+            "本次使用 AkShare-Sina 获取沪深300收盘点位；该源适合作为回退源，需注意高频抓取可能触发封禁。",
+        ],
+    }
+    return _ok(meta, {"hs300": rows})
+
+
 def index_valuation(index_code: str, start_date: str | None, end_date: str | None):
     fetched_at = _iso_now()
     import akshare as ak
@@ -1411,6 +1444,10 @@ def main(argv):
     p_mbd.add_argument("--start-date", type=str, required=True)
     p_mbd.add_argument("--end-date", type=str, required=True)
 
+    p_hs300_sina = sub.add_parser("hs300-close-sina")
+    p_hs300_sina.add_argument("--start-date", type=str, required=True)
+    p_hs300_sina.add_argument("--end-date", type=str, required=True)
+
     p_val = sub.add_parser("index-valuation")
     p_val.add_argument("--index-code", type=str, required=True)
     p_val.add_argument("--start-date", type=str, default="")
@@ -1436,6 +1473,8 @@ def main(argv):
             result = weekly_chart(args.code, args.adjust)
         elif args.cmd == "market-board-daily":
             result = market_board_daily(args.start_date, args.end_date)
+        elif args.cmd == "hs300-close-sina":
+            result = hs300_close_sina(args.start_date, args.end_date)
         elif args.cmd == "index-valuation":
             result = index_valuation(args.index_code, args.start_date or None, args.end_date or None)
         elif args.cmd == "index-valuation-baseline":
