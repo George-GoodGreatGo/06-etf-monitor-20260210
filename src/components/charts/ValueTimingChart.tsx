@@ -13,13 +13,17 @@ type Props = {
 
 export default function ValueTimingChart({ series, indexCode, indexLabel, indexDesc, biasBasis, className }: Props) {
   const toNullable = (v: number | null | undefined) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
+  const toDate = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
   const mapped = useMemo<LowVolH30269Point[]>(
     () =>
       (Array.isArray(series) ? series : []).flatMap((p) => {
+        const date = toDate(p.date)
+        if (!date) return []
         if (typeof p.close !== 'number' || !Number.isFinite(p.close)) return []
+        const spreadPct = toNullable(p.spreadPct)
         return [
           {
-            date: p.date,
+            date,
             close: p.close,
             ma60: toNullable(p.ma60),
             ma250: toNullable(p.ma250),
@@ -29,9 +33,9 @@ export default function ValueTimingChart({ series, indexCode, indexLabel, indexD
             biasPct3y: toNullable(p.biasPct3y),
             dividendYieldPct: toNullable(p.earningsYieldPct),
             yield10yPct: toNullable(p.yield10yPct),
-            spreadRawPct: toNullable(p.spreadPct),
-            spreadSmoothPct: toNullable(p.spreadPct),
-            spreadPct: toNullable(p.spreadPct),
+            spreadRawPct: spreadPct,
+            spreadSmoothPct: spreadPct,
+            spreadPct: spreadPct,
             spreadPctRank3y: null,
             spreadPctRank10y: toNullable(p.spreadPctRank5y),
           },

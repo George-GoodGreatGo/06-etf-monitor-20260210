@@ -81,3 +81,28 @@
 - Task 12 depends on Task 11
 - Task 13 can run in parallel with Task 12
 - Task 14 depends on Task 12-13
+
+## 第四批根因修复（对标大盘：数据常驻）
+- [x] Task 15: 对齐大盘“数据常驻”策略，移除副图隐藏时写空数组路径
+  - [x] 在 `LowVolOpportunityChart` 中将副图 `setData` 改为始终写入完整序列
+  - [x] 保持隐藏逻辑仅控制 pane 可见性与交互，不影响数据缓存
+  - [x] 清理与“写空恢复”强耦合的补偿分支，避免状态震荡
+
+- [x] Task 16: 重构联动集合为确定性重建（与数据写入解耦）
+  - [x] 每次开关后按当前可见 pane 重建 crosshair/range 联动集合
+  - [x] 确保联动失败不会影响副图数据可见性
+  - [x] 保持与大盘看板联动行为一致
+
+- [x] Task 17: 价值择时映射与大盘对照复核
+  - [x] 验证 ValueTiming 映射在“数据常驻”模式下不引入空值回归
+  - [x] 对照 `MarketLiquidityChart` 记录关键差异与已对齐点
+
+- [x] Task 18: 严格回归与验收
+  - [x] 连续 5 轮“关闭->开启”验证低波与价值（每轮首次开启必须有数据）
+  - [x] 验证每轮光标联动与 TIPS 正常
+  - [x] 执行 `npm run lint` / `npm run check` 并更新 checklist
+
+## 第四批依赖
+- Task 16 depends on Task 15
+- Task 17 can run in parallel with Task 16
+- Task 18 depends on Task 16-17

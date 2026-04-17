@@ -216,6 +216,7 @@ export default function LowVolOpportunityChart({
     showSpreadPane: true,
     showSpreadPctPane: true,
   })
+  const hoverMapRef = useRef<Map<UTCTimestamp, HoverState>>(new Map())
 
   const signal = useMemo(() => {
     if (!hover) return null
@@ -449,6 +450,10 @@ export default function LowVolOpportunityChart({
       map,
     }
   }, [biasBasis, series, thresh])
+
+  useEffect(() => {
+    hoverMapRef.current = data.map
+  }, [data.map])
 
   useEffect(() => {
     const el = mainElRef.current
@@ -807,6 +812,7 @@ export default function LowVolOpportunityChart({
     const spreadPct = chartsRef.current.spreadPct
     if (!main) return
 
+    // 采用固定顺序重建联动集合，保证每次开关后的订阅目标确定且可预测。
     const charts: IChartApi[] = [main]
     if (showBiasPane && bias) charts.push(bias)
     if (showBiasPctPane && biasPct) charts.push(biasPct)
@@ -844,7 +850,7 @@ export default function LowVolOpportunityChart({
         return
       }
 
-      const h = data.map.get(t) ?? null
+      const h = hoverMapRef.current.get(t) ?? null
       setHover(h)
 
       const mainClose = seriesRef.current.mainClose
@@ -882,21 +888,20 @@ export default function LowVolOpportunityChart({
       for (const { chart, fn } of rangeHandlers) chart.timeScale().unsubscribeVisibleLogicalRangeChange(fn)
       for (const { chart, fn } of crossHandlers) chart.unsubscribeCrosshairMove(fn)
     }
-  }, [biasBasis, data.map, showBiasPane, showBiasPctPane, showSpreadPane, showSpreadPctPane])
+  }, [biasBasis, showBiasPane, showBiasPctPane, showSpreadPane, showSpreadPctPane])
 
   useEffect(() => {
     seriesRef.current.mainClose?.setData(data.close)
     seriesRef.current.mainSma60?.setData(showSma60 ? data.sma60 : [])
     seriesRef.current.mainMa?.setData(showMa250 ? data.ma : [])
-    seriesRef.current.bias?.setData(showBiasPane ? (biasBasis === 'sma60' ? data.bias60 : data.bias250) : [])
+    // 副图数据常驻：隐藏仅影响 pane 可见性/交互，不清空缓存数据。
+    seriesRef.current.bias?.setData(biasBasis === 'sma60' ? data.bias60 : data.bias250)
     seriesRef.current.biasAlign?.setData(data.close)
-    seriesRef.current.biasPct?.setData(
-      showBiasPctPane ? (biasBasis === 'sma60' ? data.biasPct3y60 : data.biasPct3y250) : [],
-    )
+    seriesRef.current.biasPct?.setData(biasBasis === 'sma60' ? data.biasPct3y60 : data.biasPct3y250)
     seriesRef.current.biasPctAlign?.setData(data.close)
-    seriesRef.current.spread?.setData(showSpreadPane ? data.spreadSmooth : [])
+    seriesRef.current.spread?.setData(data.spreadSmooth)
     seriesRef.current.spreadAlign?.setData(data.close)
-    seriesRef.current.spreadPct?.setData(showSpreadPctPane ? data.spreadPctRank10y : [])
+    seriesRef.current.spreadPct?.setData(data.spreadPctRank10y)
     seriesRef.current.spreadPctAlign?.setData(data.close)
 
     const main = chartsRef.current.main
