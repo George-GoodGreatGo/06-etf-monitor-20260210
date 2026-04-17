@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { apiUrl } from '@/utils/apiBase'
 import { getAuthSession, setCachedAuthSession } from '@/utils/authSession'
 
-type LoginPhase = 'checking' | 'initializing' | 'ready' | 'triggering' | 'callback' | 'redirecting' | 'failed'
+type LoginPhase = 'initializing' | 'ready' | 'triggering' | 'callback' | 'redirecting' | 'failed'
 
 type GsiIdApi = {
   initialize: (opts: {
@@ -57,7 +57,7 @@ export default function Login() {
   const next = sp.get('next') || '/'
 
   const [remember, setRemember] = useState(true)
-  const [phase, setPhase] = useState<LoginPhase>('checking')
+  const [phase, setPhase] = useState<LoginPhase>('initializing')
   const [error, setError] = useState<string | null>(null)
   const [reloadSeed, setReloadSeed] = useState(0)
 
@@ -82,7 +82,7 @@ export default function Login() {
 
     void (async () => {
       try {
-        setPhase('checking')
+        setPhase('initializing')
         setError(null)
         const session = await getAuthSession()
         if (cancelled) return
@@ -186,14 +186,12 @@ export default function Login() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reloadSeed])
 
-  const isBusy = phase === 'checking' || phase === 'initializing' || phase === 'callback' || phase === 'redirecting'
+  const isBusy = phase === 'initializing' || phase === 'callback' || phase === 'redirecting'
 
   const statusText =
-    phase === 'checking'
-      ? '正在检查登录状态...'
-      : phase === 'initializing'
-        ? '正在加载 Google 登录组件...'
-        : phase === 'ready'
+    phase === 'initializing'
+      ? '正在检查登录状态并加载 Google 登录组件...'
+      : phase === 'ready'
           ? 'Google 登录已就绪'
           : phase === 'triggering'
             ? '正在拉起 Google 授权窗口...'
@@ -298,7 +296,7 @@ export default function Login() {
                   >
                     <div
                       ref={gsiBtnRef}
-                    className={`min-h-[44px] w-[302px] ${isBusy ? 'pointer-events-none opacity-70' : ''}`}
+                      className={`h-[44px] w-[302px] ${isBusy ? 'pointer-events-none opacity-70' : ''}`}
                       aria-label="Google 标准登录按钮"
                     />
                   </div>
