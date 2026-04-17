@@ -1,7 +1,7 @@
 import { fetchFinanceData } from './financeData.js'
 import { buildLiquidityV5Series } from './liquidityV5.js'
 import { buildEquityBondValuePctSeries } from './equityBondValue.js'
-import { fetchGovBond10yYieldPctByDateWithFallbackSafe } from './chinamoneyGovBond.js'
+import { fetchGovBond10yYieldPctByDateSafe } from './chinamoneyGovBond.js'
 import { runAkshare } from './akshare.js'
 import { fetchCsindexHs300PeSeries } from './csindex.js'
 import { fetchNorthboundTotalTurnoverSeries } from './hkex.js'
@@ -98,33 +98,6 @@ function normalizeTradeDate(raw: unknown): string {
   return ''
 }
 
-function ymd8ToUtcMs(ymd8: string): number | null {
-  const s = String(ymd8 || '').trim()
-  if (!/^\d{8}$/.test(s)) return null
-  const y = Number(s.slice(0, 4))
-  const m = Number(s.slice(4, 6))
-  const d = Number(s.slice(6, 8))
-  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null
-  const ms = Date.UTC(y, m - 1, d)
-  return Number.isFinite(ms) ? ms : null
-}
-
-function diffDaysYmd8(endYmd8: string, lastYmd8: string): number | null {
-  const a = ymd8ToUtcMs(endYmd8)
-  const b = ymd8ToUtcMs(lastYmd8)
-  if (a == null || b == null) return null
-  return Math.floor((a - b) / 86_400_000)
-}
-
-function maxTradeDate8(rows: Record<string, unknown>[]): string {
-  let maxD = ''
-  for (const r of rows) {
-    const d = String((r as Record<string, unknown>).trade_date || '').trim()
-    if (/^\d{8}$/.test(d) && (!maxD || d > maxD)) maxD = d
-  }
-  return maxD
-}
-
 async function buildYield10yPctByDate(args: { start8: string; end8: string }): Promise<{
   yield10yPctByDate: Map<string, number>
   notes: string[]
@@ -134,37 +107,25 @@ async function buildYield10yPctByDate(args: { start8: string; end8: string }): P
   const yield10yPctByDate = new Map<string, number>()
   const notes: string[] = []
   const failYears: Array<{ year: number; error: string }> = []
-  const sourceByYear: Array<{ year: number; source: 'chinamoney' | 'baostock' }> = []
-  const fallbackYears: number[] = []
 
   if (startY != null && endY != null) {
     const years: number[] = []
     for (let y = startY; y <= endY; y += 1) years.push(y)
     for (const year of years) {
-      const r = await fetchGovBond10yYieldPctByDateWithFallbackSafe({ year })
+      const r = await fetchGovBond10yYieldPctByDateSafe({ year })
       if (r.error) {
         failYears.push({ year, error: r.error })
         continue
       }
       for (const [d, y10] of r.map) yield10yPctByDate.set(d, y10)
-      if (r.source) sourceByYear.push({ year, source: r.source })
-      if (r.fallbackUsed) fallbackYears.push(year)
     }
   }
-  const primaryYears = sourceByYear.filter((it) => it.source === 'chinamoney').map((it) => it.year)
-  const baostockYears = sourceByYear.filter((it) => it.source === 'baostock').map((it) => it.year)
-  notes.push(
-    `yield10y_source_coverage=chinamoney:[${primaryYears.join(',') || '-'}];baostock:[${baostockYears.join(',') || '-'}]`,
-  )
-  notes.push(`yield10y_fallback_triggered=${fallbackYears.length > 0 ? '1' : '0'}`)
-  if (fallbackYears.length > 0) notes.push(`yield10y_fallback_source=baostock years=[${fallbackYears.join(',')}]`)
   if (failYears.length) {
-    notes.push(`yield10y_primary_failed=${failYears.length}`)
     for (const it of failYears) notes.push(`yield10y_year_missing=${it.year}:${String(it.error).slice(0, 120)}`)
   }
 
   if (yield10yPctByDate.size > 0) return { yield10yPctByDate, notes }
-  notes.push('yield10y_unavailable=no_live_source')
+  notes.push('yield10y_unavailable=no_snapshot_fallback')
   return { yield10yPctByDate, notes }
 }
 
@@ -375,7 +336,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
           fetchedAt: new Date().toISOString(),
           dataDate: last?.date ?? null,
           sourceType: 'fallback-realtime',
-          source: 'eastmoney:http + csindex + eastmoney:datacenter + chinamoney|baostock',
+          source: 'eastmoney:http + csindex + eastmoney:datacenter + yield.chinabond.com.cn',
           notes,
         },
         data: {
@@ -471,7 +432,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
         calcVersion,
         fetchedAt: new Date().toISOString(),
         dataDate: last?.date ?? null,
-        source: 'akshare:eastmoney + eastmoney:datacenter + chinamoney|baostock',
+        source: 'akshare:eastmoney + eastmoney:datacenter + yield.chinabond.com.cn',
         notes,
       },
       data: {
@@ -560,23 +521,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       }),
     ])
 
-    let hs300Filled = hs300
-    const hs300Last = maxTradeDate8(hs300)
-    const hs300Lag = hs300Last ? diffDaysYmd8(end, hs300Last) : null
-    let hs300SourceNote = 'hs300_close_source=financedata:index_daily'
-    // Guard against partial/old primary data (observed in CI): switch to csindex when primary tail is stale.
-    if (!hs300.length || (hs300Lag != null && hs300Lag > 30)) {
-      const hs300Csindex = await fetchCsindexHs300CloseSeries({ startDate8: start, endDate8: end })
-      if (hs300Csindex.length > 0) {
-        hs300Filled = hs300Csindex
-        const csLast = maxTradeDate8(hs300Csindex)
-        hs300SourceNote = `hs300_close_source=csindex:fallback_for_stale_primary primary_last=${hs300Last || '-'} csindex_last=${csLast || '-'}`
-      } else if (!hs300.length) {
-        hs300SourceNote = `hs300_close_source=financedata:index_daily_empty csindex_empty=1`
-      } else {
-        hs300SourceNote = `hs300_close_source=financedata:index_daily_stale primary_last=${hs300Last || '-'} csindex_empty=1`
-      }
-    }
+    const hs300Filled = hs300.length ? hs300 : await fetchCsindexHs300CloseSeries({ startDate8: start, endDate8: end })
     const series = attachV5Pct5y(buildLiquidityV5Series({
       hs300: hs300Filled,
       sh: normalizeMarketAmountToKyuan(sh),
@@ -606,8 +551,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
       '独家流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为5年滚动（≈1260），最小有效≈630。',
       '股债利差=1/沪深300PE-中国10Y国债收益率，value再取5年滚动分位（≈1260，最小有效≈630），分位越高代表股票相对于国债更有性价比。',
       '股债性价比PE数据源：codebuddy:financedata(index_dailybasic)',
-      hs300SourceNote,
-      '股债性价比10Y数据源：主源为 chinamoney(yield.chinabond.com.cn)，失败时自动回退 baostock（若运行环境支持 Python）。',
+      '股债性价比10Y数据源：chinabond(yield.chinabond.com.cn, 整年标准期限xlsx)',
       '股债性价比对齐：以沪深300交易日为基准，缺失使用前值填充。',
       '成交额展示口径统一为“千元”；若主源返回口径不同，会在服务端进行单位归一化。',
       '北向资金展示口径统一为“总成交额(亿元)”；本分支北向数据使用东方财富数据中心替代源（分页拉取并合并去重）。',
@@ -624,7 +568,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
         fetchedAt: new Date().toISOString(),
         dataDate: last?.date ?? null,
         sourceType: 'primary-realtime',
-        source: 'codebuddy:financedata + eastmoney:datacenter + chinamoney|baostock',
+        source: 'codebuddy:financedata + eastmoney:datacenter + yield.chinabond.com.cn',
         notes,
       },
       data: {

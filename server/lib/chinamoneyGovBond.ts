@@ -1,5 +1,4 @@
 import * as XLSX from 'xlsx'
-import { runBaostock } from './baostock.js'
 
 const YC_DEF_ID_GOV_BOND_MATURITY = '2c9081e50a2f9606010a3068cae70001'
 
@@ -90,29 +89,14 @@ async function fetchYearXlsx(year: number): Promise<Buffer> {
 
   let lastErr: Error | null = null
   const maxAttemptsRaw = Number(process.env.CHINAMONEY_FETCH_MAX_ATTEMPTS)
-  const maxAttempts = Number.isFinite(maxAttemptsRaw) ? Math.max(1, Math.min(6, Math.floor(maxAttemptsRaw))) : 3
+  const maxAttempts = Number.isFinite(maxAttemptsRaw) ? Math.max(1, Math.min(8, Math.floor(maxAttemptsRaw))) : 6
   const baseDelayRaw = Number(process.env.CHINAMONEY_FETCH_BASE_DELAY_MS)
-  const baseDelayMs = Number.isFinite(baseDelayRaw) ? Math.max(0, Math.min(30_000, Math.floor(baseDelayRaw))) : 1_000
-  const budgetRaw = Number(process.env.CHINAMONEY_FETCH_BUDGET_MS)
-  const budgetMs = Number.isFinite(budgetRaw) ? Math.max(15_000, Math.min(240_000, Math.floor(budgetRaw))) : 90_000
+  const baseDelayMs = Number.isFinite(baseDelayRaw) ? Math.max(0, Math.min(30_000, Math.floor(baseDelayRaw))) : 1_500
   const startedAt = Date.now()
-  logEvent({ event: 'chinamoney.10y.year.start', year, maxAttempts, baseDelayMs, budgetMs })
+  logEvent({ event: 'chinamoney.10y.year.start', year, maxAttempts, baseDelayMs })
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const elapsed = Date.now() - startedAt
-    const remainingMs = budgetMs - elapsed
-    if (remainingMs <= 2_500) {
-      lastErr = new Error(`chinamoney fetch budget exceeded: elapsed=${elapsed}ms budget=${budgetMs}ms`)
-      logEvent({
-        event: 'chinamoney.10y.year.budget_exhausted',
-        year,
-        attempt,
-        elapsed,
-        budgetMs,
-      })
-      break
-    }
     try {
-      const timeoutMs = Math.max(2_000, Math.min(30_000, 12_000 + attempt * 3_000, remainingMs - 1_000))
+      const timeoutMs = 20_000 + attempt * 5_000
       const res = await fetchWithTimeout(url, timeoutMs)
       if (!res.ok) {
         const text = await res.text().catch(() => '')
@@ -137,8 +121,7 @@ async function fetchYearXlsx(year: number): Promise<Buffer> {
       if (attempt < maxAttempts) {
         const base = Math.min(30_000, baseDelayMs * 2 ** (attempt - 1))
         const jitter = Math.floor(Math.random() * 350)
-        const remainingAfterAttempt = budgetMs - (Date.now() - startedAt)
-        const waitMs = Math.min(base + jitter, Math.max(0, remainingAfterAttempt - 1_000))
+        const waitMs = base + jitter
         logEvent({
           event: 'chinamoney.10y.year.retry',
           year,
@@ -148,7 +131,7 @@ async function fetchYearXlsx(year: number): Promise<Buffer> {
           error: String(lastErr.message || '').slice(0, 220),
           errorType: isAbort ? 'abort' : 'other',
         })
-        if (waitMs > 0) await sleep(waitMs)
+        await sleep(waitMs)
       } else {
         logEvent({
           event: 'chinamoney.10y.year.fail',
@@ -218,77 +201,4 @@ export async function fetchGovBond10yYieldPctByDateSafe(input: {
     const msg = e instanceof Error ? e.message : String(e)
     return { map: new Map<string, number>(), error: msg || 'unknown_error' }
   }
-}
-
-type GovBond10ySource = 'chinamoney' | 'baostock'
-
-type BaoEquityBondResp = {
-  pe?: unknown
-  yield10y?: Array<{ date?: unknown; yieldPct?: unknown }>
-}
-
-export async function fetchGovBond10yYieldPctByDateWithFallbackSafe(input: {
-  year: number
-  cacheTtlMs?: number
-}): Promise<{
-  map: Map<string, number>
-  error: string | null
-  source: GovBond10ySource | null
-  fallbackUsed: boolean
-}> {
-  const primary = await fetchGovBond10yYieldPctByDateSafe(input)
-  if (primary.error == null && primary.map.size > 0) {
-    return { map: primary.map, error: null, source: 'chinamoney', fallbackUsed: false }
-  }
-
-  const primaryError = primary.error || 'chinamoney_empty'
-  const noPythonRuntime = Boolean(process.env.VERCEL) || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME)
-  if (noPythonRuntime) {
-    return {
-      map: new Map<string, number>(),
-      error: `chinamoney_failed_and_baostock_unavailable:${primaryError}`,
-      source: null,
-      fallbackUsed: false,
-    }
-  }
-
-  const start8 = `${input.year}0101`
-  const end8 = `${input.year}1231`
-  const bao = await runBaostock<BaoEquityBondResp>(`yield10y:baostock:${input.year}`, ['equity-bond', start8, end8], {
-    cacheTtlMs: input.cacheTtlMs ?? 10 * 60_000,
-    timeoutMs: 45_000,
-  })
-  if (!bao.success) {
-    const baoErrMsg = 'message' in bao ? String(bao.message || '') : 'baostock_error'
-    return {
-      map: new Map<string, number>(),
-      error: `chinamoney_failed:${primaryError};baostock_failed:${baoErrMsg}`,
-      source: null,
-      fallbackUsed: false,
-    }
-  }
-  const rows = Array.isArray(bao.data?.yield10y) ? bao.data.yield10y : []
-  const out = new Map<string, number>()
-  for (const row of rows) {
-    const d = normalizeYmd10(row?.date)
-    const y = toNum(row?.yieldPct)
-    if (!d || y == null) continue
-    out.set(d, y)
-  }
-  if (out.size === 0) {
-    return {
-      map: out,
-      error: `chinamoney_failed:${primaryError};baostock_empty`,
-      source: null,
-      fallbackUsed: false,
-    }
-  }
-  logEvent({
-    event: 'chinamoney.10y.year.fallback_used',
-    year: input.year,
-    fallbackSource: 'baostock',
-    points: out.size,
-    primaryError: String(primaryError).slice(0, 280),
-  })
-  return { map: out, error: null, source: 'baostock', fallbackUsed: true }
 }

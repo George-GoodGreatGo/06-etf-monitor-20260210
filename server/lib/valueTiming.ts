@@ -1,4 +1,4 @@
-import { fetchGovBond10yYieldPctByDateWithFallbackSafe } from './chinamoneyGovBond.js'
+import { fetchGovBond10yYieldPctByDateSafe } from './chinamoneyGovBond.js'
 import { fetchCsindexIndexPeSeries } from './csindex.js'
 import { runAkshare } from './akshare.js'
 import path from 'node:path'
@@ -845,38 +845,20 @@ export async function getValueTimingIndexSeries(args: {
   }
   const yieldByDate = new Map<string, number>()
   const yieldFailYears: Array<{ year: number; error: string }> = []
-  const yieldSourceByYear: Array<{ year: number; source: 'chinamoney' | 'baostock' }> = []
-  const yieldFallbackYears: number[] = []
   const sortedYears = Array.from(years).sort((a, b) => a - b)
   for (const y of sortedYears) {
     const yStartedAt = Date.now()
     logEvent({ event: 'value_timing.index.y10.year.start', code: cfg.code, year: y })
-    const r = await fetchGovBond10yYieldPctByDateWithFallbackSafe({ year: y })
+    const r = await fetchGovBond10yYieldPctByDateSafe({ year: y })
     if (r.error) {
       yieldFailYears.push({ year: y, error: r.error })
       logEvent({ event: 'value_timing.index.y10.year.fail', code: cfg.code, year: y, ms: Date.now() - yStartedAt, error: String(r.error).slice(0, 240) })
       continue
     }
     for (const [d, v] of r.map) yieldByDate.set(d, v)
-    if (r.source) yieldSourceByYear.push({ year: y, source: r.source })
-    if (r.fallbackUsed) yieldFallbackYears.push(y)
-    logEvent({
-      event: 'value_timing.index.y10.year.done',
-      code: cfg.code,
-      year: y,
-      points: r.map.size,
-      source: r.source,
-      fallbackUsed: r.fallbackUsed,
-      ms: Date.now() - yStartedAt,
-    })
+    logEvent({ event: 'value_timing.index.y10.year.done', code: cfg.code, year: y, points: r.map.size, ms: Date.now() - yStartedAt })
   }
-  const primaryYears = yieldSourceByYear.filter((it) => it.source === 'chinamoney').map((it) => it.year)
-  const baostockYears = yieldSourceByYear.filter((it) => it.source === 'baostock').map((it) => it.year)
-  notes.push(`yield10y_source_coverage=chinamoney:[${primaryYears.join(',') || '-'}];baostock:[${baostockYears.join(',') || '-'}]`)
-  notes.push(`yield10y_fallback_triggered=${yieldFallbackYears.length > 0 ? '1' : '0'}`)
-  if (yieldFallbackYears.length > 0) notes.push(`yield10y_fallback_source=baostock years=[${yieldFallbackYears.join(',')}]`)
   if (yieldFailYears.length) {
-    notes.push(`yield10y_primary_failed=${yieldFailYears.length}`)
     for (const it of yieldFailYears) notes.push(`yield10y_year_missing=${it.year}:${String(it.error).slice(0, 180)}`)
   }
   let yieldFallbackByDate: Map<string, number> | null = null
@@ -1002,7 +984,6 @@ export async function getValueTimingIndexSeries(args: {
     closePoints: closeSeries.length,
     yieldPoints: yieldByDate.size,
     failYears: yieldFailYears.length,
-    fallbackYears: yieldFallbackYears.length,
     usedYieldFallback,
     ms: Date.now() - jobStartedAt,
   })

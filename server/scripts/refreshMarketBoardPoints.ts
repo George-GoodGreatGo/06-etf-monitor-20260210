@@ -9,7 +9,7 @@ import {
 } from '../lib/supabaseRest.js'
 import { fetchCsindexHs300PeSeries } from '../lib/csindex.js'
 import { fetchNorthboundTotalTurnoverSeries } from '../lib/hkex.js'
-import { fetchGovBond10yYieldPctByDateWithFallbackSafe } from '../lib/chinamoneyGovBond.js'
+import { fetchGovBond10yYieldPctByDateSafe } from '../lib/chinamoneyGovBond.js'
 
 const FULL_BACKFILL_START = '20160101'
 const RUN_HISTORY_KEEP = 5
@@ -264,26 +264,19 @@ async function runSourceConnectivityProbe(args: { endDate: string }): Promise<Pr
 
   const y10Check: ProbeDetail = await Promise.resolve(
     withRetry(async () => {
-      const out = await fetchGovBond10yYieldPctByDateWithFallbackSafe({ year: endYear })
+      const out = await fetchGovBond10yYieldPctByDateSafe({ year: endYear })
       if (out.error) throw new Error(out.error)
       if (!(out.map instanceof Map) || out.map.size === 0) throw new Error('yield10y empty')
-      return { count: out.map.size, source: out.source || 'unknown', fallbackUsed: out.fallbackUsed }
+      return out.map.size
     }, 'probe:yield10y', 2),
   )
-    .then((r) => ({
-      source: 'yield10y' as const,
-      ok: true,
-      count: r.count,
-      note: `source=${r.source};fallback=${r.fallbackUsed ? '1' : '0'}`,
-    }))
+    .then((count) => ({ source: 'yield10y' as const, ok: true, count }))
     .catch((e) => {
       const msg = e instanceof Error ? e.message : String(e)
       return { source: 'yield10y' as const, ok: false, count: 0, error: msg }
     })
   details.push(y10Check)
-  if (y10Check.ok) {
-    process.stdout.write(`[probe] ok yield10y count=${y10Check.count}${y10Check.note ? ` note=${y10Check.note}` : ''}\n`)
-  }
+  if (y10Check.ok) process.stdout.write(`[probe] ok yield10y count=${y10Check.count}\n`)
   else process.stderr.write(`[probe] warn yield10y err=${y10Check.error}\n`)
 
   const hardFailed = !hs300Check.ok

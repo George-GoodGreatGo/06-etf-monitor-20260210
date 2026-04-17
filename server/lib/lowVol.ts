@@ -1,4 +1,4 @@
-import { fetchGovBond10yYieldPctByDateWithFallbackSafe } from './chinamoneyGovBond.js'
+import { fetchGovBond10yYieldPctByDate } from './chinamoneyGovBond.js'
 import { readLowVolIndexPointsRange, readLowVolLatestPointsByCodes, readLowVolMeta, type LowVolIndexPointRow } from './supabaseRest.js'
 
 type CacheEntry<T> = { expiresAt: number; value: T }
@@ -668,27 +668,20 @@ export async function getLowVolIndexSeries(args: {
   const biasPct3y = buildRollingPercentile(bias250, 1260, 252)
 
   const y10ByDate = new Map<string, number>()
-  const y10FailYears: Array<{ year: number; error: string }> = []
-  const y10SourceByYear: Array<{ year: number; source: 'chinamoney' | 'baostock' }> = []
-  const y10FallbackYears: number[] = []
   if (closeSeries.length) {
     const y0 = Number(closeSeries[0].date.slice(0, 4))
     const y1 = Number(closeSeries[closeSeries.length - 1].date.slice(0, 4))
     const startYear = Number.isFinite(y0) ? y0 : new Date().getUTCFullYear()
     const endYear = Number.isFinite(y1) ? y1 : new Date().getUTCFullYear()
     for (let y = startYear; y <= endYear; y += 1) {
-      const r = await fetchGovBond10yYieldPctByDateWithFallbackSafe({ year: y })
-      if (r.error) {
-        y10FailYears.push({ year: y, error: r.error })
-        continue
+      try {
+        const m = await fetchGovBond10yYieldPctByDate({ year: y })
+        for (const [d, v] of m.entries()) y10ByDate.set(d, v)
+      } catch {
+        void 0
       }
-      for (const [d, v] of r.map.entries()) y10ByDate.set(d, v)
-      if (r.source) y10SourceByYear.push({ year: y, source: r.source })
-      if (r.fallbackUsed) y10FallbackYears.push(y)
     }
   }
-  const y10PrimaryYears = y10SourceByYear.filter((it) => it.source === 'chinamoney').map((it) => it.year)
-  const y10BaostockYears = y10SourceByYear.filter((it) => it.source === 'baostock').map((it) => it.year)
 
   const dividendPointsRaw: Array<number | null> = closeSeries.map((p, i) => {
     const lookback = i - 252
@@ -749,7 +742,7 @@ export async function getLowVolIndexSeries(args: {
   const meta = {
     fetchedAt: new Date().toISOString(),
     dataDate: last?.date ?? null,
-    source: `${dataSource} + govbond10y`,
+    source: `${dataSource} + chinamoney`,
     notes: [
       `指数：${cfg.name}（${cfg.code}）。`,
       dataSource === 'cnindex'
@@ -763,13 +756,7 @@ export async function getLowVolIndexSeries(args: {
       '利差分位：基于spreadCore做5年滚动分位（window≈1260，minPeriods=252）。',
       '乖离率BIAS口径：60日/250日简单移动平均，BIAS=(close-ma)/ma。',
       '滚动分位数窗口：BIAS分位与利差分位均为5年≈1260个交易日（最小有效252个样本）。',
-      `yield10y_source_coverage=chinamoney:[${y10PrimaryYears.join(',') || '-'}];baostock:[${y10BaostockYears.join(',') || '-'}]`,
-      `yield10y_fallback_triggered=${y10FallbackYears.length > 0 ? '1' : '0'}`,
-      y10FallbackYears.length > 0 ? `yield10y_fallback_source=baostock years=[${y10FallbackYears.join(',')}]` : '',
-      y10FailYears.length ? `yield10y_primary_failed=${y10FailYears.length}` : '',
-      ...y10FailYears.map((it) => `yield10y_year_missing=${it.year}:${String(it.error).slice(0, 180)}`),
-      y10ByDate.size > 0 ? '' : 'yield10y_unavailable=no_live_source',
-      '10Y国债收益率数据源：chinamoney主源 + baostock回退。',
+      '10Y国债收益率数据源：chinamoney。',
     ].filter(Boolean),
   }
 
