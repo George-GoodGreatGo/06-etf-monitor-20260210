@@ -59,7 +59,15 @@ function classifyProviderError(err: unknown): ProviderErrorKind {
   }
   if (msg.includes('http ')) return 'http'
   if (msg.includes('blocked by waf') || msg.includes('访问被阻断') || msg.includes('应用防火墙')) return 'waf'
-  if (msg.includes('python') || msg.includes('not available')) return 'python'
+  if (
+    msg.includes('python') ||
+    msg.includes('not available') ||
+    msg.includes('no module named') ||
+    msg.includes('dependency missing') ||
+    msg.includes('not installed')
+  ) {
+    return 'python'
+  }
   if (msg.includes('empty') || msg.includes('为空') || msg.includes('未获取到')) return 'empty'
   return 'unknown'
 }

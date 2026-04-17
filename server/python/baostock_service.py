@@ -163,7 +163,7 @@ def main():
     try:
         import baostock as bs
     except Exception as e:
-        _err(f"baostock not available: {str(e)}")
+        _err(f"python dependency missing: baostock not installed: {str(e)}")
         return
 
     try:

@@ -7,3 +7,7 @@
 - [x] 失败不切换旧 run 的既有发布语义保持不变
 - [x] 规格说明保留本次调研基线：`Baostock` 可稳定提供 `amount+turn`；`AkShare-东方财富` 不稳，`AkShare-新浪` 缺少 `amount/tr`，`csindex` 覆盖不足
 - [x] 相关构建与回归验证通过
+- [x] `runner-stable` 依赖的 Python 模块已在 `server/python/requirements.txt` 中显式声明
+- [x] GitHub workflow 的 Python 安装步骤与 `runner-stable` 实际依赖集合一致
+- [x] probe/日志能区分“缺少 Python 模块”和“数据源网络失败”
+- [x] GitHub Runner 不会再出现 `No module named 'baostock'`

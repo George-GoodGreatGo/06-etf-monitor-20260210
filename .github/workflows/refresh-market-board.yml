@@ -50,7 +50,9 @@ jobs:
         run: npm ci
 
       - name: Install Python deps
-        run: python -m pip install -r server/python/requirements.txt
+        run: |
+          python -m pip install -r server/python/requirements.txt
+          python -c "import akshare, baostock; print('python deps ok: akshare+baostock')"
 
       - name: Refresh market board points to Supabase
         env:

@@ -5,10 +5,13 @@
 
 这说明当前 `runner-stable` 仍未覆盖“成交额/换手率”这条关键链路。已完成候选源调研：`AkShare-东方财富`（`index_zh_a_hist` / `stock_zh_index_daily_em`）连续失败并报 `ProxyError`；`AkShare-新浪`（`stock_zh_index_daily`）虽然可返回日线，但只有 `date/open/high/low/close/volume`，缺少 `amount` 与 `tr`；`csindex index-perf` 对 `000001` 仅返回 `tradingValue/tradingVol` 且无 `turnover`，对 `399001` 返回空；只有 `Baostock query_history_k_data_plus(date,amount,turn)` 能稳定覆盖 `sh.000001` 与 `sz.399001` 的两项关键字段。因此本次方案应以 `Baostock` 作为 `market_turnover` 的 GitHub Runner 主链路，而不是继续假设存在多个等价可替换源。
 
+最新 GitHub Runner 报错又暴露出第二层问题：虽然 workflow 已执行 `python -m pip install -r server/python/requirements.txt`，但 `requirements.txt` 当前并未声明 `baostock`，导致 `runner-stable` 在真正切到 `Baostock` 主链路时出现 `No module named 'baostock'`。这说明“数据源策略正确”还不够，必须把“Runner 依赖完整性”纳入同一条稳定链路的规格范围。
+
 ## What Changes
 - 将 `SH/SZ amount+tr` 从“固定走 `Eastmoney`”改造为独立的序列级 provider 链，不再与 `HS300 close` 共用同一稳定性假设。
 - 将 GitHub Runner 上的 `market_turnover` 主链路明确为 `Baostock`；`Eastmoney` 保留为非 Runner 或补充场景使用，不再作为 GitHub Runner 唯一依赖。
 - 不将 `AkShare-新浪` 与 `csindex` 视为 `market_turnover` 的等价 fallback：前者缺少 `amount/tr`，后者无法稳定覆盖 `000001 + 399001` 且缺少 `turnover`。
+- 将 Python 运行依赖纳入稳定链路定义：凡 `runner-stable` 依赖的 Python provider，必须在 `server/python/requirements.txt` 和 GitHub workflow 安装步骤中得到显式保障。
 - 调整 backfill probe：对 `market_turnover` 输出 provider 顺序、命中的 provider、失败原因与字段覆盖率，不再只返回笼统的 `fetch failed`。
 - 调整 fail-fast 规则：仅当 `SH/SZ amount+tr` 的全部候选 provider 都失败，或覆盖率不足以安全构建流动性序列时，才终止 backfill。
 - 保持实现简单：不新增数据库表、不改前端接口；只增强 provider 解析、日志与回灌预检。
@@ -25,6 +28,7 @@
   - `server/lib/baostock.ts`
   - `server/python/akshare_service.py`
   - `server/python/baostock_service.py`
+  - `server/python/requirements.txt`
   - `.github/workflows/refresh-market-board.yml`
 
 ## ADDED Requirements
@@ -47,6 +51,24 @@
 - **THEN** 系统优先使用 `Baostock query_history_k_data_plus(date,amount,turn)`
 - **AND** 不将 `AkShare-新浪` 用作 `market_turnover` 回退，因为其缺少 `amount` 与 `tr`
 - **AND** 不将 `csindex` 用作 `market_turnover` 主链路，因为其字段和指数覆盖不足
+
+### Requirement: runner-stable 依赖的 Python 模块必须在 GitHub Runner 上显式可安装
+系统 SHALL 对 `runner-stable` 所依赖的 Python provider 维持可复现安装；如果策略会使用 `Baostock`，则 `baostock` 必须被显式声明在 Python 依赖清单中，并在 workflow 中被安装验证。
+
+#### Scenario: GitHub Actions 安装 Python 依赖
+- **GIVEN** workflow 将执行 `runner-stable`
+- **WHEN** GitHub Runner 安装 `server/python/requirements.txt`
+- **THEN** `baostock` 已包含在依赖清单中
+- **AND** 后续脚本调用 `runBaostock()` 时不会因 `No module named 'baostock'` 失败
+
+### Requirement: probe 失败信息必须区分“源失败”和“环境缺依赖”
+系统 SHALL 在 `market_turnover` 的 probe 里区分“provider 本身不可用”和“Runner 缺少依赖模块”两类失败，以便快速定位到数据源问题还是部署问题。
+
+#### Scenario: Baostock 模块未安装
+- **GIVEN** `Baostock` 未安装在 GitHub Runner
+- **WHEN** probe 尝试 `market_turnover` 的 `Baostock` provider
+- **THEN** 日志明确指出这是 `python dependency missing`
+- **AND** 如果后续 provider 可用，则继续回退；否则按硬失败处理
 
 ### Requirement: market_turnover probe 必须输出可操作的诊断信息
 系统 SHALL 在预检阶段对 `market_turnover` 输出结构化日志，能直接说明“失败在哪个 provider、哪个字段、为什么失败”。
@@ -83,6 +105,9 @@
 
 ### Requirement: 回灌预检的硬失败边界
 系统 SHALL 对 `market_turnover` 使用“多 provider 尝试 + 覆盖率判定”的硬失败标准，而不是在首个 `Eastmoney` 请求失败时立即终止整次 backfill。
+
+### Requirement: GitHub Runner 依赖安装一致性
+系统 SHALL 保证 workflow 的“Install Python deps”步骤与运行时实际依赖集合一致；新增或切换 Python provider 时，必须同步更新 `requirements.txt` 与相应验证步骤。
 
 ## REMOVED Requirements
 N/A
