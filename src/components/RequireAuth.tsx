@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { apiUrl } from '@/utils/apiBase'
+import { getAuthSession, getCachedAuthSession } from '@/utils/authSession'
 
 export default function RequireAuth({ children }: { children: React.ReactNode }) {
-  const [ok, setOk] = useState<boolean | null>(null)
+  const [ok, setOk] = useState<boolean | null>(() => {
+    const cached = getCachedAuthSession()
+    return cached?.authenticated === true ? true : null
+  })
   const nav = useNavigate()
   const loc = useLocation()
   const startedRef = useRef(false)
@@ -14,10 +17,8 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
 
     void (async () => {
       try {
-        const res = await fetch(apiUrl('/api/auth/me'), { cache: 'no-store', credentials: 'include' })
-        const j = (await res.json().catch(() => null)) as unknown
-        const authed = Boolean(j && typeof j === 'object' && (j as Record<string, unknown>).authenticated === true)
-        if (!authed) {
+        const session = await getAuthSession()
+        if (!session.authenticated) {
           const next = loc.pathname + (loc.search || '')
           nav(`/login?next=${encodeURIComponent(next)}`, { replace: true })
           return

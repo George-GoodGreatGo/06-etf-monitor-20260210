@@ -1,0 +1,350 @@
+{
+  "generatedAt": "2026-04-17T03:58:23.302Z",
+  "baseUrl": "http://localhost:5173",
+  "mode": "local-mock-api",
+  "lowvol": {
+    "selected": "/980081/",
+    "rounds": [
+      {
+        "round": 1,
+        "firstOpenPass": true,
+        "firstOpenChecks": [
+          {
+            "metric": "BIAS(",
+            "value": "1.3964",
+            "pass": true
+          },
+          {
+            "metric": "BIAS分位",
+            "value": "88.8",
+            "pass": true
+          },
+          {
+            "metric": "利差（核心）",
+            "value": "1.96",
+            "pass": true
+          },
+          {
+            "metric": "利差分位(5年)",
+            "value": "16.2",
+            "pass": true
+          }
+        ],
+        "dateLinked": true,
+        "tipUpdated": true,
+        "tipMetricsStable": true,
+        "tipA": "2022-11-21",
+        "tipB": "2024-03-03",
+        "tipSub": "2022-11-21"
+      },
+      {
+        "round": 2,
+        "firstOpenPass": true,
+        "firstOpenChecks": [
+          {
+            "metric": "BIAS(",
+            "value": "1.3964",
+            "pass": true
+          },
+          {
+            "metric": "BIAS分位",
+            "value": "88.8",
+            "pass": true
+          },
+          {
+            "metric": "利差（核心）",
+            "value": "1.96",
+            "pass": true
+          },
+          {
+            "metric": "利差分位(5年)",
+            "value": "16.2",
+            "pass": true
+          }
+        ],
+        "dateLinked": true,
+        "tipUpdated": true,
+        "tipMetricsStable": true,
+        "tipA": "2022-11-21",
+        "tipB": "2024-03-03",
+        "tipSub": "2022-11-21"
+      },
+      {
+        "round": 3,
+        "firstOpenPass": true,
+        "firstOpenChecks": [
+          {
+            "metric": "BIAS(",
+            "value": "1.3964",
+            "pass": true
+          },
+          {
+            "metric": "BIAS分位",
+            "value": "88.8",
+            "pass": true
+          },
+          {
+            "metric": "利差（核心）",
+            "value": "1.96",
+            "pass": true
+          },
+          {
+            "metric": "利差分位(5年)",
+            "value": "16.2",
+            "pass": true
+          }
+        ],
+        "dateLinked": true,
+        "tipUpdated": true,
+        "tipMetricsStable": true,
+        "tipA": "2022-11-21",
+        "tipB": "2024-03-03",
+        "tipSub": "2022-11-21"
+      },
+      {
+        "round": 4,
+        "firstOpenPass": true,
+        "firstOpenChecks": [
+          {
+            "metric": "BIAS(",
+            "value": "1.3964",
+            "pass": true
+          },
+          {
+            "metric": "BIAS分位",
+            "value": "88.8",
+            "pass": true
+          },
+          {
+            "metric": "利差（核心）",
+            "value": "1.96",
+            "pass": true
+          },
+          {
+            "metric": "利差分位(5年)",
+            "value": "16.2",
+            "pass": true
+          }
+        ],
+        "dateLinked": true,
+        "tipUpdated": true,
+        "tipMetricsStable": true,
+        "tipA": "2022-11-21",
+        "tipB": "2024-03-03",
+        "tipSub": "2022-11-21"
+      },
+      {
+        "round": 5,
+        "firstOpenPass": true,
+        "firstOpenChecks": [
+          {
+            "metric": "BIAS(",
+            "value": "1.3964",
+            "pass": true
+          },
+          {
+            "metric": "BIAS分位",
+            "value": "88.8",
+            "pass": true
+          },
+          {
+            "metric": "利差（核心）",
+            "value": "1.96",
+            "pass": true
+          },
+          {
+            "metric": "利差分位(5年)",
+            "value": "16.2",
+            "pass": true
+          }
+        ],
+        "dateLinked": true,
+        "tipUpdated": true,
+        "tipMetricsStable": true,
+        "tipA": "2022-11-21",
+        "tipB": "2024-03-03",
+        "tipSub": "2022-11-21"
+      }
+    ]
+  },
+  "value": {
+    "selected": "/980081/",
+    "rounds": [
+      {
+        "round": 1,
+        "firstOpenPass": true,
+        "firstOpenChecks": [
+          {
+            "metric": "BIAS(",
+            "value": "1.9829",
+            "pass": true
+          },
+          {
+            "metric": "BIAS分位",
+            "value": "63.7",
+            "pass": true
+          },
+          {
+            "metric": "利差（核心）",
+            "value": "10.54",
+            "pass": true
+          },
+          {
+            "metric": "利差分位(5年)",
+            "value": "94.0",
+            "pass": true
+          }
+        ],
+        "dateLinked": true,
+        "tipUpdated": true,
+        "tipMetricsStable": true,
+        "tipA": "2022-11-21",
+        "tipB": "2024-03-03",
+        "tipSub": "2022-11-21"
+      },
+      {
+        "round": 2,
+        "firstOpenPass": true,
+        "firstOpenChecks": [
+          {
+            "metric": "BIAS(",
+            "value": "1.9829",
+            "pass": true
+          },
+          {
+            "metric": "BIAS分位",
+            "value": "63.7",
+            "pass": true
+          },
+          {
+            "metric": "利差（核心）",
+            "value": "10.54",
+            "pass": true
+          },
+          {
+            "metric": "利差分位(5年)",
+            "value": "94.0",
+            "pass": true
+          }
+        ],
+        "dateLinked": true,
+        "tipUpdated": true,
+        "tipMetricsStable": true,
+        "tipA": "2022-11-21",
+        "tipB": "2024-03-03",
+        "tipSub": "2022-11-21"
+      },
+      {
+        "round": 3,
+        "firstOpenPass": true,
+        "firstOpenChecks": [
+          {
+            "metric": "BIAS(",
+            "value": "1.9829",
+            "pass": true
+          },
+          {
+            "metric": "BIAS分位",
+            "value": "63.7",
+            "pass": true
+          },
+          {
+            "metric": "利差（核心）",
+            "value": "10.54",
+            "pass": true
+          },
+          {
+            "metric": "利差分位(5年)",
+            "value": "94.0",
+            "pass": true
+          }
+        ],
+        "dateLinked": true,
+        "tipUpdated": true,
+        "tipMetricsStable": true,
+        "tipA": "2022-11-21",
+        "tipB": "2024-03-03",
+        "tipSub": "2022-11-21"
+      },
+      {
+        "round": 4,
+        "firstOpenPass": true,
+        "firstOpenChecks": [
+          {
+            "metric": "BIAS(",
+            "value": "1.9829",
+            "pass": true
+          },
+          {
+            "metric": "BIAS分位",
+            "value": "63.7",
+            "pass": true
+          },
+          {
+            "metric": "利差（核心）",
+            "value": "10.54",
+            "pass": true
+          },
+          {
+            "metric": "利差分位(5年)",
+            "value": "94.0",
+            "pass": true
+          }
+        ],
+        "dateLinked": true,
+        "tipUpdated": true,
+        "tipMetricsStable": true,
+        "tipA": "2022-11-21",
+        "tipB": "2024-03-03",
+        "tipSub": "2022-11-21"
+      },
+      {
+        "round": 5,
+        "firstOpenPass": true,
+        "firstOpenChecks": [
+          {
+            "metric": "BIAS(",
+            "value": "1.9829",
+            "pass": true
+          },
+          {
+            "metric": "BIAS分位",
+            "value": "63.7",
+            "pass": true
+          },
+          {
+            "metric": "利差（核心）",
+            "value": "10.54",
+            "pass": true
+          },
+          {
+            "metric": "利差分位(5年)",
+            "value": "94.0",
+            "pass": true
+          }
+        ],
+        "dateLinked": true,
+        "tipUpdated": true,
+        "tipMetricsStable": true,
+        "tipA": "2022-11-21",
+        "tipB": "2024-03-03",
+        "tipSub": "2022-11-21"
+      }
+    ]
+  },
+  "market": {
+    "dateLinked": false,
+    "tipUpdated": true,
+    "tipMetricsStable": false,
+    "paneCount": 8,
+    "tipA": "2022-12-27",
+    "tipB": "2024-01-27",
+    "tipSub": null
+  },
+  "pass": {
+    "lowvol": true,
+    "value": true,
+    "market": true,
+    "overall": true
+  }
+}

@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import NavBar from '@/components/NavBar'
 import SideNav from '@/components/SideNav'
 import { apiUrl } from '@/utils/apiBase'
+import { clearCachedAuthSession, getAuthSession } from '@/utils/authSession'
 
 const SIDEBAR_COLLAPSE_KEY = 'etf_monitor_sidebar_collapsed'
 
@@ -18,13 +19,9 @@ export default function AppShell() {
     const ac = new AbortController()
     void (async () => {
       try {
-        const res = await fetch(apiUrl('/api/auth/me'), { cache: 'no-store', credentials: 'include', signal: ac.signal })
-        const j = (await res.json().catch(() => null)) as unknown
-        const u =
-          j && typeof j === 'object' && (j as Record<string, unknown>).authenticated === true
-            ? String((j as Record<string, unknown>).username || '').trim()
-            : ''
-        setUsername(u || null)
+        const session = await getAuthSession()
+        if (ac.signal.aborted) return
+        setUsername(session.username)
       } catch {
         setUsername(null)
       }
@@ -82,6 +79,7 @@ export default function AppShell() {
             } catch {
               void 0
             } finally {
+              clearCachedAuthSession()
               nav(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`, { replace: true })
             }
           })()

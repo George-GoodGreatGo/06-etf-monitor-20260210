@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { apiUrl } from '@/utils/apiBase'
+import { getAuthSession, setCachedAuthSession } from '@/utils/authSession'
 
 type LoginPhase = 'checking' | 'initializing' | 'ready' | 'triggering' | 'callback' | 'redirecting' | 'failed'
 
@@ -83,10 +84,10 @@ export default function Login() {
       try {
         setPhase('checking')
         setError(null)
-        const res = await fetch(apiUrl('/api/auth/me'), { cache: 'no-store', credentials: 'include' })
-        const j = (await res.json().catch(() => null)) as unknown
-        const authed = Boolean(j && typeof j === 'object' && (j as Record<string, unknown>).authenticated === true)
-        if (authed) {
+        const session = await getAuthSession()
+        if (cancelled) return
+        if (session.authenticated) {
+          setPhase('redirecting')
           nav(next, { replace: true })
           return
         }
@@ -149,6 +150,7 @@ export default function Login() {
                   : `HTTP ${r.status}`
               throw new Error(msg)
             }
+            setCachedAuthSession({ authenticated: true, username: null })
             setPhase('redirecting')
             nav(next, { replace: true })
           } catch (e) {
@@ -296,7 +298,7 @@ export default function Login() {
                   >
                     <div
                       ref={gsiBtnRef}
-                      className={isBusy ? 'pointer-events-none opacity-70' : ''}
+                    className={`min-h-[44px] w-[302px] ${isBusy ? 'pointer-events-none opacity-70' : ''}`}
                       aria-label="Google 标准登录按钮"
                     />
                   </div>
