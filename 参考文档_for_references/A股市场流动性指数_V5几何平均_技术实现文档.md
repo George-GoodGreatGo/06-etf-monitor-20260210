@@ -45,7 +45,7 @@ def calc_percentile(series, window=60, min_periods=20):
 
 ### 2.1 API接口
 
-**基础URL**：`https://www.codebuddy.cn/v2/tool/financedata`
+**基础URL**：`（FinanceData 已下线，本节仅作历史说明）`
 
 **请求格式**：
 ```python
@@ -89,7 +89,7 @@ import requests
 import pandas as pd
 import numpy as np
 
-API_URL = 'https://www.codebuddy.cn/v2/tool/financedata'
+API_URL = '（已下线）'
 HEADERS = {'Content-Type': 'application/json'}
 
 def fetch_data(api_name, params, fields):

@@ -1,4 +1,3 @@
-import { fetchFinanceData } from './financeData.js'
 import { buildLiquidityV5Series } from './liquidityV5.js'
 import { buildEquityBondValuePctSeries } from './equityBondValue.js'
 import { fetchGovBond10yYieldPctByDateSafe } from './chinamoneyGovBond.js'
@@ -275,8 +274,8 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
 
   void isDefaultRange
   const noPythonRuntime = Boolean(process.env.VERCEL) || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME)
-  const defaultPolicy = noPythonRuntime ? 'eastmoney-http' : 'akshare-first'
-  const sourcePolicy = String(process.env.MARKET_DATA_SOURCE || defaultPolicy).trim().toLowerCase()
+  const defaultPolicy = noPythonRuntime ? 'eastmoney-http' : 'hybrid'
+  const sourcePolicyRaw = String(process.env.MARKET_DATA_SOURCE || defaultPolicy).trim().toLowerCase()
 
   const tryEastmoneyHttpFallback = async (reason: string) => {
     try {
@@ -380,10 +379,13 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
     }
 
     const data = ak.data && typeof ak.data === 'object' ? (ak.data as Record<string, unknown>) : {}
-    const hs300 = Array.isArray(data.hs300) ? (data.hs300 as Record<string, unknown>[]) : []
+    const hs300Raw = Array.isArray(data.hs300) ? (data.hs300 as Record<string, unknown>[]) : []
     const sh = Array.isArray(data.sh) ? (data.sh as Record<string, unknown>[]) : []
     const sz = Array.isArray(data.sz) ? (data.sz as Record<string, unknown>[]) : []
-    const hs300Pe = Array.isArray(data.hs300Pe) ? (data.hs300Pe as Record<string, unknown>[]) : []
+    const hs300PeRaw = Array.isArray(data.hs300Pe) ? (data.hs300Pe as Record<string, unknown>[]) : []
+    const hs300 = hs300Raw.length ? hs300Raw : await fetchCsindexHs300CloseSeries({ startDate8: start, endDate8: end })
+    const hs300Pe =
+      hs300PeRaw.length > 0 ? hs300PeRaw : await fetchCsindexHs300PeSeries({ startDate: start, endDate: end })
 
     const [north] = await Promise.all([fetchNorthboundTotalTurnoverSeries({ startDate: liquidityStart, endDate: end })])
     const series = attachV5Pct5y(buildLiquidityV5Series({
@@ -448,165 +450,49 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
     return { ok: true as const, out }
   }
 
-  if (sourcePolicy === 'eastmoney-http') {
-    const emFirst = await tryEastmoneyHttpFallback('优先策略：Eastmoney HTTP（无 Python 依赖）')
-    if (emFirst.ok) return emFirst.out
+  const applyStaleFallback = async (reason: string) => {
     const stale = await readDiskCache()
-    if (stale) {
-      const staleObj = stale as Record<string, unknown>
-      const meta = staleObj.meta && typeof staleObj.meta === 'object' ? (staleObj.meta as Record<string, unknown>) : {}
-      const oldNotes = Array.isArray(meta.notes) ? (meta.notes as unknown[]) : []
-      const withStale = {
-        ...staleObj,
-        meta: {
-          ...meta,
-          fetchedAt: new Date().toISOString(),
-          source: 'stale-cache-from-last-success',
-          notes: [...oldNotes, `Eastmoney HTTP 实时拉取失败，已回退上次成功快照：${emFirst.err}`],
-        },
-      }
-      cache.set(cacheKey, { expiresAt: now + 5 * 60_000, value: withStale })
-      return withStale
+    if (!stale) return null
+    const staleObj = stale as Record<string, unknown>
+    const meta = staleObj.meta && typeof staleObj.meta === 'object' ? (staleObj.meta as Record<string, unknown>) : {}
+    const oldNotes = Array.isArray(meta.notes) ? (meta.notes as unknown[]) : []
+    const withStale = {
+      ...staleObj,
+      meta: {
+        ...meta,
+        fetchedAt: new Date().toISOString(),
+        sourceType: 'fallback-realtime',
+        source: 'stale-cache-from-last-success',
+        notes: [...oldNotes, `本次实时拉取失败，已回退上次成功快照：${reason}`],
+      },
     }
-    throw new Error(`替代数据源不可用：Eastmoney=${emFirst.err}`)
+    cache.set(cacheKey, { expiresAt: now + 5 * 60_000, value: withStale })
+    return withStale
   }
 
-  if (sourcePolicy !== 'financedata') {
+  const runEastmoneyFirst = async (reasonPrefix: string) => {
+    const emFirst = await tryEastmoneyHttpFallback(reasonPrefix)
+    if (emFirst.ok) return emFirst.out
+    const akAfterEm = await tryAkshare(`Eastmoney 不可用：${emFirst.err}`)
+    if (akAfterEm.ok) return akAfterEm.out
+    const stale = await applyStaleFallback(`Eastmoney=${emFirst.err}; AkShare=${akAfterEm.err}`)
+    if (stale) return stale
+    throw new Error(`实时数据源均不可用：Eastmoney=${emFirst.err}；AkShare=${akAfterEm.err}`)
+  }
+
+  const runAkshareFirst = async () => {
     const akFirst = await tryAkshare()
     if (akFirst.ok) return akFirst.out
-    const emFirst = await tryEastmoneyHttpFallback(`AkShare 不可用：${akFirst.err}`)
-    if (emFirst.ok) return emFirst.out
-    const stale = await readDiskCache()
-    if (stale) {
-      const staleObj = stale as Record<string, unknown>
-      const meta = staleObj.meta && typeof staleObj.meta === 'object' ? (staleObj.meta as Record<string, unknown>) : {}
-      const oldNotes = Array.isArray(meta.notes) ? (meta.notes as unknown[]) : []
-      const withStale = {
-        ...staleObj,
-        meta: {
-          ...meta,
-          fetchedAt: new Date().toISOString(),
-          source: 'stale-cache-from-last-success',
-          notes: [...oldNotes, `替代源实时拉取失败，已回退上次成功快照：AkShare=${akFirst.err}; Eastmoney=${emFirst.err}`],
-        },
-      }
-      cache.set(cacheKey, { expiresAt: now + 5 * 60_000, value: withStale })
-      return withStale
-    }
-    throw new Error(`替代数据源不可用：AkShare=${akFirst.err}; Eastmoney=${emFirst.err}`)
+    const emAfterAk = await tryEastmoneyHttpFallback(`AkShare 不可用：${akFirst.err}`)
+    if (emAfterAk.ok) return emAfterAk.out
+    const stale = await applyStaleFallback(`AkShare=${akFirst.err}; Eastmoney=${emAfterAk.err}`)
+    if (stale) return stale
+    throw new Error(`实时数据源均不可用：AkShare=${akFirst.err}；Eastmoney=${emAfterAk.err}`)
   }
 
-  try {
-    const [hs300, sh, sz, north, hs300Pe] = await Promise.all([
-      fetchFinanceData({
-        apiName: 'index_daily',
-        params: { ts_code: '000300.SH', start_date: start, end_date: end },
-        fields: 'trade_date,close',
-      }),
-      fetchFinanceData({
-        apiName: 'daily_info',
-        params: { ts_code: 'SH_MARKET', start_date: liquidityStart, end_date: end },
-        fields: 'trade_date,amount,tr',
-      }),
-      fetchFinanceData({
-        apiName: 'daily_info',
-        params: { ts_code: 'SZ_MARKET', start_date: liquidityStart, end_date: end },
-        fields: 'trade_date,amount,tr',
-      }),
-      fetchNorthboundTotalTurnoverSeries({ startDate: liquidityStart, endDate: end }),
-      fetchFinanceData({
-        apiName: 'index_dailybasic',
-        params: { ts_code: '000300.SH', start_date: start, end_date: end },
-        fields: 'trade_date,pe',
-      }),
-    ])
+  if (sourcePolicyRaw === 'akshare-first') return runAkshareFirst()
+  if (sourcePolicyRaw === 'eastmoney-http') return runEastmoneyFirst('优先策略：Eastmoney HTTP（无 Python 依赖）')
+  if (sourcePolicyRaw === 'hybrid') return runEastmoneyFirst('优先策略：hybrid（Eastmoney-first，AkShare 回退）。')
 
-    const hs300Filled = hs300.length ? hs300 : await fetchCsindexHs300CloseSeries({ startDate8: start, endDate8: end })
-    const series = attachV5Pct5y(buildLiquidityV5Series({
-      hs300: hs300Filled,
-      sh: normalizeMarketAmountToKyuan(sh),
-      sz: normalizeMarketAmountToKyuan(sz),
-      north,
-    }))
-    if (series.length === 0) {
-      throw new Error('未获取到有效的指数和成交数据，可能数据源（如Tushare）限流或暂无数据。')
-    }
-    const last = series[series.length - 1]
-
-    const peByDate = new Map<string, number>()
-
-    for (const r of hs300Pe) {
-      const d = ymd8ToYmd10((r as Record<string, unknown>).trade_date)
-      const pe = typeof (r as Record<string, unknown>).pe === 'number' ? ((r as Record<string, unknown>).pe as number) : (r as Record<string, unknown>).pe == null ? NaN : Number((r as Record<string, unknown>).pe)
-      if (d && Number.isFinite(pe)) peByDate.set(d, pe)
-    }
-
-    const { yield10yPctByDate, notes: yNotes } = await buildYield10yPctByDate({ start8: start, end8: end })
-
-    const dates = series.map((p) => p.date)
-    const equityBond = yield10yPctByDate.size > 0 ? buildEquityBondValuePctSeries({ dates, peByDate, yield10yPctByDate }) : []
-
-    const northTailMissing = countNorthTailMissing(series)
-    const notes: string[] = [
-      '独家流动性指数=exp((log(成交额分位数)+log(换手率分位数)+log(北向资金分位数))/3)，分位数为5年滚动（≈1260），最小有效≈630。',
-      '股债利差=1/沪深300PE-中国10Y国债收益率，value再取5年滚动分位（≈1260，最小有效≈630），分位越高代表股票相对于国债更有性价比。',
-      '股债性价比PE数据源：codebuddy:financedata(index_dailybasic)',
-      '股债性价比10Y数据源：chinabond(yield.chinabond.com.cn, 整年标准期限xlsx)',
-      '股债性价比对齐：以沪深300交易日为基准，缺失使用前值填充。',
-      '成交额展示口径统一为“千元”；若主源返回口径不同，会在服务端进行单位归一化。',
-      '北向资金展示口径统一为“总成交额(亿元)”；本分支北向数据使用东方财富数据中心替代源（分页拉取并合并去重）。',
-    ]
-    for (const it of yNotes) notes.push(it)
-    if (northTailMissing > 10) {
-      notes.push(`北向资金最新有效日期落后于数据日期约${northTailMissing}个交易日，尾段保持缺失值以避免常数填充。`)
-    }
-
-    const out = {
-      success: true,
-      meta: {
-        calcVersion,
-        fetchedAt: new Date().toISOString(),
-        dataDate: last?.date ?? null,
-        sourceType: 'primary-realtime',
-        source: 'codebuddy:financedata + eastmoney:datacenter + yield.chinabond.com.cn',
-        notes,
-      },
-      data: {
-        series,
-        equityBond: {
-          series: equityBond,
-        },
-      },
-    }
-
-    cache.set(cacheKey, { expiresAt: now + 10 * 60_000, value: out })
-    await writeDiskCache(out)
-    return out
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
-    const akAfterFail = await tryAkshare(msg)
-    if (akAfterFail.ok) return akAfterFail.out
-    const emAfterFail = await tryEastmoneyHttpFallback(`主源失败：${msg}; AkShare 失败：${akAfterFail.err}`)
-    if (emAfterFail.ok) return emAfterFail.out
-
-    const stale = await readDiskCache()
-    if (stale) {
-      const staleObj = stale as Record<string, unknown>
-      const meta = staleObj.meta && typeof staleObj.meta === 'object' ? (staleObj.meta as Record<string, unknown>) : {}
-      const oldNotes = Array.isArray(meta.notes) ? (meta.notes as unknown[]) : []
-      const withStale = {
-        ...staleObj,
-        meta: {
-          ...meta,
-          fetchedAt: new Date().toISOString(),
-          sourceType: 'fallback-realtime',
-          source: 'stale-cache-from-last-success',
-          notes: [...oldNotes, `本次实时拉取失败，已回退上次成功快照：主源=${msg}; AkShare=${akAfterFail.err}; Eastmoney=${emAfterFail.err}`],
-        },
-      }
-      cache.set(cacheKey, { expiresAt: now + 5 * 60_000, value: withStale })
-      return withStale
-    }
-    throw new Error(`实时主源与替代数据源均不可用：主源=${msg}；AkShare=${akAfterFail.err}；Eastmoney=${emAfterFail.err}`)
-  }
+  return runEastmoneyFirst(`未知 MARKET_DATA_SOURCE=${sourcePolicyRaw}，自动回退为 Eastmoney-first。`)
 }

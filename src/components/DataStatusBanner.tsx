@@ -36,11 +36,9 @@ export default function DataStatusBanner({
     ? '快照数据源（最近一次成功快照）'
     : source && source.includes('supabase:')
       ? 'Supabase 数据表'
-      : source && source.includes('codebuddy:financedata')
-      ? '主数据源'
       : source && (source.includes('eastmoney') || source.includes('akshare') || source.includes('csindex'))
-        ? '替代数据源'
-        : '主数据源'
+        ? '多源实时数据'
+        : '实时数据源'
 
   if (loading) {
     const pct =

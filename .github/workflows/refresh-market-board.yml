@@ -12,9 +12,9 @@ on:
         required: false
         default: backfill
       marketDataSource:
-        description: 数据源策略（financedata/eastmoney-http/akshare-first）
+        description: 数据源策略（hybrid/eastmoney-http/akshare-first）
         required: false
-        default: financedata
+        default: hybrid
       startDate:
         description: backfill 起始日期（YYYYMMDD，可选）
         required: false
@@ -62,11 +62,11 @@ jobs:
           CHINAMONEY_FETCH_TIMEOUT_MAX_MS: '120000'
         run: |
           if [ "${{ github.event_name }}" = "schedule" ]; then
-            export MARKET_DATA_SOURCE="financedata"
+            export MARKET_DATA_SOURCE="hybrid"
           else
             export MARKET_DATA_SOURCE="${{ github.event.inputs.marketDataSource }}"
           fi
-          if [ -z "$MARKET_DATA_SOURCE" ]; then export MARKET_DATA_SOURCE="financedata"; fi
+          if [ -z "$MARKET_DATA_SOURCE" ]; then export MARKET_DATA_SOURCE="hybrid"; fi
           if [ "${{ github.event_name }}" = "schedule" ]; then
             mode="backfill"
           else

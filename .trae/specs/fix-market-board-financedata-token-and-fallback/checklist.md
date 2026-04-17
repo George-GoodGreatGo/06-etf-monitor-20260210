@@ -1,0 +1,5 @@
+- [ ] financeData 返回“token 不对”时被识别并在分段范围内自动跳过，日志含标记
+- [ ] 沪深300 close 的回退链路按 Eastmoney → AkShare → csindex/cnindex 生效，空数据与样本量不足会阻止发布
+- [ ] GitHub Actions 默认 `MARKET_DATA_SOURCE=hybrid`（Eastmoney-first），且可被输入覆盖，日志输出生效策略
+- [ ] 分段前执行 probe 并在每段输出数据源与回退信息，失败分段会写入 meta.notes
+- [ ] 小区间回灌验证通过且 `npm run build` 通过

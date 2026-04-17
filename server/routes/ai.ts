@@ -601,19 +601,13 @@ router.post('/market/insight', async (req: Request, res: Response) => {
       ? notes.find((x) => typeof x === 'string' && x.includes('已回退上次成功快照'))
       : null
   const staleSnapshot = source === 'stale-cache-from-last-success' || typeof staleReason === 'string'
-  const dataSourceType = staleSnapshot
-    ? 'snapshot'
-    : source && source.includes('codebuddy:financedata')
-      ? 'primary'
-      : source && (source.includes('akshare') || source.includes('eastmoney:') || source.includes('csindex'))
-        ? 'fallback'
-        : 'primary'
+  const dataSourceType = staleSnapshot ? 'snapshot' : 'realtime'
   const dataSourceLabel =
     dataSourceType === 'snapshot'
       ? '快照数据源（最近一次成功快照）'
-      : dataSourceType === 'fallback'
-        ? source && source.includes('eastmoney:') ? '替代数据源（Eastmoney HTTP）' : '替代数据源（AkShare）'
-        : '主数据源（financedata）'
+      : source && source.includes('akshare')
+        ? '多源实时数据（AkShare主取，Eastmoney/CSIndex/HKEX/Chinamoney补充）'
+        : '多源实时数据（Eastmoney/CSIndex/HKEX/Chinamoney，AkShare回退）'
 
   writeEvent({
     type: 'meta',
