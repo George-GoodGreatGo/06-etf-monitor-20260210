@@ -27,8 +27,15 @@
   - [x] SubTask 5.3: 在 probe/日志中把“缺少 Python 模块”与“数据源网络失败”区分输出
   - [x] SubTask 5.4: 重新验证 GitHub Runner 场景下不会再出现 `No module named 'baostock'`
 
+- [ ] Task 6: 加固 `Baostock` 的 JSON 输出解析，覆盖多分段 backfill 场景中的 stdout 噪音问题。
+  - [ ] SubTask 6.1: 排查 `runBaostock()` 的 JSON 解析是否过于严格，确认是否需要从 stdout 中提取 JSON 主体而不是只接受纯文本 JSON
+  - [ ] SubTask 6.2: 在 `baostock.ts` 或 `baostock_service.py` 中补充诊断信息，至少能记录 stdout 摘要、命令上下文或分段区间
+  - [ ] SubTask 6.3: 确认 `Baostock` 在 probe、compute smoke、首段成功后，后续分段仍能稳定返回可解析 JSON
+  - [ ] SubTask 6.4: 运行多分段 backfill 相关回归，验证不会再出现 `Baostock 返回非 JSON 内容`
+
 # Task Dependencies
 - Task 2 depends on Task 1
 - Task 3 depends on Task 2
 - Task 4 depends on Task 3
 - Task 5 depends on Task 4
+- Task 6 depends on Task 5

@@ -11,3 +11,6 @@
 - [x] GitHub workflow 的 Python 安装步骤与 `runner-stable` 实际依赖集合一致
 - [x] probe/日志能区分“缺少 Python 模块”和“数据源网络失败”
 - [x] GitHub Runner 不会再出现 `No module named 'baostock'`
+- [x] `Baostock` 在多分段 backfill 连续调用中不会因 stdout 噪音触发“返回非 JSON 内容”
+- [x] `Baostock` 解析失败日志能看到 stdout 摘要或命令上下文，而不是只有笼统的 `unknown`
+- [x] `probe` 成功、`compute_smoke` 成功、首段成功后，后续分段仍能稳定完成

@@ -7,11 +7,14 @@
 
 最新 GitHub Runner 报错又暴露出第二层问题：虽然 workflow 已执行 `python -m pip install -r server/python/requirements.txt`，但 `requirements.txt` 当前并未声明 `baostock`，导致 `runner-stable` 在真正切到 `Baostock` 主链路时出现 `No module named 'baostock'`。这说明“数据源策略正确”还不够，必须把“Runner 依赖完整性”纳入同一条稳定链路的规格范围。
 
+最新一次 GitHub Actions 日志又暴露出第三层问题：`probe`、`compute_smoke` 与首个分段都能成功，但在后续分段中 `Baostock` 偶发返回“非 JSON 内容”，触发 `market_turnover providers failed: baostock=unknown:Baostock 返回非 JSON 内容`。这说明当前链路还存在“长回灌阶段 stdout 污染或解析器过于脆弱”的问题。系统不仅要确保 `Baostock` 已安装，还必须保证 `runBaostock()` 在长时间、多分段调用时只消费稳定、可恢复的 JSON 输出，并能在出现噪音时给出可诊断信息。
+
 ## What Changes
 - 将 `SH/SZ amount+tr` 从“固定走 `Eastmoney`”改造为独立的序列级 provider 链，不再与 `HS300 close` 共用同一稳定性假设。
 - 将 GitHub Runner 上的 `market_turnover` 主链路明确为 `Baostock`；`Eastmoney` 保留为非 Runner 或补充场景使用，不再作为 GitHub Runner 唯一依赖。
 - 不将 `AkShare-新浪` 与 `csindex` 视为 `market_turnover` 的等价 fallback：前者缺少 `amount/tr`，后者无法稳定覆盖 `000001 + 399001` 且缺少 `turnover`。
 - 将 Python 运行依赖纳入稳定链路定义：凡 `runner-stable` 依赖的 Python provider，必须在 `server/python/requirements.txt` 和 GitHub workflow 安装步骤中得到显式保障。
+- 将 `Baostock` stdout 纯净性与 JSON 解析韧性纳入稳定链路定义：长回灌、多分段调用时，stdout 中即便夹杂噪音，也应尽量提取 JSON 主体，或至少输出可定位的原始片段摘要。
 - 调整 backfill probe：对 `market_turnover` 输出 provider 顺序、命中的 provider、失败原因与字段覆盖率，不再只返回笼统的 `fetch failed`。
 - 调整 fail-fast 规则：仅当 `SH/SZ amount+tr` 的全部候选 provider 都失败，或覆盖率不足以安全构建流动性序列时，才终止 backfill。
 - 保持实现简单：不新增数据库表、不改前端接口；只增强 provider 解析、日志与回灌预检。
@@ -70,6 +73,26 @@
 - **THEN** 日志明确指出这是 `python dependency missing`
 - **AND** 如果后续 provider 可用，则继续回退；否则按硬失败处理
 
+### Requirement: Baostock 在长回灌过程中必须输出可稳定解析的 JSON
+系统 SHALL 保证 `Baostock` 在 backfill 多分段、重复调用场景下输出可稳定解析的 JSON；若 stdout 中夹杂噪音，解析层应优先尝试提取 JSON 主体，而不是直接把整次 provider 调用判定为 `unknown`。
+
+#### Scenario: probe 通过但后续分段出现 stdout 噪音
+- **GIVEN** `probe`、`compute_smoke` 与前序分段已成功
+- **AND** 后续某一分段调用 `runBaostock()` 时 stdout 出现非 JSON 前后缀或杂讯
+- **WHEN** 系统解析 `Baostock` 返回内容
+- **THEN** 系统优先尝试提取有效 JSON 主体
+- **AND** 若仍失败，日志输出原始 stdout 摘要、命令上下文与分段区间
+- **AND** 错误分类不应仅表现为笼统的 `unknown`
+
+### Requirement: market_turnover 的稳定性验证必须覆盖多分段 backfill 场景
+系统 SHALL 不仅验证 `probe` 与单次 `compute_smoke`，还要验证 `market_turnover` 在多分段 backfill 连续调用中不会因 stdout 污染而失败。
+
+#### Scenario: 从 2016 起执行多分段 backfill
+- **GIVEN** backfill 会按多个时间段连续调用 `market_turnover` provider
+- **WHEN** 系统完成稳定性验证
+- **THEN** 验证范围覆盖至少“probe 成功 + 首段成功 + 后续分段继续成功”的连续调用场景
+- **AND** 不能只以 probe 成功作为链路稳定的结论
+
 ### Requirement: market_turnover probe 必须输出可操作的诊断信息
 系统 SHALL 在预检阶段对 `market_turnover` 输出结构化日志，能直接说明“失败在哪个 provider、哪个字段、为什么失败”。
 
@@ -108,6 +131,9 @@
 
 ### Requirement: GitHub Runner 依赖安装一致性
 系统 SHALL 保证 workflow 的“Install Python deps”步骤与运行时实际依赖集合一致；新增或切换 Python provider 时，必须同步更新 `requirements.txt` 与相应验证步骤。
+
+### Requirement: Baostock 解析失败日志必须可诊断
+系统 SHALL 在 `Baostock` 解析失败时保留足够的诊断信息，例如 stdout 前后片段、调用命令、缓存键或分段区间，以便快速判断是库自身噪音、编码问题还是缓存污染。
 
 ## REMOVED Requirements
 N/A

@@ -64,7 +64,10 @@ function classifyProviderError(err: unknown): ProviderErrorKind {
     msg.includes('not available') ||
     msg.includes('no module named') ||
     msg.includes('dependency missing') ||
-    msg.includes('not installed')
+    msg.includes('not installed') ||
+    msg.includes('非 json 内容') ||
+    msg.includes('stdout_head=') ||
+    msg.includes('stdout_tail=')
   ) {
     return 'python'
   }
@@ -536,8 +539,7 @@ export async function probeMarketBoardCoreDependencies(args: {
   }
 
   try {
-    const liquidityStart = startDate < '20200101' ? '20200101' : startDate
-    const turnover = await resolveMarketTurnoverSeries({ startDate8: liquidityStart, endDate8: endDate, sourcePolicyRaw })
+    const turnover = await resolveMarketTurnoverSeries({ startDate8: startDate, endDate8: endDate, sourcePolicyRaw })
     const shCount = turnover.sh.filter((r) => Number.isFinite(Number((r as Record<string, unknown>).amount)) && Number.isFinite(Number((r as Record<string, unknown>).tr))).length
     const szCount = turnover.sz.filter((r) => Number.isFinite(Number((r as Record<string, unknown>).amount)) && Number.isFinite(Number((r as Record<string, unknown>).tr))).length
     if (shCount <= 0 || szCount <= 0) throw new Error(`provider=${turnover.provider} sh_count=${shCount} sz_count=${szCount}`)
@@ -583,6 +585,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
   const end = typeof args?.endDate === 'string' && args.endDate.trim() ? args.endDate.trim() : ymdToday()
   const forceRefresh = args?.forceRefresh === true
   const liquidityStart = start < '20200101' ? '20200101' : start
+  const turnoverStart = start
 
   const cacheKey = `liquidity:v5:${calcVersion}:${start}:${end}`
   const now = Date.now()
@@ -600,7 +603,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
     try {
       const [hs300Resolved, turnoverResolved] = await Promise.all([
         resolveHs300CloseSeries({ startDate8: start, endDate8: end, sourcePolicyRaw }),
-        resolveMarketTurnoverSeries({ startDate8: liquidityStart, endDate8: end, sourcePolicyRaw }),
+        resolveMarketTurnoverSeries({ startDate8: turnoverStart, endDate8: end, sourcePolicyRaw }),
       ])
 
       const hs300 = hs300Resolved.rows.map((r) => ({ trade_date: r.trade_date, close: r.close }))
