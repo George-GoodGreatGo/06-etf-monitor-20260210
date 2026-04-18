@@ -187,6 +187,61 @@ function summarizeCoverage(rows: Array<Record<string, unknown>>) {
   }
 }
 
+const KNOWN_LIQUIDITY_ANOMALY_DATES = new Set(['2024-12-18', '2025-03-10'])
+
+function formatPct(raw: unknown): string {
+  const n = finiteOrNull(raw)
+  return n == null ? 'null' : n.toFixed(2)
+}
+
+function reportKnownLiquidityDates(rows: Array<Record<string, unknown>>) {
+  const hits = rows.filter((r) => KNOWN_LIQUIDITY_ANOMALY_DATES.has(String(r.data_date || '')))
+  for (const r of hits) {
+    process.stdout.write(
+      `[smoke] liquidity date=${String(r.data_date)} amount_pct=${formatPct(r.amount_pct)} tr_pct=${formatPct(r.tr_pct)} north_pct=${formatPct(r.north_pct)} v5=${formatPct(r.v5)} v5_pct=${formatPct(r.v5_pct)} provider=${String(r.source || '')}\n`,
+    )
+  }
+}
+
+function detectLiquidityAnomalyRows(rows: Array<Record<string, unknown>>): string[] {
+  const sorted = [...rows].sort((a, b) => String(a.data_date || '').localeCompare(String(b.data_date || '')))
+  const out: string[] = []
+  for (let i = 0; i < sorted.length; i += 1) {
+    const curr = sorted[i]!
+    const prev = i > 0 ? sorted[i - 1]! : null
+    const next = i + 1 < sorted.length ? sorted[i + 1]! : null
+    const date = String(curr.data_date || '')
+    const amountPct = finiteOrNull(curr.amount_pct)
+    const trPct = finiteOrNull(curr.tr_pct)
+    const northPct = finiteOrNull(curr.north_pct)
+    const v5 = finiteOrNull(curr.v5)
+    const v5Pct = finiteOrNull(curr.v5_pct)
+    const tr = finiteOrNull(curr.tr)
+    const prevTrPct = prev ? finiteOrNull(prev.tr_pct) : null
+    const nextTrPct = next ? finiteOrNull(next.tr_pct) : null
+
+    const dirtyTrValue = tr != null && tr <= 0
+    const unexplainedDrop =
+      amountPct != null &&
+      northPct != null &&
+      trPct != null &&
+      v5Pct != null &&
+      amountPct >= 70 &&
+      northPct >= 70 &&
+      trPct <= 10 &&
+      v5Pct <= 10 &&
+      (prevTrPct == null || prevTrPct >= 40) &&
+      (nextTrPct == null || nextTrPct >= 40)
+
+    if (dirtyTrValue || unexplainedDrop) {
+      out.push(
+        `date=${date} tr=${formatPct(tr)} amount_pct=${formatPct(amountPct)} tr_pct=${formatPct(trPct)} north_pct=${formatPct(northPct)} v5=${formatPct(v5)} v5_pct=${formatPct(v5Pct)}`,
+      )
+    }
+  }
+  return out
+}
+
 type ProbeDetail = {
   source: 'northbound' | 'hs300_pe' | 'yield10y' | 'hs300_close' | 'market_turnover'
   ok: boolean
@@ -484,6 +539,12 @@ async function main() {
 
         if (rows.length === 0) {
           throw new Error(`segment produced no rows: out=${segStart}..${segEnd}`)
+        }
+
+        reportKnownLiquidityDates(rows)
+        const liquidityAnomalies = detectLiquidityAnomalyRows(rows)
+        if (liquidityAnomalies.length > 0) {
+          throw new Error(`liquidity anomaly guard hit: ${liquidityAnomalies.slice(0, 3).join(' | ')}`)
         }
 
         for (const part of chunk(rows, 200)) {
