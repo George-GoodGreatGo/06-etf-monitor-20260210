@@ -9,9 +9,11 @@ import {
   fetchRpsStyleSeries,
   fetchRpsStyleSummary,
   fetchRpsTurnoverHistory,
+  fetchRpsTurnoverSummary,
   type RpsStyleMatrixItem,
   type RpsStyleSeriesPoint,
   type RpsTurnoverHistoryData,
+  type RpsTurnoverSummaryItem,
 } from '@/utils/marketApi'
 import type { Top100Meta } from '@/utils/etfApi'
 import { formatCompactNumber, formatYmd } from '@/utils/format'
@@ -109,6 +111,11 @@ function fmtMultiple(v: number | null | undefined): string {
   return `${v.toFixed(2)}x`
 }
 
+function fmtTradingDaysAgo(v: number | null | undefined): string {
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) return '—'
+  return `${v}个交易日前`
+}
+
 export default function RpsStylePanel() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -127,6 +134,9 @@ export default function RpsStylePanel() {
   const [turnoverError, setTurnoverError] = useState<string | null>(null)
   const [turnoverMeta, setTurnoverMeta] = useState<Top100Meta | null>(null)
   const [turnoverData, setTurnoverData] = useState<RpsTurnoverHistoryData | null>(null)
+  const [turnoverSummaryLoading, setTurnoverSummaryLoading] = useState(false)
+  const [turnoverSummaryError, setTurnoverSummaryError] = useState<string | null>(null)
+  const [turnoverSummaryItems, setTurnoverSummaryItems] = useState<RpsTurnoverSummaryItem[]>([])
   const resolvedRange = useMemo(
     () => resolveDateRange(rangeKey, customStartDateApplied || ymd(addYears(new Date(), -1))),
     [rangeKey, customStartDateApplied],
@@ -236,6 +246,32 @@ export default function RpsStylePanel() {
   useEffect(() => {
     const ac = new AbortController()
     ;(async () => {
+      setTurnoverSummaryLoading(true)
+      setTurnoverSummaryError(null)
+      try {
+        const res = await fetchRpsTurnoverSummary({ signal: ac.signal })
+        if (res.success !== true) {
+          setTurnoverSummaryError(res.message || '获取成交额摘要失败')
+          setTurnoverSummaryItems([])
+          setTurnoverSummaryLoading(false)
+          return
+        }
+        setTurnoverSummaryItems(Array.isArray(res.data?.items) ? res.data.items : [])
+        setTurnoverSummaryLoading(false)
+      } catch (e) {
+        const name = e instanceof Error ? e.name : ''
+        if (name === 'AbortError') return
+        setTurnoverSummaryError('网络异常或 API 不可用')
+        setTurnoverSummaryItems([])
+        setTurnoverSummaryLoading(false)
+      }
+    })()
+    return () => ac.abort()
+  }, [])
+
+  useEffect(() => {
+    const ac = new AbortController()
+    ;(async () => {
       setTurnoverLoading(true)
       setTurnoverError(null)
       try {
@@ -271,10 +307,98 @@ export default function RpsStylePanel() {
     if (!Array.isArray(turnoverData?.series)) return []
     return [...turnoverData.series].reverse()
   }, [turnoverData])
+  const turnoverSummaryRows = useMemo(() => {
+    const summaryMap = new Map(turnoverSummaryItems.map((item) => [item.ticker, item]))
+    return TURNOVER_TICKERS.map((ticker) => {
+      const hit = summaryMap.get(ticker)
+      if (hit) return hit
+      return {
+        ticker,
+        code: ticker.split('.')[0] || ticker,
+        name: ETF_NAME_MAP[ticker] || ticker,
+        latestTradingDate: null,
+        latestAmplifiedDate: null,
+        tradingDaysAgo: null,
+        status: 'no_data' as const,
+      }
+    })
+  }, [turnoverSummaryItems])
   const selectedTurnoverName = turnoverData?.name || ETF_NAME_MAP[turnoverTicker] || turnoverTicker
   const anchorStyle = useMemo(() => ({ scrollMarginTop: '104px' }), [])
   const turnoverSection = (
     <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+      <div className="rounded-lg border border-[rgba(251,191,36,0.16)] bg-[rgba(251,191,36,0.06)] p-3">
+        <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+          <div>
+            <div className="text-sm font-semibold text-[#F8FAFC]">放量公告板</div>
+            <div className="mt-1 text-xs leading-relaxed text-[#CBD5E1]">
+              直接汇总各目标 ETF 在最近 90 个交易日内最近一次满足 `成交额较前20日均值 &gt;= 1.50x` 的日期。
+            </div>
+          </div>
+          <div className="text-xs text-[#94A3B8]">口径：以各 ETF 当前最新交易日为基准计算交易日间隔</div>
+        </div>
+
+        {turnoverSummaryLoading ? (
+          <div className="mt-3 rounded-lg border border-white/10 bg-[#0B1220] px-3 py-6 text-center text-sm text-[#94A3B8]">
+            正在加载放量摘要...
+          </div>
+        ) : turnoverSummaryError ? (
+          <div className="mt-3 rounded-lg border border-[rgba(248,113,113,0.24)] bg-[rgba(127,29,29,0.20)] px-3 py-6 text-center text-sm text-[#FCA5A5]">
+            {turnoverSummaryError}
+          </div>
+        ) : (
+          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {turnoverSummaryRows.map((item) => {
+              const isSelected = item.ticker === turnoverTicker
+              const hasHit = item.status === 'hit'
+              return (
+                <button
+                  key={item.ticker}
+                  type="button"
+                  onClick={() => setTurnoverTicker(item.ticker)}
+                  className={cn(
+                    'rounded-lg border p-3 text-left transition',
+                    isSelected
+                      ? 'border-[rgba(251,191,36,0.35)] bg-[rgba(251,191,36,0.10)]'
+                      : 'border-white/10 bg-[#0B1220] hover:border-white/20 hover:bg-white/[0.06]',
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-mono text-sm text-[#E6EDF7]">{item.ticker}</div>
+                      <div className="mt-1 text-xs text-[#94A3B8]">{item.name}</div>
+                    </div>
+                    <div
+                      className={cn(
+                        'rounded-full border px-2 py-0.5 text-[11px] font-semibold',
+                        hasHit
+                          ? 'border-[rgba(251,191,36,0.35)] bg-[rgba(251,191,36,0.12)] text-[#FBBF24]'
+                          : 'border-white/10 bg-white/5 text-[#94A3B8]',
+                      )}
+                    >
+                      {hasHit ? '已放量' : item.status === 'no_signal' ? '未放量' : '无数据'}
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-1 text-sm">
+                    <div className="text-[#94A3B8]">最近一次放量日期</div>
+                    <div className={cn('font-mono', hasHit ? 'text-[#F8FAFC]' : 'text-[#CBD5E1]')}>
+                      {item.latestAmplifiedDate ? formatYmd(item.latestAmplifiedDate) : '最近90个交易日未出现>=1.50x放量'}
+                    </div>
+                    <div className="text-xs text-[#94A3B8]">
+                      {hasHit
+                        ? `${fmtTradingDaysAgo(item.tradingDaysAgo)}`
+                        : item.status === 'no_data'
+                          ? '暂无可用成交额数据'
+                          : `最新交易日：${formatYmd(item.latestTradingDate)}`}
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { buildRpsTurnoverHistory } from '../lib/rpsStyle.js'
+import { buildRpsTurnoverHistory, buildRpsTurnoverSummaryItem } from '../lib/rpsStyle.js'
 
 function day(n: number): string {
   const base = new Date(Date.UTC(2024, 0, 1))
@@ -42,3 +42,63 @@ const withMissingTurnover = buildRpsTurnoverHistory(
 )
 
 assert.equal(withMissingTurnover[20]?.turnoverMultipleOfPrev20Avg ?? null, null)
+
+const summaryHit = buildRpsTurnoverSummaryItem(
+  { ticker: '512890.SH', code: '512890', name: '红利低波ETF' },
+  buildRpsTurnoverHistory(
+    [
+      { date: '2024-01-02', turnover: 100 },
+      { date: '2024-01-03', turnover: 100 },
+      { date: '2024-01-04', turnover: 100 },
+      { date: '2024-01-05', turnover: 100 },
+      { date: '2024-01-08', turnover: 100 },
+      { date: '2024-01-09', turnover: 100 },
+      { date: '2024-01-10', turnover: 100 },
+      { date: '2024-01-11', turnover: 100 },
+      { date: '2024-01-12', turnover: 100 },
+      { date: '2024-01-15', turnover: 100 },
+      { date: '2024-01-16', turnover: 100 },
+      { date: '2024-01-17', turnover: 100 },
+      { date: '2024-01-18', turnover: 100 },
+      { date: '2024-01-19', turnover: 100 },
+      { date: '2024-01-22', turnover: 100 },
+      { date: '2024-01-23', turnover: 100 },
+      { date: '2024-01-24', turnover: 100 },
+      { date: '2024-01-25', turnover: 100 },
+      { date: '2024-01-26', turnover: 100 },
+      { date: '2024-01-29', turnover: 100 },
+      { date: '2024-01-30', turnover: 160 },
+      { date: '2024-01-31', turnover: 100 },
+    ],
+    { lookbackDays: 20, displayDays: 90 },
+  ),
+)
+
+assert.equal(summaryHit.latestTradingDate, '2024-01-31')
+assert.equal(summaryHit.latestAmplifiedDate, '2024-01-30')
+assert.equal(summaryHit.tradingDaysAgo, 1)
+assert.equal(summaryHit.status, 'hit')
+
+const summaryNoSignal = buildRpsTurnoverSummaryItem(
+  { ticker: '159915.SZ', code: '159915', name: '创业板ETF' },
+  buildRpsTurnoverHistory(
+    Array.from({ length: 25 }, (_, index) => ({
+      date: day(index + 1),
+      turnover: 100,
+    })),
+    { lookbackDays: 20, displayDays: 90 },
+  ),
+)
+
+assert.equal(summaryNoSignal.latestAmplifiedDate, null)
+assert.equal(summaryNoSignal.tradingDaysAgo, null)
+assert.equal(summaryNoSignal.status, 'no_signal')
+
+const summaryNoData = buildRpsTurnoverSummaryItem(
+  { ticker: '588000.SH', code: '588000', name: '科创50ETF' },
+  [],
+)
+
+assert.equal(summaryNoData.latestTradingDate, null)
+assert.equal(summaryNoData.latestAmplifiedDate, null)
+assert.equal(summaryNoData.status, 'no_data')

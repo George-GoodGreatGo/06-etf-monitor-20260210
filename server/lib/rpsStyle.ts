@@ -301,6 +301,16 @@ export type RpsTurnoverHistoryPoint = {
   turnoverMultipleOfPrev20Avg: number | null
 }
 
+export type RpsTurnoverSummaryItem = {
+  ticker: string
+  code: string
+  name: string
+  latestTradingDate: string | null
+  latestAmplifiedDate: string | null
+  tradingDaysAgo: number | null
+  status: 'hit' | 'no_signal' | 'no_data'
+}
+
 export function buildRpsTurnoverHistory(
   rows: Array<{ date: string; turnover: number | null }>,
   opts?: { lookbackDays?: number; displayDays?: number },
@@ -332,6 +342,38 @@ export function buildRpsTurnoverHistory(
   })
 
   return out.slice(-displayDays)
+}
+
+export function buildRpsTurnoverSummaryItem(
+  profile: Pick<RpsTickerProfile, 'ticker' | 'code' | 'name'>,
+  history: RpsTurnoverHistoryPoint[],
+  threshold = 1.5,
+): RpsTurnoverSummaryItem {
+  const latestTradingDate = history.length ? history[history.length - 1].date : null
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    const point = history[index]
+    if (typeof point.turnoverMultipleOfPrev20Avg === 'number' && point.turnoverMultipleOfPrev20Avg >= threshold) {
+      return {
+        ticker: profile.ticker,
+        code: profile.code,
+        name: profile.name,
+        latestTradingDate,
+        latestAmplifiedDate: point.date,
+        tradingDaysAgo: history.length - 1 - index,
+        status: 'hit',
+      }
+    }
+  }
+
+  return {
+    ticker: profile.ticker,
+    code: profile.code,
+    name: profile.name,
+    latestTradingDate,
+    latestAmplifiedDate: null,
+    tradingDaysAgo: null,
+    status: history.length ? 'no_signal' : 'no_data',
+  }
 }
 
 async function fetchRpsTurnoverSeries(args: {
@@ -721,6 +763,51 @@ export async function getRpsStyleMatrix(args?: {
                 : 'flat',
         })),
       },
+    }
+  })
+}
+
+export async function getRpsStyleTurnoverSummary(): Promise<{
+  meta: {
+    fetchedAt: string
+    dataDate: string | null
+    source: string
+    notes: string[]
+    isFallback: boolean
+  }
+  data: {
+    items: RpsTurnoverSummaryItem[]
+  }
+}> {
+  const endDate = new Date().toISOString().slice(0, 10)
+  const cacheKey = `rps:turnover-summary:${endDate}`
+  return await readCacheRemember(cacheKey, async () => {
+    const tickers = getRpsStyleTurnoverSupportedTickers()
+    const histories = await Promise.all(tickers.map((ticker) => getRpsStyleTurnoverHistory({ ticker })))
+    const items = histories.map((out) => {
+      const profile = getTickerProfileOrThrow(out.data.ticker)
+      return buildRpsTurnoverSummaryItem(profile, out.data.series)
+    })
+    const fetchedAt = histories.reduce((latest, out) => (out.meta.fetchedAt > latest ? out.meta.fetchedAt : latest), new Date(0).toISOString())
+    const dataDate = histories.reduce<string | null>((latest, out) => {
+      const current = out.meta.dataDate
+      if (!current) return latest
+      if (!latest || current > latest) return current
+      return latest
+    }, null)
+    return {
+      meta: {
+        fetchedAt,
+        dataDate,
+        source: 'rps:turnover-summary',
+        notes: [
+          'summary_window=最近90个交易日成交额历史',
+          `summary_threshold=成交额较前${RPS_TURNOVER_LOOKBACK_DAYS}日均值>=1.50x`,
+          'tradingDaysAgo=以各ETF当前最新交易日为基准按交易日数量计算',
+        ],
+        isFallback: false,
+      },
+      data: { items },
     }
   })
 }
