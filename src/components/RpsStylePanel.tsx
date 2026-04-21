@@ -42,9 +42,9 @@ const RANGE_OPTIONS = [
 ] as const
 
 const RPS_NAV_SECTIONS: FloatingNavSection[] = [
-  { id: 'rps-score-section', label: 'Score 截面数据', shortLabel: '截面' },
-  { id: 'rps-trend-section', label: '动量趋势', shortLabel: '趋势' },
-  { id: 'rps-turnover-section', label: '成交金额追踪', shortLabel: '成交额' },
+  { id: 'rps-score-section', label: 'Score截面', shortLabel: 'Score截面' },
+  { id: 'rps-trend-section', label: '动量', shortLabel: '动量' },
+  { id: 'rps-turnover-section', label: '成交额', shortLabel: '成交额' },
 ] as const
 
 type RpsViewMode = 'raw' | 'relative' | 'score'

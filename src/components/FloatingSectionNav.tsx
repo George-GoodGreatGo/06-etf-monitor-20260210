@@ -86,8 +86,8 @@ export default function FloatingSectionNav({
           visible ? 'opacity-100' : 'pointer-events-none translate-y-2 opacity-0',
           className,
         )}
-        aria-label="返回顶部"
-        title="返回顶部"
+        aria-label="顶部"
+        title="顶部"
       >
         <ArrowUp className="h-5 w-5" />
       </button>
@@ -156,10 +156,10 @@ export default function FloatingSectionNav({
             ? 'border-white/10 bg-white/5 text-[#E6EDF7] hover:border-white/20 hover:bg-white/10'
             : 'border-white/8 bg-white/[0.03] text-[#64748B]',
         )}
-        title="返回顶部"
+        title="顶部"
       >
         <ArrowUp className="h-4 w-4" />
-        <span className="hidden sm:inline">返回顶部</span>
+        <span className="hidden sm:inline">顶部</span>
       </button>
     </div>
   )
