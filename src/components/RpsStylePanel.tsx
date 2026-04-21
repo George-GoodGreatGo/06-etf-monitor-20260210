@@ -322,7 +322,7 @@ export default function RpsStylePanel() {
   }, [turnoverSummaryItems])
   const anchorStyle = useMemo(() => ({ scrollMarginTop: '104px' }), [])
   const turnoverSection = (
-    <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+    <>
       <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
         <div>
           <div className="text-sm font-semibold text-[#F8FAFC]">放量公告板</div>
@@ -447,7 +447,7 @@ export default function RpsStylePanel() {
           </tbody>
         </table>
       </div>
-    </div>
+    </>
   )
 
   return (
