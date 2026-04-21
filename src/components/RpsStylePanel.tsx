@@ -2,10 +2,21 @@ import { useEffect, useMemo, useState } from 'react'
 import DataStatusBanner from '@/components/DataStatusBanner'
 import RpsStyleChart from '@/components/charts/RpsStyleChart'
 import { cn } from '@/lib/utils'
-import { fetchRpsStyleMatrix, fetchRpsStylePanel, fetchRpsStyleSeries, fetchRpsStyleSummary, type RpsStyleMatrixItem, type RpsStyleSeriesPoint } from '@/utils/marketApi'
+import {
+  fetchRpsStyleMatrix,
+  fetchRpsStylePanel,
+  fetchRpsStyleSeries,
+  fetchRpsStyleSummary,
+  fetchRpsTurnoverHistory,
+  type RpsStyleMatrixItem,
+  type RpsStyleSeriesPoint,
+  type RpsTurnoverHistoryData,
+} from '@/utils/marketApi'
 import type { Top100Meta } from '@/utils/etfApi'
+import { formatCompactNumber, formatYmd } from '@/utils/format'
 
 const DEFAULT_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH', '512050.SH', '560010.SH']
+const TURNOVER_TICKERS = ['512890.SH', ...DEFAULT_TICKERS]
 const ETF_NAME_MAP: Record<string, string> = {
   '512890.SH': '红利低波ETF',
   '159915.SZ': '创业板ETF',
@@ -81,6 +92,16 @@ function fmt(v: number | null | undefined, digits = 2): string {
   return v.toFixed(digits)
 }
 
+function fmtTurnover(v: number | null | undefined): string {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return '—'
+  return formatCompactNumber(v)
+}
+
+function fmtMultiple(v: number | null | undefined): string {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return '—'
+  return `${v.toFixed(2)}x`
+}
+
 export default function RpsStylePanel() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -94,6 +115,11 @@ export default function RpsStylePanel() {
   const [items, setItems] = useState<RpsStyleMatrixItem[]>([])
   const [seriesByTicker, setSeriesByTicker] = useState<Record<string, RpsStyleSeriesPoint[]>>({})
   const [enabledTickers, setEnabledTickers] = useState<Record<string, boolean>>({})
+  const [turnoverTicker, setTurnoverTicker] = useState<string>('512890.SH')
+  const [turnoverLoading, setTurnoverLoading] = useState(false)
+  const [turnoverError, setTurnoverError] = useState<string | null>(null)
+  const [turnoverMeta, setTurnoverMeta] = useState<Top100Meta | null>(null)
+  const [turnoverData, setTurnoverData] = useState<RpsTurnoverHistoryData | null>(null)
   const resolvedRange = useMemo(
     () => resolveDateRange(rangeKey, customStartDateApplied || ymd(addYears(new Date(), -1))),
     [rangeKey, customStartDateApplied],
@@ -200,11 +226,159 @@ export default function RpsStylePanel() {
     return () => ac.abort()
   }, [chartView, customStartDateApplied, rangeKey, resolvedRange.endDate, resolvedRange.startDate])
 
+  useEffect(() => {
+    const ac = new AbortController()
+    ;(async () => {
+      setTurnoverLoading(true)
+      setTurnoverError(null)
+      try {
+        const res = await fetchRpsTurnoverHistory({ ticker: turnoverTicker, signal: ac.signal })
+        if (res.success !== true) {
+          setTurnoverError(res.message || '获取成交额历史失败')
+          setTurnoverData(null)
+          setTurnoverMeta(null)
+          setTurnoverLoading(false)
+          return
+        }
+        setTurnoverMeta(res.meta || null)
+        setTurnoverData(res.data)
+        setTurnoverLoading(false)
+      } catch (e) {
+        const name = e instanceof Error ? e.name : ''
+        if (name === 'AbortError') return
+        setTurnoverError('网络异常或 API 不可用')
+        setTurnoverData(null)
+        setTurnoverMeta(null)
+        setTurnoverLoading(false)
+      }
+    })()
+    return () => ac.abort()
+  }, [turnoverTicker])
+
   const modeCls = useMemo(() => {
     return mode === 'risk_on'
       ? 'border-[rgba(16,185,129,0.35)] bg-[rgba(16,185,129,0.10)] text-[#34D399]'
       : 'border-[rgba(239,68,68,0.35)] bg-[rgba(239,68,68,0.10)] text-[#F87171]'
   }, [mode])
+  const turnoverRows = useMemo(() => {
+    if (!Array.isArray(turnoverData?.series)) return []
+    return [...turnoverData.series].reverse()
+  }, [turnoverData])
+  const selectedTurnoverName = turnoverData?.name || ETF_NAME_MAP[turnoverTicker] || turnoverTicker
+  const turnoverSection = (
+    <div className="mt-4 rounded-lg border border-white/10 bg-white/5 p-3">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-2">
+          <div>
+            <div className="text-sm font-medium text-[#E6EDF7]">成交额观察</div>
+            <div className="mt-1 text-xs leading-relaxed text-[#94A3B8]">
+              最近 90 个交易日展示日成交额与相对过去 20 个真实交易日均值的倍数，`&gt;= 1.50x` 高亮。
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-[#94A3B8]">目标ETF</span>
+            {TURNOVER_TICKERS.map((ticker) => (
+              <button
+                key={ticker}
+                type="button"
+                disabled={turnoverLoading}
+                onClick={() => setTurnoverTicker(ticker)}
+                className={cn(
+                  'rounded-md border px-2 py-1 text-xs transition disabled:cursor-not-allowed disabled:opacity-50',
+                  turnoverTicker === ticker
+                    ? 'border-white/20 bg-white/10 text-[#E6EDF7]'
+                    : 'border-white/10 text-[#A9B6CC] hover:border-white/20',
+                )}
+                title={ETF_NAME_MAP[ticker] || ticker}
+              >
+                <span className="font-mono">{ticker}</span>
+                <span className="ml-1 text-[#94A3B8]">{ETF_NAME_MAP[ticker] || ''}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="min-w-[320px] rounded-lg border border-white/10 bg-[#0B1220] px-3 py-2 text-xs">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[#94A3B8]">当前标的</div>
+            <div className="text-right text-[#E6EDF7]">
+              <div className="font-mono">{turnoverTicker}</div>
+              <div className="text-[#94A3B8]">{selectedTurnoverName}</div>
+            </div>
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <div className="text-[#94A3B8]">对应基准指数</div>
+            <div className="text-right text-[#E6EDF7]">
+              <div className="font-mono">{turnoverData?.benchmarkIndex.code || '—'}</div>
+              <div className="text-[#94A3B8]">{turnoverData?.benchmarkIndex.name || '—'}</div>
+            </div>
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <div className="text-[#94A3B8]">RPS 分母ETF</div>
+            <div className="text-right text-[#E6EDF7]">
+              <div className="font-mono">{turnoverData?.benchmarkTicker || '—'}</div>
+              <div className="text-[#94A3B8]">{turnoverData?.benchmarkName || '—'}</div>
+            </div>
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-3 text-[#94A3B8]">
+            <span>数据交易日</span>
+            <span className="font-mono text-[#E6EDF7]">{formatYmd(turnoverMeta?.dataDate)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 overflow-x-auto rounded-lg border border-white/10">
+        <table className="min-w-full text-sm">
+          <thead className="bg-white/5 text-[#A9B6CC]">
+            <tr>
+              <th className="px-3 py-2 text-left">日期</th>
+              <th className="px-3 py-2 text-right">成交额</th>
+              <th className="px-3 py-2 text-right">较前20日均值倍数</th>
+            </tr>
+          </thead>
+          <tbody>
+            {turnoverLoading ? (
+              <tr>
+                <td colSpan={3} className="px-3 py-8 text-center text-sm text-[#94A3B8]">
+                  正在加载成交额历史...
+                </td>
+              </tr>
+            ) : turnoverError ? (
+              <tr>
+                <td colSpan={3} className="px-3 py-8 text-center text-sm text-[#FCA5A5]">
+                  {turnoverError}
+                </td>
+              </tr>
+            ) : turnoverRows.length ? (
+              turnoverRows.map((row) => {
+                const isHot = typeof row.turnoverMultipleOfPrev20Avg === 'number' && row.turnoverMultipleOfPrev20Avg >= 1.5
+                return (
+                  <tr key={row.date} className={cn('border-t border-white/5', isHot && 'bg-[rgba(251,191,36,0.08)]')}>
+                    <td className="px-3 py-2 font-mono text-[#E6EDF7]">{formatYmd(row.date)}</td>
+                    <td className="px-3 py-2 text-right font-mono text-[#E6EDF7]">{fmtTurnover(row.turnover)}</td>
+                    <td
+                      className={cn(
+                        'px-3 py-2 text-right font-mono',
+                        isHot ? 'font-semibold text-[#FBBF24]' : 'text-[#A9B6CC]',
+                      )}
+                    >
+                      {fmtMultiple(row.turnoverMultipleOfPrev20Avg)}
+                    </td>
+                  </tr>
+                )
+              })
+            ) : (
+              <tr>
+                <td colSpan={3} className="px-3 py-8 text-center text-sm text-[#94A3B8]">
+                  暂无成交额历史
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
 
   return (
     <section className="mt-4 overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
@@ -408,6 +582,8 @@ export default function RpsStylePanel() {
           />
         </div>
       </div>
+
+      {turnoverSection}
     </section>
   )
 }

@@ -180,6 +180,27 @@ export type RpsStylePanelData = {
   seriesByTicker: Record<string, RpsStyleSeriesPoint[]>
 }
 
+export type RpsTurnoverBenchmarkIndex = {
+  code: string
+  name: string
+}
+
+export type RpsTurnoverHistoryPoint = {
+  date: string
+  turnover: number | null
+  turnoverMultipleOfPrev20Avg: number | null
+}
+
+export type RpsTurnoverHistoryData = {
+  ticker: string
+  code: string
+  name: string
+  benchmarkTicker: string
+  benchmarkName: string
+  benchmarkIndex: RpsTurnoverBenchmarkIndex
+  series: RpsTurnoverHistoryPoint[]
+}
+
 export async function fetchLowVolIndex(args: { code: string; signal?: AbortSignal }): Promise<ApiOk<LowVolH30269Data> | ApiErr> {
   const code = String(args.code || '').trim()
   const cacheKey = `lowvol:index:${code}`
@@ -516,6 +537,50 @@ export async function fetchRpsStylePanel(args?: {
     return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
   }
   const out = json as ApiOk<RpsStylePanelData> | ApiErr
+  if (out && typeof out === 'object' && out.success === true) setFrontCache(cacheKey, out)
+  return out
+}
+
+export async function fetchRpsTurnoverHistory(args: {
+  ticker: string
+  signal?: AbortSignal
+}): Promise<ApiOk<RpsTurnoverHistoryData> | ApiErr> {
+  const ticker = String(args.ticker || '').trim().toUpperCase()
+  const url = `/api/rps/turnover/${encodeURIComponent(ticker)}`
+  const cacheKey = `rps:turnover:${url}`
+  const cached = getFrontCache<ApiOk<RpsTurnoverHistoryData> | ApiErr>(cacheKey)
+  if (cached) return cached
+  let res: Response
+  try {
+    res = await fetch(apiUrl(url), {
+      ...(args.signal ? { signal: args.signal } : {}),
+      credentials: 'include',
+      headers: {
+        ...adminAuthHeaders(),
+      },
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    const name = e instanceof Error ? e.name : ''
+    const aborted = name === 'AbortError' || msg.toLowerCase().includes('aborted')
+    return { success: false, error: 'api_error', message: aborted ? '请求已取消' : msg || '网络异常或 API 不可用' }
+  }
+
+  const text = await res.text()
+  let json: unknown = null
+  try {
+    json = text ? (JSON.parse(text) as unknown) : null
+  } catch {
+    json = null
+  }
+  if (!res.ok) {
+    const msg =
+      json && typeof json === 'object' && json && 'message' in (json as Record<string, unknown>) && typeof (json as Record<string, unknown>).message === 'string'
+        ? String((json as Record<string, unknown>).message)
+        : `HTTP ${res.status}`
+    return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
+  }
+  const out = json as ApiOk<RpsTurnoverHistoryData> | ApiErr
   if (out && typeof out === 'object' && out.success === true) setFrontCache(cacheKey, out)
   return out
 }

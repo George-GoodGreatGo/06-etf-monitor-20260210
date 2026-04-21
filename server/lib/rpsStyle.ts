@@ -1,4 +1,4 @@
-import { fetchEastmoneyDailyKline } from './eastmoneyKline.js'
+import { fetchEastmoneyDailyKline, fetchEastmoneyDailyKlineWithAmount } from './eastmoneyKline.js'
 import { runAkshare } from './akshare.js'
 import { readRpsStyleMeta, readRpsStylePointsRange, type RpsStylePointRow } from './supabaseRest.js'
 
@@ -10,8 +10,68 @@ const READ_CACHE_TTL_MS = 5 * 60_000
 export const RPS_BENCHMARK_TICKER = '512890.SH'
 export const RPS_TARGET_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH', '512050.SH', '560010.SH'] as const
 const RPS_RUN_STALE_MAX_DAYS = 14
+const RPS_TURNOVER_LOOKBACK_DAYS = 20
+const RPS_TURNOVER_DISPLAY_DAYS = 90
+const RPS_TURNOVER_FETCH_CALENDAR_DAYS = 540
 
 type DataSourceName = 'eastmoney:qfq' | 'akshare:qfq'
+
+export type RpsBenchmarkIndexInfo = {
+  code: string
+  name: string
+}
+
+export type RpsTickerProfile = {
+  ticker: string
+  code: string
+  name: string
+  benchmarkIndex: RpsBenchmarkIndexInfo
+}
+
+const RPS_TICKER_PROFILES: Record<string, RpsTickerProfile> = {
+  '512890.SH': {
+    ticker: '512890.SH',
+    code: '512890',
+    name: '红利低波ETF',
+    benchmarkIndex: { code: 'H30269', name: '红利低波指数' },
+  },
+  '159915.SZ': {
+    ticker: '159915.SZ',
+    code: '159915',
+    name: '创业板ETF',
+    benchmarkIndex: { code: '399006.SZ', name: '创业板指数' },
+  },
+  '588000.SH': {
+    ticker: '588000.SH',
+    code: '588000',
+    name: '科创50ETF',
+    benchmarkIndex: { code: '000688.SH', name: '科创50指数' },
+  },
+  '513180.SH': {
+    ticker: '513180.SH',
+    code: '513180',
+    name: '恒生科技ETF',
+    benchmarkIndex: { code: 'HSTECH.HI', name: '恒生科技指数' },
+  },
+  '510300.SH': {
+    ticker: '510300.SH',
+    code: '510300',
+    name: '沪深300ETF',
+    benchmarkIndex: { code: '000300.SH', name: '沪深300指数' },
+  },
+  '512050.SH': {
+    ticker: '512050.SH',
+    code: '512050',
+    name: '中证A500ETF',
+    benchmarkIndex: { code: '000510.CSI', name: '中证A500指数' },
+  },
+  '560010.SH': {
+    ticker: '560010.SH',
+    code: '560010',
+    name: '中证1000ETF',
+    benchmarkIndex: { code: '000852.SH', name: '中证1000指数' },
+  },
+}
 
 function readCacheGet<T>(key: string): T | null {
   const hit = readCache.get(key)
@@ -96,6 +156,18 @@ function diffDaysUtc(aYmd10: string, bYmd10: string): number | null {
 function ymd8(ymd10: string): string {
   const s = normalizeYmd10(ymd10)
   return s ? s.replace(/-/g, '') : ''
+}
+
+function shiftYmd10Days(ymd10Raw: string, offsetDays: number): string {
+  const baseMs = ymd10ToUtcMs(normalizeYmd10(ymd10Raw))
+  if (baseMs == null) return ''
+  return new Date(baseMs + offsetDays * 86_400_000).toISOString().slice(0, 10)
+}
+
+function roundTo(value: number, digits: number): number {
+  if (!Number.isFinite(value)) return value
+  const factor = 10 ** Math.max(0, digits)
+  return Math.round(value * factor) / factor
 }
 
 function buildSma(values: number[], period: number): Array<number | null> {
@@ -216,6 +288,76 @@ async function fetchQfqDailyWithFallback(args: {
   }
 }
 
+function getTickerProfileOrThrow(tickerRaw: string): RpsTickerProfile {
+  const ticker = String(tickerRaw || '').trim().toUpperCase()
+  const profile = RPS_TICKER_PROFILES[ticker]
+  if (!profile) throw new Error(`不支持的 ticker：${ticker}`)
+  return profile
+}
+
+export type RpsTurnoverHistoryPoint = {
+  date: string
+  turnover: number | null
+  turnoverMultipleOfPrev20Avg: number | null
+}
+
+export function buildRpsTurnoverHistory(
+  rows: Array<{ date: string; turnover: number | null }>,
+  opts?: { lookbackDays?: number; displayDays?: number },
+): RpsTurnoverHistoryPoint[] {
+  const lookbackDays = Math.max(1, Math.floor(opts?.lookbackDays ?? RPS_TURNOVER_LOOKBACK_DAYS))
+  const displayDays = Math.max(1, Math.floor(opts?.displayDays ?? RPS_TURNOVER_DISPLAY_DAYS))
+  const normalized = rows
+    .map((row) => {
+      const date = normalizeYmd10(row.date)
+      const turnover = typeof row.turnover === 'number' && Number.isFinite(row.turnover) && row.turnover >= 0 ? row.turnover : null
+      return { date, turnover }
+    })
+    .filter((row) => row.date)
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+
+  const out: RpsTurnoverHistoryPoint[] = normalized.map((row, index) => {
+    const prevWindow = normalized.slice(Math.max(0, index - lookbackDays), index)
+    const hasFullWindow = prevWindow.length === lookbackDays && prevWindow.every((item) => typeof item.turnover === 'number')
+    let turnoverMultipleOfPrev20Avg: number | null = null
+    if (hasFullWindow && typeof row.turnover === 'number') {
+      const avg = prevWindow.reduce((sum, item) => sum + (item.turnover as number), 0) / lookbackDays
+      if (avg > 0) turnoverMultipleOfPrev20Avg = roundTo(row.turnover / avg, 2)
+    }
+    return {
+      date: row.date,
+      turnover: row.turnover,
+      turnoverMultipleOfPrev20Avg,
+    }
+  })
+
+  return out.slice(-displayDays)
+}
+
+async function fetchRpsTurnoverSeries(args: {
+  ticker: string
+  endDate: string
+}): Promise<{ source: 'eastmoney:kline'; series: Array<{ date: string; turnover: number | null }> }> {
+  const secid = tickerToSecid(args.ticker)
+  const endDate = normalizeYmd10(args.endDate)
+  const startDate = shiftYmd10Days(endDate, -RPS_TURNOVER_FETCH_CALENDAR_DAYS)
+  const rows = await fetchEastmoneyDailyKlineWithAmount({
+    secid,
+    beg: ymd8(startDate),
+    end: ymd8(endDate),
+  })
+  const series = rows
+    .map((row) => ({
+      date: normalizeYmd10(row.date),
+      turnover: typeof row.amount === 'number' && Number.isFinite(row.amount) ? row.amount : null,
+    }))
+    .filter((row) => row.date)
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+
+  if (!series.length) throw new Error(`RPS 成交额历史为空：${args.ticker}`)
+  return { source: 'eastmoney:kline', series }
+}
+
 function mapPointRowToComputedPoint(r: RpsStylePointRow): RpsComputedPoint {
   return {
     date: r.data_date,
@@ -310,6 +452,10 @@ async function getSeriesFromSupabaseRuns(args: {
 
 export function getRpsStyleSupportedTickers(): string[] {
   return [...RPS_TARGET_TICKERS]
+}
+
+export function getRpsStyleTurnoverSupportedTickers(): string[] {
+  return Object.keys(RPS_TICKER_PROFILES)
 }
 
 export async function computeRpsStyleDataset(args: {
@@ -413,6 +559,61 @@ export async function getRpsStyleSeries(args: {
         ticker,
         benchmarkTicker: RPS_BENCHMARK_TICKER,
         series: out.series,
+      },
+    }
+  })
+}
+
+export async function getRpsStyleTurnoverHistory(args: {
+  ticker: string
+}): Promise<{
+  meta: {
+    fetchedAt: string
+    dataDate: string | null
+    source: string
+    notes: string[]
+    isFallback: boolean
+  }
+  data: {
+    ticker: string
+    code: string
+    name: string
+    benchmarkTicker: string
+    benchmarkName: string
+    benchmarkIndex: RpsBenchmarkIndexInfo
+    series: RpsTurnoverHistoryPoint[]
+  }
+}> {
+  const profile = getTickerProfileOrThrow(args.ticker)
+  const endDate = new Date().toISOString().slice(0, 10)
+  const cacheKey = `rps:turnover:${profile.ticker}:${endDate}`
+  return await readCacheRemember(cacheKey, async () => {
+    const fetched = await fetchRpsTurnoverSeries({ ticker: profile.ticker, endDate })
+    const history = buildRpsTurnoverHistory(fetched.series)
+    const dataDate = history[history.length - 1]?.date ?? fetched.series[fetched.series.length - 1]?.date ?? null
+    return {
+      meta: {
+        fetchedAt: new Date().toISOString(),
+        dataDate,
+        source: fetched.source,
+        notes: [
+          `ticker=${profile.ticker}`,
+          `benchmark_ticker=${RPS_BENCHMARK_TICKER}`,
+          `benchmark_index=${profile.benchmarkIndex.code} ${profile.benchmarkIndex.name}`,
+          'turnover=ETF日线成交额，单位按数据源原始口径返回（东方财富日线通常为元）。',
+          `turnoverMultipleOfPrev20Avg=当日成交额/过去${RPS_TURNOVER_LOOKBACK_DAYS}个真实交易日成交额均值，结果保留2位小数。`,
+          `history_window=${RPS_TURNOVER_DISPLAY_DAYS} trading_days`,
+        ],
+        isFallback: false,
+      },
+      data: {
+        ticker: profile.ticker,
+        code: profile.code,
+        name: profile.name,
+        benchmarkTicker: RPS_BENCHMARK_TICKER,
+        benchmarkName: getTickerProfileOrThrow(RPS_BENCHMARK_TICKER).name,
+        benchmarkIndex: profile.benchmarkIndex,
+        series: history,
       },
     }
   })

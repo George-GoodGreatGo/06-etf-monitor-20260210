@@ -1,5 +1,13 @@
 import { Router, type Request, type Response } from 'express'
-import { getRpsStyleMatrix, getRpsStylePanel, getRpsStyleSeries, getRpsStyleSummary, getRpsStyleSupportedTickers } from '../lib/rpsStyle.js'
+import {
+  getRpsStyleMatrix,
+  getRpsStylePanel,
+  getRpsStyleSeries,
+  getRpsStyleSummary,
+  getRpsStyleSupportedTickers,
+  getRpsStyleTurnoverHistory,
+  getRpsStyleTurnoverSupportedTickers,
+} from '../lib/rpsStyle.js'
 
 const router = Router()
 
@@ -51,6 +59,23 @@ router.get('/series/:ticker', async (req: Request, res: Response) => {
       return
     }
     const out = await getRpsStyleSeries({ ticker, startDate, endDate })
+    res.setHeader('Cache-Control', 'private, max-age=300, stale-while-revalidate=120')
+    res.status(200).json({ success: true, ...out })
+  } catch (e) {
+    res.setHeader('Cache-Control', 'no-store')
+    res.status(502).json({ success: false, error: 'upstream_error', message: e instanceof Error ? e.message : String(e) })
+  }
+})
+
+router.get('/turnover/:ticker', async (req: Request, res: Response) => {
+  try {
+    const ticker = typeof req.params.ticker === 'string' ? req.params.ticker.trim().toUpperCase() : ''
+    if (!ticker || !getRpsStyleTurnoverSupportedTickers().includes(ticker)) {
+      res.setHeader('Cache-Control', 'no-store')
+      res.status(400).json({ success: false, error: 'bad_request', message: `不支持的ticker：${ticker}` })
+      return
+    }
+    const out = await getRpsStyleTurnoverHistory({ ticker })
     res.setHeader('Cache-Control', 'private, max-age=300, stale-while-revalidate=120')
     res.status(200).json({ success: true, ...out })
   } catch (e) {
