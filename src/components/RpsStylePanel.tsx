@@ -323,81 +323,79 @@ export default function RpsStylePanel() {
   const anchorStyle = useMemo(() => ({ scrollMarginTop: '104px' }), [])
   const turnoverSection = (
     <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-      <div className="rounded-lg border border-[rgba(251,191,36,0.16)] bg-[rgba(251,191,36,0.06)] p-3">
-        <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
-          <div>
-            <div className="text-sm font-semibold text-[#F8FAFC]">放量公告板</div>
-            <div className="mt-1 text-xs leading-relaxed text-[#CBD5E1]">
-              直接汇总各目标 ETF 在最近 90 个交易日内最近一次满足 `成交额较前20日均值 &gt;= 1.50x` 的日期。
-            </div>
+      <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div className="text-sm font-semibold text-[#F8FAFC]">放量公告板</div>
+          <div className="mt-1 text-xs leading-relaxed text-[#CBD5E1]">
+            直接汇总各目标 ETF 在最近 90 个交易日内最近一次满足 `成交额较前20日均值 &gt;= 1.50x` 的日期。
           </div>
-          <div className="text-xs text-[#94A3B8]">口径：以各 ETF 当前最新交易日为基准计算交易日间隔</div>
         </div>
-
-        {turnoverSummaryLoading ? (
-          <div className="mt-3 rounded-lg border border-white/10 bg-[#0B1220] px-3 py-6 text-center text-sm text-[#94A3B8]">
-            正在加载放量摘要...
-          </div>
-        ) : turnoverSummaryError ? (
-          <div className="mt-3 rounded-lg border border-[rgba(248,113,113,0.24)] bg-[rgba(127,29,29,0.20)] px-3 py-6 text-center text-sm text-[#FCA5A5]">
-            {turnoverSummaryError}
-          </div>
-        ) : (
-          <div className="mt-3 overflow-x-auto pb-1">
-            <div className="flex min-w-max gap-3">
-              {turnoverSummaryRows.map((item) => {
-                const isSelected = item.ticker === turnoverTicker
-                const hasHit = item.status === 'hit'
-                const displayCode = item.code || item.ticker.split('.')[0] || item.ticker
-                const amplifiedDateText = item.latestAmplifiedDate
-                  ? formatYmd(item.latestAmplifiedDate)
-                  : item.status === 'no_data'
-                    ? '暂无数据'
-                    : '最近90个交易日未出现>=1.50x放量'
-                return (
-                  <button
-                    key={item.ticker}
-                    type="button"
-                    onClick={() => setTurnoverTicker(item.ticker)}
-                    aria-pressed={isSelected}
-                    className={cn(
-                      'w-[240px] shrink-0 rounded-lg border px-3 py-2.5 text-left transition',
-                      isSelected
-                        ? 'border-[rgba(251,191,36,0.35)] bg-[rgba(251,191,36,0.10)] shadow-[inset_0_0_0_1px_rgba(251,191,36,0.12)]'
-                        : 'border-white/10 bg-[#0B1220] hover:border-white/20 hover:bg-white/[0.06]',
-                    )}
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <div className="text-sm font-semibold text-[#E6EDF7]">{item.name}</div>
-                        <div className="font-mono text-xs text-[#94A3B8]">{displayCode}</div>
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                        {hasHit ? (
-                          <span className="rounded-full border border-[rgba(251,191,36,0.35)] bg-[rgba(251,191,36,0.12)] px-2 py-0.5 text-[11px] font-semibold text-[#FBBF24]">
-                            {`${fmtTradingDaysAgo(item.tradingDaysAgo)}放量`}
-                          </span>
-                        ) : null}
-                        {!hasHit && item.status === 'no_data' ? (
-                          <span className="text-xs text-[#94A3B8]">暂无可用成交额数据</span>
-                        ) : null}
-                      </div>
-                    </div>
-                    <div className="mt-2 space-y-1 text-xs leading-5">
-                      <div className={cn('truncate', hasHit ? 'text-[#F8FAFC]' : 'text-[#CBD5E1]')}>
-                        最近放量日期：{amplifiedDateText}
-                      </div>
-                      <div className="text-[#94A3B8]">
-                        最近交易日：{item.latestTradingDate ? formatYmd(item.latestTradingDate) : '—'}
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
+        <div className="text-xs text-[#94A3B8]">口径：以各 ETF 当前最新交易日为基准计算交易日间隔</div>
       </div>
+
+      {turnoverSummaryLoading ? (
+        <div className="mt-3 rounded-lg border border-white/10 bg-[#0B1220] px-3 py-6 text-center text-sm text-[#94A3B8]">
+          正在加载放量摘要...
+        </div>
+      ) : turnoverSummaryError ? (
+        <div className="mt-3 rounded-lg border border-[rgba(248,113,113,0.24)] bg-[rgba(127,29,29,0.20)] px-3 py-6 text-center text-sm text-[#FCA5A5]">
+          {turnoverSummaryError}
+        </div>
+      ) : (
+        <div className="mt-3">
+          <div className="grid grid-cols-5 gap-2.5">
+            {turnoverSummaryRows.map((item) => {
+              const isSelected = item.ticker === turnoverTicker
+              const hasHit = item.status === 'hit'
+              const displayCode = item.code || item.ticker.split('.')[0] || item.ticker
+              const amplifiedDateText = item.latestAmplifiedDate
+                ? formatYmd(item.latestAmplifiedDate)
+                : item.status === 'no_data'
+                  ? '暂无数据'
+                  : '最近90个交易日未出现>=1.50x放量'
+              return (
+                <button
+                  key={item.ticker}
+                  type="button"
+                  onClick={() => setTurnoverTicker(item.ticker)}
+                  aria-pressed={isSelected}
+                  className={cn(
+                    'min-w-0 rounded-lg border px-2.5 py-2 text-left transition',
+                    isSelected
+                      ? 'border-[rgba(251,191,36,0.35)] bg-[rgba(251,191,36,0.10)] shadow-[inset_0_0_0_1px_rgba(251,191,36,0.12)]'
+                      : 'border-white/10 bg-[#0B1220] hover:border-white/20 hover:bg-white/[0.06]',
+                  )}
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                      <div className="truncate text-[13px] font-semibold text-[#E6EDF7]">{item.name}</div>
+                      <div className="font-mono text-[11px] text-[#94A3B8]">{displayCode}</div>
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      {hasHit ? (
+                        <span className="rounded-full border border-[rgba(251,191,36,0.35)] bg-[rgba(251,191,36,0.12)] px-1.5 py-0.5 text-[10px] font-semibold text-[#FBBF24]">
+                          {`${fmtTradingDaysAgo(item.tradingDaysAgo)}放量`}
+                        </span>
+                      ) : null}
+                      {!hasHit && item.status === 'no_data' ? (
+                        <span className="text-[11px] text-[#94A3B8]">暂无可用成交额数据</span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="mt-2 space-y-1 text-[11px] leading-5">
+                    <div className={cn('truncate', hasHit ? 'text-[#F8FAFC]' : 'text-[#CBD5E1]')}>
+                      最近放量日：{amplifiedDateText}
+                    </div>
+                    <div className="truncate text-[#94A3B8]">
+                      最近交易日：{item.latestTradingDate ? formatYmd(item.latestTradingDate) : '—'}
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="mt-3 overflow-x-auto rounded-lg border border-white/10">
         <table className="min-w-full text-sm">
