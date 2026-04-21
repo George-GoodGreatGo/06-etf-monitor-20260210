@@ -44,6 +44,7 @@ const RANGE_OPTIONS = [
   { key: 'ytd', label: '年初至今' },
   { key: 'custom', label: '自定义起点日期' },
 ] as const
+const RPS_METRIC_DISPLAY_DIGITS = 6
 
 const RPS_NAV_SECTIONS: FloatingNavSection[] = [
   { id: 'rps-score-section', label: 'Score截面', shortLabel: 'Score截面' },
@@ -525,8 +526,12 @@ export default function RpsStylePanel() {
                       <div className="font-mono">{x.ticker}</div>
                       <div className="text-xs text-[#94A3B8]">{ETF_NAME_MAP[x.ticker] || '—'}</div>
                     </td>
-                    <td className="px-3 py-2 text-right font-mono text-[#E6EDF7]">{fmt(x.rpsRaw, 4)}</td>
-                    <td className="px-3 py-2 text-right font-mono text-[#E6EDF7]">{fmt(x.rpsMa50, 4)}</td>
+                    <td className="px-3 py-2 text-right font-mono text-[#E6EDF7]">
+                      {fmt(x.rpsRaw, RPS_METRIC_DISPLAY_DIGITS)}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-[#E6EDF7]">
+                      {fmt(x.rpsMa50, RPS_METRIC_DISPLAY_DIGITS)}
+                    </td>
                     <td
                       className={cn(
                         'px-3 py-2 text-right font-mono',
