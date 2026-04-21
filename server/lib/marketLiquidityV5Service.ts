@@ -641,7 +641,7 @@ export async function getMarketLiquidityV5(args?: { startDate?: string; endDate?
 
   void isDefaultRange
   const noPythonRuntime = Boolean(process.env.VERCEL) || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME)
-  const defaultPolicy = Boolean(process.env.GITHUB_ACTIONS) ? 'runner-stable' : noPythonRuntime ? 'eastmoney-http' : 'hybrid'
+  const defaultPolicy = process.env.GITHUB_ACTIONS ? 'runner-stable' : noPythonRuntime ? 'eastmoney-http' : 'hybrid'
   const sourcePolicyRaw = String(process.env.MARKET_DATA_SOURCE || defaultPolicy).trim().toLowerCase()
 
   const tryEastmoneyHttpFallback = async (reason: string) => {

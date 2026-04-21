@@ -127,25 +127,6 @@ function normalizeYmd10(raw: unknown): string {
   return ''
 }
 
-function pad2(n: number): string {
-  return n < 10 ? `0${n}` : String(n)
-}
-
-function dateFromYmd10(ymd10: string): Date | null {
-  const s = String(ymd10 || '').trim()
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null
-  const d = new Date(`${s}T00:00:00Z`)
-  return Number.isFinite(d.getTime()) ? d : null
-}
-
-function ymd10MinusDays(ymd10: string, days: number): string | null {
-  const d = dateFromYmd10(ymd10)
-  if (!d) return null
-  const ms = d.getTime() - Math.max(0, days) * 24 * 60 * 60 * 1000
-  const nd = new Date(ms)
-  return `${nd.getUTCFullYear()}-${pad2(nd.getUTCMonth() + 1)}-${pad2(nd.getUTCDate())}`
-}
-
 function ymd10FromYmd8(ymd8: string): string | null {
   const s = String(ymd8 || '').trim()
   if (!/^\d{8}$/.test(s)) return null
