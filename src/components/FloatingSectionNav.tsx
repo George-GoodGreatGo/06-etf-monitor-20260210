@@ -112,7 +112,7 @@ export default function FloatingSectionNav({
     >
       <div className="px-2 pt-1 text-center text-[10px] font-semibold tracking-wide text-[#94A3B8]">模块导航</div>
       <div className="flex flex-col gap-1">
-        {normalizedSections.map((section, index) => {
+        {normalizedSections.map((section) => {
           const active = activeSectionId === section.id
           return (
             <button
@@ -128,20 +128,9 @@ export default function FloatingSectionNav({
               aria-current={active ? 'true' : undefined}
               title={section.label}
             >
-              <span
-                className={cn(
-                  'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold',
-                  active
-                    ? 'border-[rgba(255,138,102,0.55)] bg-[rgba(255,87,34,0.18)] text-[#FFD6C8]'
-                    : 'border-white/10 bg-white/5 text-[#94A3B8] group-hover:text-white',
-                )}
-                aria-hidden="true"
-              >
-                {index + 1}
-              </span>
               <span className="leading-tight">
                 <span className="hidden sm:inline">{section.label}</span>
-                <span className="sm:hidden">{section.shortLabel || index + 1}</span>
+                <span className="sm:hidden">{section.shortLabel || section.label}</span>
               </span>
             </button>
           )
