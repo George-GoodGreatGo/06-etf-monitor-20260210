@@ -143,6 +143,7 @@ export type RpsStyleSeriesPoint = {
 export type RpsStyleSeriesData = {
   ticker: string
   benchmarkTicker: string
+  benchmarkName: string
   series: RpsStyleSeriesPoint[]
 }
 
@@ -159,6 +160,7 @@ export type RpsStyleMatrixItem = {
 
 export type RpsStyleMatrixData = {
   benchmarkTicker: string
+  benchmarkName: string
   mode: 'risk_on' | 'risk_off'
   leaderTicker: string | null
   suggestedAttackPositionPct: number
@@ -167,6 +169,7 @@ export type RpsStyleMatrixData = {
 
 export type RpsStyleSummaryData = {
   benchmarkTicker: string
+  benchmarkName: string
   mode: 'risk_on' | 'risk_off'
   leaderTicker: string | null
   suggestedAttackPositionPct: number

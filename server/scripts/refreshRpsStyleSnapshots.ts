@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { computeRpsStyleDataset, getRpsStyleSupportedTickers } from '../lib/rpsStyle.js'
+import { computeRpsStyleDataset, getRpsStyleBenchmarkMeta, getRpsStyleComputationNotes, getRpsStyleSupportedTickers } from '../lib/rpsStyle.js'
 import { publishRpsStyleRun, readRpsStyleMeta, type RpsStylePointRow, upsertRpsStylePoints } from '../lib/supabaseRest.js'
 
 const FULL_BACKFILL_START = '20160101'
@@ -131,6 +131,7 @@ async function main() {
   const fetchedAt = new Date().toISOString()
   const startedAt = Date.now()
   const tickers = getRpsStyleSupportedTickers()
+  const benchmarkMeta = getRpsStyleBenchmarkMeta()
   process.stdout.write(`[rps] start runId=${runId} prevVisible=${prevVisible || 'null'} tickers=${tickers.length}\n`)
 
   try {
@@ -153,12 +154,7 @@ async function main() {
         runId,
         fetchedAt,
         source: `benchmark=${dataset.benchmarkSource};target=${dataset.tickerSources[ticker]}`,
-        notes: [
-          'RPS=target_close_qfq/benchmark_close_qfq',
-          'MA50=SMA(RPS,50)',
-          'Score=(RPS/MA50-1)*100%',
-          `benchmark=${dataset.benchmarkTicker}`,
-        ],
+        notes: getRpsStyleComputationNotes(),
         ticker,
         rows: points,
       })
@@ -223,7 +219,7 @@ async function main() {
           failedRunId: runId,
           error: msg,
           errorContext: {
-            benchmarkTicker: '512890.SH',
+            benchmarkTicker: benchmarkMeta.ticker,
             phase: 'compute_or_publish',
           },
           failedAt: new Date().toISOString(),

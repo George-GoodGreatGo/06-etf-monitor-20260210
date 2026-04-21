@@ -77,7 +77,7 @@ type HoverState = { date: string; rows: HoverRow[] }
 export default function RpsStyleChart({
   seriesByTicker,
   viewMode,
-  baseLabel = '512890.SH=1',
+  baseLabel = '红利低波全收益指数（H30269）=1',
   tickerNameMap = {},
   enabledTickers = {},
   lockEdges = true,
@@ -377,7 +377,7 @@ export default function RpsStyleChart({
             </span>
           </div>
         ))}
-        {viewMode === 'relative' ? <div className="text-[#64748B]">参考线：{baseLabel}</div> : null}
+        {viewMode === 'relative' ? <div className="text-[#64748B]">基准标签：{baseLabel}</div> : null}
         {viewMode === 'score' ? <div className="text-[#64748B]">参考线：Y=0（MA50归一基线）</div> : null}
         {viewMode === 'score' ? <div className="text-[#64748B]">阈值：&lt;-20 深绿 | -20~-10 绿 | -10~0 浅绿 | 0~10 黄 | 10~20 橙 | &gt;20 红</div> : null}
       </div>

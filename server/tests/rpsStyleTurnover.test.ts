@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { buildRpsTurnoverHistory, buildRpsTurnoverSummaryItem } from '../lib/rpsStyle.js'
+import { buildRpsTurnoverHistory, buildRpsTurnoverSummaryItem, getRpsStyleBenchmarkMeta, getRpsStyleComputationNotes } from '../lib/rpsStyle.js'
 
 function day(n: number): string {
   const base = new Date(Date.UTC(2024, 0, 1))
@@ -102,3 +102,13 @@ const summaryNoData = buildRpsTurnoverSummaryItem(
 assert.equal(summaryNoData.latestTradingDate, null)
 assert.equal(summaryNoData.latestAmplifiedDate, null)
 assert.equal(summaryNoData.status, 'no_data')
+
+const benchmarkMeta = getRpsStyleBenchmarkMeta()
+assert.deepEqual(benchmarkMeta, {
+  ticker: 'H30269',
+  name: '红利低波全收益指数',
+})
+
+const notes = getRpsStyleComputationNotes()
+assert.equal(notes[0], 'RPS=目标ETF前复权收盘价/H30269收盘点位')
+assert.ok(notes.includes('benchmark=H30269 红利低波全收益指数'))

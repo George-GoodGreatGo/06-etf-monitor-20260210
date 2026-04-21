@@ -1,4 +1,5 @@
 import { fetchEastmoneyDailyKline, fetchEastmoneyDailyKlineWithAmount } from './eastmoneyKline.js'
+import { fetchLowVolIndexCloseSeries } from './lowVol.js'
 import { runAkshare } from './akshare.js'
 import { readRpsStyleMeta, readRpsStylePointsRange, type RpsStylePointRow } from './supabaseRest.js'
 
@@ -7,7 +8,8 @@ const readCache = new Map<string, CacheEntry<unknown>>()
 const readInflight = new Map<string, Promise<unknown>>()
 const READ_CACHE_TTL_MS = 5 * 60_000
 
-export const RPS_BENCHMARK_TICKER = '512890.SH'
+export const RPS_BENCHMARK_TICKER = 'H30269'
+export const RPS_BENCHMARK_NAME = '红利低波全收益指数'
 export const RPS_TARGET_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH', '512050.SH', '560010.SH'] as const
 const RPS_RUN_STALE_MAX_DAYS = 14
 const RPS_TURNOVER_LOOKBACK_DAYS = 20
@@ -28,12 +30,22 @@ export type RpsTickerProfile = {
   benchmarkIndex: RpsBenchmarkIndexInfo
 }
 
+export type RpsBenchmarkMeta = {
+  ticker: string
+  name: string
+}
+
+const RPS_BENCHMARK_META: RpsBenchmarkMeta = {
+  ticker: RPS_BENCHMARK_TICKER,
+  name: RPS_BENCHMARK_NAME,
+}
+
 const RPS_TICKER_PROFILES: Record<string, RpsTickerProfile> = {
   '512890.SH': {
     ticker: '512890.SH',
     code: '512890',
     name: '红利低波ETF',
-    benchmarkIndex: { code: 'H30269', name: '红利低波指数' },
+    benchmarkIndex: { code: 'H30269', name: '红利低波全收益指数' },
   },
   '159915.SZ': {
     ticker: '159915.SZ',
@@ -124,6 +136,7 @@ export type RpsStyleSeriesResult = {
   data: {
     ticker: string
     benchmarkTicker: string
+    benchmarkName: string
     series: RpsComputedPoint[]
   }
 }
@@ -286,6 +299,33 @@ async function fetchQfqDailyWithFallback(args: {
     const akErr = e instanceof Error ? e.message : String(e)
     throw new Error(`qfq failed: ${args.ticker}; eastmoney=${eastErr || 'unknown'}; akshare=${akErr || 'unknown'}`)
   }
+}
+
+async function fetchBenchmarkDailySeries(args: {
+  startDate: string
+  endDate: string
+}): Promise<{ source: 'csindex:index' | 'cnindex:index'; series: Array<{ date: string; close: number }> }> {
+  const beg = ymd8(args.startDate)
+  const end = ymd8(args.endDate)
+  if (!beg || !end) return { source: 'csindex:index', series: [] }
+  const rows = await fetchLowVolIndexCloseSeries({
+    code: RPS_BENCHMARK_TICKER,
+    kind: 'pri',
+    startDate8: beg,
+    endDate8: end,
+  })
+  const series = rows
+    .map((row) => {
+      const date = normalizeYmd10(row.date)
+      const close = typeof row.close === 'number' && Number.isFinite(row.close) ? row.close : null
+      return date && close != null ? { date, close } : null
+    })
+    .filter((row): row is { date: string; close: number } => Boolean(row))
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+  if (!series.length) {
+    throw new Error(`benchmark index series empty: ${RPS_BENCHMARK_TICKER}`)
+  }
+  return { source: 'csindex:index', series }
 }
 
 function getTickerProfileOrThrow(tickerRaw: string): RpsTickerProfile {
@@ -500,12 +540,26 @@ export function getRpsStyleTurnoverSupportedTickers(): string[] {
   return Object.keys(RPS_TICKER_PROFILES)
 }
 
+export function getRpsStyleBenchmarkMeta(): RpsBenchmarkMeta {
+  return { ...RPS_BENCHMARK_META }
+}
+
+export function getRpsStyleComputationNotes(): string[] {
+  return [
+    `RPS=目标ETF前复权收盘价/${RPS_BENCHMARK_TICKER}收盘点位`,
+    'MA50=RPS 50日简单均线',
+    'Score=(RPS/MA50-1)*100%',
+    `benchmark=${RPS_BENCHMARK_TICKER} ${RPS_BENCHMARK_NAME}`,
+  ]
+}
+
 export async function computeRpsStyleDataset(args: {
   startDate: string
   endDate: string
 }): Promise<{
   benchmarkTicker: string
-  benchmarkSource: DataSourceName
+  benchmarkName: string
+  benchmarkSource: string
   tickerSources: Record<string, DataSourceName>
   seriesByTicker: Record<string, RpsComputedPoint[]>
   dataDate: string | null
@@ -514,12 +568,7 @@ export async function computeRpsStyleDataset(args: {
   const endDate = normalizeYmd10(args.endDate)
   if (!startDate || !endDate) throw new Error('bad date range')
 
-  const bmk = await fetchQfqDailyWithFallback({
-    ticker: RPS_BENCHMARK_TICKER,
-    startDate,
-    endDate,
-    extraRetries: 2,
-  })
+  const bmk = await fetchBenchmarkDailySeries({ startDate, endDate })
   const benchmarkMap = new Map<string, number>()
   for (const p of bmk.series) benchmarkMap.set(p.date, p.close)
 
@@ -563,6 +612,7 @@ export async function computeRpsStyleDataset(args: {
 
   return {
     benchmarkTicker: RPS_BENCHMARK_TICKER,
+    benchmarkName: RPS_BENCHMARK_NAME,
     benchmarkSource: bmk.source,
     tickerSources,
     seriesByTicker,
@@ -600,6 +650,7 @@ export async function getRpsStyleSeries(args: {
       data: {
         ticker,
         benchmarkTicker: RPS_BENCHMARK_TICKER,
+        benchmarkName: RPS_BENCHMARK_NAME,
         series: out.series,
       },
     }
@@ -640,8 +691,8 @@ export async function getRpsStyleTurnoverHistory(args: {
         source: fetched.source,
         notes: [
           `ticker=${profile.ticker}`,
-          `benchmark_ticker=${RPS_BENCHMARK_TICKER}`,
-          `benchmark_index=${profile.benchmarkIndex.code} ${profile.benchmarkIndex.name}`,
+          `rps_benchmark=${RPS_BENCHMARK_TICKER} ${RPS_BENCHMARK_NAME}`,
+          `target_index=${profile.benchmarkIndex.code} ${profile.benchmarkIndex.name}`,
           'turnover=ETF日线成交额，单位按数据源原始口径返回（东方财富日线通常为元）。',
           `turnoverMultipleOfPrev20Avg=当日成交额/过去${RPS_TURNOVER_LOOKBACK_DAYS}个真实交易日成交额均值，结果保留2位小数。`,
           `history_window=${RPS_TURNOVER_DISPLAY_DAYS} trading_days`,
@@ -653,7 +704,7 @@ export async function getRpsStyleTurnoverHistory(args: {
         code: profile.code,
         name: profile.name,
         benchmarkTicker: RPS_BENCHMARK_TICKER,
-        benchmarkName: getTickerProfileOrThrow(RPS_BENCHMARK_TICKER).name,
+        benchmarkName: RPS_BENCHMARK_NAME,
         benchmarkIndex: profile.benchmarkIndex,
         series: history,
       },
@@ -674,6 +725,7 @@ export async function getRpsStyleMatrix(args?: {
   }
   data: {
     benchmarkTicker: string
+    benchmarkName: string
     mode: 'risk_on' | 'risk_off'
     leaderTicker: string | null
     suggestedAttackPositionPct: number
@@ -734,16 +786,12 @@ export async function getRpsStyleMatrix(args?: {
         fetchedAt: globalFetchedAt,
         dataDate: globalDate,
         source: 'supabase:rps_style_point',
-        notes: [
-          'RPS=目标ETF前复权收盘价/512890前复权收盘价',
-          'MA50=RPS 50日简单均线',
-          'Score=(RPS/MA50-1)*100%',
-          ...runNotes,
-        ],
+        notes: [...getRpsStyleComputationNotes(), ...runNotes],
         isFallback,
       },
       data: {
         benchmarkTicker: RPS_BENCHMARK_TICKER,
+        benchmarkName: RPS_BENCHMARK_NAME,
         mode,
         leaderTicker: leader?.ticker ?? null,
         suggestedAttackPositionPct: mode === 'risk_on' ? 33 : 0,
@@ -821,6 +869,7 @@ export async function getRpsStyleSummary(): Promise<{
   }
   data: {
     benchmarkTicker: string
+    benchmarkName: string
     mode: 'risk_on' | 'risk_off'
     leaderTicker: string | null
     suggestedAttackPositionPct: number
@@ -840,6 +889,7 @@ export async function getRpsStyleSummary(): Promise<{
       },
       data: {
         benchmarkTicker: m.data.benchmarkTicker,
+        benchmarkName: m.data.benchmarkName,
         mode: m.data.mode,
         leaderTicker: m.data.leaderTicker,
         suggestedAttackPositionPct: m.data.suggestedAttackPositionPct,
@@ -864,6 +914,7 @@ export async function getRpsStylePanel(args?: {
   data: {
     summary: {
       benchmarkTicker: string
+      benchmarkName: string
       mode: 'risk_on' | 'risk_off'
       leaderTicker: string | null
       suggestedAttackPositionPct: number
@@ -872,6 +923,7 @@ export async function getRpsStylePanel(args?: {
     }
     matrix: {
       benchmarkTicker: string
+      benchmarkName: string
       mode: 'risk_on' | 'risk_off'
       leaderTicker: string | null
       suggestedAttackPositionPct: number
@@ -897,6 +949,7 @@ export async function getRpsStylePanel(args?: {
     const leader = matrix.data.items.length ? matrix.data.items[0] : null
     const summary = {
       benchmarkTicker: matrix.data.benchmarkTicker,
+      benchmarkName: matrix.data.benchmarkName,
       mode: matrix.data.mode,
       leaderTicker: matrix.data.leaderTicker,
       suggestedAttackPositionPct: matrix.data.suggestedAttackPositionPct,

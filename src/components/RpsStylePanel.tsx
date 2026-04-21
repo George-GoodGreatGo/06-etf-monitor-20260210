@@ -20,6 +20,8 @@ import { formatCompactNumber, formatYmd } from '@/utils/format'
 
 const DEFAULT_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH', '512050.SH', '560010.SH']
 const TURNOVER_TICKERS = ['512890.SH', ...DEFAULT_TICKERS]
+const RPS_BENCHMARK_CODE = 'H30269'
+const RPS_BENCHMARK_NAME = '红利低波全收益指数'
 const ETF_NAME_MAP: Record<string, string> = {
   '512890.SH': '红利低波ETF',
   '159915.SZ': '创业板ETF',
@@ -459,12 +461,12 @@ export default function RpsStylePanel() {
           <div>
             <div className="text-xl font-semibold tracking-tight text-white">市场风格 RPS</div>
             <div className="mt-2 space-y-1 text-[13px] leading-relaxed text-[#94A3B8]">
-              <p><span className="font-medium text-[#CBD5E1]">基准分母</span>：512890.SH（{ETF_NAME_MAP['512890.SH']}）。</p>
-              <p><span className="font-medium text-[#CBD5E1]">RPS</span>：目标ETF前复权收盘价 / 红利ETF前复权收盘价。</p>
+              <p><span className="font-medium text-[#CBD5E1]">基准分母</span>：{RPS_BENCHMARK_NAME}（{RPS_BENCHMARK_CODE}）。</p>
+              <p><span className="font-medium text-[#CBD5E1]">RPS</span>：目标 ETF 前复权收盘价 / {RPS_BENCHMARK_NAME}收盘价。</p>
               <p><span className="font-medium text-[#CBD5E1]">MA50</span>：RPS 的 50 日简单移动平均线。</p>
               <p><span className="font-medium text-[#CBD5E1]">Score</span>：((RPS / MA50) - 1) × 100%。</p>
-              <p><span className="font-medium text-[#CBD5E1]">Score说明</span>：Score数值较高，说明该标的在近期（以MA 50天为观察）动量水平较高，可能存在阶段性追涨机会，但需警惕回调）。Score数值较低，说明动量不足，但也有可能存在抄底机会。</p>
-              <p><span className="font-medium text-[#CBD5E1]">RPS起点归一</span>：按所选起点将各标的 RPS 与 MA50 同步归一化到 1，便于横向比较（分母基准 512890.SH）。</p>
+              <p><span className="font-medium text-[#CBD5E1]">Score说明</span>：Score 数值较高，说明该标的相对 {RPS_BENCHMARK_NAME} 的近期动量更强；Score 数值较低，说明相对动量偏弱，也可能对应阶段性修复观察窗口。</p>
+              <p><span className="font-medium text-[#CBD5E1]">RPS起点归一</span>：按所选起点将各标的 RPS 与 MA50 同步归一化到 1，便于横向比较相对 {RPS_BENCHMARK_NAME} 的变化幅度。</p>
             </div>
           </div>
 
@@ -552,7 +554,7 @@ export default function RpsStylePanel() {
         <div className="border-b border-white/10 px-4 py-4">
           <div className="text-lg font-semibold tracking-tight text-white">动量趋势</div>
           <div className="mt-1 text-sm leading-relaxed text-[#94A3B8]">
-            保留原有视图切换、时间范围与 Ticker 开关，用于观察不同风格 ETF 相对红利低波基准的趋势变化。
+            保留原有视图切换、时间范围与 Ticker 开关，用于观察不同风格 ETF 相对 {RPS_BENCHMARK_NAME}（{RPS_BENCHMARK_CODE}）的趋势变化。
           </div>
         </div>
         <div className="px-4 py-4">
@@ -679,7 +681,7 @@ export default function RpsStylePanel() {
             <RpsStyleChart
               seriesByTicker={seriesByTicker}
               viewMode={chartView}
-              baseLabel={`512890.SH(${ETF_NAME_MAP['512890.SH']})=1`}
+              baseLabel={`${RPS_BENCHMARK_NAME}（${RPS_BENCHMARK_CODE}）=1`}
               tickerNameMap={ETF_NAME_MAP}
               enabledTickers={enabledTickers}
               lockEdges
