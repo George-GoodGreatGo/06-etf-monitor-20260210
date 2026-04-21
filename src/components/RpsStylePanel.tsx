@@ -274,6 +274,8 @@ export default function RpsStylePanel() {
     ;(async () => {
       setTurnoverLoading(true)
       setTurnoverError(null)
+      setTurnoverData(null)
+      setTurnoverMeta(null)
       try {
         const res = await fetchRpsTurnoverHistory({ ticker: turnoverTicker, signal: ac.signal })
         if (res.success !== true) {
@@ -351,45 +353,50 @@ export default function RpsStylePanel() {
             {turnoverSummaryRows.map((item) => {
               const isSelected = item.ticker === turnoverTicker
               const hasHit = item.status === 'hit'
+              const displayCode = item.code || item.ticker.split('.')[0] || item.ticker
+              const amplifiedDateText = item.latestAmplifiedDate
+                ? formatYmd(item.latestAmplifiedDate)
+                : item.status === 'no_data'
+                  ? '暂无数据'
+                  : '最近90个交易日未出现>=1.50x放量'
               return (
                 <button
                   key={item.ticker}
                   type="button"
                   onClick={() => setTurnoverTicker(item.ticker)}
+                  aria-pressed={isSelected}
                   className={cn(
-                    'rounded-lg border p-3 text-left transition',
+                    'rounded-lg border px-3 py-2.5 text-left transition',
                     isSelected
-                      ? 'border-[rgba(251,191,36,0.35)] bg-[rgba(251,191,36,0.10)]'
+                      ? 'border-[rgba(251,191,36,0.35)] bg-[rgba(251,191,36,0.10)] shadow-[inset_0_0_0_1px_rgba(251,191,36,0.12)]'
                       : 'border-white/10 bg-[#0B1220] hover:border-white/20 hover:bg-white/[0.06]',
                   )}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="font-mono text-sm text-[#E6EDF7]">{item.ticker}</div>
-                      <div className="mt-1 text-xs text-[#94A3B8]">{item.name}</div>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <div className="text-sm font-semibold text-[#E6EDF7]">{item.name}</div>
+                        <div className="font-mono text-xs text-[#94A3B8]">{displayCode}</div>
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        {hasHit ? (
+                          <span className="rounded-full border border-[rgba(251,191,36,0.35)] bg-[rgba(251,191,36,0.12)] px-2 py-0.5 text-[11px] font-semibold text-[#FBBF24]">
+                            {`${fmtTradingDaysAgo(item.tradingDaysAgo)}放量`}
+                          </span>
+                        ) : null}
+                        {!hasHit && item.status === 'no_data' ? (
+                          <span className="text-xs text-[#94A3B8]">暂无可用成交额数据</span>
+                        ) : null}
+                      </div>
                     </div>
-                    <div
-                      className={cn(
-                        'rounded-full border px-2 py-0.5 text-[11px] font-semibold',
-                        hasHit
-                          ? 'border-[rgba(251,191,36,0.35)] bg-[rgba(251,191,36,0.12)] text-[#FBBF24]'
-                          : 'border-white/10 bg-white/5 text-[#94A3B8]',
-                      )}
-                    >
-                      {hasHit ? '已放量' : item.status === 'no_signal' ? '未放量' : '无数据'}
-                    </div>
+                    {isSelected ? <div className="text-[11px] font-semibold text-[#FBBF24]">当前查看</div> : null}
                   </div>
-                  <div className="mt-3 space-y-1 text-sm">
-                    <div className="text-[#94A3B8]">最近一次放量日期</div>
-                    <div className={cn('font-mono', hasHit ? 'text-[#F8FAFC]' : 'text-[#CBD5E1]')}>
-                      {item.latestAmplifiedDate ? formatYmd(item.latestAmplifiedDate) : '最近90个交易日未出现>=1.50x放量'}
+                  <div className="mt-2 space-y-1 text-xs leading-5">
+                    <div className={cn('truncate', hasHit ? 'text-[#F8FAFC]' : 'text-[#CBD5E1]')}>
+                      最近放量日期：{amplifiedDateText}
                     </div>
-                    <div className="text-xs text-[#94A3B8]">
-                      {hasHit
-                        ? `${fmtTradingDaysAgo(item.tradingDaysAgo)}`
-                        : item.status === 'no_data'
-                          ? '暂无可用成交额数据'
-                          : `最新交易日：${formatYmd(item.latestTradingDate)}`}
+                    <div className="text-[#94A3B8]">
+                      最近交易日：{item.latestTradingDate ? formatYmd(item.latestTradingDate) : '—'}
                     </div>
                   </div>
                 </button>
@@ -399,57 +406,31 @@ export default function RpsStylePanel() {
         )}
       </div>
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-[#94A3B8]">目标ETF</span>
-            {TURNOVER_TICKERS.map((ticker) => (
-              <button
-                key={ticker}
-                type="button"
-                disabled={turnoverLoading}
-                onClick={() => setTurnoverTicker(ticker)}
-                className={cn(
-                  'rounded-md border px-2 py-1 text-xs transition disabled:cursor-not-allowed disabled:opacity-50',
-                  turnoverTicker === ticker
-                    ? 'border-white/20 bg-white/10 text-[#E6EDF7]'
-                    : 'border-white/10 text-[#A9B6CC] hover:border-white/20',
-                )}
-                title={ETF_NAME_MAP[ticker] || ticker}
-              >
-                <span className="font-mono">{ticker}</span>
-                <span className="ml-1 text-[#94A3B8]">{ETF_NAME_MAP[ticker] || ''}</span>
-              </button>
-            ))}
+      <div className="mt-3 rounded-lg border border-white/10 bg-[#0B1220] px-3 py-2 text-xs">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-[#94A3B8]">当前标的</div>
+          <div className="text-right text-[#E6EDF7]">
+            <div>{selectedTurnoverName}</div>
+            <div className="font-mono text-[#94A3B8]">{turnoverTicker}</div>
           </div>
         </div>
-
-        <div className="min-w-[320px] rounded-lg border border-white/10 bg-[#0B1220] px-3 py-2 text-xs">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-[#94A3B8]">当前标的</div>
-            <div className="text-right text-[#E6EDF7]">
-              <div className="font-mono">{turnoverTicker}</div>
-              <div className="text-[#94A3B8]">{selectedTurnoverName}</div>
-            </div>
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <div className="text-[#94A3B8]">对应基准指数</div>
+          <div className="text-right text-[#E6EDF7]">
+            <div className="font-mono">{turnoverData?.benchmarkIndex.code || '—'}</div>
+            <div className="text-[#94A3B8]">{turnoverData?.benchmarkIndex.name || '—'}</div>
           </div>
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <div className="text-[#94A3B8]">对应基准指数</div>
-            <div className="text-right text-[#E6EDF7]">
-              <div className="font-mono">{turnoverData?.benchmarkIndex.code || '—'}</div>
-              <div className="text-[#94A3B8]">{turnoverData?.benchmarkIndex.name || '—'}</div>
-            </div>
+        </div>
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <div className="text-[#94A3B8]">RPS 分母ETF</div>
+          <div className="text-right text-[#E6EDF7]">
+            <div className="font-mono">{turnoverData?.benchmarkTicker || '—'}</div>
+            <div className="text-[#94A3B8]">{turnoverData?.benchmarkName || '—'}</div>
           </div>
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <div className="text-[#94A3B8]">RPS 分母ETF</div>
-            <div className="text-right text-[#E6EDF7]">
-              <div className="font-mono">{turnoverData?.benchmarkTicker || '—'}</div>
-              <div className="text-[#94A3B8]">{turnoverData?.benchmarkName || '—'}</div>
-            </div>
-          </div>
-          <div className="mt-2 flex items-center justify-between gap-3 text-[#94A3B8]">
-            <span>数据交易日</span>
-            <span className="font-mono text-[#E6EDF7]">{formatYmd(turnoverMeta?.dataDate)}</span>
-          </div>
+        </div>
+        <div className="mt-2 flex items-center justify-between gap-3 text-[#94A3B8]">
+          <span>数据交易日</span>
+          <span className="font-mono text-[#E6EDF7]">{formatYmd(turnoverMeta?.dataDate)}</span>
         </div>
       </div>
 
