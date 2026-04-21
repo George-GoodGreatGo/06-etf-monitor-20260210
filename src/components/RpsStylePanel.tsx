@@ -343,7 +343,7 @@ export default function RpsStylePanel() {
         </div>
       ) : (
         <div className="mt-3">
-          <div className="grid grid-cols-5 gap-2.5">
+          <div className="grid grid-cols-7 gap-2">
             {turnoverSummaryRows.map((item) => {
               const isSelected = item.ticker === turnoverTicker
               const hasHit = item.status === 'hit'
@@ -360,29 +360,29 @@ export default function RpsStylePanel() {
                   onClick={() => setTurnoverTicker(item.ticker)}
                   aria-pressed={isSelected}
                   className={cn(
-                    'min-w-0 rounded-lg border px-2.5 py-2 text-left transition',
+                    'min-w-0 rounded-md border px-2 py-1.5 text-left transition',
                     isSelected
                       ? 'border-[rgba(251,191,36,0.35)] bg-[rgba(251,191,36,0.10)] shadow-[inset_0_0_0_1px_rgba(251,191,36,0.12)]'
                       : 'border-white/10 bg-[#0B1220] hover:border-white/20 hover:bg-white/[0.06]',
                   )}
                 >
                   <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                      <div className="truncate text-[13px] font-semibold text-[#E6EDF7]">{item.name}</div>
-                      <div className="font-mono text-[11px] text-[#94A3B8]">{displayCode}</div>
+                    <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
+                      <div className="truncate text-xs font-semibold leading-4 text-[#E6EDF7]">{item.name}</div>
+                      <div className="font-mono text-[10px] leading-4 text-[#94A3B8]">{displayCode}</div>
                     </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1">
                       {hasHit ? (
-                        <span className="rounded-full border border-[rgba(251,191,36,0.35)] bg-[rgba(251,191,36,0.12)] px-1.5 py-0.5 text-[10px] font-semibold text-[#FBBF24]">
+                        <span className="rounded-full border border-[rgba(251,191,36,0.35)] bg-[rgba(251,191,36,0.12)] px-1 py-0.5 text-[9px] font-semibold leading-4 text-[#FBBF24]">
                           {`${fmtTradingDaysAgo(item.tradingDaysAgo)}放量`}
                         </span>
                       ) : null}
                       {!hasHit && item.status === 'no_data' ? (
-                        <span className="text-[11px] text-[#94A3B8]">暂无可用成交额数据</span>
+                        <span className="text-[10px] leading-4 text-[#94A3B8]">暂无可用成交额数据</span>
                       ) : null}
                     </div>
                   </div>
-                  <div className="mt-2 space-y-1 text-[11px] leading-5">
+                  <div className="mt-1.5 space-y-0.5 text-[10px] leading-4">
                     <div className={cn('truncate', hasHit ? 'text-[#F8FAFC]' : 'text-[#CBD5E1]')}>
                       最近放量日：{amplifiedDateText}
                     </div>
