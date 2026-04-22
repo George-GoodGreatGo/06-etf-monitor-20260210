@@ -7,6 +7,11 @@ type CacheEntry<T> = { expiresAt: number; value: T }
 const readCache = new Map<string, CacheEntry<unknown>>()
 const readInflight = new Map<string, Promise<unknown>>()
 const READ_CACHE_TTL_MS = 5 * 60_000
+const RPS_CUSTOM_QUERY_CACHE_VERSION = 'v2'
+const RPS_ETF_UNIVERSE_CACHE_VERSION = 'v2'
+const RPS_ETF_UNIVERSE_SUCCESS_TTL_MS = 6 * 60 * 60_000
+const RPS_ETF_UNIVERSE_FAILURE_TTL_MS = 30_000
+const RPS_ETF_UNIVERSE_LAST_GOOD_TTL_MS = 24 * 60 * 60_000
 
 export const RPS_BENCHMARK_TICKER = 'H30269'
 export const RPS_BENCHMARK_NAME = '红利低波全收益指数'
@@ -388,6 +393,7 @@ export function normalizeRpsCustomTickerInput(tickerRaw: string): string {
 }
 
 type RpsCustomTickerNameSource = 'preset' | 'metadata' | 'fallback_code'
+type EtfUniverseRow = { code?: string; name?: string }
 
 function normalizeEtfNameCandidate(nameRaw: unknown, code: string): string | null {
   const name = String(nameRaw || '')
@@ -400,25 +406,67 @@ function normalizeEtfNameCandidate(nameRaw: unknown, code: string): string | nul
   return name
 }
 
-async function readEtfUniverseNameMap(): Promise<Map<string, string>> {
-  const cacheKey = 'rps:custom:etf-universe-name-map'
-  return await readCacheRemember(cacheKey, async () => {
-    const out = await runAkshare<Array<{ code?: string; name?: string }>>(
-      'rps:custom:etf-universe:ths',
-      ['etf-universe'],
-      { cacheTtlMs: 6 * 60 * 60_000, timeoutMs: 120_000 },
-    )
-    if (out.success !== true || !Array.isArray(out.data)) return new Map<string, string>()
-    const nameMap = new Map<string, string>()
-    for (const row of out.data) {
-      const code = typeof row?.code === 'string' ? row.code.trim() : ''
-      if (!/^\d{6}$/.test(code)) continue
-      const name = normalizeEtfNameCandidate(row?.name, code)
-      if (!name) continue
-      nameMap.set(code, name)
+export function buildRpsCustomQueryCacheKey(ticker: string, startDate: string, endDate: string): string {
+  return `rps:custom:${RPS_CUSTOM_QUERY_CACHE_VERSION}:${ticker}:${startDate}:${endDate}`
+}
+
+function buildEtfUniverseNameMapCacheKey(kind: 'live' | 'last-good' = 'live'): string {
+  return `rps:custom:etf-universe-name-map:${RPS_ETF_UNIVERSE_CACHE_VERSION}:${kind}`
+}
+
+function buildEtfUniverseNameMap(rows: EtfUniverseRow[]): Map<string, string> {
+  const nameMap = new Map<string, string>()
+  for (const row of rows) {
+    const code = typeof row?.code === 'string' ? row.code.trim() : ''
+    if (!/^\d{6}$/.test(code)) continue
+    const name = normalizeEtfNameCandidate(row?.name, code)
+    if (!name) continue
+    nameMap.set(code, name)
+  }
+  return nameMap
+}
+
+async function fetchEtfUniverseRows(): Promise<EtfUniverseRow[] | null> {
+  const out = await runAkshare<EtfUniverseRow[]>(
+    `rps:custom:etf-universe:ths:${RPS_ETF_UNIVERSE_CACHE_VERSION}`,
+    ['etf-universe'],
+    { cacheTtlMs: RPS_ETF_UNIVERSE_SUCCESS_TTL_MS, timeoutMs: 120_000 },
+  )
+  if (out.success !== true || !Array.isArray(out.data)) return null
+  return out.data
+}
+
+async function readEtfUniverseNameMap(opts?: {
+  fetchEtfUniverseRows?: () => Promise<EtfUniverseRow[] | null>
+}): Promise<Map<string, string>> {
+  const liveCacheKey = buildEtfUniverseNameMapCacheKey('live')
+  const lastGoodCacheKey = buildEtfUniverseNameMapCacheKey('last-good')
+  const hit = readCacheGet<Map<string, string>>(liveCacheKey)
+  if (hit != null) return hit
+  const inflight = readInflight.get(liveCacheKey)
+  if (inflight) return inflight as Promise<Map<string, string>>
+  const fetchRows = opts?.fetchEtfUniverseRows ?? fetchEtfUniverseRows
+  const p = (async () => {
+    const rows = await fetchRows()
+    const nameMap = Array.isArray(rows) ? buildEtfUniverseNameMap(rows) : new Map<string, string>()
+    if (nameMap.size > 0) {
+      readCacheSet(lastGoodCacheKey, nameMap, RPS_ETF_UNIVERSE_LAST_GOOD_TTL_MS)
+      readCacheSet(liveCacheKey, nameMap, RPS_ETF_UNIVERSE_SUCCESS_TTL_MS)
+      return nameMap
     }
-    return nameMap
-  }, 6 * 60 * 60_000)
+    const lastGood = readCacheGet<Map<string, string>>(lastGoodCacheKey)
+    if (lastGood != null && lastGood.size > 0) {
+      readCacheSet(liveCacheKey, lastGood, RPS_ETF_UNIVERSE_FAILURE_TTL_MS)
+      return lastGood
+    }
+    const empty = new Map<string, string>()
+    readCacheSet(liveCacheKey, empty, RPS_ETF_UNIVERSE_FAILURE_TTL_MS)
+    return empty
+  })().finally(() => {
+    readInflight.delete(liveCacheKey)
+  })
+  readInflight.set(liveCacheKey, p as Promise<unknown>)
+  return await p
 }
 
 async function resolveEtfNameFromMetadata(code: string): Promise<string | null> {
@@ -442,6 +490,26 @@ export async function resolveRpsCustomTickerProfile(
     name: resolvedName ?? code,
     nameSource: resolvedName ? 'metadata' : 'fallback_code',
   }
+}
+
+export function __resetRpsStyleReadCacheForTest() {
+  readCache.clear()
+  readInflight.clear()
+}
+
+export function __deleteRpsStyleReadCacheForTest(key: string) {
+  readCache.delete(key)
+  readInflight.delete(key)
+}
+
+export async function __readEtfUniverseNameMapForTest(opts?: {
+  fetchEtfUniverseRows?: () => Promise<EtfUniverseRow[] | null>
+}): Promise<Map<string, string>> {
+  return await readEtfUniverseNameMap(opts)
+}
+
+export function __buildEtfUniverseNameMapLiveCacheKeyForTest(): string {
+  return buildEtfUniverseNameMapCacheKey('live')
 }
 
 export type RpsTurnoverHistoryPoint = {
@@ -1045,7 +1113,7 @@ export async function getRpsCustomQuery(args: {
   const inputTicker = String(args.ticker || '').trim().toUpperCase()
   const startDate = normalizeYmd10(args.startDate) || '2016-01-01'
   const endDate = normalizeYmd10(args.endDate) || new Date().toISOString().slice(0, 10)
-  const cacheKey = `rps:custom:${profile.ticker}:${startDate}:${endDate}`
+  const cacheKey = buildRpsCustomQueryCacheKey(profile.ticker, startDate, endDate)
   return await readCacheRemember(cacheKey, async () => {
     const [seriesOut, turnoverOut] = await Promise.all([
       computeRpsSeriesForTicker({ ticker: profile.ticker, startDate, endDate }),

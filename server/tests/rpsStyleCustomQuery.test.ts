@@ -1,5 +1,12 @@
 import assert from 'node:assert/strict'
-import { resolveRpsCustomTickerProfile } from '../lib/rpsStyle.js'
+import {
+  __buildEtfUniverseNameMapLiveCacheKeyForTest,
+  __deleteRpsStyleReadCacheForTest,
+  __readEtfUniverseNameMapForTest,
+  __resetRpsStyleReadCacheForTest,
+  buildRpsCustomQueryCacheKey,
+  resolveRpsCustomTickerProfile,
+} from '../lib/rpsStyle.js'
 
 let presetLookupCalls = 0
 const presetProfile = await resolveRpsCustomTickerProfile('159915', {
@@ -38,3 +45,40 @@ assert.equal(fallbackProfile.ticker, '513999.SH')
 assert.equal(fallbackProfile.code, '513999')
 assert.equal(fallbackProfile.name, '513999')
 assert.equal(fallbackProfile.nameSource, 'fallback_code')
+
+assert.equal(
+  buildRpsCustomQueryCacheKey('513310.SH', '2016-01-01', '2026-04-22'),
+  'rps:custom:v2:513310.SH:2016-01-01:2026-04-22',
+)
+
+__resetRpsStyleReadCacheForTest()
+const firstNameMap = await __readEtfUniverseNameMapForTest({
+  fetchEtfUniverseRows: async () => [
+    { code: '513310', name: '德国ETF' },
+    { code: '513999', name: 'ETF 513999' },
+  ],
+})
+
+assert.equal(firstNameMap.get('513310'), '德国ETF')
+assert.equal(firstNameMap.has('513999'), false)
+
+__deleteRpsStyleReadCacheForTest(__buildEtfUniverseNameMapLiveCacheKeyForTest())
+const fallbackToLastGoodMap = await __readEtfUniverseNameMapForTest({
+  fetchEtfUniverseRows: async () => null,
+})
+
+assert.equal(fallbackToLastGoodMap.get('513310'), '德国ETF')
+
+__resetRpsStyleReadCacheForTest()
+const emptyFailureMap = await __readEtfUniverseNameMapForTest({
+  fetchEtfUniverseRows: async () => null,
+})
+
+assert.equal(emptyFailureMap.size, 0)
+
+__deleteRpsStyleReadCacheForTest(__buildEtfUniverseNameMapLiveCacheKeyForTest())
+const recoveredMap = await __readEtfUniverseNameMapForTest({
+  fetchEtfUniverseRows: async () => [{ code: '513310', name: '德国ETF' }],
+})
+
+assert.equal(recoveredMap.get('513310'), '德国ETF')
