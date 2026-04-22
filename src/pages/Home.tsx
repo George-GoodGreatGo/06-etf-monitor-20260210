@@ -8,7 +8,6 @@ import Top100InsightPanel from '@/components/Top100InsightPanel'
 import MarketLiquidityPanel from '@/components/MarketLiquidityPanel'
 import LowVolOpportunityPanel from '@/components/LowVolOpportunityPanel'
 import ValueTimingPanel from '../components/ValueTimingPanel'
-import RpsStylePanel from '@/components/RpsStylePanel'
 import { Loader2, ChevronUp, ChevronDown } from 'lucide-react'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { cn } from '@/lib/utils'
@@ -30,7 +29,7 @@ const defaultSort: { key: Top100SortKey; dir: SortDir } = {
   dir: 'desc',
 }
 
-type HomeTab = 'list' | 'insight' | 'liquidity' | 'lowvol' | 'value' | 'rps'
+type HomeTab = 'list' | 'insight' | 'liquidity' | 'lowvol' | 'value'
 
 const LOWVOL_INDEX_OPTIONS = [
   {
@@ -121,7 +120,7 @@ export default function Home() {
 
   const rawTab = searchParams.get('tab')
   const tab: HomeTab =
-    rawTab === 'insight' || rawTab === 'list' || rawTab === 'liquidity' || rawTab === 'lowvol' || rawTab === 'value' || rawTab === 'rps' ? rawTab : 'list'
+    rawTab === 'insight' || rawTab === 'list' || rawTab === 'liquidity' || rawTab === 'lowvol' || rawTab === 'value' ? rawTab : 'list'
 
   const [lowVolIndexCode, setLowVolIndexCode] = useState<LowVolIndexCode>('H30269')
   const [lowVolBiasBasis, setLowVolBiasBasis] = useState<LowVolBiasBasis>('sma250')
@@ -240,11 +239,15 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    if (rawTab === 'list' || rawTab === 'insight' || rawTab === 'liquidity' || rawTab === 'lowvol' || rawTab === 'value' || rawTab === 'rps') return
+    if (rawTab === 'rps') {
+      nav('/market/rps', { replace: true })
+      return
+    }
+    if (rawTab === 'list' || rawTab === 'insight' || rawTab === 'liquidity' || rawTab === 'lowvol' || rawTab === 'value') return
     const next = new URLSearchParams(searchParams)
     next.set('tab', 'list')
     setSearchParams(next, { replace: true })
-  }, [rawTab, searchParams, setSearchParams])
+  }, [nav, rawTab, searchParams, setSearchParams])
 
   useEffect(() => {
     if (tab !== 'lowvol') return
@@ -1070,8 +1073,6 @@ export default function Home() {
           indexDesc={VALUE_INDEX_OPTIONS.find((x) => x.code === valueIndexCode)?.desc}
           biasBasis={valueBiasBasis}
         />
-      ) : tab === 'rps' ? (
-        <RpsStylePanel />
       ) : tab === 'lowvol' ? (
         <LowVolOpportunityPanel
           indexCode={lowVolIndexCode}

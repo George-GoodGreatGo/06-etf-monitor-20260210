@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router
 import { Activity, BookOpen, ChevronLeft, ChevronRight, Home as HomeIcon, LineChart, List, Sparkles, Target } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type HomeTab = 'list' | 'insight' | 'liquidity' | 'lowvol' | 'value' | 'rps'
+type HomeTab = 'list' | 'insight' | 'liquidity' | 'lowvol' | 'value'
 
 const HOME_TABS: Array<{ tab: HomeTab; label: string; icon: typeof List }> = [
   { tab: 'list', label: 'ETF200 列表', icon: List },
@@ -11,7 +11,6 @@ const HOME_TABS: Array<{ tab: HomeTab; label: string; icon: typeof List }> = [
   { tab: 'liquidity', label: '大盘看板', icon: LineChart },
   { tab: 'lowvol', label: '低波机会', icon: Activity },
   { tab: 'value', label: '价值择时', icon: Target },
-  { tab: 'rps', label: '市场风格RPS', icon: LineChart },
 ]
 
 export default function SideNav({
@@ -31,17 +30,32 @@ export default function SideNav({
 
   const isHome = loc.pathname === '/'
   const isMarket = loc.pathname === '/market'
+  const isRpsOverview = loc.pathname === '/market/rps'
+  const isRpsCustomQuery = loc.pathname === '/market/rps/custom-query'
+  const isRpsRoute = isRpsOverview || isRpsCustomQuery
   const isMethod = loc.pathname === '/methodology'
   const rawTab = isMarket ? searchParams.get('tab') : null
   const tab: HomeTab =
-    rawTab === 'list' || rawTab === 'insight' || rawTab === 'liquidity' || rawTab === 'lowvol' || rawTab === 'value' || rawTab === 'rps' ? rawTab : 'list'
-  const activeKey = isMethod ? 'methodology' : isHome ? 'home' : isMarket ? `market:${tab}` : ''
+    rawTab === 'list' || rawTab === 'insight' || rawTab === 'liquidity' || rawTab === 'lowvol' || rawTab === 'value' ? rawTab : 'list'
+  const collapsedValue = Boolean(collapsed)
+  const activeKey = isMethod
+    ? 'methodology'
+    : isHome
+      ? 'home'
+      : collapsedValue && isRpsRoute
+        ? 'market-rps'
+        : isRpsOverview
+          ? 'market-rps:overview'
+          : isRpsCustomQuery
+            ? 'market-rps:custom-query'
+            : isMarket
+              ? `market:${tab}`
+              : ''
 
   const listRef = useRef<HTMLDivElement | null>(null)
   const itemRefs = useRef<Record<string, HTMLElement | null>>({})
   const [indicator, setIndicator] = useState<{ y: number; h: number; visible: boolean }>({ y: 0, h: 0, visible: false })
 
-  const collapsedValue = Boolean(collapsed)
   const collapseTitle = collapsedValue ? '展开导航' : '折叠导航'
 
   const collapseBtn = useMemo(() => {
@@ -173,6 +187,78 @@ export default function SideNav({
               </button>
             )
           })}
+
+          <div className="mt-1 space-y-1">
+            <button
+              type="button"
+              onClick={() => {
+                nav('/market/rps')
+                onNavigate?.()
+              }}
+              ref={(el) => {
+                itemRefs.current['market-rps'] = el
+              }}
+              className={cn(
+                'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-[color,background-color,box-shadow,transform] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0',
+                isRpsRoute
+                  ? 'bg-white/8 text-white shadow-[0_10px_26px_rgba(0,0,0,0.22)]'
+                  : 'text-[#A9B6CC] hover:bg-white/5 hover:text-white hover:shadow-[0_10px_26px_rgba(0,0,0,0.22)] active:scale-[0.99]',
+                collapsedValue ? 'justify-start' : 'justify-between',
+              )}
+              title={collapsedValue ? '市场风格RPS' : undefined}
+              aria-label={collapsedValue ? '市场风格RPS' : undefined}
+            >
+              <span className={cn('inline-flex items-center gap-3', collapsedValue ? 'justify-center' : 'min-w-0')}>
+                <LineChart className={cn('h-4 w-4 shrink-0', isRpsRoute ? 'text-[#FF8A66]' : 'text-[#94A3B8] group-hover:text-[#E6EDF7]')} />
+                {collapsedValue ? null : <span className="truncate">市场风格RPS</span>}
+              </span>
+              {collapsedValue ? null : (
+                <span
+                  className={cn(
+                    'h-1.5 w-1.5 rounded-full bg-[#FF5722] transition-all duration-200',
+                    isRpsRoute ? 'opacity-100 scale-100' : 'opacity-0 scale-50 group-hover:opacity-60 group-hover:scale-90',
+                  )}
+                  aria-hidden="true"
+                />
+              )}
+            </button>
+
+            {collapsedValue ? null : (
+              <div className="ml-5 space-y-1 border-l border-white/8 pl-3">
+                {[
+                  { key: 'market-rps:overview', label: '总览', to: '/market/rps', active: isRpsOverview },
+                  { key: 'market-rps:custom-query', label: '自定义查询', to: '/market/rps/custom-query', active: isRpsCustomQuery },
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => {
+                      nav(item.to)
+                      onNavigate?.()
+                    }}
+                    ref={(el) => {
+                      itemRefs.current[item.key] = el
+                    }}
+                    className={cn(
+                      'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition-[color,background-color,box-shadow] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0',
+                      item.active
+                        ? 'bg-[rgba(255,255,255,0.08)] text-white shadow-[0_10px_26px_rgba(0,0,0,0.18)]'
+                        : 'text-[#94A3B8] hover:bg-white/5 hover:text-white',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'h-1.5 w-1.5 rounded-full transition-colors',
+                        item.active ? 'bg-[#FF8A66]' : 'bg-[#475569]',
+                      )}
+                      aria-hidden="true"
+                    />
+                    <span className="truncate">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <NavLink
             to="/methodology"

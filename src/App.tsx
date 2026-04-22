@@ -4,6 +4,8 @@ import QuotesHome from '@/pages/QuotesHome'
 import EtfDetail from '@/pages/EtfDetail'
 import Methodology from '@/pages/Methodology'
 import Login from '@/pages/Login'
+import MarketRpsOverview from '@/pages/MarketRpsOverview'
+import MarketRpsCustomQuery from '@/pages/MarketRpsCustomQuery'
 import RequireAuth from '@/components/RequireAuth'
 import AppShell from '@/components/AppShell'
 import BackToTopButton from '@/components/BackToTopButton'
@@ -24,6 +26,8 @@ export default function App() {
           >
             <Route path="/" element={<QuotesHome />} />
             <Route path="/market" element={<Home />} />
+            <Route path="/market/rps" element={<MarketRpsOverview />} />
+            <Route path="/market/rps/custom-query" element={<MarketRpsCustomQuery />} />
             <Route path="/etf/:code" element={<EtfDetail />} />
             <Route path="/methodology" element={<Methodology />} />
           </Route>
