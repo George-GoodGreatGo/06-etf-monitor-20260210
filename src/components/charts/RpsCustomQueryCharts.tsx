@@ -355,33 +355,31 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.18fr)_minmax(0,1fr)]">
+      <div className="space-y-4">
         <div className="rounded-lg border border-white/10 bg-[#0B1220] p-3">
           <div className="mb-2 flex items-center justify-between gap-3">
             <div className="text-sm font-semibold text-[#F8FAFC]">前复权价格走势图</div>
             <div className="text-xs font-mono text-[#94A3B8]">最新值 {priceChart.latestValue}</div>
           </div>
-          <div ref={priceHostRef} className="h-[320px] w-full rounded-lg border border-white/10 bg-[#111B2E]" />
+          <div ref={priceHostRef} className="h-[280px] w-full rounded-lg border border-white/10 bg-[#111B2E]" />
         </div>
 
-        <div className="space-y-4">
-          <div className="rounded-lg border border-white/10 bg-[#0B1220] p-3">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-[#F8FAFC]">MA50归一视图（Score走势）</div>
-              <div className="text-xs font-mono text-[#94A3B8]">最新值 {scoreChart.latestValue}</div>
-            </div>
-            <div className="mb-2 text-xs text-[#64748B]">口径：{ticker} 相对于 {benchmarkName} 的 `Score=((RPS/MA50)-1)*100%`。</div>
-            <div ref={scoreHostRef} className="h-[204px] w-full rounded-lg border border-white/10 bg-[#111B2E]" />
+        <div className="rounded-lg border border-white/10 bg-[#0B1220] p-3">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div className="text-sm font-semibold text-[#F8FAFC]">MA50归一视图（Score走势）</div>
+            <div className="text-xs font-mono text-[#94A3B8]">最新值 {scoreChart.latestValue}</div>
           </div>
+          <div className="mb-2 text-xs text-[#64748B]">口径：{ticker} 相对于 {benchmarkName} 的 `Score=((RPS/MA50)-1)*100%`。</div>
+          <div ref={scoreHostRef} className="h-[220px] w-full rounded-lg border border-white/10 bg-[#111B2E]" />
+        </div>
 
-          <div className="rounded-lg border border-white/10 bg-[#0B1220] p-3">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-[#F8FAFC]">RPS起点归一视图</div>
-              <div className="text-xs font-mono text-[#94A3B8]">最新值 {relativeChart.latestValue}</div>
-            </div>
-            <div className="mb-2 text-xs text-[#64748B]">口径：当前可见区间最左侧交易日的 RPS 归一为 `1.0000`。</div>
-            <div ref={relativeHostRef} className="h-[204px] w-full rounded-lg border border-white/10 bg-[#111B2E]" />
+        <div className="rounded-lg border border-white/10 bg-[#0B1220] p-3">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div className="text-sm font-semibold text-[#F8FAFC]">RPS起点归一视图</div>
+            <div className="text-xs font-mono text-[#94A3B8]">最新值 {relativeChart.latestValue}</div>
           </div>
+          <div className="mb-2 text-xs text-[#64748B]">口径：当前可见区间最左侧交易日的 RPS 归一为 `1.0000`。</div>
+          <div ref={relativeHostRef} className="h-[220px] w-full rounded-lg border border-white/10 bg-[#111B2E]" />
         </div>
       </div>
     </div>
