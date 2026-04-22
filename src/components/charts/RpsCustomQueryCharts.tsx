@@ -36,10 +36,11 @@ type BackgroundBand = { top: number; bottom: number; color: string }
 
 const LINE_COLOR = '#60A5FA'
 const MA_LINE_COLOR = 'rgba(248,250,252,0.62)'
-const PANEL_CLS = 'overflow-hidden rounded-md bg-[#0E1627]'
-const PANEL_HEADER_CLS = 'px-3 py-2.5'
-const PANEL_BODY_CLS = 'px-3 pb-2.5'
-const CHART_HOST_CLS = 'w-full rounded-md bg-[#111B2E]'
+const SCALE_MIN_WIDTH = 110
+const PANEL_CLS = 'overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] shadow-lg'
+const CHART_PANEL_CLS = 'relative rounded-lg border border-white/10 bg-[#111B2E] pt-6'
+const CHART_BADGE_CLS =
+  'pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur'
 const AXIS_BORDER_COLOR = 'rgba(255,255,255,0.05)'
 const DEFAULT_WINDOW_BARS = 252
 
@@ -56,20 +57,6 @@ function ymdToUtcSeconds(ymd: string): UTCTimestamp | null {
 function formatValue(value: number | null | undefined, digits = 4): string {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '—'
   return value.toFixed(digits)
-}
-
-function resolveScoreTone(score: number | null | undefined): { label: string; cls: string } {
-  if (typeof score !== 'number' || !Number.isFinite(score)) return { label: '暂无判定', cls: 'text-[#94A3B8]' }
-  if (score > 0) return { label: '强于MA50', cls: 'text-[#34D399]' }
-  if (score < 0) return { label: '弱于MA50', cls: 'text-[#F87171]' }
-  return { label: '贴近MA50', cls: 'text-[#E6EDF7]' }
-}
-
-function resolveRelativeTone(value: number | null | undefined): { label: string; cls: string } {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return { label: '暂无判定', cls: 'text-[#94A3B8]' }
-  if (value > 1) return { label: '高于起点', cls: 'text-[#34D399]' }
-  if (value < 1) return { label: '低于起点', cls: 'text-[#F87171]' }
-  return { label: '贴近起点', cls: 'text-[#E6EDF7]' }
 }
 
 function buildScoreBgBands(range: { min: number; max: number }): BackgroundBand[] {
@@ -165,7 +152,7 @@ function buildRelativeData(
   return { rps, ma50 }
 }
 
-function createBaseChart(host: HTMLDivElement): IChartApi {
+function createBaseChart(host: HTMLDivElement, opts?: { showTimeScale?: boolean }): IChartApi {
   return createChart(host, {
     autoSize: true,
     layout: {
@@ -179,9 +166,11 @@ function createBaseChart(host: HTMLDivElement): IChartApi {
     },
     rightPriceScale: {
       borderColor: AXIS_BORDER_COLOR,
+      minimumWidth: SCALE_MIN_WIDTH,
     },
     timeScale: {
       borderColor: AXIS_BORDER_COLOR,
+      visible: opts?.showTimeScale ?? false,
       fixLeftEdge: true,
       fixRightEdge: true,
       rightOffset: 0,
@@ -214,6 +203,7 @@ function useSingleLineChart(
     baselinePrice?: number
     digits?: number
     resetKey?: string
+    showTimeScale?: boolean
   },
 ) {
   const chartRef = useRef<IChartApi | null>(null)
@@ -233,7 +223,7 @@ function useSingleLineChart(
   useEffect(() => {
     const host = hostRef.current
     if (!host || chartRef.current) return
-    const chart = createBaseChart(host)
+    const chart = createBaseChart(host, { showTimeScale: opts?.showTimeScale })
     const series = chart.addSeries(LineSeries, {
       color: LINE_COLOR,
       lineWidth: 2,
@@ -257,7 +247,7 @@ function useSingleLineChart(
       overlaySeriesRef.current = null
       backgroundRefs.current = []
     }
-  }, [hostRef])
+  }, [hostRef, opts?.showTimeScale])
 
   useEffect(() => {
     const chart = chartRef.current
@@ -408,17 +398,6 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
   const hoverPoint = hoverTime ? hoverPointMap.get(hoverTime) ?? null : null
   const hoverRelativeValue = hoverTime ? relativeValueMap.get(hoverTime) ?? null : null
   const hoverRelativeMa50Value = hoverTime ? relativeMa50ValueMap.get(hoverTime) ?? null : null
-  const latestPoint = prepared[prepared.length - 1] ?? null
-  const latestRelativeValue = useMemo(() => {
-    for (let i = relativeData.rps.length - 1; i >= 0; i -= 1) {
-      const point = relativeData.rps[i] as { value?: unknown }
-      if (typeof point?.value === 'number' && Number.isFinite(point.value)) return point.value
-    }
-    return null
-  }, [relativeData])
-  const scoreTone = resolveScoreTone(hoverPoint?.scorePct ?? latestPoint?.scorePct)
-  const relativeTone = resolveRelativeTone(hoverRelativeValue ?? latestRelativeValue)
-
   const priceChart = useSingleLineChart(priceHostRef, priceData, { digits: 4, resetKey: ticker })
   const scoreChart = useSingleLineChart(scoreHostRef, scoreData, {
     baselinePrice: 0,
@@ -431,6 +410,7 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
     baselinePrice: 1,
     digits: 4,
     resetKey: ticker,
+    showTimeScale: true,
   })
 
   useEffect(() => {
@@ -575,119 +555,58 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
   }, [ticker, prepared])
 
   return (
-    <div className="space-y-3">
-      <section className={PANEL_CLS}>
-        <div className={`${PANEL_HEADER_CLS} flex flex-col gap-2.5 lg:flex-row lg:items-start lg:justify-between`}>
+    <section className={PANEL_CLS}>
+      <div className="border-b border-white/8 px-3 py-3">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="text-base font-semibold tracking-tight text-white">主图 + 2个副图</div>
-            <div className="mt-1 space-y-0.5 text-xs leading-relaxed text-[#94A3B8]">
-              <p>
-                <span className="font-medium text-[#CBD5E1]">共享交互</span>：hover 日期、十字光标、范围与 X 轴严格对齐。
-              </p>
-              <p>
-                <span className="font-medium text-[#CBD5E1]">默认视窗</span>：初始与切换 ETF 后默认聚焦最近 1 年，拖拽和缩放不会进入无数据日期。
-              </p>
-            </div>
-          </div>
-
-          <div className="min-w-[260px] rounded-md bg-[#0B1220] px-3 py-2 text-[11px]">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-[#94A3B8]">当前日期</div>
-              <div className="font-mono text-[11px] text-[#E6EDF7]">{hoverPoint?.date ?? latestPoint?.date ?? '—'}</div>
-            </div>
-
-            <div className="mt-2 space-y-1">
-              <div className="flex items-baseline justify-between gap-4">
-                <div className="text-[#94A3B8]">前复权价格</div>
-                <div className="font-mono text-sm font-semibold text-[#F8FAFC]">
-                  {formatValue(hoverPoint?.targetCloseQfq ?? latestPoint?.targetCloseQfq, 4)}
-                </div>
-              </div>
-              <div className="flex items-baseline justify-between gap-4">
-                <div className="text-[#94A3B8]">RPS Score</div>
-                <div className="flex items-baseline gap-2">
-                  <div className="font-mono text-sm font-semibold text-[#F8FAFC]">
-                    {formatValue(hoverPoint?.scorePct ?? latestPoint?.scorePct, 2)}
-                  </div>
-                  <div className={`text-xs font-medium ${scoreTone.cls}`}>{scoreTone.label}</div>
-                </div>
-              </div>
-              <div className="flex items-baseline justify-between gap-4">
-                <div className="text-[#94A3B8]">起点归一RPS</div>
-                <div className="flex items-baseline gap-2">
-                  <div className="font-mono text-sm font-semibold text-[#F8FAFC]">
-                    {formatValue(hoverRelativeValue ?? latestRelativeValue, 4)}
-                  </div>
-                  <div className={`text-xs font-medium ${relativeTone.cls}`}>{relativeTone.label}</div>
-                </div>
-              </div>
-              <div className="flex items-baseline justify-between gap-4">
-                <div className="text-[#94A3B8]">起点归一MA50</div>
-                <div className="font-mono text-sm font-semibold text-[#F8FAFC]">{formatValue(hoverRelativeMa50Value, 4)}</div>
-              </div>
+            <div className="text-[15px] font-semibold tracking-tight text-white">三联动图表</div>
+            <div className="mt-0.5 text-xs leading-relaxed text-[#94A3B8]">
+              主图展示前复权价格，两张副图分别展示 RPS Score 与 RPS 起点归一，三图共享 hover、十字光标与可见范围。
             </div>
           </div>
         </div>
-
-        <div className={`${PANEL_BODY_CLS} flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#94A3B8]`}>
-          <span className="font-mono text-[#E6EDF7]">
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-[#94A3B8]">
+          <span className="rounded-md border border-white/10 bg-white/5 px-2 py-1 font-mono text-[#E6EDF7]">
             {ticker}
             {tickerName ? `（${tickerName}）` : ''}
           </span>
-          <span>分母基准：{benchmarkName}</span>
-          <span>主图展示价格本体，副图用于观察相对强弱与起点归一。</span>
+          <span className="rounded-md border border-white/10 bg-white/5 px-2 py-1">分母基准：{benchmarkName}</span>
         </div>
-      </section>
-
-      <section className={PANEL_CLS}>
-        <div className={`${PANEL_HEADER_CLS} flex flex-col gap-0.5 lg:flex-row lg:items-end lg:justify-between`}>
-          <div>
-            <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#93C5FD]">主图</div>
-            <div className="text-[15px] font-semibold tracking-tight text-white">前复权价格走势图</div>
-            <div className="text-[11px] leading-relaxed text-[#94A3B8]">
-              观察标的价格本体走势，作为 Score 与 RPS 相对变化的原始参照。
-            </div>
-          </div>
-          <div className="text-[11px] font-mono text-[#94A3B8]">最新值 {priceChart.latestValue}</div>
-        </div>
-        <div className={PANEL_BODY_CLS}>
-          <div ref={priceHostRef} className={`h-[300px] ${CHART_HOST_CLS}`} />
-        </div>
-      </section>
-
-      <div className="space-y-2">
-        <section className={PANEL_CLS}>
-          <div className={`${PANEL_HEADER_CLS} flex flex-col gap-0.5 lg:flex-row lg:items-end lg:justify-between`}>
-            <div>
-              <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#93C5FD]">副图 1</div>
-              <div className="text-[14px] font-semibold tracking-tight text-white">MA50归一视图（Score走势）</div>
-              <div className="text-[11px] leading-relaxed text-[#94A3B8]">
-                口径：{ticker} 相对于 {benchmarkName} 的 `Score=((RPS/MA50)-1)*100%`，用于衡量相对强弱偏离程度。
-              </div>
-            </div>
-            <div className="text-[11px] font-mono text-[#94A3B8]">最新值 {scoreChart.latestValue}</div>
-          </div>
-          <div className={PANEL_BODY_CLS}>
-            <div ref={scoreHostRef} className={`h-[150px] ${CHART_HOST_CLS}`} />
-          </div>
-        </section>
-
-        <section className={PANEL_CLS}>
-          <div className={`${PANEL_HEADER_CLS} flex flex-col gap-0.5 lg:flex-row lg:items-end lg:justify-between`}>
-            <div>
-              <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#93C5FD]">副图 2</div>
-              <div className="text-[14px] font-semibold tracking-tight text-white">RPS起点归一视图</div>
-              <div className="text-[11px] leading-relaxed text-[#94A3B8]">
-                口径：当前可见区间最左侧交易日的 RPS 归一为 `1.0000`，并加入目标 ETF 的 RPS MA50 虚线参照。
-              </div>
-            </div>
-            <div className="text-[11px] font-mono text-[#94A3B8]">最新值 {relativeChart.latestValue}</div>
-          </div>
-          <div className={PANEL_BODY_CLS}>
-            <div ref={relativeHostRef} className={`h-[150px] ${CHART_HOST_CLS}`} />
-          </div>
-        </section>
       </div>
-    </div>
+      <div className="relative px-3 py-3">
+        {hoverPoint ? (
+          <div className="pointer-events-none absolute right-3 top-3 z-30 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-[#E6EDF7] backdrop-blur">
+            <div className="font-mono text-[11px] text-[#A9B6CC]">{hoverPoint.date}</div>
+            <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
+              <div className="text-[#A9B6CC]">前复权价格</div>
+              <div className="text-right font-mono">{formatValue(hoverPoint.targetCloseQfq, 4)}</div>
+              <div className="text-[#A9B6CC]">RPS Score</div>
+              <div className="text-right font-mono">{formatValue(hoverPoint.scorePct, 2)}</div>
+              <div className="text-[#A9B6CC]">RPS起点归一</div>
+              <div className="text-right font-mono">{formatValue(hoverRelativeValue, 4)}</div>
+              <div className="text-[#A9B6CC]">RPS MA50起点归一</div>
+              <div className="text-right font-mono">{formatValue(hoverRelativeMa50Value, 4)}</div>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="space-y-2">
+          <div className={CHART_PANEL_CLS}>
+            <div className={CHART_BADGE_CLS}>前复权价格（主图）</div>
+            <div ref={priceHostRef} className="h-[300px] w-full" />
+          </div>
+
+          <div className={CHART_PANEL_CLS}>
+            <div className={CHART_BADGE_CLS}>RPS Score（副图）</div>
+            <div ref={scoreHostRef} className="h-[140px] w-full" />
+          </div>
+
+          <div className={CHART_PANEL_CLS}>
+            <div className={CHART_BADGE_CLS}>RPS起点归一（副图） + MA50</div>
+            <div ref={relativeHostRef} className="h-[140px] w-full" />
+          </div>
+        </div>
+      </div>
+    </section>
   )
 }
