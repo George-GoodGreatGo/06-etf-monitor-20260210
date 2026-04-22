@@ -29,9 +29,21 @@
   - [x] SubTask 6.2: 验证前端摘要区与图表说明位置同步显示中文名称及代码
   - [x] SubTask 6.3: 运行直接相关检查并确认无新增回归
 
+- [x] Task 7: 建立本地页面级验证并定位残余显示问题
+  - [x] SubTask 7.1: 在本地环境针对 `159209`、`159985` 等非预置 ETF 分别验证元数据源、解析函数与接口返回
+  - [x] SubTask 7.2: 在本地页面中真实执行查询，确认“当前标的”与图表说明是否都显示中文名称及代码
+  - [x] SubTask 7.3: 若接口正确但页面仍只显示代码，定位前端状态流、请求缓存、认证上下文或请求目标后端差异
+
+- [x] Task 8: 修复本地页面展示与接口返回不一致的问题并回归
+  - [x] SubTask 8.1: 采用最小改动修复本地页面仍只显示代码的问题
+  - [x] SubTask 8.2: 通过本地页面复测确认代表性非预置 ETF 代码稳定显示中文名
+  - [x] SubTask 8.3: 运行直接相关检查并记录本地验证结论
+
 # Task Dependencies
 - Task 2 depends on Task 1
 - Task 3 depends on Task 2
 - Task 4 depends on Task 2 and Task 3
 - Task 5 depends on Task 2 and Task 3
 - Task 6 depends on Task 5
+- Task 7 depends on Task 5 and Task 6
+- Task 8 depends on Task 7
