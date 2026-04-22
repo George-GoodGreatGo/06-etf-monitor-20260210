@@ -123,6 +123,25 @@ function fmtTradingDaysAgo(v: number | null | undefined): string {
   return `${v}个交易日前`
 }
 
+function formatEtfDisplayLabel(args: {
+  ticker?: string | null
+  code?: string | null
+  name?: string | null
+  fallback?: string | null
+}): string {
+  const ticker = String(args.ticker || '').trim()
+  const code = String(args.code || '').trim() || (ticker.includes('.') ? ticker.split('.')[0] || ticker : ticker)
+  const fallback = String(args.fallback || '').trim()
+  const rawName = String(args.name || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const name = rawName && rawName !== code && rawName !== ticker ? rawName : ''
+  if (name && code) return `${name}（${code}）`
+  if (code) return code
+  if (name) return name
+  return fallback || '—'
+}
+
 function resolveScoreState(score: number | null | undefined): { label: string; toneCls: string; valueCls: string } {
   if (typeof score !== 'number' || !Number.isFinite(score)) {
     return {
@@ -631,9 +650,13 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
             <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]">
               <div>
                 <div className="text-[11px] uppercase tracking-[0.16em] text-[#93C5FD]">当前标的</div>
-                <div className="mt-1 break-all font-mono text-sm font-semibold text-[#F8FAFC]">
-                  {customQueryData?.ticker ?? submittedCustomTicker}
-                  {customQueryData?.name ? `（${customQueryData.name}）` : ''}
+                <div className="mt-1 break-all text-sm font-semibold text-[#F8FAFC]">
+                  {formatEtfDisplayLabel({
+                    ticker: customQueryData?.ticker,
+                    code: customQueryData?.code,
+                    name: customQueryData?.name,
+                    fallback: submittedCustomTicker,
+                  })}
                 </div>
               </div>
               <div>
@@ -698,7 +721,14 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                     展示 `交易日`、`当日成交额`、`相对前20个交易日均值倍数`，高于 `1.50x` 的交易日高亮。
                   </div>
                 </div>
-                <div className="text-xs text-[#94A3B8]">标的：{customQueryData.ticker}</div>
+                <div className="text-xs text-[#94A3B8]">
+                  标的：
+                  {formatEtfDisplayLabel({
+                    ticker: customQueryData.ticker,
+                    code: customQueryData.code,
+                    name: customQueryData.name,
+                  })}
+                </div>
               </div>
             </div>
 

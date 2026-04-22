@@ -387,14 +387,60 @@ export function normalizeRpsCustomTickerInput(tickerRaw: string): string {
   badRequest(`ETF代码格式无效：${raw}`)
 }
 
-function getCustomTickerProfile(tickerRaw: string): Pick<RpsTickerProfile, 'ticker' | 'code' | 'name'> {
+type RpsCustomTickerNameSource = 'preset' | 'metadata' | 'fallback_code'
+
+function normalizeEtfNameCandidate(nameRaw: unknown, code: string): string | null {
+  const name = String(nameRaw || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!name) return null
+  const upper = name.toUpperCase()
+  if (name === code || upper === code) return null
+  if (upper === `ETF ${code}` || upper === `ETF${code}`) return null
+  return name
+}
+
+async function readEtfUniverseNameMap(): Promise<Map<string, string>> {
+  const cacheKey = 'rps:custom:etf-universe-name-map'
+  return await readCacheRemember(cacheKey, async () => {
+    const out = await runAkshare<Array<{ code?: string; name?: string }>>(
+      'rps:custom:etf-universe:ths',
+      ['etf-universe'],
+      { cacheTtlMs: 6 * 60 * 60_000, timeoutMs: 120_000 },
+    )
+    if (out.success !== true || !Array.isArray(out.data)) return new Map<string, string>()
+    const nameMap = new Map<string, string>()
+    for (const row of out.data) {
+      const code = typeof row?.code === 'string' ? row.code.trim() : ''
+      if (!/^\d{6}$/.test(code)) continue
+      const name = normalizeEtfNameCandidate(row?.name, code)
+      if (!name) continue
+      nameMap.set(code, name)
+    }
+    return nameMap
+  }, 6 * 60 * 60_000)
+}
+
+async function resolveEtfNameFromMetadata(code: string): Promise<string | null> {
+  const nameMap = await readEtfUniverseNameMap()
+  return nameMap.get(code) ?? null
+}
+
+export async function resolveRpsCustomTickerProfile(
+  tickerRaw: string,
+  opts?: { resolveEtfNameByCode?: (code: string) => Promise<string | null> },
+): Promise<Pick<RpsTickerProfile, 'ticker' | 'code' | 'name'> & { nameSource: RpsCustomTickerNameSource }> {
   const ticker = normalizeRpsCustomTickerInput(tickerRaw)
   const profile = RPS_TICKER_PROFILES[ticker]
-  if (profile) return profile
+  if (profile) return { ...profile, nameSource: 'preset' }
+  const code = tickerToCode(ticker)
+  const resolveName = opts?.resolveEtfNameByCode ?? resolveEtfNameFromMetadata
+  const resolvedName = normalizeEtfNameCandidate(await resolveName(code), code)
   return {
     ticker,
-    code: tickerToCode(ticker),
-    name: `ETF ${tickerToCode(ticker)}`,
+    code,
+    name: resolvedName ?? code,
+    nameSource: resolvedName ? 'metadata' : 'fallback_code',
   }
 }
 
@@ -995,7 +1041,7 @@ export async function getRpsCustomQuery(args: {
   startDate?: string
   endDate?: string
 }): Promise<RpsCustomQueryResult> {
-  const profile = getCustomTickerProfile(args.ticker)
+  const profile = await resolveRpsCustomTickerProfile(args.ticker)
   const inputTicker = String(args.ticker || '').trim().toUpperCase()
   const startDate = normalizeYmd10(args.startDate) || '2016-01-01'
   const endDate = normalizeYmd10(args.endDate) || new Date().toISOString().slice(0, 10)
@@ -1028,6 +1074,7 @@ export async function getRpsCustomQuery(args: {
           ...getRpsStyleComputationNotes(),
           `input_ticker=${inputTicker}`,
           `normalized_ticker=${profile.ticker}`,
+          `name_source=${profile.nameSource}`,
           `target_source=${seriesOut.targetSource}`,
           `benchmark_source=${seriesOut.benchmarkSource}`,
           `turnover_source=${turnoverOut.source}`,

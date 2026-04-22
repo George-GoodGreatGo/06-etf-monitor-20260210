@@ -6,7 +6,7 @@
   "scripts": {
     "client:dev": "vite",
     "build": "tsc -b && vite build",
-    "test:unit": "tsx server/tests/rollingWindows5y.test.ts && tsx server/tests/valueTimingFormula.test.ts && tsx server/tests/valueTimingResilience.test.ts && tsx server/tests/csindexIndexValuation.test.ts && tsx server/tests/riskfree10yService.test.ts",
+    "test:unit": "tsx server/tests/rollingWindows5y.test.ts && tsx server/tests/valueTimingFormula.test.ts && tsx server/tests/valueTimingResilience.test.ts && tsx server/tests/csindexIndexValuation.test.ts && tsx server/tests/riskfree10yService.test.ts && tsx server/tests/rpsStyleCustomQuery.test.ts",
     "lint": "eslint .",
     "preview": "vite preview",
     "check": "tsc --noEmit",

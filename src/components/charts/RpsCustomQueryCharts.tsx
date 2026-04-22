@@ -61,6 +61,15 @@ const CHART_BADGE_CLS =
 const AXIS_BORDER_COLOR = 'rgba(255,255,255,0.05)'
 const DEFAULT_WINDOW_BARS = 252
 
+function formatEtfDisplayLabel(ticker: string, tickerName?: string): string {
+  const code = ticker.includes('.') ? ticker.split('.')[0] || ticker : ticker
+  const name = String(tickerName || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (name && name !== code && name !== ticker) return `${name}（${code}）`
+  return code
+}
+
 function ymdToUtcSeconds(ymd: string): UTCTimestamp | null {
   const s = String(ymd || '').trim()
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null
@@ -632,6 +641,7 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
   const hoverPoint = hoverTime ? hoverPointMap.get(hoverTime) ?? null : null
   const hoverRelativeValue = hoverTime ? relativeValueMap.get(hoverTime) ?? null : null
   const hoverRelativeMa50Value = hoverTime ? relativeMa50ValueMap.get(hoverTime) ?? null : null
+  const displayTickerLabel = useMemo(() => formatEtfDisplayLabel(ticker, tickerName), [ticker, tickerName])
   const priceChart = usePriceChart(priceHostRef, prepared, { resetKey: ticker })
   const scoreChart = useSingleLineChart(scoreHostRef, scoreData, {
     baselinePrice: 0,
@@ -798,8 +808,7 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
               主图展示前复权价格、`SMA60`、`SMA250`、Score 阈值分段着色与 `1.50x` 放量黄点；两张副图分别展示相对 {benchmarkName} 的 RPS Score 与 RPS 起点归一。
             </div>
             <div className="mt-1 text-[11px] text-[#64748B]">
-              当前序列：{ticker}
-              {tickerName ? `（${tickerName}）` : ''} | 基准：{benchmarkName}
+              当前序列：{displayTickerLabel} | 基准：{benchmarkName}
             </div>
           </div>
         </div>

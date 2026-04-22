@@ -793,6 +793,20 @@ def detail(code: str):
     )
 
 
+def etf_universe():
+    fetched_at = _iso_now()
+    rows = _universe_ths()
+    meta = {
+        "fetchedAt": fetched_at,
+        "dataDate": fetched_at[:10],
+        "source": "akshare:ths",
+        "notes": [
+            "ETF 元数据来自同花顺 ETF 全量列表，用于补充代码到中文名的识别。",
+        ],
+    }
+    return _ok(meta, rows)
+
+
 def _epoch_ms_utc(ymd: str) -> int:
     dt = datetime.strptime(ymd, "%Y-%m-%d").replace(tzinfo=timezone.utc)
     return int(dt.timestamp() * 1000)
@@ -1436,6 +1450,8 @@ def main(argv):
     p_detail = sub.add_parser("detail")
     p_detail.add_argument("--code", type=str, required=True)
 
+    sub.add_parser("etf-universe")
+
     p_weekly = sub.add_parser("weekly-chart")
     p_weekly.add_argument("--code", type=str, required=True)
     p_weekly.add_argument("--adjust", type=str, default="qfq")
@@ -1469,6 +1485,8 @@ def main(argv):
             result = top100(args.limit, args.refresh, args.ensure_latest, pf)
         elif args.cmd == "detail":
             result = detail(args.code)
+        elif args.cmd == "etf-universe":
+            result = etf_universe()
         elif args.cmd == "weekly-chart":
             result = weekly_chart(args.code, args.adjust)
         elif args.cmd == "market-board-daily":
