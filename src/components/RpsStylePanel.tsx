@@ -553,13 +553,13 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   )
 
   const customQuerySection = (
-    <section className="overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] shadow-lg">
-      <div className="border-b border-white/10 px-4 py-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="text-lg font-semibold tracking-tight text-white">RPS自定义查询</div>
-            <div className="mt-1 text-sm leading-relaxed text-[#94A3B8]">
-              输入任意 ETF 代码，查看其相对于 {RPS_BENCHMARK_NAME}（{RPS_BENCHMARK_CODE}）的最新 RPS、前复权价格、Score走势、RPS起点归一和最近 90 个交易日成交额追踪。
+    <div className="space-y-4">
+      <section className="rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div className="space-y-1">
+            <div className="text-sm font-semibold text-[#F8FAFC]">输入 ETF 代码后即时刷新下方指标、三图与成交额追踪</div>
+            <div className="text-sm leading-relaxed text-[#94A3B8]">
+              输入示例：`159915`、`159915.SZ`、`510300.SH`。查询结果继续沿用 {RPS_BENCHMARK_NAME}（{RPS_BENCHMARK_CODE}）口径。
             </div>
           </div>
           <form
@@ -586,120 +586,123 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
             </button>
           </form>
         </div>
-      </div>
 
-      <div className="px-4 py-4">
-        <DataStatusBanner
-          loading={customQueryLoading}
-          error={customQueryError}
-          meta={customQueryMeta}
-          incompleteCount={0}
-          onRetry={() => {
-            setCustomQuerySeq((prev) => prev + 1)
-          }}
-        />
+        <div className="mt-4">
+          <DataStatusBanner
+            loading={customQueryLoading}
+            error={customQueryError}
+            meta={customQueryMeta}
+            incompleteCount={0}
+            onRetry={() => {
+              setCustomQuerySeq((prev) => prev + 1)
+            }}
+          />
+        </div>
+      </section>
 
-        {customQueryData?.latest ? (
-          <>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <div className="rounded-lg border border-white/10 bg-[#0B1220] p-3">
-                <div className="text-xs text-[#94A3B8]">最新 RPS</div>
-                <div className="mt-2 font-mono text-2xl font-semibold text-[#F8FAFC]">{fmt(customQueryData.latest.rpsRaw, RPS_METRIC_DISPLAY_DIGITS)}</div>
-                <div className="mt-1 text-xs text-[#64748B]">交易日：{formatYmd(customQueryData.latest.date)}</div>
+      {customQueryData?.latest ? (
+        <>
+          <section className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-lg border border-[#1E293B] bg-[#0F172A] p-3 shadow-lg">
+              <div className="text-xs text-[#94A3B8]">最新 RPS</div>
+              <div className="mt-2 font-mono text-2xl font-semibold text-[#F8FAFC]">{fmt(customQueryData.latest.rpsRaw, RPS_METRIC_DISPLAY_DIGITS)}</div>
+              <div className="mt-1 text-xs text-[#64748B]">交易日：{formatYmd(customQueryData.latest.date)}</div>
+            </div>
+            <div className="rounded-lg border border-[#1E293B] bg-[#0F172A] p-3 shadow-lg">
+              <div className="text-xs text-[#94A3B8]">最新 RPS(MA50)</div>
+              <div className="mt-2 font-mono text-2xl font-semibold text-[#F8FAFC]">{fmt(customQueryData.latest.rpsMa50, RPS_METRIC_DISPLAY_DIGITS)}</div>
+              <div className="mt-1 text-xs text-[#64748B]">基准：{customQueryData.benchmarkName}</div>
+            </div>
+            <div className="rounded-lg border border-[#1E293B] bg-[#0F172A] p-3 shadow-lg">
+              <div className="text-xs text-[#94A3B8]">最新 RPS Score</div>
+              <div
+                className={cn(
+                  'mt-2 font-mono text-2xl font-semibold',
+                  (customQueryData.latest.scorePct ?? 0) > 0
+                    ? 'text-[#34D399]'
+                    : (customQueryData.latest.scorePct ?? 0) < 0
+                      ? 'text-[#F87171]'
+                      : 'text-[#F8FAFC]',
+                )}
+              >
+                {fmt(customQueryData.latest.scorePct, 2)}
               </div>
-              <div className="rounded-lg border border-white/10 bg-[#0B1220] p-3">
-                <div className="text-xs text-[#94A3B8]">最新 RPS(MA50)</div>
-                <div className="mt-2 font-mono text-2xl font-semibold text-[#F8FAFC]">{fmt(customQueryData.latest.rpsMa50, RPS_METRIC_DISPLAY_DIGITS)}</div>
-                <div className="mt-1 text-xs text-[#64748B]">基准：{customQueryData.benchmarkName}</div>
-              </div>
-              <div className="rounded-lg border border-white/10 bg-[#0B1220] p-3">
-                <div className="text-xs text-[#94A3B8]">最新 RPS Score</div>
-                <div
-                  className={cn(
-                    'mt-2 font-mono text-2xl font-semibold',
-                    (customQueryData.latest.scorePct ?? 0) > 0
-                      ? 'text-[#34D399]'
-                      : (customQueryData.latest.scorePct ?? 0) < 0
-                        ? 'text-[#F87171]'
-                        : 'text-[#F8FAFC]',
-                  )}
-                >
-                  {fmt(customQueryData.latest.scorePct, 2)}
+              <div className="mt-1 text-xs text-[#64748B]">口径：((RPS / MA50) - 1) × 100%</div>
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
+            <div className="mb-4 flex flex-col gap-1 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <div className="text-lg font-semibold tracking-tight text-white">三图联动</div>
+                <div className="mt-1 text-sm leading-relaxed text-[#94A3B8]">
+                  查询标的：<span className="font-mono text-[#E6EDF7]">{customQueryData.ticker}</span>
+                  {customQueryData.name ? <span className="text-[#CBD5E1]">（{customQueryData.name}）</span> : null}
                 </div>
-                <div className="mt-1 text-xs text-[#64748B]">口径：((RPS / MA50) - 1) × 100%</div>
               </div>
+              <div className="text-xs text-[#94A3B8]">拖拽、缩放与 hover 日期均保持同步</div>
+            </div>
+            <RpsCustomQueryCharts
+              ticker={customQueryData.ticker}
+              tickerName={customQueryData.name}
+              benchmarkName={customQueryData.benchmarkName}
+              series={customQueryData.series}
+            />
+          </section>
+
+          <section className="rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
+            <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+              <div>
+                <div className="text-sm font-semibold text-[#F8FAFC]">最近90个交易日成交额追踪</div>
+                <div className="mt-1 text-xs leading-relaxed text-[#CBD5E1]">
+                  展示 `交易日`、`当日成交额`、`相对前20个交易日均值倍数`，高于 `1.50x` 的交易日高亮。
+                </div>
+              </div>
+              <div className="text-xs text-[#94A3B8]">标的：{customQueryData.ticker}</div>
             </div>
 
-            <div className="mt-4 rounded-lg border border-white/10 bg-[#0B1220] p-3">
-              <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                <div className="font-semibold text-[#F8FAFC]">查询标的</div>
-                <div className="font-mono text-[#E6EDF7]">
-                  {customQueryData.ticker}
-                  {customQueryData.name ? `（${customQueryData.name}）` : ''}
-                </div>
-              </div>
-              <RpsCustomQueryCharts
-                ticker={customQueryData.ticker}
-                tickerName={customQueryData.name}
-                benchmarkName={customQueryData.benchmarkName}
-                series={customQueryData.series}
-              />
-            </div>
-
-            <div className="mt-4 rounded-lg border border-white/10 bg-[#0B1220] p-3">
-              <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <div className="text-sm font-semibold text-[#F8FAFC]">最近90个交易日成交额追踪</div>
-                  <div className="mt-1 text-xs leading-relaxed text-[#CBD5E1]">
-                    展示 `交易日`、`当日成交额`、`相对前20个交易日均值倍数`，高于 `1.50x` 的交易日高亮。
-                  </div>
-                </div>
-                <div className="text-xs text-[#94A3B8]">标的：{customQueryData.ticker}</div>
-              </div>
-
-              <div className="mt-3 overflow-x-auto rounded-lg border border-white/10">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-white/5 text-[#A9B6CC]">
+            <div className="mt-3 overflow-x-auto rounded-lg border border-white/10">
+              <table className="min-w-full text-sm">
+                <thead className="bg-white/5 text-[#A9B6CC]">
+                  <tr>
+                    <th className="px-3 py-2 text-left">日期</th>
+                    <th className="px-3 py-2 text-right">成交额</th>
+                    <th className="px-3 py-2 text-right">较前20日均值倍数</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {customTurnoverRows.length ? (
+                    customTurnoverRows.map((row) => {
+                      const isHot = typeof row.turnoverMultipleOfPrev20Avg === 'number' && row.turnoverMultipleOfPrev20Avg >= 1.5
+                      return (
+                        <tr key={row.date} className={cn('border-t border-white/5', isHot && 'bg-[rgba(251,191,36,0.08)]')}>
+                          <td className="px-3 py-2 font-mono text-[#E6EDF7]">{formatYmd(row.date)}</td>
+                          <td className="px-3 py-2 text-right font-mono text-[#E6EDF7]">{fmtTurnover(row.turnover)}</td>
+                          <td
+                            className={cn(
+                              'px-3 py-2 text-right font-mono',
+                              isHot ? 'font-semibold text-[#FBBF24]' : 'text-[#A9B6CC]',
+                            )}
+                          >
+                            {fmtMultiple(row.turnoverMultipleOfPrev20Avg)}
+                          </td>
+                        </tr>
+                      )
+                    })
+                  ) : (
                     <tr>
-                      <th className="px-3 py-2 text-left">日期</th>
-                      <th className="px-3 py-2 text-right">成交额</th>
-                      <th className="px-3 py-2 text-right">较前20日均值倍数</th>
+                      <td colSpan={3} className="px-3 py-8 text-center text-sm text-[#94A3B8]">
+                        暂无成交额历史
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {customTurnoverRows.length ? (
-                      customTurnoverRows.map((row) => {
-                        const isHot = typeof row.turnoverMultipleOfPrev20Avg === 'number' && row.turnoverMultipleOfPrev20Avg >= 1.5
-                        return (
-                          <tr key={row.date} className={cn('border-t border-white/5', isHot && 'bg-[rgba(251,191,36,0.08)]')}>
-                            <td className="px-3 py-2 font-mono text-[#E6EDF7]">{formatYmd(row.date)}</td>
-                            <td className="px-3 py-2 text-right font-mono text-[#E6EDF7]">{fmtTurnover(row.turnover)}</td>
-                            <td
-                              className={cn(
-                                'px-3 py-2 text-right font-mono',
-                                isHot ? 'font-semibold text-[#FBBF24]' : 'text-[#A9B6CC]',
-                              )}
-                            >
-                              {fmtMultiple(row.turnoverMultipleOfPrev20Avg)}
-                            </td>
-                          </tr>
-                        )
-                      })
-                    ) : (
-                      <tr>
-                        <td colSpan={3} className="px-3 py-8 text-center text-sm text-[#94A3B8]">
-                          暂无成交额历史
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                  )}
+                </tbody>
+              </table>
             </div>
-          </>
-        ) : null}
-      </div>
-    </section>
+          </section>
+        </>
+      ) : null}
+    </div>
   )
 
   return (
