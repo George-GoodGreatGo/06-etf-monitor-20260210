@@ -41,6 +41,7 @@ const PANEL_HEADER_CLS = 'px-3 py-2.5'
 const PANEL_BODY_CLS = 'px-3 pb-2.5'
 const CHART_HOST_CLS = 'w-full rounded-md bg-[#111B2E]'
 const AXIS_BORDER_COLOR = 'rgba(255,255,255,0.05)'
+const DEFAULT_WINDOW_BARS = 252
 
 function ymdToUtcSeconds(ymd: string): UTCTimestamp | null {
   const s = String(ymd || '').trim()
@@ -88,6 +89,43 @@ function resolveBaseIndex(range: LogicalRange | null | undefined, length: number
   if (!hasValidLogicalRange(range) || length <= 0) return 0
   const from = Math.max(0, Math.min(length - 1, Math.ceil(Number(range.from))))
   return Number.isFinite(from) ? from : 0
+}
+
+function buildDefaultLogicalRange(length: number, windowBars = DEFAULT_WINDOW_BARS): LogicalRange | null {
+  if (length <= 0) return null
+  const to = Math.max(0, length - 1)
+  const from = Math.max(0, length - Math.max(2, windowBars))
+  return { from, to } as LogicalRange
+}
+
+function clampLogicalRange(range: LogicalRange | null | undefined, length: number): LogicalRange | null {
+  if (!hasValidLogicalRange(range) || length <= 0) return null
+  const maxIndex = Math.max(0, length - 1)
+  let from = Number(range.from)
+  let to = Number(range.to)
+  if (!Number.isFinite(from) || !Number.isFinite(to)) return null
+  if (from > to) [from, to] = [to, from]
+  const span = Math.max(1, to - from)
+  if (span >= maxIndex) return { from: 0, to: maxIndex } as LogicalRange
+  if (from < 0) {
+    to -= from
+    from = 0
+  }
+  if (to > maxIndex) {
+    from -= to - maxIndex
+    to = maxIndex
+  }
+  from = Math.max(0, from)
+  to = Math.min(maxIndex, to)
+  if (from >= to) {
+    from = Math.max(0, to - 1)
+  }
+  return { from, to } as LogicalRange
+}
+
+function rangesClose(a: LogicalRange | null | undefined, b: LogicalRange | null | undefined): boolean {
+  if (!hasValidLogicalRange(a) || !hasValidLogicalRange(b)) return false
+  return Math.abs(Number(a.from) - Number(b.from)) < 0.01 && Math.abs(Number(a.to) - Number(b.to)) < 0.01
 }
 
 function toWhitespacePoint(time: Time): ChartDatum {
@@ -407,12 +445,15 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
     charts.forEach((chart, index) => {
       const onRangeChange = (range: LogicalRange | null) => {
         if (syncingRangeRef.current || !hasValidLogicalRange(range)) return
+        const nextRange = clampLogicalRange(range, prepared.length)
+        if (!nextRange) return
         syncingRangeRef.current = true
-        visibleRangeRef.current = range
-        setRelativeData(buildRelativeData(prepared, range))
+        visibleRangeRef.current = nextRange
+        setRelativeData(buildRelativeData(prepared, nextRange))
         try {
+          if (!rangesClose(range, nextRange)) safeSetVisibleLogicalRange(chart, nextRange)
           charts.forEach((other, otherIndex) => {
-            if (otherIndex !== index) safeSetVisibleLogicalRange(other, range)
+            if (otherIndex !== index) safeSetVisibleLogicalRange(other, nextRange)
           })
         } finally {
           syncingRangeRef.current = false
@@ -498,26 +539,33 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
 
   useEffect(() => {
     const range = visibleRangeRef.current
-    if (!hasValidLogicalRange(range)) return
+    const nextRange = clampLogicalRange(range, prepared.length)
+    if (!hasValidLogicalRange(nextRange)) return
     syncingRangeRef.current = true
     try {
-      safeSetVisibleLogicalRange(priceChart.chartRef.current, range)
-      safeSetVisibleLogicalRange(scoreChart.chartRef.current, range)
-      safeSetVisibleLogicalRange(relativeChart.chartRef.current, range)
+      visibleRangeRef.current = nextRange
+      safeSetVisibleLogicalRange(priceChart.chartRef.current, nextRange)
+      safeSetVisibleLogicalRange(scoreChart.chartRef.current, nextRange)
+      safeSetVisibleLogicalRange(relativeChart.chartRef.current, nextRange)
     } finally {
       syncingRangeRef.current = false
     }
-  }, [relativeData, priceChart.chartRef, scoreChart.chartRef, relativeChart.chartRef])
+  }, [prepared.length, relativeData, priceChart.chartRef, scoreChart.chartRef, relativeChart.chartRef])
 
   useEffect(() => {
     const master = priceChart.chartRef.current
     if (!master || !prepared.length) return
-    const initialRange = master.timeScale().getVisibleLogicalRange()
+    const initialRange = buildDefaultLogicalRange(prepared.length)
+    if (!initialRange) return
     visibleRangeRef.current = initialRange
     setRelativeData(buildRelativeData(prepared, initialRange))
-    if (hasValidLogicalRange(initialRange)) {
+    syncingRangeRef.current = true
+    try {
+      safeSetVisibleLogicalRange(master, initialRange)
       safeSetVisibleLogicalRange(scoreChart.chartRef.current, initialRange)
       safeSetVisibleLogicalRange(relativeChart.chartRef.current, initialRange)
+    } finally {
+      syncingRangeRef.current = false
     }
   }, [prepared, priceChart.chartRef, scoreChart.chartRef, relativeChart.chartRef])
 
@@ -531,13 +579,13 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
       <section className={PANEL_CLS}>
         <div className={`${PANEL_HEADER_CLS} flex flex-col gap-2.5 lg:flex-row lg:items-start lg:justify-between`}>
           <div>
-            <div className="text-base font-semibold tracking-tight text-white">三图联动</div>
+            <div className="text-base font-semibold tracking-tight text-white">主图 + 2个副图</div>
             <div className="mt-1 space-y-0.5 text-xs leading-relaxed text-[#94A3B8]">
               <p>
                 <span className="font-medium text-[#CBD5E1]">共享交互</span>：hover 日期、十字光标、范围与 X 轴严格对齐。
               </p>
               <p>
-                <span className="font-medium text-[#CBD5E1]">新增表达</span>：Score 背景阈值区间与起点归一 MA50 虚线已对齐总览页。
+                <span className="font-medium text-[#CBD5E1]">默认视窗</span>：初始与切换 ETF 后默认聚焦最近 1 年，拖拽和缩放不会进入无数据日期。
               </p>
             </div>
           </div>
@@ -587,13 +635,14 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
             {tickerName ? `（${tickerName}）` : ''}
           </span>
           <span>分母基准：{benchmarkName}</span>
-          <span>悬停任一图表可查看三图同日数据。</span>
+          <span>主图展示价格本体，副图用于观察相对强弱与起点归一。</span>
         </div>
       </section>
 
       <section className={PANEL_CLS}>
         <div className={`${PANEL_HEADER_CLS} flex flex-col gap-0.5 lg:flex-row lg:items-end lg:justify-between`}>
           <div>
+            <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#93C5FD]">主图</div>
             <div className="text-[15px] font-semibold tracking-tight text-white">前复权价格走势图</div>
             <div className="text-[11px] leading-relaxed text-[#94A3B8]">
               观察标的价格本体走势，作为 Score 与 RPS 相对变化的原始参照。
@@ -602,39 +651,43 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
           <div className="text-[11px] font-mono text-[#94A3B8]">最新值 {priceChart.latestValue}</div>
         </div>
         <div className={PANEL_BODY_CLS}>
-          <div ref={priceHostRef} className={`h-[230px] ${CHART_HOST_CLS}`} />
+          <div ref={priceHostRef} className={`h-[300px] ${CHART_HOST_CLS}`} />
         </div>
       </section>
 
-      <section className={PANEL_CLS}>
-        <div className={`${PANEL_HEADER_CLS} flex flex-col gap-0.5 lg:flex-row lg:items-end lg:justify-between`}>
-          <div>
-            <div className="text-[15px] font-semibold tracking-tight text-white">MA50归一视图（Score走势）</div>
-            <div className="text-[11px] leading-relaxed text-[#94A3B8]">
-              口径：{ticker} 相对于 {benchmarkName} 的 `Score=((RPS/MA50)-1)*100%`，用于衡量相对强弱偏离程度。
+      <div className="space-y-2">
+        <section className={PANEL_CLS}>
+          <div className={`${PANEL_HEADER_CLS} flex flex-col gap-0.5 lg:flex-row lg:items-end lg:justify-between`}>
+            <div>
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#93C5FD]">副图 1</div>
+              <div className="text-[14px] font-semibold tracking-tight text-white">MA50归一视图（Score走势）</div>
+              <div className="text-[11px] leading-relaxed text-[#94A3B8]">
+                口径：{ticker} 相对于 {benchmarkName} 的 `Score=((RPS/MA50)-1)*100%`，用于衡量相对强弱偏离程度。
+              </div>
             </div>
+            <div className="text-[11px] font-mono text-[#94A3B8]">最新值 {scoreChart.latestValue}</div>
           </div>
-          <div className="text-[11px] font-mono text-[#94A3B8]">最新值 {scoreChart.latestValue}</div>
-        </div>
-        <div className={PANEL_BODY_CLS}>
-          <div ref={scoreHostRef} className={`h-[170px] ${CHART_HOST_CLS}`} />
-        </div>
-      </section>
+          <div className={PANEL_BODY_CLS}>
+            <div ref={scoreHostRef} className={`h-[150px] ${CHART_HOST_CLS}`} />
+          </div>
+        </section>
 
-      <section className={PANEL_CLS}>
-        <div className={`${PANEL_HEADER_CLS} flex flex-col gap-0.5 lg:flex-row lg:items-end lg:justify-between`}>
-          <div>
-            <div className="text-[15px] font-semibold tracking-tight text-white">RPS起点归一视图</div>
-            <div className="text-[11px] leading-relaxed text-[#94A3B8]">
-              口径：当前可见区间最左侧交易日的 RPS 归一为 `1.0000`，并加入目标 ETF 的 RPS MA50 虚线参照。
+        <section className={PANEL_CLS}>
+          <div className={`${PANEL_HEADER_CLS} flex flex-col gap-0.5 lg:flex-row lg:items-end lg:justify-between`}>
+            <div>
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#93C5FD]">副图 2</div>
+              <div className="text-[14px] font-semibold tracking-tight text-white">RPS起点归一视图</div>
+              <div className="text-[11px] leading-relaxed text-[#94A3B8]">
+                口径：当前可见区间最左侧交易日的 RPS 归一为 `1.0000`，并加入目标 ETF 的 RPS MA50 虚线参照。
+              </div>
             </div>
+            <div className="text-[11px] font-mono text-[#94A3B8]">最新值 {relativeChart.latestValue}</div>
           </div>
-          <div className="text-[11px] font-mono text-[#94A3B8]">最新值 {relativeChart.latestValue}</div>
-        </div>
-        <div className={PANEL_BODY_CLS}>
-          <div ref={relativeHostRef} className={`h-[170px] ${CHART_HOST_CLS}`} />
-        </div>
-      </section>
+          <div className={PANEL_BODY_CLS}>
+            <div ref={relativeHostRef} className={`h-[150px] ${CHART_HOST_CLS}`} />
+          </div>
+        </section>
+      </div>
     </div>
   )
 }

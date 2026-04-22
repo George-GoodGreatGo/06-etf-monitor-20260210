@@ -50,7 +50,7 @@ function buildPreset(
   endDate: string,
   mode: 'steady' | 'stress',
 ): MockPreset {
-  const days = buildBusinessDays(240, endDate)
+  const days = buildBusinessDays(360, endDate)
   let target = mode === 'steady' ? 1.06 : 0.94
   let benchmark = 1
   const rawRpsValues: number[] = []
@@ -90,8 +90,8 @@ function buildPreset(
     benchmarkName,
     note:
       mode === 'steady'
-        ? '平稳上行样本：用于检查三图区的阅读节奏、容器间距和默认渲染效果。'
-        : '压力样本：插入局部震荡与稀疏 Score 缺口，用于观察非理想序列下的渲染稳定性。',
+        ? '平稳上行样本：覆盖超过1年的交易日，用于检查主图加副图结构与默认最近1年视窗。'
+        : '压力样本：覆盖超过1年的交易日，并插入局部震荡与稀疏 Score 缺口，用于观察非理想序列下的稳定性。',
     series,
   }
 }

@@ -407,7 +407,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
 
   const customTurnoverRows = useMemo(() => {
     if (!Array.isArray(customQueryData?.turnoverSeries)) return []
-    return [...customQueryData.turnoverSeries].reverse()
+    return [...customQueryData.turnoverSeries].reverse().slice(0, 250)
   }, [customQueryData])
 
   const overviewIntro = (
@@ -613,36 +613,65 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   const customQuerySection = (
     <div className="space-y-4">
       <section className="rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-          <div className="space-y-1">
-            <div className="text-sm font-semibold text-[#F8FAFC]">输入 ETF 代码后即时刷新下方指标、三图与成交额追踪</div>
-            <div className="text-sm leading-relaxed text-[#94A3B8]">
-              输入示例：`159915`、`159915.SZ`、`510300.SH`。查询结果继续沿用 {RPS_BENCHMARK_NAME}（{RPS_BENCHMARK_CODE}）口径。
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+            <div className="space-y-1">
+              <div className="text-[13px] font-semibold uppercase tracking-[0.16em] text-[#93C5FD]">RPS Custom Query</div>
+              <div className="text-lg font-semibold tracking-tight text-[#F8FAFC]">输入 ETF 代码后立即刷新主图、副图与成交额追踪</div>
+              <div className="text-sm leading-relaxed text-[#94A3B8]">
+                输入示例：`159915`、`159915.SZ`、`510300.SH`。默认聚焦最近 1 年，并沿用 {RPS_BENCHMARK_NAME}（{RPS_BENCHMARK_CODE}）口径。
+              </div>
+            </div>
+            <form
+              className="flex w-full flex-col gap-2 sm:flex-row sm:items-center xl:w-auto"
+              onSubmit={(e) => {
+                e.preventDefault()
+                const nextTicker = customTickerInput.trim().toUpperCase()
+                setSubmittedCustomTicker(nextTicker || '159915')
+                setCustomQuerySeq((prev) => prev + 1)
+              }}
+            >
+              <input
+                value={customTickerInput}
+                onChange={(e) => setCustomTickerInput(e.target.value)}
+                placeholder="输入ETF代码，如 159915"
+                className="w-full rounded-md border border-white/15 bg-[#0B1220] px-4 py-3 font-mono text-base text-[#E6EDF7] outline-none focus:border-white/30 sm:w-[280px] xl:w-[320px]"
+              />
+              <button
+                type="submit"
+                disabled={customQueryLoading}
+                className="rounded-md border border-white/20 bg-white/10 px-5 py-3 text-sm font-medium text-[#E6EDF7] transition hover:border-white/30 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {customQueryLoading ? '查询中...' : '提交查询'}
+              </button>
+            </form>
+          </div>
+
+          <div className="grid gap-2 rounded-md bg-[#0B1220] px-3 py-3 md:grid-cols-4">
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.16em] text-[#93C5FD]">当前标的</div>
+              <div className="mt-1 font-mono text-sm font-semibold text-[#F8FAFC]">
+                {customQueryData?.ticker ?? submittedCustomTicker}
+                {customQueryData?.name ? `（${customQueryData.name}）` : ''}
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] text-[#94A3B8]">最新交易日</div>
+              <div className="mt-1 font-mono text-sm font-semibold text-[#F8FAFC]">
+                {customQueryLatest?.date ? formatYmd(customQueryLatest.date) : '—'}
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] text-[#94A3B8]">最新 Score</div>
+              <div className={cn('mt-1 font-mono text-sm font-semibold', customQueryScoreState.valueCls)}>
+                {fmt(customQueryLatest?.scorePct, 2)}
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] text-[#94A3B8]">基准分母</div>
+              <div className="mt-1 text-sm font-medium text-[#CBD5E1]">{RPS_BENCHMARK_NAME}</div>
             </div>
           </div>
-          <form
-            className="flex flex-col gap-2 sm:flex-row sm:items-center"
-            onSubmit={(e) => {
-              e.preventDefault()
-              const nextTicker = customTickerInput.trim().toUpperCase()
-              setSubmittedCustomTicker(nextTicker || '159915')
-              setCustomQuerySeq((prev) => prev + 1)
-            }}
-          >
-            <input
-              value={customTickerInput}
-              onChange={(e) => setCustomTickerInput(e.target.value)}
-              placeholder="输入ETF代码，如 159915"
-              className="w-full rounded-md border border-white/15 bg-[#0B1220] px-3 py-2 font-mono text-sm text-[#E6EDF7] outline-none focus:border-white/30 sm:w-[220px]"
-            />
-            <button
-              type="submit"
-              disabled={customQueryLoading}
-              className="rounded-md border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-[#E6EDF7] transition hover:border-white/30 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {customQueryLoading ? '查询中...' : '提交'}
-            </button>
-          </form>
         </div>
 
         <div className="mt-4">
@@ -660,36 +689,6 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
 
       {customQueryData?.latest ? (
         <>
-          <section className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-xl border border-white/8 bg-[linear-gradient(180deg,rgba(96,165,250,0.10),rgba(15,23,42,0.92))] p-3.5 shadow-[0_14px_36px_rgba(2,6,23,0.22)]">
-              <div className="text-xs uppercase tracking-[0.18em] text-[#93C5FD]">Data Date</div>
-              <div className="mt-2.5 font-mono text-[26px] font-semibold text-[#F8FAFC]">{formatYmd(customQueryData.latest.date)}</div>
-              <div className="mt-1 text-xs text-[#94A3B8]">查询结果与三图 hover 摘要共用同一时间轴。</div>
-            </div>
-            <div className="rounded-xl border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(15,23,42,0.96))] p-3.5 shadow-[0_14px_36px_rgba(2,6,23,0.18)]">
-              <div className="text-xs text-[#94A3B8]">最新 RPS</div>
-              <div className="mt-2 font-mono text-2xl font-semibold text-[#F8FAFC]">{fmt(customQueryData.latest.rpsRaw, RPS_METRIC_DISPLAY_DIGITS)}</div>
-              <div className="mt-1 text-xs text-[#64748B]">分母基准：{customQueryData.benchmarkName}</div>
-            </div>
-            <div className="rounded-xl border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(15,23,42,0.96))] p-3.5 shadow-[0_14px_36px_rgba(2,6,23,0.18)]">
-              <div className="text-xs text-[#94A3B8]">最新 RPS(MA50)</div>
-              <div className="mt-2 font-mono text-2xl font-semibold text-[#F8FAFC]">{fmt(customQueryData.latest.rpsMa50, RPS_METRIC_DISPLAY_DIGITS)}</div>
-              <div className="mt-1 text-xs text-[#64748B]">用于衡量相对强弱的平滑中枢。</div>
-            </div>
-            <div className="rounded-xl border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(15,23,42,0.96))] p-3.5 shadow-[0_14px_36px_rgba(2,6,23,0.18)]">
-              <div className="flex items-start justify-between gap-2">
-                <div className="text-xs text-[#94A3B8]">最新 RPS Score</div>
-                <span className={cn('rounded-full border px-2 py-0.5 text-[11px] font-semibold', customQueryScoreState.toneCls)}>
-                  {customQueryScoreState.label}
-                </span>
-              </div>
-              <div className={cn('mt-2 font-mono text-2xl font-semibold', customQueryScoreState.valueCls)}>
-                {fmt(customQueryData.latest.scorePct, 2)}
-              </div>
-              <div className="mt-1 text-xs text-[#64748B]">口径：((RPS / MA50) - 1) × 100%</div>
-            </div>
-          </section>
-
           <RpsCustomQueryCharts
             ticker={customQueryData.ticker}
             tickerName={customQueryData.name}
@@ -701,7 +700,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
             <div className="border-b border-white/8 px-3 py-3">
               <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <div className="text-[15px] font-semibold tracking-tight text-white">最近90个交易日成交额追踪</div>
+                  <div className="text-[15px] font-semibold tracking-tight text-white">最近250个交易日成交额追踪</div>
                   <div className="mt-0.5 text-xs leading-relaxed text-[#94A3B8]">
                     展示 `交易日`、`当日成交额`、`相对前20个交易日均值倍数`，高于 `1.50x` 的交易日高亮。
                   </div>
@@ -711,7 +710,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
             </div>
 
             <div className="px-3 py-3">
-              <div className="overflow-x-auto rounded-md border border-white/8">
+              <div className="overflow-x-auto rounded-md bg-[#0B1220]">
                 <table className="min-w-full text-sm">
                   <thead className="bg-white/5 text-[#A9B6CC]">
                     <tr>

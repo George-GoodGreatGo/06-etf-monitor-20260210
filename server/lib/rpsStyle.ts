@@ -14,6 +14,7 @@ export const RPS_TARGET_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '51030
 const RPS_RUN_STALE_MAX_DAYS = 14
 const RPS_TURNOVER_LOOKBACK_DAYS = 20
 const RPS_TURNOVER_DISPLAY_DAYS = 90
+const RPS_CUSTOM_QUERY_TURNOVER_DISPLAY_DAYS = 250
 const RPS_TURNOVER_FETCH_CALENDAR_DAYS = 540
 
 type DataSourceName = 'eastmoney:qfq' | 'akshare:qfq'
@@ -1004,7 +1005,9 @@ export async function getRpsCustomQuery(args: {
       computeRpsSeriesForTicker({ ticker: profile.ticker, startDate, endDate }),
       fetchRpsTurnoverSeries({ ticker: profile.ticker, endDate }),
     ])
-    const turnoverSeries = buildRpsTurnoverHistory(turnoverOut.series)
+    const turnoverSeries = buildRpsTurnoverHistory(turnoverOut.series, {
+      displayDays: RPS_CUSTOM_QUERY_TURNOVER_DISPLAY_DAYS,
+    })
     const latest = seriesOut.series.length
       ? {
           date: seriesOut.series[seriesOut.series.length - 1].date,
@@ -1028,6 +1031,7 @@ export async function getRpsCustomQuery(args: {
           `target_source=${seriesOut.targetSource}`,
           `benchmark_source=${seriesOut.benchmarkSource}`,
           `turnover_source=${turnoverOut.source}`,
+          `custom_turnover_window=${RPS_CUSTOM_QUERY_TURNOVER_DISPLAY_DAYS} trading_days`,
         ],
         isFallback: false,
       },

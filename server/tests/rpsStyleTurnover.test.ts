@@ -43,6 +43,18 @@ const withMissingTurnover = buildRpsTurnoverHistory(
 
 assert.equal(withMissingTurnover[20]?.turnoverMultipleOfPrev20Avg ?? null, null)
 
+const longerDisplayWindow = buildRpsTurnoverHistory(
+  Array.from({ length: 300 }, (_, index) => ({
+    date: day(index + 1),
+    turnover: index + 100,
+  })),
+  { lookbackDays: 20, displayDays: 250 },
+)
+
+assert.equal(longerDisplayWindow.length, 250)
+assert.equal(longerDisplayWindow[0]?.date, day(51))
+assert.equal(longerDisplayWindow[249]?.date, day(300))
+
 const summaryHit = buildRpsTurnoverSummaryItem(
   { ticker: '512890.SH', code: '512890', name: '红利低波ETF' },
   buildRpsTurnoverHistory(
