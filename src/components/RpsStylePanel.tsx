@@ -660,23 +660,23 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
 
       {customQueryData?.latest ? (
         <>
-          <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(96,165,250,0.12),rgba(15,23,42,0.92))] p-4 shadow-[0_18px_48px_rgba(2,6,23,0.28)]">
+          <section className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-xl border border-white/8 bg-[linear-gradient(180deg,rgba(96,165,250,0.10),rgba(15,23,42,0.92))] p-3.5 shadow-[0_14px_36px_rgba(2,6,23,0.22)]">
               <div className="text-xs uppercase tracking-[0.18em] text-[#93C5FD]">Data Date</div>
-              <div className="mt-3 font-mono text-2xl font-semibold text-[#F8FAFC]">{formatYmd(customQueryData.latest.date)}</div>
+              <div className="mt-2.5 font-mono text-[26px] font-semibold text-[#F8FAFC]">{formatYmd(customQueryData.latest.date)}</div>
               <div className="mt-1 text-xs text-[#94A3B8]">查询结果与三图 hover 摘要共用同一时间轴。</div>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(15,23,42,0.96))] p-4 shadow-[0_18px_48px_rgba(2,6,23,0.24)]">
+            <div className="rounded-xl border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(15,23,42,0.96))] p-3.5 shadow-[0_14px_36px_rgba(2,6,23,0.18)]">
               <div className="text-xs text-[#94A3B8]">最新 RPS</div>
               <div className="mt-2 font-mono text-2xl font-semibold text-[#F8FAFC]">{fmt(customQueryData.latest.rpsRaw, RPS_METRIC_DISPLAY_DIGITS)}</div>
               <div className="mt-1 text-xs text-[#64748B]">分母基准：{customQueryData.benchmarkName}</div>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(15,23,42,0.96))] p-4 shadow-[0_18px_48px_rgba(2,6,23,0.24)]">
+            <div className="rounded-xl border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(15,23,42,0.96))] p-3.5 shadow-[0_14px_36px_rgba(2,6,23,0.18)]">
               <div className="text-xs text-[#94A3B8]">最新 RPS(MA50)</div>
               <div className="mt-2 font-mono text-2xl font-semibold text-[#F8FAFC]">{fmt(customQueryData.latest.rpsMa50, RPS_METRIC_DISPLAY_DIGITS)}</div>
               <div className="mt-1 text-xs text-[#64748B]">用于衡量相对强弱的平滑中枢。</div>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(15,23,42,0.96))] p-4 shadow-[0_18px_48px_rgba(2,6,23,0.24)]">
+            <div className="rounded-xl border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(15,23,42,0.96))] p-3.5 shadow-[0_14px_36px_rgba(2,6,23,0.18)]">
               <div className="flex items-start justify-between gap-2">
                 <div className="text-xs text-[#94A3B8]">最新 RPS Score</div>
                 <span className={cn('rounded-full border px-2 py-0.5 text-[11px] font-semibold', customQueryScoreState.toneCls)}>
@@ -690,35 +690,19 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
             </div>
           </section>
 
-          <section className="overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] shadow-lg">
-            <div className="border-b border-white/10 px-4 py-4">
-              <div className="flex flex-col gap-1 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                  <div className="text-lg font-semibold tracking-tight text-white">三图联动</div>
-                  <div className="mt-1 text-sm leading-relaxed text-[#94A3B8]">
-                    查询标的：<span className="font-mono text-[#E6EDF7]">{customQueryData.ticker}</span>
-                    {customQueryData.name ? <span className="text-[#CBD5E1]">（{customQueryData.name}）</span> : null}
-                  </div>
-                </div>
-                <div className="text-xs text-[#94A3B8]">拖拽、缩放、hover 日期与十字光标均保持同步</div>
-              </div>
-            </div>
-            <div className="px-4 py-4">
-              <RpsCustomQueryCharts
-                ticker={customQueryData.ticker}
-                tickerName={customQueryData.name}
-                benchmarkName={customQueryData.benchmarkName}
-                series={customQueryData.series}
-              />
-            </div>
-          </section>
+          <RpsCustomQueryCharts
+            ticker={customQueryData.ticker}
+            tickerName={customQueryData.name}
+            benchmarkName={customQueryData.benchmarkName}
+            series={customQueryData.series}
+          />
 
-          <section className="overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] shadow-lg">
-            <div className="border-b border-white/10 px-4 py-4">
+          <section className="overflow-hidden rounded-md border border-[#1E293B] bg-[#0F172A] shadow-lg">
+            <div className="border-b border-white/8 px-3 py-3">
               <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <div className="text-lg font-semibold tracking-tight text-white">最近90个交易日成交额追踪</div>
-                  <div className="mt-1 text-sm leading-relaxed text-[#94A3B8]">
+                  <div className="text-[15px] font-semibold tracking-tight text-white">最近90个交易日成交额追踪</div>
+                  <div className="mt-0.5 text-xs leading-relaxed text-[#94A3B8]">
                     展示 `交易日`、`当日成交额`、`相对前20个交易日均值倍数`，高于 `1.50x` 的交易日高亮。
                   </div>
                 </div>
@@ -726,8 +710,8 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
               </div>
             </div>
 
-            <div className="px-4 py-4">
-              <div className="overflow-x-auto rounded-lg border border-white/10">
+            <div className="px-3 py-3">
+              <div className="overflow-x-auto rounded-md border border-white/8">
                 <table className="min-w-full text-sm">
                   <thead className="bg-white/5 text-[#A9B6CC]">
                     <tr>
