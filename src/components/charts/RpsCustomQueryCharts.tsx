@@ -4,15 +4,19 @@ import {
   ColorType,
   CrosshairMode,
   LineSeries,
+  LineStyle,
   createChart,
+  createSeriesMarkers,
   type IChartApi,
+  type ISeriesMarkersPluginApi,
   type ISeriesApi,
   type LineData,
   type LogicalRange,
+  type SeriesMarker,
   type Time,
   type UTCTimestamp,
 } from 'lightweight-charts'
-import type { RpsStyleSeriesPoint } from '@/utils/marketApi'
+import type { RpsStyleSeriesPoint, RpsTurnoverHistoryPoint } from '@/utils/marketApi'
 import { hasValidLogicalRange, normalizeTime, safeClearCrosshair, safeSetCrosshair, safeSetVisibleLogicalRange } from '@/components/charts/chartSyncGuards'
 
 type Props = {
@@ -20,6 +24,7 @@ type Props = {
   tickerName?: string
   benchmarkName: string
   series: RpsStyleSeriesPoint[]
+  turnoverSeries?: RpsTurnoverHistoryPoint[]
 }
 
 type PreparedPoint = {
@@ -29,13 +34,25 @@ type PreparedPoint = {
   rpsRaw: number
   rpsMa50: number | null
   scorePct: number | null
+  sma60: number | null
+  sma250: number | null
+  turnoverMultipleOfPrev20Avg: number | null
+  isAmplified: boolean
 }
 
 type ChartDatum = LineData<Time> | { time: Time }
 type BackgroundBand = { top: number; bottom: number; color: string }
+type PriceTone = 'weak' | 'neutral' | 'strong'
+type PriceRun = { tone: PriceTone; data: LineData<Time>[] }
 
 const LINE_COLOR = '#60A5FA'
 const MA_LINE_COLOR = 'rgba(248,250,252,0.62)'
+const PRICE_STRONG_COLOR = '#F87171'
+const PRICE_WEAK_COLOR = '#34D399'
+const PRICE_ALIGN_COLOR = 'rgba(0,0,0,0)'
+const SMA60_LINE_COLOR = 'rgba(147,197,253,0.95)'
+const SMA250_LINE_COLOR = 'rgba(226,232,240,0.72)'
+const TURNOVER_MARKER_COLOR = '#FBBF24'
 const SCALE_MIN_WIDTH = 110
 const PANEL_CLS = 'overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] shadow-lg'
 const CHART_PANEL_CLS = 'relative rounded-lg border border-white/10 bg-[#111B2E] pt-6'
@@ -119,9 +136,63 @@ function toWhitespacePoint(time: Time): ChartDatum {
   return { time }
 }
 
+function buildSma(values: number[], period: number): Array<number | null> {
+  const window = Math.max(1, Math.floor(period))
+  const out: Array<number | null> = new Array(values.length).fill(null)
+  let sum = 0
+  for (let i = 0; i < values.length; i += 1) {
+    const value = values[i]
+    sum += value
+    if (i >= window) sum -= values[i - window]
+    if (i >= window - 1) out[i] = sum / window
+  }
+  return out
+}
+
 function getNumericDatumValue(point: ChartDatum): number | null {
   const value = (point as { value?: unknown }).value
   return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function resolvePriceTone(score: number | null | undefined): PriceTone {
+  if (typeof score === 'number' && Number.isFinite(score)) {
+    if (score <= -8) return 'weak'
+    if (score >= 10) return 'strong'
+  }
+  return 'neutral'
+}
+
+function buildPriceRuns(points: PreparedPoint[]): PriceRun[] {
+  if (!points.length) return []
+  if (points.length === 1) {
+    return [
+      {
+        tone: resolvePriceTone(points[0].scorePct),
+        data: [{ time: points[0].time, value: points[0].targetCloseQfq }],
+      },
+    ]
+  }
+  const runs: PriceRun[] = []
+  let runStart = 1
+  let runTone = resolvePriceTone(points[1].scorePct)
+  const pushRun = (start: number, endInclusive: number, tone: PriceTone) => {
+    if (start > endInclusive) return
+    const startIndex = Math.max(0, start - 1)
+    const data: LineData<Time>[] = []
+    for (let i = startIndex; i <= endInclusive; i += 1) {
+      data.push({ time: points[i].time, value: points[i].targetCloseQfq })
+    }
+    runs.push({ tone, data })
+  }
+  for (let i = 2; i < points.length; i += 1) {
+    const tone = resolvePriceTone(points[i].scorePct)
+    if (tone === runTone) continue
+    pushRun(runStart, i - 1, runTone)
+    runStart = i
+    runTone = tone
+  }
+  pushRun(runStart, points.length - 1, runTone)
+  return runs
 }
 
 function buildRelativeData(
@@ -194,6 +265,150 @@ function createBaseChart(host: HTMLDivElement, opts?: { showTimeScale?: boolean 
   })
 }
 
+function usePriceChart(
+  hostRef: RefObject<HTMLDivElement | null>,
+  prepared: PreparedPoint[],
+  opts?: {
+    resetKey?: string
+  },
+) {
+  const chartRef = useRef<IChartApi | null>(null)
+  const alignSeriesRef = useRef<ISeriesApi<'Line', Time> | null>(null)
+  const sma60SeriesRef = useRef<ISeriesApi<'Line', Time> | null>(null)
+  const sma250SeriesRef = useRef<ISeriesApi<'Line', Time> | null>(null)
+  const coloredSeriesRefs = useRef<Array<ISeriesApi<'Line', Time>>>([])
+  const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null)
+  const didFitRef = useRef(false)
+  const latestValue = useMemo(() => {
+    for (let i = prepared.length - 1; i >= 0; i -= 1) {
+      const value = prepared[i]?.targetCloseQfq
+      if (typeof value === 'number' && Number.isFinite(value)) return value
+    }
+    return null
+  }, [prepared])
+  const priceData = useMemo<LineData<Time>[]>(() => prepared.map((point) => ({ time: point.time, value: point.targetCloseQfq })), [prepared])
+  const sma60Data = useMemo<ChartDatum[]>(
+    () =>
+      prepared.map((point) =>
+        typeof point.sma60 === 'number' && Number.isFinite(point.sma60) ? { time: point.time, value: point.sma60 } : toWhitespacePoint(point.time),
+      ),
+    [prepared],
+  )
+  const sma250Data = useMemo<ChartDatum[]>(
+    () =>
+      prepared.map((point) =>
+        typeof point.sma250 === 'number' && Number.isFinite(point.sma250) ? { time: point.time, value: point.sma250 } : toWhitespacePoint(point.time),
+      ),
+    [prepared],
+  )
+  const priceRuns = useMemo(() => buildPriceRuns(prepared), [prepared])
+  const turnoverMarkers = useMemo<SeriesMarker<Time>[]>(
+    () =>
+      prepared
+        .filter((point) => point.isAmplified)
+        .map((point) => ({
+          id: `${point.date}-turnover`,
+          time: point.time,
+          position: 'atPriceMiddle',
+          price: point.targetCloseQfq,
+          shape: 'circle',
+          color: TURNOVER_MARKER_COLOR,
+          size: 1.2,
+        })),
+    [prepared],
+  )
+
+  useEffect(() => {
+    const host = hostRef.current
+    if (!host || chartRef.current) return
+    const chart = createBaseChart(host)
+    const alignSeries = chart.addSeries(LineSeries, {
+      color: PRICE_ALIGN_COLOR,
+      lineWidth: 1,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    })
+    const sma60Series = chart.addSeries(LineSeries, {
+      color: SMA60_LINE_COLOR,
+      lineWidth: 1,
+      lineStyle: LineStyle.Dotted,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    })
+    const sma250Series = chart.addSeries(LineSeries, {
+      color: SMA250_LINE_COLOR,
+      lineWidth: 1,
+      lineStyle: LineStyle.Dashed,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    })
+    chartRef.current = chart
+    alignSeriesRef.current = alignSeries
+    sma60SeriesRef.current = sma60Series
+    sma250SeriesRef.current = sma250Series
+    return () => {
+      chart.remove()
+      chartRef.current = null
+      alignSeriesRef.current = null
+      sma60SeriesRef.current = null
+      sma250SeriesRef.current = null
+      coloredSeriesRefs.current = []
+      markersRef.current = null
+    }
+  }, [hostRef])
+
+  useEffect(() => {
+    const chart = chartRef.current
+    const alignSeries = alignSeriesRef.current
+    const sma60Series = sma60SeriesRef.current
+    const sma250Series = sma250SeriesRef.current
+    if (!chart || !alignSeries || !sma60Series || !sma250Series) return
+
+    alignSeries.setData(priceData as never)
+    sma60Series.setData(sma60Data as never)
+    sma250Series.setData(sma250Data as never)
+
+    for (const series of coloredSeriesRefs.current) chart.removeSeries(series)
+    coloredSeriesRefs.current = []
+    for (const run of priceRuns) {
+      const series = chart.addSeries(LineSeries, {
+        color: run.tone === 'weak' ? PRICE_WEAK_COLOR : run.tone === 'strong' ? PRICE_STRONG_COLOR : LINE_COLOR,
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      })
+      series.setData(run.data as never)
+      coloredSeriesRefs.current.push(series)
+    }
+
+    if (markersRef.current) markersRef.current.setMarkers(turnoverMarkers)
+    else markersRef.current = createSeriesMarkers(alignSeries, turnoverMarkers, { zOrder: 'aboveSeries' })
+
+    if (!didFitRef.current && priceData.length > 0) {
+      chart.timeScale().fitContent()
+      didFitRef.current = true
+    }
+  }, [priceData, priceRuns, sma60Data, sma250Data, turnoverMarkers])
+
+  useEffect(() => {
+    didFitRef.current = false
+    const chart = chartRef.current
+    if (!chart || priceData.length === 0) return
+    chart.timeScale().fitContent()
+    didFitRef.current = true
+  }, [priceData, opts?.resetKey])
+
+  return {
+    chartRef,
+    seriesRef: alignSeriesRef,
+    latestValue: formatValue(latestValue, 4),
+  }
+}
+
 function useSingleLineChart(
   hostRef: RefObject<HTMLDivElement | null>,
   primaryData: ChartDatum[],
@@ -233,7 +448,7 @@ function useSingleLineChart(
     const overlaySeries = chart.addSeries(LineSeries, {
       color: MA_LINE_COLOR,
       lineWidth: 1,
-      lineStyle: 2,
+      lineStyle: LineStyle.Dashed,
       priceLineVisible: false,
       lastValueVisible: false,
     })
@@ -324,7 +539,7 @@ function useSingleLineChart(
   }
 }
 
-export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName, series }: Props) {
+export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName, series, turnoverSeries = [] }: Props) {
   const priceHostRef = useRef<HTMLDivElement | null>(null)
   const scoreHostRef = useRef<HTMLDivElement | null>(null)
   const relativeHostRef = useRef<HTMLDivElement | null>(null)
@@ -334,7 +549,11 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
   const [hoverTime, setHoverTime] = useState<UTCTimestamp | null>(null)
 
   const prepared = useMemo<PreparedPoint[]>(() => {
-    return series
+    const turnoverMap = new Map<string, number | null>()
+    for (const point of turnoverSeries) {
+      turnoverMap.set(point.date, point.turnoverMultipleOfPrev20Avg ?? null)
+    }
+    const basePoints = series
       .map((point) => {
         const time = ymdToUtcSeconds(point.date)
         if (!time || typeof point.targetCloseQfq !== 'number' || !Number.isFinite(point.targetCloseQfq)) return null
@@ -345,14 +564,29 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
           rpsRaw: point.rpsRaw,
           rpsMa50: point.rpsMa50,
           scorePct: point.scorePct,
+          sma60: null,
+          sma250: null,
+          turnoverMultipleOfPrev20Avg: null,
+          isAmplified: false,
         }
       })
       .filter((point): point is PreparedPoint => Boolean(point))
-  }, [series])
+    const priceValues = basePoints.map((point) => point.targetCloseQfq)
+    const sma60 = buildSma(priceValues, 60)
+    const sma250 = buildSma(priceValues, 250)
+    return basePoints.map((point, index) => {
+      const turnoverMultipleOfPrev20Avg = turnoverMap.get(point.date) ?? null
+      return {
+        ...point,
+        sma60: sma60[index] ?? null,
+        sma250: sma250[index] ?? null,
+        turnoverMultipleOfPrev20Avg,
+        isAmplified:
+          typeof turnoverMultipleOfPrev20Avg === 'number' && Number.isFinite(turnoverMultipleOfPrev20Avg) && turnoverMultipleOfPrev20Avg >= 1.5,
+      }
+    })
+  }, [series, turnoverSeries])
 
-  const priceData = useMemo<ChartDatum[]>(() => {
-    return prepared.map((point) => ({ time: point.time, value: point.targetCloseQfq }))
-  }, [prepared])
   const scoreData = useMemo<ChartDatum[]>(() => {
     return prepared.map((point) =>
       typeof point.scorePct === 'number' && Number.isFinite(point.scorePct)
@@ -398,7 +632,7 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
   const hoverPoint = hoverTime ? hoverPointMap.get(hoverTime) ?? null : null
   const hoverRelativeValue = hoverTime ? relativeValueMap.get(hoverTime) ?? null : null
   const hoverRelativeMa50Value = hoverTime ? relativeMa50ValueMap.get(hoverTime) ?? null : null
-  const priceChart = useSingleLineChart(priceHostRef, priceData, { digits: 4, resetKey: ticker })
+  const priceChart = usePriceChart(priceHostRef, prepared, { resetKey: ticker })
   const scoreChart = useSingleLineChart(scoreHostRef, scoreData, {
     baselinePrice: 0,
     digits: 2,
@@ -556,21 +790,18 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
 
   return (
     <section className={PANEL_CLS}>
-      <div className="border-b border-white/8 px-3 py-3">
+      <div className="border-b border-[#1E293B] px-3 py-3">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="text-[15px] font-semibold tracking-tight text-white">三联动图表</div>
             <div className="mt-0.5 text-xs leading-relaxed text-[#94A3B8]">
-              主图展示前复权价格，两张副图分别展示 RPS Score 与 RPS 起点归一，三图共享 hover、十字光标与可见范围。
+              主图展示前复权价格、`SMA60`、`SMA250`、Score 阈值分段着色与 `1.50x` 放量黄点；两张副图分别展示相对 {benchmarkName} 的 RPS Score 与 RPS 起点归一。
+            </div>
+            <div className="mt-1 text-[11px] text-[#64748B]">
+              当前序列：{ticker}
+              {tickerName ? `（${tickerName}）` : ''} | 基准：{benchmarkName}
             </div>
           </div>
-        </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-[#94A3B8]">
-          <span className="rounded-md border border-white/10 bg-white/5 px-2 py-1 font-mono text-[#E6EDF7]">
-            {ticker}
-            {tickerName ? `（${tickerName}）` : ''}
-          </span>
-          <span className="rounded-md border border-white/10 bg-white/5 px-2 py-1">分母基准：{benchmarkName}</span>
         </div>
       </div>
       <div className="relative px-3 py-3">
@@ -580,8 +811,14 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
             <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
               <div className="text-[#A9B6CC]">前复权价格</div>
               <div className="text-right font-mono">{formatValue(hoverPoint.targetCloseQfq, 4)}</div>
+              <div className="text-[#A9B6CC]">SMA60</div>
+              <div className="text-right font-mono">{formatValue(hoverPoint.sma60, 4)}</div>
+              <div className="text-[#A9B6CC]">SMA250</div>
+              <div className="text-right font-mono">{formatValue(hoverPoint.sma250, 4)}</div>
               <div className="text-[#A9B6CC]">RPS Score</div>
               <div className="text-right font-mono">{formatValue(hoverPoint.scorePct, 2)}</div>
+              <div className="text-[#A9B6CC]">放量倍数</div>
+              <div className="text-right font-mono">{formatValue(hoverPoint.turnoverMultipleOfPrev20Avg, 2)}x</div>
               <div className="text-[#A9B6CC]">RPS起点归一</div>
               <div className="text-right font-mono">{formatValue(hoverRelativeValue, 4)}</div>
               <div className="text-[#A9B6CC]">RPS MA50起点归一</div>
@@ -592,7 +829,9 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
 
         <div className="space-y-2">
           <div className={CHART_PANEL_CLS}>
-            <div className={CHART_BADGE_CLS}>前复权价格（主图）</div>
+            <div className={CHART_BADGE_CLS}>
+              前复权价格（主图） | 蓝=常态 红=Score&gt;=10 绿=Score&lt;=-8 黄点=成交额&gt;=1.50x
+            </div>
             <div ref={priceHostRef} className="h-[300px] w-full" />
           </div>
 

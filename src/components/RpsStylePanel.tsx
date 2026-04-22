@@ -443,38 +443,14 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
 
   const customQueryIntro = (
     <section className="overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+      <div className="flex flex-col gap-3">
         <div>
           <div className="text-xl font-semibold tracking-tight text-white">市场风格 RPS 自定义查询</div>
           <div className="mt-2 space-y-1 text-[13px] leading-relaxed text-[#94A3B8]">
             <p><span className="font-medium text-[#CBD5E1]">基准分母</span>：{RPS_BENCHMARK_NAME}（{RPS_BENCHMARK_CODE}）。</p>
-            <p><span className="font-medium text-[#CBD5E1]">查询能力</span>：输入任意 ETF 代码，查看最新 RPS、RPS(MA50)、RPS Score、三张联动图和最近 90 个交易日成交额追踪。</p>
+            <p><span className="font-medium text-[#CBD5E1]">查询能力</span>：输入任意 ETF 代码，查看聚合摘要、三张联动图和最近 250 个交易日成交额追踪。</p>
+            <p><span className="font-medium text-[#CBD5E1]">主图增强</span>：前复权价格图叠加 `SMA60`、`SMA250`、Score 阈值分段着色和 `1.50x` 放量黄点。</p>
             <p><span className="font-medium text-[#CBD5E1]">图表口径</span>：保持与原“市场风格RPS”页一致，便于与总览页对照分析。</p>
-          </div>
-        </div>
-
-        <div className="min-w-[280px] rounded-lg border border-[#1E293B] bg-[#0B1220] px-3 py-2 text-xs">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-[#94A3B8]">查询标的</div>
-            <div className="font-mono text-[#E6EDF7]">
-              {customQueryData?.ticker ?? submittedCustomTicker}
-              {customQueryData?.name ? `（${customQueryData.name}）` : ''}
-            </div>
-          </div>
-          <div className="mt-1 flex items-center justify-between gap-3">
-            <div className="text-[#94A3B8]">最新交易日</div>
-            <div className="font-mono text-[#A9B6CC]">{customQueryLatest?.date ? formatYmd(customQueryLatest.date) : '—'}</div>
-          </div>
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <div className="text-[#94A3B8]">最新 Score</div>
-            <div className="flex items-center gap-2">
-              <span className={cn('font-mono text-sm font-semibold', customQueryScoreState.valueCls)}>
-                {fmt(customQueryLatest?.scorePct, 2)}
-              </span>
-              <span className={cn('rounded-full border px-2 py-0.5 text-[11px] font-semibold', customQueryScoreState.toneCls)}>
-                {customQueryScoreState.label}
-              </span>
-            </div>
           </div>
         </div>
       </div>
@@ -635,47 +611,62 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                 value={customTickerInput}
                 onChange={(e) => setCustomTickerInput(e.target.value)}
                 placeholder="输入ETF代码，如 159915"
-                className="w-full rounded-md border border-white/15 bg-[#0B1220] px-4 py-3 font-mono text-base text-[#E6EDF7] outline-none focus:border-white/30 sm:w-[280px] xl:w-[320px]"
+                className="w-full rounded-md border border-[#243041] bg-[#0B1220] px-4 py-3 font-mono text-base text-[#E6EDF7] outline-none focus:border-[#334155] sm:w-[280px] xl:w-[320px]"
               />
               <button
                 type="submit"
                 disabled={customQueryLoading}
-                className="rounded-md border border-white/20 bg-white/10 px-5 py-3 text-sm font-medium text-[#E6EDF7] transition hover:border-white/30 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-md border border-[#243041] bg-[#162033] px-5 py-3 text-sm font-medium text-[#E6EDF7] transition hover:border-[#334155] hover:bg-[#1B2940] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {customQueryLoading ? '查询中...' : '提交查询'}
               </button>
             </form>
           </div>
 
-          <div className="grid gap-2 rounded-md bg-[#0B1220] px-3 py-3 md:grid-cols-4">
-            <div>
-              <div className="text-[11px] uppercase tracking-[0.16em] text-[#93C5FD]">当前标的</div>
-              <div className="mt-1 font-mono text-sm font-semibold text-[#F8FAFC]">
-                {customQueryData?.ticker ?? submittedCustomTicker}
-                {customQueryData?.name ? `（${customQueryData.name}）` : ''}
-              </div>
+          <div className="rounded-lg border border-[#1E293B] bg-[#0B1220] px-3 py-3">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#93C5FD]">查询结果摘要</div>
+              <div className="text-[11px] text-[#64748B]">查询成功后统一汇总核心结果</div>
             </div>
-            <div>
-              <div className="text-[11px] text-[#94A3B8]">最新交易日</div>
-              <div className="mt-1 font-mono text-sm font-semibold text-[#F8FAFC]">
-                {customQueryLatest?.date ? formatYmd(customQueryLatest.date) : '—'}
+            <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]">
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.16em] text-[#93C5FD]">当前标的</div>
+                <div className="mt-1 break-all font-mono text-sm font-semibold text-[#F8FAFC]">
+                  {customQueryData?.ticker ?? submittedCustomTicker}
+                  {customQueryData?.name ? `（${customQueryData.name}）` : ''}
+                </div>
               </div>
-            </div>
-            <div>
-              <div className="text-[11px] text-[#94A3B8]">最新 Score</div>
-              <div className={cn('mt-1 font-mono text-sm font-semibold', customQueryScoreState.valueCls)}>
-                {fmt(customQueryLatest?.scorePct, 2)}
+              <div>
+                <div className="text-[11px] text-[#94A3B8]">最新交易日</div>
+                <div className="mt-1 font-mono text-sm font-semibold text-[#F8FAFC]">
+                  {customQueryLatest?.date ? formatYmd(customQueryLatest.date) : '—'}
+                </div>
               </div>
-            </div>
-            <div>
-              <div className="text-[11px] text-[#94A3B8]">基准分母</div>
-              <div className="mt-1 text-sm font-medium text-[#CBD5E1]">{RPS_BENCHMARK_NAME}</div>
+              <div>
+                <div className="text-[11px] text-[#94A3B8]">最新 Score</div>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className={cn('font-mono text-sm font-semibold', customQueryScoreState.valueCls)}>
+                    {fmt(customQueryLatest?.scorePct, 2)}
+                  </span>
+                  <span className={cn('rounded-full border px-2 py-0.5 text-[11px] font-semibold', customQueryScoreState.toneCls)}>
+                    {customQueryScoreState.label}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] text-[#94A3B8]">基准分母</div>
+                <div className="mt-1 text-sm font-medium text-[#CBD5E1]">
+                  {customQueryData?.benchmarkName ?? RPS_BENCHMARK_NAME}
+                  <span className="ml-1 font-mono text-[12px] text-[#64748B]">
+                    ({customQueryData?.benchmarkTicker ?? RPS_BENCHMARK_CODE})
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="mt-4">
-          <DataStatusBanner
+          <div className="mt-4">
+            <DataStatusBanner
             loading={customQueryLoading}
             error={customQueryError}
             meta={customQueryMeta}
@@ -683,7 +674,8 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
             onRetry={() => {
               setCustomQuerySeq((prev) => prev + 1)
             }}
-          />
+            />
+          </div>
         </div>
       </section>
 
@@ -694,10 +686,11 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
             tickerName={customQueryData.name}
             benchmarkName={customQueryData.benchmarkName}
             series={customQueryData.series}
+            turnoverSeries={customQueryData.turnoverSeries}
           />
 
           <section className="overflow-hidden rounded-md border border-[#1E293B] bg-[#0F172A] shadow-lg">
-            <div className="border-b border-white/8 px-3 py-3">
+            <div className="border-b border-[#1E293B] px-3 py-3">
               <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
                 <div>
                   <div className="text-[15px] font-semibold tracking-tight text-white">最近250个交易日成交额追踪</div>
@@ -710,7 +703,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
             </div>
 
             <div className="px-3 py-3">
-              <div className="overflow-x-auto rounded-md bg-[#0B1220]">
+              <div className="overflow-x-auto rounded-md border border-[#1E293B] bg-[#0B1220]">
                 <table className="min-w-full text-sm">
                   <thead className="bg-white/5 text-[#A9B6CC]">
                     <tr>
@@ -724,7 +717,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                       customTurnoverRows.map((row) => {
                         const isHot = typeof row.turnoverMultipleOfPrev20Avg === 'number' && row.turnoverMultipleOfPrev20Avg >= 1.5
                         return (
-                          <tr key={row.date} className={cn('border-t border-white/5', isHot && 'bg-[rgba(251,191,36,0.08)]')}>
+                          <tr key={row.date} className={cn('border-t border-[#162033]', isHot && 'bg-[rgba(251,191,36,0.08)]')}>
                             <td className="px-3 py-2 font-mono text-[#E6EDF7]">{formatYmd(row.date)}</td>
                             <td className="px-3 py-2 text-right font-mono text-[#E6EDF7]">{fmtTurnover(row.turnover)}</td>
                             <td
