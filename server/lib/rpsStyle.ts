@@ -122,6 +122,36 @@ export type RpsComputedPoint = {
   scorePct: number | null
 }
 
+export type RpsCustomQueryLatest = {
+  date: string
+  targetCloseQfq: number
+  benchmarkCloseQfq: number
+  rpsRaw: number
+  rpsMa50: number | null
+  scorePct: number | null
+}
+
+export type RpsCustomQueryResult = {
+  meta: {
+    fetchedAt: string
+    dataDate: string | null
+    source: string
+    notes: string[]
+    isFallback: boolean
+  }
+  data: {
+    inputTicker: string
+    ticker: string
+    code: string
+    name: string
+    benchmarkTicker: string
+    benchmarkName: string
+    latest: RpsCustomQueryLatest | null
+    series: RpsComputedPoint[]
+    turnoverSeries: RpsTurnoverHistoryPoint[]
+  }
+}
+
 export type RpsStyleSeriesResult = {
   meta: {
     fetchedAt: string
@@ -181,6 +211,14 @@ function roundTo(value: number, digits: number): number {
   if (!Number.isFinite(value)) return value
   const factor = 10 ** Math.max(0, digits)
   return Math.round(value * factor) / factor
+}
+
+function badRequest(message: string): never {
+  throw new Error(`bad_request:${message}`)
+}
+
+function noData(message: string): never {
+  throw new Error(`no_data:${message}`)
 }
 
 function buildSma(values: number[], period: number): Array<number | null> {
@@ -335,6 +373,30 @@ function getTickerProfileOrThrow(tickerRaw: string): RpsTickerProfile {
   return profile
 }
 
+export function normalizeRpsCustomTickerInput(tickerRaw: string): string {
+  const raw = String(tickerRaw || '').trim().toUpperCase()
+  if (!raw) badRequest('请输入ETF代码')
+  if (/^\d{6}\.(SH|SZ)$/.test(raw)) return raw
+  if (/^(SH|SZ)\d{6}$/.test(raw)) return `${raw.slice(2)}.${raw.slice(0, 2)}`
+  if (/^\d{6}$/.test(raw)) {
+    const first = raw[0]
+    if (first === '5' || first === '6' || first === '9') return `${raw}.SH`
+    if (first === '0' || first === '1' || first === '2' || first === '3') return `${raw}.SZ`
+  }
+  badRequest(`ETF代码格式无效：${raw}`)
+}
+
+function getCustomTickerProfile(tickerRaw: string): Pick<RpsTickerProfile, 'ticker' | 'code' | 'name'> {
+  const ticker = normalizeRpsCustomTickerInput(tickerRaw)
+  const profile = RPS_TICKER_PROFILES[ticker]
+  if (profile) return profile
+  return {
+    ticker,
+    code: tickerToCode(ticker),
+    name: `ETF ${tickerToCode(ticker)}`,
+  }
+}
+
 export type RpsTurnoverHistoryPoint = {
   date: string
   turnover: number | null
@@ -416,6 +478,55 @@ export function buildRpsTurnoverSummaryItem(
   }
 }
 
+export function buildRpsComputedSeries(args: {
+  ticker: string
+  benchmarkTicker: string
+  targetSeries: Array<{ date: string; close: number }>
+  benchmarkSeries: Array<{ date: string; close: number }>
+  maPeriod?: number
+}): RpsComputedPoint[] {
+  const benchmarkMap = new Map<string, number>()
+  for (const point of args.benchmarkSeries) {
+    if (typeof point.close === 'number' && Number.isFinite(point.close) && point.close > 0) {
+      benchmarkMap.set(point.date, point.close)
+    }
+  }
+  const aligned: Array<{ date: string; targetClose: number; benchmarkClose: number; rpsRaw: number }> = []
+  for (const point of args.targetSeries) {
+    if (typeof point.close !== 'number' || !Number.isFinite(point.close)) continue
+    const benchmarkClose = benchmarkMap.get(point.date)
+    if (typeof benchmarkClose !== 'number' || !Number.isFinite(benchmarkClose) || benchmarkClose <= 0) continue
+    const rpsRaw = point.close / benchmarkClose
+    if (!Number.isFinite(rpsRaw)) continue
+    aligned.push({
+      date: point.date,
+      targetClose: point.close,
+      benchmarkClose,
+      rpsRaw,
+    })
+  }
+  aligned.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+  const maPeriod = Math.max(1, Math.floor(args.maPeriod ?? 50))
+  const ma50 = buildSma(
+    aligned.map((point) => point.rpsRaw),
+    maPeriod,
+  )
+  return aligned.map((point, index) => {
+    const ma = ma50[index]
+    const scorePct = typeof ma === 'number' && Number.isFinite(ma) && ma !== 0 ? ((point.rpsRaw / ma - 1) * 100) : null
+    return {
+      date: point.date,
+      ticker: args.ticker,
+      benchmarkTicker: args.benchmarkTicker,
+      targetCloseQfq: point.targetClose,
+      benchmarkCloseQfq: point.benchmarkClose,
+      rpsRaw: point.rpsRaw,
+      rpsMa50: ma,
+      scorePct,
+    }
+  })
+}
+
 async function fetchRpsTurnoverSeries(args: {
   ticker: string
   endDate: string
@@ -438,6 +549,43 @@ async function fetchRpsTurnoverSeries(args: {
 
   if (!series.length) throw new Error(`RPS 成交额历史为空：${args.ticker}`)
   return { source: 'eastmoney:kline', series }
+}
+
+async function computeRpsSeriesForTicker(args: {
+  ticker: string
+  startDate: string
+  endDate: string
+  extraRetries?: number
+}): Promise<{
+  benchmarkTicker: string
+  benchmarkName: string
+  benchmarkSource: string
+  targetSource: DataSourceName
+  series: RpsComputedPoint[]
+}> {
+  const [benchmark, target] = await Promise.all([
+    fetchBenchmarkDailySeries({ startDate: args.startDate, endDate: args.endDate }),
+    fetchQfqDailyWithFallback({
+      ticker: args.ticker,
+      startDate: args.startDate,
+      endDate: args.endDate,
+      extraRetries: args.extraRetries,
+    }),
+  ])
+  const series = buildRpsComputedSeries({
+    ticker: args.ticker,
+    benchmarkTicker: RPS_BENCHMARK_TICKER,
+    targetSeries: target.series,
+    benchmarkSeries: benchmark.series,
+  })
+  if (!series.length) noData(`未获取到可用于计算RPS的历史数据：${args.ticker}`)
+  return {
+    benchmarkTicker: RPS_BENCHMARK_TICKER,
+    benchmarkName: RPS_BENCHMARK_NAME,
+    benchmarkSource: benchmark.source,
+    targetSource: target.source,
+    series,
+  }
 }
 
 function mapPointRowToComputedPoint(r: RpsStylePointRow): RpsComputedPoint {
@@ -579,32 +727,13 @@ export async function computeRpsStyleDataset(args: {
   for (const ticker of RPS_TARGET_TICKERS) {
     const out = await fetchQfqDailyWithFallback({ ticker, startDate, endDate })
     tickerSources[ticker] = out.source
-    const aligned: Array<{ date: string; targetClose: number; benchmarkClose: number; rpsRaw: number }> = []
-    for (const p of out.series) {
-      const b = benchmarkMap.get(p.date)
-      if (typeof b !== 'number' || !Number.isFinite(b) || b <= 0) continue
-      const raw = p.close / b
-      if (!Number.isFinite(raw)) continue
-      aligned.push({ date: p.date, targetClose: p.close, benchmarkClose: b, rpsRaw: raw })
-    }
-    aligned.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
-    if (!aligned.length) throw new Error(`RPS 数据为空：${ticker}`)
-
-    const ma50 = buildSma(aligned.map((x) => x.rpsRaw), 50)
-    const points: RpsComputedPoint[] = aligned.map((x, i) => {
-      const m = ma50[i]
-      const scorePct = typeof m === 'number' && Number.isFinite(m) && m !== 0 ? ((x.rpsRaw / m - 1) * 100) : null
-      return {
-        date: x.date,
-        ticker,
-        benchmarkTicker: RPS_BENCHMARK_TICKER,
-        targetCloseQfq: x.targetClose,
-        benchmarkCloseQfq: x.benchmarkClose,
-        rpsRaw: x.rpsRaw,
-        rpsMa50: m,
-        scorePct,
-      }
+    const points = buildRpsComputedSeries({
+      ticker,
+      benchmarkTicker: RPS_BENCHMARK_TICKER,
+      targetSeries: out.series,
+      benchmarkSeries: bmk.series,
     })
+    if (!points.length) throw new Error(`RPS 数据为空：${ticker}`)
     const lastDate = points[points.length - 1]?.date || null
     if (lastDate && (!globalMaxDate || lastDate > globalMaxDate)) globalMaxDate = lastDate
     seriesByTicker[ticker] = points
@@ -856,6 +985,63 @@ export async function getRpsStyleTurnoverSummary(): Promise<{
         isFallback: false,
       },
       data: { items },
+    }
+  })
+}
+
+export async function getRpsCustomQuery(args: {
+  ticker: string
+  startDate?: string
+  endDate?: string
+}): Promise<RpsCustomQueryResult> {
+  const profile = getCustomTickerProfile(args.ticker)
+  const inputTicker = String(args.ticker || '').trim().toUpperCase()
+  const startDate = normalizeYmd10(args.startDate) || '2016-01-01'
+  const endDate = normalizeYmd10(args.endDate) || new Date().toISOString().slice(0, 10)
+  const cacheKey = `rps:custom:${profile.ticker}:${startDate}:${endDate}`
+  return await readCacheRemember(cacheKey, async () => {
+    const [seriesOut, turnoverOut] = await Promise.all([
+      computeRpsSeriesForTicker({ ticker: profile.ticker, startDate, endDate }),
+      fetchRpsTurnoverSeries({ ticker: profile.ticker, endDate }),
+    ])
+    const turnoverSeries = buildRpsTurnoverHistory(turnoverOut.series)
+    const latest = seriesOut.series.length
+      ? {
+          date: seriesOut.series[seriesOut.series.length - 1].date,
+          targetCloseQfq: seriesOut.series[seriesOut.series.length - 1].targetCloseQfq,
+          benchmarkCloseQfq: seriesOut.series[seriesOut.series.length - 1].benchmarkCloseQfq,
+          rpsRaw: seriesOut.series[seriesOut.series.length - 1].rpsRaw,
+          rpsMa50: seriesOut.series[seriesOut.series.length - 1].rpsMa50,
+          scorePct: seriesOut.series[seriesOut.series.length - 1].scorePct,
+        }
+      : null
+    const dataDate = latest?.date ?? turnoverSeries[turnoverSeries.length - 1]?.date ?? null
+    return {
+      meta: {
+        fetchedAt: new Date().toISOString(),
+        dataDate,
+        source: 'rps:custom-query',
+        notes: [
+          ...getRpsStyleComputationNotes(),
+          `input_ticker=${inputTicker}`,
+          `normalized_ticker=${profile.ticker}`,
+          `target_source=${seriesOut.targetSource}`,
+          `benchmark_source=${seriesOut.benchmarkSource}`,
+          `turnover_source=${turnoverOut.source}`,
+        ],
+        isFallback: false,
+      },
+      data: {
+        inputTicker,
+        ticker: profile.ticker,
+        code: profile.code,
+        name: profile.name,
+        benchmarkTicker: seriesOut.benchmarkTicker,
+        benchmarkName: seriesOut.benchmarkName,
+        latest,
+        series: seriesOut.series,
+        turnoverSeries,
+      },
     }
   })
 }

@@ -183,6 +183,27 @@ export type RpsStylePanelData = {
   seriesByTicker: Record<string, RpsStyleSeriesPoint[]>
 }
 
+export type RpsCustomQueryLatest = {
+  date: string
+  targetCloseQfq: number
+  benchmarkCloseQfq: number
+  rpsRaw: number
+  rpsMa50: number | null
+  scorePct: number | null
+}
+
+export type RpsCustomQueryData = {
+  inputTicker: string
+  ticker: string
+  code: string
+  name: string
+  benchmarkTicker: string
+  benchmarkName: string
+  latest: RpsCustomQueryLatest | null
+  series: RpsStyleSeriesPoint[]
+  turnoverSeries: RpsTurnoverHistoryPoint[]
+}
+
 export type RpsTurnoverBenchmarkIndex = {
   code: string
   name: string
@@ -554,6 +575,56 @@ export async function fetchRpsStylePanel(args?: {
     return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
   }
   const out = json as ApiOk<RpsStylePanelData> | ApiErr
+  if (out && typeof out === 'object' && out.success === true) setFrontCache(cacheKey, out)
+  return out
+}
+
+export async function fetchRpsCustomQuery(args: {
+  ticker: string
+  startDate?: string
+  endDate?: string
+  signal?: AbortSignal
+}): Promise<ApiOk<RpsCustomQueryData> | ApiErr> {
+  const ticker = String(args.ticker || '').trim().toUpperCase()
+  const qs = new URLSearchParams()
+  qs.set('ticker', ticker)
+  if (args.startDate) qs.set('startDate', args.startDate)
+  if (args.endDate) qs.set('endDate', args.endDate)
+  const url = `/api/rps/custom-query?${qs.toString()}`
+  const cacheKey = `rps:custom-query:${url}`
+  const cached = getFrontCache<ApiOk<RpsCustomQueryData> | ApiErr>(cacheKey)
+  if (cached) return cached
+  let res: Response
+  try {
+    res = await fetch(apiUrl(url), {
+      ...(args.signal ? { signal: args.signal } : {}),
+      credentials: 'include',
+      headers: {
+        ...adminAuthHeaders(),
+      },
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    const name = e instanceof Error ? e.name : ''
+    const aborted = name === 'AbortError' || msg.toLowerCase().includes('aborted')
+    return { success: false, error: 'api_error', message: aborted ? '请求已取消' : msg || '网络异常或 API 不可用' }
+  }
+
+  const text = await res.text()
+  let json: unknown = null
+  try {
+    json = text ? (JSON.parse(text) as unknown) : null
+  } catch {
+    json = null
+  }
+  if (!res.ok) {
+    const msg =
+      json && typeof json === 'object' && json && 'message' in (json as Record<string, unknown>) && typeof (json as Record<string, unknown>).message === 'string'
+        ? String((json as Record<string, unknown>).message)
+        : `HTTP ${res.status}`
+    return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
+  }
+  const out = json as ApiOk<RpsCustomQueryData> | ApiErr
   if (out && typeof out === 'object' && out.success === true) setFrontCache(cacheKey, out)
   return out
 }

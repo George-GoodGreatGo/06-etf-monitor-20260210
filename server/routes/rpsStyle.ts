@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express'
 import {
+  getRpsCustomQuery,
   getRpsStyleMatrix,
   getRpsStylePanel,
   getRpsStyleSeries,
@@ -8,6 +9,7 @@ import {
   getRpsStyleTurnoverHistory,
   getRpsStyleTurnoverSummary,
   getRpsStyleTurnoverSupportedTickers,
+  normalizeRpsCustomTickerInput,
 } from '../lib/rpsStyle.js'
 
 const router = Router()
@@ -46,6 +48,35 @@ router.get('/panel', async (req: Request, res: Response) => {
   } catch (e) {
     res.setHeader('Cache-Control', 'no-store')
     res.status(502).json({ success: false, error: 'upstream_error', message: e instanceof Error ? e.message : String(e) })
+  }
+})
+
+router.get('/custom-query', async (req: Request, res: Response) => {
+  const ticker = typeof req.query.ticker === 'string' ? req.query.ticker.trim() : ''
+  const startDate = typeof req.query.startDate === 'string' ? req.query.startDate.trim() : undefined
+  const endDate = typeof req.query.endDate === 'string' ? req.query.endDate.trim() : undefined
+  if (!ticker) {
+    res.setHeader('Cache-Control', 'no-store')
+    res.status(400).json({ success: false, error: 'bad_request', message: '请输入ETF代码' })
+    return
+  }
+  try {
+    normalizeRpsCustomTickerInput(ticker)
+    const out = await getRpsCustomQuery({ ticker, startDate, endDate })
+    res.setHeader('Cache-Control', 'private, max-age=300, stale-while-revalidate=120')
+    res.status(200).json({ success: true, ...out })
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e)
+    res.setHeader('Cache-Control', 'no-store')
+    if (message.startsWith('bad_request:')) {
+      res.status(400).json({ success: false, error: 'bad_request', message: message.slice('bad_request:'.length) })
+      return
+    }
+    if (message.startsWith('no_data:')) {
+      res.status(404).json({ success: false, error: 'not_found', message: message.slice('no_data:'.length) })
+      return
+    }
+    res.status(502).json({ success: false, error: 'upstream_error', message })
   }
 })
 
