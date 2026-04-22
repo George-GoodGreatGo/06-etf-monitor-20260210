@@ -123,6 +123,35 @@ function fmtTradingDaysAgo(v: number | null | undefined): string {
   return `${v}个交易日前`
 }
 
+function resolveScoreState(score: number | null | undefined): { label: string; toneCls: string; valueCls: string } {
+  if (typeof score !== 'number' || !Number.isFinite(score)) {
+    return {
+      label: '暂无判定',
+      toneCls: 'border-white/10 bg-white/5 text-[#94A3B8]',
+      valueCls: 'text-[#F8FAFC]',
+    }
+  }
+  if (score > 0) {
+    return {
+      label: '强于MA50',
+      toneCls: 'border-[rgba(16,185,129,0.25)] bg-[rgba(16,185,129,0.12)] text-[#34D399]',
+      valueCls: 'text-[#34D399]',
+    }
+  }
+  if (score < 0) {
+    return {
+      label: '弱于MA50',
+      toneCls: 'border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.12)] text-[#F87171]',
+      valueCls: 'text-[#F87171]',
+    }
+  }
+  return {
+    label: '贴近MA50',
+    toneCls: 'border-[rgba(148,163,184,0.25)] bg-[rgba(148,163,184,0.10)] text-[#CBD5E1]',
+    valueCls: 'text-[#F8FAFC]',
+  }
+}
+
 export default function RpsStylePanel({ page }: { page: RpsPage }) {
   const isOverviewPage = page === 'overview'
   const isCustomQueryPage = page === 'custom-query'
@@ -160,6 +189,8 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   )
   const controlsDisabled = loading
   const anchorStyle = useMemo(() => ({ scrollMarginTop: '104px' }), [])
+  const customQueryLatest = customQueryData?.latest ?? null
+  const customQueryScoreState = useMemo(() => resolveScoreState(customQueryLatest?.scorePct), [customQueryLatest?.scorePct])
 
   useEffect(() => {
     if (!isOverviewPage) return
@@ -412,12 +443,39 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
 
   const customQueryIntro = (
     <section className="overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
-      <div className="space-y-2">
-        <div className="text-xl font-semibold tracking-tight text-white">市场风格 RPS 自定义查询</div>
-        <div className="space-y-1 text-[13px] leading-relaxed text-[#94A3B8]">
-          <p><span className="font-medium text-[#CBD5E1]">基准分母</span>：{RPS_BENCHMARK_NAME}（{RPS_BENCHMARK_CODE}）。</p>
-          <p><span className="font-medium text-[#CBD5E1]">查询能力</span>：输入任意 ETF 代码，查看最新 RPS、RPS(MA50)、RPS Score、三张联动图和最近 90 个交易日成交额追踪。</p>
-          <p><span className="font-medium text-[#CBD5E1]">图表口径</span>：保持与原“市场风格RPS”页一致，便于与总览页对照分析。</p>
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="text-xl font-semibold tracking-tight text-white">市场风格 RPS 自定义查询</div>
+          <div className="mt-2 space-y-1 text-[13px] leading-relaxed text-[#94A3B8]">
+            <p><span className="font-medium text-[#CBD5E1]">基准分母</span>：{RPS_BENCHMARK_NAME}（{RPS_BENCHMARK_CODE}）。</p>
+            <p><span className="font-medium text-[#CBD5E1]">查询能力</span>：输入任意 ETF 代码，查看最新 RPS、RPS(MA50)、RPS Score、三张联动图和最近 90 个交易日成交额追踪。</p>
+            <p><span className="font-medium text-[#CBD5E1]">图表口径</span>：保持与原“市场风格RPS”页一致，便于与总览页对照分析。</p>
+          </div>
+        </div>
+
+        <div className="min-w-[280px] rounded-lg border border-[#1E293B] bg-[#0B1220] px-3 py-2 text-xs">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[#94A3B8]">查询标的</div>
+            <div className="font-mono text-[#E6EDF7]">
+              {customQueryData?.ticker ?? submittedCustomTicker}
+              {customQueryData?.name ? `（${customQueryData.name}）` : ''}
+            </div>
+          </div>
+          <div className="mt-1 flex items-center justify-between gap-3">
+            <div className="text-[#94A3B8]">最新交易日</div>
+            <div className="font-mono text-[#A9B6CC]">{customQueryLatest?.date ? formatYmd(customQueryLatest.date) : '—'}</div>
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <div className="text-[#94A3B8]">最新 Score</div>
+            <div className="flex items-center gap-2">
+              <span className={cn('font-mono text-sm font-semibold', customQueryScoreState.valueCls)}>
+                {fmt(customQueryLatest?.scorePct, 2)}
+              </span>
+              <span className={cn('rounded-full border px-2 py-0.5 text-[11px] font-semibold', customQueryScoreState.toneCls)}>
+                {customQueryScoreState.label}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -602,102 +660,111 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
 
       {customQueryData?.latest ? (
         <>
-          <section className="grid gap-3 md:grid-cols-3">
-            <div className="rounded-lg border border-[#1E293B] bg-[#0F172A] p-3 shadow-lg">
+          <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(96,165,250,0.12),rgba(15,23,42,0.92))] p-4 shadow-[0_18px_48px_rgba(2,6,23,0.28)]">
+              <div className="text-xs uppercase tracking-[0.18em] text-[#93C5FD]">Data Date</div>
+              <div className="mt-3 font-mono text-2xl font-semibold text-[#F8FAFC]">{formatYmd(customQueryData.latest.date)}</div>
+              <div className="mt-1 text-xs text-[#94A3B8]">查询结果与三图 hover 摘要共用同一时间轴。</div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(15,23,42,0.96))] p-4 shadow-[0_18px_48px_rgba(2,6,23,0.24)]">
               <div className="text-xs text-[#94A3B8]">最新 RPS</div>
               <div className="mt-2 font-mono text-2xl font-semibold text-[#F8FAFC]">{fmt(customQueryData.latest.rpsRaw, RPS_METRIC_DISPLAY_DIGITS)}</div>
-              <div className="mt-1 text-xs text-[#64748B]">交易日：{formatYmd(customQueryData.latest.date)}</div>
+              <div className="mt-1 text-xs text-[#64748B]">分母基准：{customQueryData.benchmarkName}</div>
             </div>
-            <div className="rounded-lg border border-[#1E293B] bg-[#0F172A] p-3 shadow-lg">
+            <div className="rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(15,23,42,0.96))] p-4 shadow-[0_18px_48px_rgba(2,6,23,0.24)]">
               <div className="text-xs text-[#94A3B8]">最新 RPS(MA50)</div>
               <div className="mt-2 font-mono text-2xl font-semibold text-[#F8FAFC]">{fmt(customQueryData.latest.rpsMa50, RPS_METRIC_DISPLAY_DIGITS)}</div>
-              <div className="mt-1 text-xs text-[#64748B]">基准：{customQueryData.benchmarkName}</div>
+              <div className="mt-1 text-xs text-[#64748B]">用于衡量相对强弱的平滑中枢。</div>
             </div>
-            <div className="rounded-lg border border-[#1E293B] bg-[#0F172A] p-3 shadow-lg">
-              <div className="text-xs text-[#94A3B8]">最新 RPS Score</div>
-              <div
-                className={cn(
-                  'mt-2 font-mono text-2xl font-semibold',
-                  (customQueryData.latest.scorePct ?? 0) > 0
-                    ? 'text-[#34D399]'
-                    : (customQueryData.latest.scorePct ?? 0) < 0
-                      ? 'text-[#F87171]'
-                      : 'text-[#F8FAFC]',
-                )}
-              >
+            <div className="rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(15,23,42,0.96))] p-4 shadow-[0_18px_48px_rgba(2,6,23,0.24)]">
+              <div className="flex items-start justify-between gap-2">
+                <div className="text-xs text-[#94A3B8]">最新 RPS Score</div>
+                <span className={cn('rounded-full border px-2 py-0.5 text-[11px] font-semibold', customQueryScoreState.toneCls)}>
+                  {customQueryScoreState.label}
+                </span>
+              </div>
+              <div className={cn('mt-2 font-mono text-2xl font-semibold', customQueryScoreState.valueCls)}>
                 {fmt(customQueryData.latest.scorePct, 2)}
               </div>
               <div className="mt-1 text-xs text-[#64748B]">口径：((RPS / MA50) - 1) × 100%</div>
             </div>
           </section>
 
-          <section className="rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
-            <div className="mb-4 flex flex-col gap-1 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <div className="text-lg font-semibold tracking-tight text-white">三图联动</div>
-                <div className="mt-1 text-sm leading-relaxed text-[#94A3B8]">
-                  查询标的：<span className="font-mono text-[#E6EDF7]">{customQueryData.ticker}</span>
-                  {customQueryData.name ? <span className="text-[#CBD5E1]">（{customQueryData.name}）</span> : null}
+          <section className="overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] shadow-lg">
+            <div className="border-b border-white/10 px-4 py-4">
+              <div className="flex flex-col gap-1 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <div className="text-lg font-semibold tracking-tight text-white">三图联动</div>
+                  <div className="mt-1 text-sm leading-relaxed text-[#94A3B8]">
+                    查询标的：<span className="font-mono text-[#E6EDF7]">{customQueryData.ticker}</span>
+                    {customQueryData.name ? <span className="text-[#CBD5E1]">（{customQueryData.name}）</span> : null}
+                  </div>
                 </div>
+                <div className="text-xs text-[#94A3B8]">拖拽、缩放、hover 日期与十字光标均保持同步</div>
               </div>
-              <div className="text-xs text-[#94A3B8]">拖拽、缩放与 hover 日期均保持同步</div>
             </div>
-            <RpsCustomQueryCharts
-              ticker={customQueryData.ticker}
-              tickerName={customQueryData.name}
-              benchmarkName={customQueryData.benchmarkName}
-              series={customQueryData.series}
-            />
+            <div className="px-4 py-4">
+              <RpsCustomQueryCharts
+                ticker={customQueryData.ticker}
+                tickerName={customQueryData.name}
+                benchmarkName={customQueryData.benchmarkName}
+                series={customQueryData.series}
+              />
+            </div>
           </section>
 
-          <section className="rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
-            <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
-              <div>
-                <div className="text-sm font-semibold text-[#F8FAFC]">最近90个交易日成交额追踪</div>
-                <div className="mt-1 text-xs leading-relaxed text-[#CBD5E1]">
-                  展示 `交易日`、`当日成交额`、`相对前20个交易日均值倍数`，高于 `1.50x` 的交易日高亮。
+          <section className="overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] shadow-lg">
+            <div className="border-b border-white/10 px-4 py-4">
+              <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <div className="text-lg font-semibold tracking-tight text-white">最近90个交易日成交额追踪</div>
+                  <div className="mt-1 text-sm leading-relaxed text-[#94A3B8]">
+                    展示 `交易日`、`当日成交额`、`相对前20个交易日均值倍数`，高于 `1.50x` 的交易日高亮。
+                  </div>
                 </div>
+                <div className="text-xs text-[#94A3B8]">标的：{customQueryData.ticker}</div>
               </div>
-              <div className="text-xs text-[#94A3B8]">标的：{customQueryData.ticker}</div>
             </div>
 
-            <div className="mt-3 overflow-x-auto rounded-lg border border-white/10">
-              <table className="min-w-full text-sm">
-                <thead className="bg-white/5 text-[#A9B6CC]">
-                  <tr>
-                    <th className="px-3 py-2 text-left">日期</th>
-                    <th className="px-3 py-2 text-right">成交额</th>
-                    <th className="px-3 py-2 text-right">较前20日均值倍数</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {customTurnoverRows.length ? (
-                    customTurnoverRows.map((row) => {
-                      const isHot = typeof row.turnoverMultipleOfPrev20Avg === 'number' && row.turnoverMultipleOfPrev20Avg >= 1.5
-                      return (
-                        <tr key={row.date} className={cn('border-t border-white/5', isHot && 'bg-[rgba(251,191,36,0.08)]')}>
-                          <td className="px-3 py-2 font-mono text-[#E6EDF7]">{formatYmd(row.date)}</td>
-                          <td className="px-3 py-2 text-right font-mono text-[#E6EDF7]">{fmtTurnover(row.turnover)}</td>
-                          <td
-                            className={cn(
-                              'px-3 py-2 text-right font-mono',
-                              isHot ? 'font-semibold text-[#FBBF24]' : 'text-[#A9B6CC]',
-                            )}
-                          >
-                            {fmtMultiple(row.turnoverMultipleOfPrev20Avg)}
-                          </td>
-                        </tr>
-                      )
-                    })
-                  ) : (
+            <div className="px-4 py-4">
+              <div className="overflow-x-auto rounded-lg border border-white/10">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-white/5 text-[#A9B6CC]">
                     <tr>
-                      <td colSpan={3} className="px-3 py-8 text-center text-sm text-[#94A3B8]">
-                        暂无成交额历史
-                      </td>
+                      <th className="px-3 py-2 text-left">日期</th>
+                      <th className="px-3 py-2 text-right">成交额</th>
+                      <th className="px-3 py-2 text-right">较前20日均值倍数</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {customTurnoverRows.length ? (
+                      customTurnoverRows.map((row) => {
+                        const isHot = typeof row.turnoverMultipleOfPrev20Avg === 'number' && row.turnoverMultipleOfPrev20Avg >= 1.5
+                        return (
+                          <tr key={row.date} className={cn('border-t border-white/5', isHot && 'bg-[rgba(251,191,36,0.08)]')}>
+                            <td className="px-3 py-2 font-mono text-[#E6EDF7]">{formatYmd(row.date)}</td>
+                            <td className="px-3 py-2 text-right font-mono text-[#E6EDF7]">{fmtTurnover(row.turnover)}</td>
+                            <td
+                              className={cn(
+                                'px-3 py-2 text-right font-mono',
+                                isHot ? 'font-semibold text-[#FBBF24]' : 'text-[#A9B6CC]',
+                              )}
+                            >
+                              {fmtMultiple(row.turnoverMultipleOfPrev20Avg)}
+                            </td>
+                          </tr>
+                        )
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={3} className="px-3 py-8 text-center text-sm text-[#94A3B8]">
+                          暂无成交额历史
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </section>
         </>

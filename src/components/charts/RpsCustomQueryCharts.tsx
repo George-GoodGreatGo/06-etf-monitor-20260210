@@ -19,6 +19,10 @@ type PreparedPoint = {
 }
 
 const LINE_COLOR = '#60A5FA'
+const PANEL_CLS = 'overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] shadow-lg'
+const PANEL_HEADER_CLS = 'border-b border-white/10 px-4 py-4'
+const PANEL_BODY_CLS = 'px-4 py-4'
+const CHART_HOST_CLS = 'w-full rounded-lg border border-white/10 bg-[#111B2E]'
 
 function ymdToUtcSeconds(ymd: string): UTCTimestamp | null {
   const s = String(ymd || '').trim()
@@ -33,6 +37,20 @@ function ymdToUtcSeconds(ymd: string): UTCTimestamp | null {
 function formatValue(value: number | null | undefined, digits = 4): string {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '—'
   return value.toFixed(digits)
+}
+
+function resolveScoreTone(score: number | null | undefined): { label: string; cls: string } {
+  if (typeof score !== 'number' || !Number.isFinite(score)) return { label: '暂无判定', cls: 'text-[#94A3B8]' }
+  if (score > 0) return { label: '强于MA50', cls: 'text-[#34D399]' }
+  if (score < 0) return { label: '弱于MA50', cls: 'text-[#F87171]' }
+  return { label: '贴近MA50', cls: 'text-[#E6EDF7]' }
+}
+
+function resolveRelativeTone(value: number | null | undefined): { label: string; cls: string } {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return { label: '暂无判定', cls: 'text-[#94A3B8]' }
+  if (value > 1) return { label: '高于起点', cls: 'text-[#34D399]' }
+  if (value < 1) return { label: '低于起点', cls: 'text-[#F87171]' }
+  return { label: '贴近起点', cls: 'text-[#E6EDF7]' }
 }
 
 function resolveBaseIndex(range: LogicalRange | null | undefined, length: number): number {
@@ -75,6 +93,8 @@ function createBaseChart(host: HTMLDivElement): IChartApi {
     },
     timeScale: {
       borderColor: 'rgba(255,255,255,0.10)',
+      fixLeftEdge: true,
+      fixRightEdge: true,
       rightOffset: 0,
       minBarSpacing: 0.6,
     },
@@ -98,7 +118,7 @@ function createBaseChart(host: HTMLDivElement): IChartApi {
 function useSingleLineChart(
   hostRef: RefObject<HTMLDivElement | null>,
   data: LineData<Time>[],
-  opts?: { baselinePrice?: number; digits?: number },
+  opts?: { baselinePrice?: number; digits?: number; resetKey?: string },
 ) {
   const chartRef = useRef<IChartApi | null>(null)
   const seriesRef = useRef<ISeriesApi<'Line', Time> | null>(null)
@@ -151,6 +171,14 @@ function useSingleLineChart(
     }
   }, [data, opts?.baselinePrice])
 
+  useEffect(() => {
+    didFitRef.current = false
+    const chart = chartRef.current
+    if (!chart || data.length === 0) return
+    chart.timeScale().fitContent()
+    didFitRef.current = true
+  }, [data, opts?.resetKey])
+
   return {
     chartRef,
     seriesRef,
@@ -164,7 +192,7 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
   const relativeHostRef = useRef<HTMLDivElement | null>(null)
   const syncingRangeRef = useRef(false)
   const syncingCrosshairRef = useRef(false)
-  const relativeRangeRef = useRef<LogicalRange | null>(null)
+  const visibleRangeRef = useRef<LogicalRange | null>(null)
   const [hoverTime, setHoverTime] = useState<UTCTimestamp | null>(null)
 
   const prepared = useMemo<PreparedPoint[]>(() => {
@@ -211,13 +239,17 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
   }, [relativeData])
   const hoverPoint = hoverTime ? hoverPointMap.get(hoverTime) ?? null : null
   const hoverRelativeValue = hoverTime ? relativeValueMap.get(hoverTime) ?? null : null
+  const latestPoint = prepared[prepared.length - 1] ?? null
+  const latestRelativeValue = relativeData[relativeData.length - 1]?.value ?? null
+  const scoreTone = resolveScoreTone(hoverPoint?.scorePct ?? latestPoint?.scorePct)
+  const relativeTone = resolveRelativeTone(hoverRelativeValue ?? latestRelativeValue)
 
-  const priceChart = useSingleLineChart(priceHostRef, priceData, { digits: 4 })
-  const scoreChart = useSingleLineChart(scoreHostRef, scoreData, { baselinePrice: 0, digits: 2 })
-  const relativeChart = useSingleLineChart(relativeHostRef, relativeData, { baselinePrice: 1, digits: 4 })
+  const priceChart = useSingleLineChart(priceHostRef, priceData, { digits: 4, resetKey: ticker })
+  const scoreChart = useSingleLineChart(scoreHostRef, scoreData, { baselinePrice: 0, digits: 2, resetKey: ticker })
+  const relativeChart = useSingleLineChart(relativeHostRef, relativeData, { baselinePrice: 1, digits: 4, resetKey: ticker })
 
   useEffect(() => {
-    const nextRelative = buildRelativeData(prepared, relativeRangeRef.current)
+    const nextRelative = buildRelativeData(prepared, visibleRangeRef.current)
     setRelativeData(nextRelative)
   }, [prepared])
 
@@ -229,12 +261,15 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
       const onRangeChange = (range: LogicalRange | null) => {
         if (syncingRangeRef.current || !hasValidLogicalRange(range)) return
         syncingRangeRef.current = true
-        relativeRangeRef.current = range
+        visibleRangeRef.current = range
         setRelativeData(buildRelativeData(prepared, range))
-        charts.forEach((other, otherIndex) => {
-          if (otherIndex !== index) safeSetVisibleLogicalRange(other, range)
-        })
-        syncingRangeRef.current = false
+        try {
+          charts.forEach((other, otherIndex) => {
+            if (otherIndex !== index) safeSetVisibleLogicalRange(other, range)
+          })
+        } finally {
+          syncingRangeRef.current = false
+        }
       }
       chart.timeScale().subscribeVisibleLogicalRangeChange(onRangeChange)
       unsubs.push(() => chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRangeChange))
@@ -315,10 +350,23 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
   }, [hoverPointMap, priceChart.chartRef, priceChart.seriesRef, relativeChart.chartRef, relativeChart.seriesRef, relativeValueMap, scoreChart.chartRef, scoreChart.seriesRef])
 
   useEffect(() => {
+    const range = visibleRangeRef.current
+    if (!hasValidLogicalRange(range)) return
+    syncingRangeRef.current = true
+    try {
+      safeSetVisibleLogicalRange(priceChart.chartRef.current, range)
+      safeSetVisibleLogicalRange(scoreChart.chartRef.current, range)
+      safeSetVisibleLogicalRange(relativeChart.chartRef.current, range)
+    } finally {
+      syncingRangeRef.current = false
+    }
+  }, [relativeData, priceChart.chartRef, scoreChart.chartRef, relativeChart.chartRef])
+
+  useEffect(() => {
     const master = priceChart.chartRef.current
     if (!master || !prepared.length) return
     const initialRange = master.timeScale().getVisibleLogicalRange()
-    relativeRangeRef.current = initialRange
+    visibleRangeRef.current = initialRange
     setRelativeData(buildRelativeData(prepared, initialRange))
     if (hasValidLogicalRange(initialRange)) {
       safeSetVisibleLogicalRange(scoreChart.chartRef.current, initialRange)
@@ -328,60 +376,114 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
 
   useEffect(() => {
     setHoverTime(null)
+    visibleRangeRef.current = null
   }, [ticker, prepared])
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#94A3B8]">
+    <div className="space-y-4">
+      <section className={PANEL_CLS}>
+        <div className={`${PANEL_HEADER_CLS} flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between`}>
+          <div>
+            <div className="text-lg font-semibold tracking-tight text-white">三图联动</div>
+            <div className="mt-1 space-y-1 text-[13px] leading-relaxed text-[#94A3B8]">
+              <p>
+                <span className="font-medium text-[#CBD5E1]">共享交互</span>：hover 日期、十字光标与可见范围同步，拖拽和缩放任一图表会联动另外两图。
+              </p>
+              <p>
+                <span className="font-medium text-[#CBD5E1]">RPS起点归一</span>：仍按当前可见区间最左侧交易日动态归一到 `1.0000`，便于观察相对变化幅度。
+              </p>
+            </div>
+          </div>
+
+          <div className="min-w-[280px] rounded-lg border border-[#1E293B] bg-[#0B1220] px-3 py-2 text-xs">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-[#94A3B8]">当前日期</div>
+              <div className="font-mono text-[11px] text-[#E6EDF7]">{hoverPoint?.date ?? latestPoint?.date ?? '—'}</div>
+            </div>
+
+            <div className="mt-2 space-y-1.5">
+              <div className="flex items-baseline justify-between gap-4">
+                <div className="text-[#94A3B8]">前复权价格</div>
+                <div className="font-mono text-sm font-semibold text-[#F8FAFC]">
+                  {formatValue(hoverPoint?.targetCloseQfq ?? latestPoint?.targetCloseQfq, 4)}
+                </div>
+              </div>
+              <div className="flex items-baseline justify-between gap-4">
+                <div className="text-[#94A3B8]">RPS Score</div>
+                <div className="flex items-baseline gap-2">
+                  <div className="font-mono text-sm font-semibold text-[#F8FAFC]">
+                    {formatValue(hoverPoint?.scorePct ?? latestPoint?.scorePct, 2)}
+                  </div>
+                  <div className={`text-xs font-medium ${scoreTone.cls}`}>{scoreTone.label}</div>
+                </div>
+              </div>
+              <div className="flex items-baseline justify-between gap-4">
+                <div className="text-[#94A3B8]">起点归一RPS</div>
+                <div className="flex items-baseline gap-2">
+                  <div className="font-mono text-sm font-semibold text-[#F8FAFC]">
+                    {formatValue(hoverRelativeValue ?? latestRelativeValue, 4)}
+                  </div>
+                  <div className={`text-xs font-medium ${relativeTone.cls}`}>{relativeTone.label}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className={`${PANEL_BODY_CLS} flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#94A3B8]`}>
           <span className="font-mono text-[#E6EDF7]">
             {ticker}
             {tickerName ? `（${tickerName}）` : ''}
           </span>
-          <span>三图共享日期范围、十字光标与 hover 日期。</span>
-          <span>RPS起点归一视图按当前可见区间最左侧交易日动态归一。</span>
+          <span>分母基准：{benchmarkName}</span>
+          <span>悬停任一图表可查看三图同日数据。</span>
         </div>
-        <div className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-[#CBD5E1]">
-          {hoverPoint ? (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              <span className="font-mono text-[#E6EDF7]">{hoverPoint.date}</span>
-              <span>价格 {formatValue(hoverPoint.targetCloseQfq, 4)}</span>
-              <span>Score {formatValue(hoverPoint.scorePct, 2)}</span>
-              <span>起点归一 {formatValue(hoverRelativeValue, 4)}</span>
+      </section>
+
+      <section className={PANEL_CLS}>
+        <div className={`${PANEL_HEADER_CLS} flex flex-col gap-1 lg:flex-row lg:items-end lg:justify-between`}>
+          <div>
+            <div className="text-lg font-semibold tracking-tight text-white">前复权价格走势图</div>
+            <div className="mt-1 text-sm leading-relaxed text-[#94A3B8]">
+              观察标的价格本体走势，作为 Score 与 RPS 相对变化的原始参照。
             </div>
-          ) : (
-            <span>悬停任一图表可查看三图同日数据。</span>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <div className="rounded-lg border border-white/10 bg-[#0B1220] p-3">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <div className="text-sm font-semibold text-[#F8FAFC]">前复权价格走势图</div>
-            <div className="text-xs font-mono text-[#94A3B8]">最新值 {priceChart.latestValue}</div>
           </div>
-          <div ref={priceHostRef} className="h-[280px] w-full rounded-lg border border-white/10 bg-[#111B2E]" />
+          <div className="text-xs font-mono text-[#94A3B8]">最新值 {priceChart.latestValue}</div>
         </div>
+        <div className={PANEL_BODY_CLS}>
+          <div ref={priceHostRef} className={`h-[300px] ${CHART_HOST_CLS}`} />
+        </div>
+      </section>
 
-        <div className="rounded-lg border border-white/10 bg-[#0B1220] p-3">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <div className="text-sm font-semibold text-[#F8FAFC]">MA50归一视图（Score走势）</div>
-            <div className="text-xs font-mono text-[#94A3B8]">最新值 {scoreChart.latestValue}</div>
+      <section className={PANEL_CLS}>
+        <div className={`${PANEL_HEADER_CLS} flex flex-col gap-1 lg:flex-row lg:items-end lg:justify-between`}>
+          <div>
+            <div className="text-lg font-semibold tracking-tight text-white">MA50归一视图（Score走势）</div>
+            <div className="mt-1 text-sm leading-relaxed text-[#94A3B8]">
+              口径：{ticker} 相对于 {benchmarkName} 的 `Score=((RPS/MA50)-1)*100%`，用于衡量相对强弱偏离程度。
+            </div>
           </div>
-          <div className="mb-2 text-xs text-[#64748B]">口径：{ticker} 相对于 {benchmarkName} 的 `Score=((RPS/MA50)-1)*100%`。</div>
-          <div ref={scoreHostRef} className="h-[220px] w-full rounded-lg border border-white/10 bg-[#111B2E]" />
+          <div className="text-xs font-mono text-[#94A3B8]">最新值 {scoreChart.latestValue}</div>
         </div>
+        <div className={PANEL_BODY_CLS}>
+          <div ref={scoreHostRef} className={`h-[240px] ${CHART_HOST_CLS}`} />
+        </div>
+      </section>
 
-        <div className="rounded-lg border border-white/10 bg-[#0B1220] p-3">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <div className="text-sm font-semibold text-[#F8FAFC]">RPS起点归一视图</div>
-            <div className="text-xs font-mono text-[#94A3B8]">最新值 {relativeChart.latestValue}</div>
+      <section className={PANEL_CLS}>
+        <div className={`${PANEL_HEADER_CLS} flex flex-col gap-1 lg:flex-row lg:items-end lg:justify-between`}>
+          <div>
+            <div className="text-lg font-semibold tracking-tight text-white">RPS起点归一视图</div>
+            <div className="mt-1 text-sm leading-relaxed text-[#94A3B8]">
+              口径：当前可见区间最左侧交易日的 RPS 归一为 `1.0000`，保留原有起点归一逻辑。
+            </div>
           </div>
-          <div className="mb-2 text-xs text-[#64748B]">口径：当前可见区间最左侧交易日的 RPS 归一为 `1.0000`。</div>
-          <div ref={relativeHostRef} className="h-[220px] w-full rounded-lg border border-white/10 bg-[#111B2E]" />
+          <div className="text-xs font-mono text-[#94A3B8]">最新值 {relativeChart.latestValue}</div>
         </div>
-      </div>
+        <div className={PANEL_BODY_CLS}>
+          <div ref={relativeHostRef} className={`h-[240px] ${CHART_HOST_CLS}`} />
+        </div>
+      </section>
     </div>
   )
 }

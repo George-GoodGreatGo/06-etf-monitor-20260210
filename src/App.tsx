@@ -6,6 +6,7 @@ import Methodology from '@/pages/Methodology'
 import Login from '@/pages/Login'
 import MarketRpsOverview from '@/pages/MarketRpsOverview'
 import MarketRpsCustomQuery from '@/pages/MarketRpsCustomQuery'
+import DevRpsCustomQueryMock from '@/pages/DevRpsCustomQueryMock'
 import RequireAuth from '@/components/RequireAuth'
 import AppShell from '@/components/AppShell'
 import BackToTopButton from '@/components/BackToTopButton'
@@ -17,6 +18,7 @@ export default function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
+          {import.meta.env.DEV ? <Route path="/dev/rps-custom-query-mock" element={<DevRpsCustomQueryMock />} /> : null}
           <Route
             element={
               <RequireAuth>
