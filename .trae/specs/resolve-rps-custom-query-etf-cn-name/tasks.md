@@ -19,7 +19,19 @@
   - [x] SubTask 4.2: 运行直接相关检查并确认无新增报错
   - [x] SubTask 4.3: 验证截图所示位置对典型 ETF 可直接展示中文名称及代码
 
+- [x] Task 5: 修复中文名称未生效的缓存链路问题
+  - [x] SubTask 5.1: 查明“代码已输入但仍只显示代码”的具体根因，区分服务端结果缓存、前端缓存与元数据失败缓存
+  - [x] SubTask 5.2: 调整自定义查询与名称映射缓存策略，避免旧的仅代码结果继续命中
+  - [x] SubTask 5.3: 确保 ETF 元数据短暂失败不会被长时间缓存为空映射
+
+- [x] Task 6: 重新验证名称修复在运行链路中真实生效
+  - [x] SubTask 6.1: 使用典型非预置 ETF 验证接口返回已包含中文名称
+  - [x] SubTask 6.2: 验证前端摘要区与图表说明位置同步显示中文名称及代码
+  - [x] SubTask 6.3: 运行直接相关检查并确认无新增回归
+
 # Task Dependencies
 - Task 2 depends on Task 1
 - Task 3 depends on Task 2
 - Task 4 depends on Task 2 and Task 3
+- Task 5 depends on Task 2 and Task 3
+- Task 6 depends on Task 5

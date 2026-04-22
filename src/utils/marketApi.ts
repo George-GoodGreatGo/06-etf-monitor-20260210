@@ -591,13 +591,11 @@ export async function fetchRpsCustomQuery(args: {
   if (args.startDate) qs.set('startDate', args.startDate)
   if (args.endDate) qs.set('endDate', args.endDate)
   const url = `/api/rps/custom-query?${qs.toString()}`
-  const cacheKey = `rps:custom-query:${url}`
-  const cached = getFrontCache<ApiOk<RpsCustomQueryData> | ApiErr>(cacheKey)
-  if (cached) return cached
   let res: Response
   try {
     res = await fetch(apiUrl(url), {
       ...(args.signal ? { signal: args.signal } : {}),
+      cache: 'no-store',
       credentials: 'include',
       headers: {
         ...adminAuthHeaders(),
@@ -625,7 +623,6 @@ export async function fetchRpsCustomQuery(args: {
     return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
   }
   const out = json as ApiOk<RpsCustomQueryData> | ApiErr
-  if (out && typeof out === 'object' && out.success === true) setFrontCache(cacheKey, out)
   return out
 }
 
