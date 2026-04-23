@@ -3,7 +3,7 @@ import { computeRpsStyleDataset, getRpsStyleBenchmarkMeta, getRpsStyleComputatio
 import { publishRpsStyleRun, readRpsStyleMeta, type RpsStylePointRow, upsertRpsStylePoints } from '../lib/supabaseRest.js'
 
 const FULL_BACKFILL_START = '20160101'
-const RUN_HISTORY_KEEP = 5
+const RUN_HISTORY_KEEP = 2
 const STALE_MAX_DAYS = 14
 const SCORE_COVER_THRESHOLD = 0.9
 const SCORE_COVER_WINDOW = 504

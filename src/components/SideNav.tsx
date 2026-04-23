@@ -42,15 +42,11 @@ export default function SideNav({
     ? 'methodology'
     : isHome
       ? 'home'
-      : collapsedValue && isRpsRoute
+      : isRpsRoute
         ? 'market-rps'
-        : isRpsOverview
-          ? 'market-rps:overview'
-          : isRpsCustomQuery
-            ? 'market-rps:custom-query'
-            : isMarket
-              ? `market:${tab}`
-              : ''
+        : isMarket
+          ? `market:${tab}`
+          : ''
 
   const listRef = useRef<HTMLDivElement | null>(null)
   const itemRefs = useRef<Record<string, HTMLElement | null>>({})
@@ -224,7 +220,7 @@ export default function SideNav({
             </button>
 
             {collapsedValue ? null : (
-              <div className="ml-3 space-y-1 rounded-xl bg-white/[0.02] px-2 py-1.5">
+              <div className="ml-5 mr-1 space-y-1 border-l border-white/[0.07] pl-3">
                 {[
                   { key: 'market-rps:overview', label: '总览', to: '/market/rps', active: isRpsOverview },
                   { key: 'market-rps:custom-query', label: '自定义查询', to: '/market/rps/custom-query', active: isRpsCustomQuery },
@@ -240,16 +236,18 @@ export default function SideNav({
                       itemRefs.current[item.key] = el
                     }}
                     className={cn(
-                      'flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium transition-[color,background-color,box-shadow] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0',
+                      'group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] font-medium leading-5 transition-[color,background-color] duration-200 ease-out focus:outline-none focus-visible:bg-white/[0.05] focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0',
                       item.active
-                        ? 'bg-[rgba(255,255,255,0.06)] text-[#E6EDF7] shadow-[0_8px_22px_rgba(0,0,0,0.14)]'
-                        : 'text-[#7F8EA3] hover:bg-white/[0.04] hover:text-[#DCE6F3]',
+                        ? 'bg-white/[0.055] text-[#F3F7FD]'
+                        : 'text-[#91A0B5] hover:bg-white/[0.035] hover:text-[#E6EDF7] active:bg-white/[0.045]',
                     )}
                   >
                     <span
                       className={cn(
-                        'h-1.5 w-1.5 rounded-full transition-colors',
-                        item.active ? 'bg-[#FF8A66]' : 'bg-[#334155]',
+                        'h-1.5 w-1.5 shrink-0 rounded-full transition-colors duration-200 ease-out',
+                        item.active
+                          ? 'bg-[#FF8A66]'
+                          : 'bg-[#516173] group-hover:bg-[#94A3B8] group-focus-visible:bg-[#94A3B8]',
                       )}
                       aria-hidden="true"
                     />

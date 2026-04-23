@@ -12,7 +12,7 @@ import { fetchNorthboundTotalTurnoverSeries } from '../lib/hkex.js'
 import { probeRiskfree10y } from '../lib/riskfree10yService.js'
 
 const FULL_BACKFILL_START = '20160101'
-const RUN_HISTORY_KEEP = 5
+const RUN_HISTORY_KEEP = 2
 const COVERAGE_THRESHOLD = 0.95
 
 function argValue(name: string): string | null {

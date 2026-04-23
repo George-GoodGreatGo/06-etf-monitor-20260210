@@ -4,7 +4,7 @@ import { probeRiskfree10y } from '../lib/riskfree10yService.js'
 import { publishLowVolRun, readLowVolMeta, type LowVolIndexPointRow, upsertLowVolIndexPoints } from '../lib/supabaseRest.js'
 
 const FULL_BACKFILL_START = '20160101'
-const RUN_HISTORY_KEEP = 5
+const RUN_HISTORY_KEEP = 2
 const COVERAGE_THRESHOLD = 0.95
 const STALE_MAX_DAYS = 14
 
