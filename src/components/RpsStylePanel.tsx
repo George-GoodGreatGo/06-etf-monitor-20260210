@@ -639,8 +639,23 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
           setCustomQuerySubmitSeq((value) => value + 1)
         }}
       >
-        <div className="group flex min-h-[64px] w-full items-center gap-3 rounded-full border border-white/10 bg-[rgba(15,23,42,0.92)] px-4 py-2.5 shadow-[0_12px_30px_rgba(2,6,23,0.22)] transition hover:border-[rgba(203,184,255,0.28)] hover:bg-[rgba(15,23,42,0.96)] focus-within:border-[rgba(203,184,255,0.40)] focus-within:bg-[rgba(15,23,42,0.98)] focus-within:shadow-[0_0_0_1px_rgba(203,184,255,0.12),0_18px_40px_rgba(2,6,23,0.28)]">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/5 text-[#8EA2C3] transition group-hover:text-[#CBB8FF] group-focus-within:bg-[rgba(203,184,255,0.10)] group-focus-within:text-[#E5DBFF]">
+        <div
+          className={cn(
+            'group flex min-h-[64px] w-full items-center gap-3 rounded-full border border-[rgba(148,163,184,0.18)] bg-[rgba(15,23,42,0.96)] px-4 py-2.5 shadow-[0_14px_34px_rgba(2,6,23,0.26)] transition',
+            'hover:border-[rgba(125,211,252,0.34)] hover:bg-[rgba(15,23,42,0.985)] hover:shadow-[0_18px_40px_rgba(8,47,73,0.24)]',
+            'focus-within:border-[rgba(125,211,252,0.48)] focus-within:bg-[rgba(15,23,42,1)] focus-within:shadow-[0_0_0_1px_rgba(125,211,252,0.16),0_20px_44px_rgba(8,47,73,0.32)]',
+            customQueryLoading &&
+              'border-[rgba(125,211,252,0.38)] bg-[rgba(15,23,42,0.99)] shadow-[0_0_0_1px_rgba(125,211,252,0.12),0_18px_42px_rgba(8,47,73,0.30)]',
+          )}
+        >
+          <span
+            className={cn(
+              'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/8 text-[#A8BAD8] transition',
+              'group-hover:bg-[rgba(125,211,252,0.10)] group-hover:text-[#D6E8FF]',
+              'group-focus-within:bg-[rgba(125,211,252,0.14)] group-focus-within:text-[#EFF6FF]',
+              customQueryLoading && 'bg-[rgba(125,211,252,0.14)] text-[#E0F2FE]',
+            )}
+          >
             <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="h-4 w-4">
               <path d="M8.75 3.75a5 5 0 1 0 0 10a5 5 0 0 0 0-10Z" stroke="currentColor" strokeWidth="1.8" />
               <path d="m12.5 12.5 3.75 3.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -650,13 +665,27 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
             value={customTickerInput}
             onChange={(e) => setCustomTickerInput(e.target.value)}
             placeholder="输入 ETF 代码，如 159915、159915.SZ、510300.SH"
-            className="h-11 flex-1 bg-transparent font-mono text-base text-[#F8FAFC] outline-none placeholder:text-[#7388A9] sm:text-lg"
+            className={cn(
+              'h-11 flex-1 bg-transparent font-mono text-base text-[#F8FAFC] outline-none transition placeholder:text-[#8CA3C7] sm:text-lg',
+              'group-hover:placeholder:text-[#AFC4E4] group-focus-within:placeholder:text-[#C7D8F0]',
+              customQueryLoading && 'placeholder:text-[#BED3EE]',
+            )}
           />
           <button
             type="submit"
             disabled={customQueryLoading}
-            className="inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-[rgba(203,184,255,0.14)] px-5 text-sm font-semibold tracking-[0.02em] text-[#F3EEFF] transition hover:bg-[rgba(203,184,255,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(203,184,255,0.30)] disabled:cursor-not-allowed disabled:bg-white/8 disabled:text-[#94A3B8] sm:min-w-[108px] sm:px-6"
+            className={cn(
+              'inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold tracking-[0.02em] text-[#F8FBFF] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(125,211,252,0.34)] sm:min-w-[108px] sm:px-6',
+              'bg-[linear-gradient(135deg,rgba(125,211,252,0.24),rgba(203,184,255,0.24))] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_24px_rgba(59,130,246,0.12)]',
+              'hover:bg-[linear-gradient(135deg,rgba(125,211,252,0.34),rgba(203,184,255,0.34))] hover:text-white hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_14px_28px_rgba(59,130,246,0.18)]',
+              customQueryLoading
+                ? 'cursor-wait bg-[linear-gradient(135deg,rgba(125,211,252,0.38),rgba(203,184,255,0.42))] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_16px_30px_rgba(59,130,246,0.20)] disabled:text-white'
+                : 'disabled:cursor-not-allowed disabled:opacity-60',
+            )}
           >
+            {customQueryLoading ? (
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/35 border-t-white" aria-hidden="true" />
+            ) : null}
             {customQueryLoading ? '查询中...' : '查询'}
           </button>
         </div>

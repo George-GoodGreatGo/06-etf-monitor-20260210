@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import {
   BaselineSeries,
   ColorType,
@@ -18,6 +18,7 @@ import {
 } from 'lightweight-charts'
 import type { RpsStyleSeriesPoint, RpsTurnoverHistoryPoint } from '@/utils/marketApi'
 import { hasValidLogicalRange, normalizeTime, safeClearCrosshair, safeSetCrosshair, safeSetVisibleLogicalRange } from '@/components/charts/chartSyncGuards'
+import { cn } from '@/lib/utils'
 
 type Props = {
   ticker: string
@@ -36,6 +37,7 @@ type PreparedPoint = {
   rpsRaw: number
   rpsMa50: number | null
   scorePct: number | null
+  sma20: number | null
   sma60: number | null
   sma250: number | null
   rsi14: number | null
@@ -47,6 +49,11 @@ type ChartDatum = LineData<Time> | { time: Time }
 type BackgroundBand = { top: number; bottom: number; color: string }
 type PriceTone = 'negative' | 'neutral' | 'positive' | 'strong'
 type PriceRun = { tone: PriceTone; data: LineData<Time>[] }
+type PaneVisibilityState = {
+  showScorePane: boolean
+  showRelativePane: boolean
+  showRsiPane: boolean
+}
 
 const LINE_COLOR = '#60A5FA'
 const MA_LINE_COLOR = 'rgba(248,250,252,0.62)'
@@ -55,6 +62,7 @@ const PRICE_NEUTRAL_COLOR = '#F4D35E'
 const PRICE_POSITIVE_COLOR = '#F5A65B'
 const PRICE_STRONG_COLOR = '#F38B8F'
 const PRICE_ALIGN_COLOR = 'rgba(0,0,0,0)'
+const SMA20_LINE_COLOR = '#F59E0B'
 const SMA60_LINE_COLOR = 'rgba(147,197,253,0.95)'
 const SMA250_LINE_COLOR = 'rgba(226,232,240,0.72)'
 const RSI_LINE_COLOR = '#B9A3FF'
@@ -84,6 +92,16 @@ function ymdToUtcSeconds(ymd: string): UTCTimestamp | null {
   const day = Number(s.slice(8, 10))
   if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null
   return Math.floor(Date.UTC(year, month - 1, day) / 1000) as UTCTimestamp
+}
+
+function safeSetTimeScaleVisible(chart: IChartApi | null | undefined, visible: boolean): boolean {
+  if (!chart) return false
+  try {
+    chart.applyOptions({ timeScale: { visible } })
+    return true
+  } catch {
+    return false
+  }
 }
 
 function formatValue(value: number | null | undefined, digits = 4): string {
@@ -328,10 +346,15 @@ function usePriceChart(
   prepared: PreparedPoint[],
   opts?: {
     resetKey?: string
+    showPriceLine?: boolean
+    showSma20?: boolean
+    showSma60?: boolean
+    showSma250?: boolean
   },
 ) {
   const chartRef = useRef<IChartApi | null>(null)
   const alignSeriesRef = useRef<ISeriesApi<'Line', Time> | null>(null)
+  const sma20SeriesRef = useRef<ISeriesApi<'Line', Time> | null>(null)
   const sma60SeriesRef = useRef<ISeriesApi<'Line', Time> | null>(null)
   const sma250SeriesRef = useRef<ISeriesApi<'Line', Time> | null>(null)
   const coloredSeriesRefs = useRef<Array<ISeriesApi<'Line', Time>>>([])
@@ -345,6 +368,13 @@ function usePriceChart(
     return null
   }, [prepared])
   const priceData = useMemo<LineData<Time>[]>(() => prepared.map((point) => ({ time: point.time, value: point.targetCloseQfq })), [prepared])
+  const sma20Data = useMemo<ChartDatum[]>(
+    () =>
+      prepared.map((point) =>
+        typeof point.sma20 === 'number' && Number.isFinite(point.sma20) ? { time: point.time, value: point.sma20 } : toWhitespacePoint(point.time),
+      ),
+    [prepared],
+  )
   const sma60Data = useMemo<ChartDatum[]>(
     () =>
       prepared.map((point) =>
@@ -387,6 +417,14 @@ function usePriceChart(
       lastValueVisible: false,
       crosshairMarkerVisible: false,
     })
+    const sma20Series = chart.addSeries(LineSeries, {
+      color: SMA20_LINE_COLOR,
+      lineWidth: 1,
+      lineStyle: LineStyle.Solid,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    })
     const sma60Series = chart.addSeries(LineSeries, {
       color: SMA60_LINE_COLOR,
       lineWidth: 1,
@@ -405,12 +443,14 @@ function usePriceChart(
     })
     chartRef.current = chart
     alignSeriesRef.current = alignSeries
+    sma20SeriesRef.current = sma20Series
     sma60SeriesRef.current = sma60Series
     sma250SeriesRef.current = sma250Series
     return () => {
       chart.remove()
       chartRef.current = null
       alignSeriesRef.current = null
+      sma20SeriesRef.current = null
       sma60SeriesRef.current = null
       sma250SeriesRef.current = null
       coloredSeriesRefs.current = []
@@ -421,13 +461,18 @@ function usePriceChart(
   useEffect(() => {
     const chart = chartRef.current
     const alignSeries = alignSeriesRef.current
+    const sma20Series = sma20SeriesRef.current
     const sma60Series = sma60SeriesRef.current
     const sma250Series = sma250SeriesRef.current
-    if (!chart || !alignSeries || !sma60Series || !sma250Series) return
+    if (!chart || !alignSeries || !sma20Series || !sma60Series || !sma250Series) return
 
     alignSeries.setData(priceData as never)
+    sma20Series.setData(sma20Data as never)
     sma60Series.setData(sma60Data as never)
     sma250Series.setData(sma250Data as never)
+    sma20Series.applyOptions({ visible: opts?.showSma20 ?? true })
+    sma60Series.applyOptions({ visible: opts?.showSma60 ?? true })
+    sma250Series.applyOptions({ visible: opts?.showSma250 ?? true })
 
     for (const series of coloredSeriesRefs.current) chart.removeSeries(series)
     coloredSeriesRefs.current = []
@@ -447,6 +492,7 @@ function usePriceChart(
         crosshairMarkerVisible: false,
       })
       series.setData(run.data as never)
+      series.applyOptions({ visible: opts?.showPriceLine ?? true })
       coloredSeriesRefs.current.push(series)
     }
 
@@ -457,7 +503,7 @@ function usePriceChart(
       chart.timeScale().fitContent()
       didFitRef.current = true
     }
-  }, [priceData, priceRuns, sma60Data, sma250Data, turnoverMarkers])
+  }, [opts?.showPriceLine, opts?.showSma20, opts?.showSma60, opts?.showSma250, priceData, priceRuns, sma20Data, sma60Data, sma250Data, turnoverMarkers])
 
   useEffect(() => {
     didFitRef.current = false
@@ -621,7 +667,21 @@ export default function RpsCustomQueryCharts({
   const syncingRangeRef = useRef(false)
   const syncingCrosshairRef = useRef(false)
   const visibleRangeRef = useRef<LogicalRange | null>(null)
+  const replaySyncRafRef = useRef<number[]>([])
+  const replaySyncCycleRef = useRef(0)
+  const prevPaneVisibleRef = useRef<PaneVisibilityState>({
+    showScorePane: true,
+    showRelativePane: true,
+    showRsiPane: true,
+  })
   const [hoverTime, setHoverTime] = useState<UTCTimestamp | null>(null)
+  const [showPriceLine, setShowPriceLine] = useState(true)
+  const [showSma20, setShowSma20] = useState(true)
+  const [showSma60, setShowSma60] = useState(true)
+  const [showSma250, setShowSma250] = useState(true)
+  const [showScorePane, setShowScorePane] = useState(true)
+  const [showRelativePane, setShowRelativePane] = useState(true)
+  const [showRsiPane, setShowRsiPane] = useState(true)
 
   const prepared = useMemo<PreparedPoint[]>(() => {
     const turnoverMap = new Map<string, number | null>()
@@ -639,6 +699,7 @@ export default function RpsCustomQueryCharts({
           rpsRaw: point.rpsRaw,
           rpsMa50: point.rpsMa50,
           scorePct: point.scorePct,
+          sma20: null,
           sma60: null,
           sma250: null,
           rsi14: null,
@@ -648,6 +709,7 @@ export default function RpsCustomQueryCharts({
       })
       .filter((point): point is PreparedPoint => Boolean(point))
     const priceValues = basePoints.map((point) => point.targetCloseQfq)
+    const sma20 = buildSma(priceValues, 20)
     const sma60 = buildSma(priceValues, 60)
     const sma250 = buildSma(priceValues, 250)
     const rsi14 = buildRsi(priceValues, 14)
@@ -655,6 +717,7 @@ export default function RpsCustomQueryCharts({
       const turnoverMultipleOfPrev20Avg = turnoverMap.get(point.date) ?? null
       return {
         ...point,
+        sma20: sma20[index] ?? null,
         sma60: sma60[index] ?? null,
         sma250: sma250[index] ?? null,
         rsi14: rsi14[index] ?? null,
@@ -726,7 +789,13 @@ export default function RpsCustomQueryCharts({
   const hoverRelativeMa50Value = hoverTime ? relativeMa50ValueMap.get(hoverTime) ?? null : null
   const hoverRsiValue = hoverTime ? rsiValueMap.get(hoverTime) ?? null : null
   const displayTickerLabel = useMemo(() => formatEtfDisplayLabel(ticker, tickerName), [ticker, tickerName])
-  const priceChart = usePriceChart(priceHostRef, prepared, { resetKey: ticker })
+  const priceChart = usePriceChart(priceHostRef, prepared, {
+    resetKey: ticker,
+    showPriceLine,
+    showSma20,
+    showSma60,
+    showSma250,
+  })
   const scoreChart = useSingleLineChart(scoreHostRef, scoreData, {
     baselinePrice: 0,
     digits: 2,
@@ -746,6 +815,54 @@ export default function RpsCustomQueryCharts({
     primaryColor: RSI_LINE_COLOR,
     showTimeScale: true,
   })
+  const clearReplaySyncQueue = useCallback(() => {
+    replaySyncCycleRef.current += 1
+    for (const id of replaySyncRafRef.current) cancelAnimationFrame(id)
+    replaySyncRafRef.current = []
+  }, [])
+  const scheduleReplaySyncRaf = useCallback((cycle: number, cb: () => void) => {
+    let rafId = 0
+    rafId = requestAnimationFrame(() => {
+      replaySyncRafRef.current = replaySyncRafRef.current.filter((id) => id !== rafId)
+      if (cycle !== replaySyncCycleRef.current) return
+      cb()
+    })
+    replaySyncRafRef.current.push(rafId)
+  }, [])
+  const syncVisibleRangeToVisiblePanes = useCallback((): boolean => {
+    const price = priceChart.chartRef.current
+    if (!price) return false
+    const range = visibleRangeRef.current ?? price.timeScale().getVisibleLogicalRange()
+    const nextRange = clampLogicalRange(range, prepared.length)
+    if (!nextRange) return false
+    visibleRangeRef.current = nextRange
+    if (showScorePane) safeSetVisibleLogicalRange(scoreChart.chartRef.current, nextRange)
+    if (showRelativePane) safeSetVisibleLogicalRange(relativeChart.chartRef.current, nextRange)
+    if (showRsiPane) safeSetVisibleLogicalRange(rsiChart.chartRef.current, nextRange)
+    return true
+  }, [prepared.length, priceChart.chartRef, relativeChart.chartRef, rsiChart.chartRef, scoreChart.chartRef, showRelativePane, showRsiPane, showScorePane])
+  const scheduleCompensatedPaneSync = useCallback(
+    (nextPaneVisible?: PaneVisibilityState) => {
+      clearReplaySyncQueue()
+      const cycle = replaySyncCycleRef.current
+      let attempt = 0
+      const maxAttempts = 5
+      const run = () => {
+        if (cycle !== replaySyncCycleRef.current) return
+        const synced = syncVisibleRangeToVisiblePanes()
+        if (synced || attempt >= maxAttempts) {
+          if (nextPaneVisible && cycle === replaySyncCycleRef.current) prevPaneVisibleRef.current = nextPaneVisible
+          return
+        }
+        attempt += 1
+        scheduleReplaySyncRaf(cycle, run)
+      }
+      scheduleReplaySyncRaf(cycle, () => {
+        scheduleReplaySyncRaf(cycle, run)
+      })
+    },
+    [clearReplaySyncQueue, scheduleReplaySyncRaf, syncVisibleRangeToVisiblePanes],
+  )
 
   useEffect(() => {
     const nextRelative = buildRelativeData(prepared, visibleRangeRef.current)
@@ -753,10 +870,15 @@ export default function RpsCustomQueryCharts({
   }, [prepared])
 
   useEffect(() => {
-    const charts = [priceChart.chartRef.current, scoreChart.chartRef.current, relativeChart.chartRef.current, rsiChart.chartRef.current].filter(
-      Boolean,
-    ) as IChartApi[]
-    if (charts.length !== 4) return
+    const price = priceChart.chartRef.current
+    const score = scoreChart.chartRef.current
+    const relative = relativeChart.chartRef.current
+    const rsi = rsiChart.chartRef.current
+    if (!price) return
+    const charts: IChartApi[] = [price]
+    if (showScorePane && score) charts.push(score)
+    if (showRelativePane && relative) charts.push(relative)
+    if (showRsiPane && rsi) charts.push(rsi)
     const unsubs: Array<() => void> = []
     charts.forEach((chart, index) => {
       const onRangeChange = (range: LogicalRange | null) => {
@@ -781,17 +903,18 @@ export default function RpsCustomQueryCharts({
     return () => {
       for (const unsubscribe of unsubs) unsubscribe()
     }
-  }, [prepared, priceChart.chartRef, scoreChart.chartRef, relativeChart.chartRef, rsiChart.chartRef])
+  }, [prepared, priceChart.chartRef, relativeChart.chartRef, rsiChart.chartRef, scoreChart.chartRef, showRelativePane, showRsiPane, showScorePane])
 
   useEffect(() => {
-    const charts = [priceChart.chartRef.current, scoreChart.chartRef.current, relativeChart.chartRef.current, rsiChart.chartRef.current].filter(
-      Boolean,
-    ) as IChartApi[]
     const price = priceChart.chartRef.current
     const score = scoreChart.chartRef.current
     const relative = relativeChart.chartRef.current
     const rsi = rsiChart.chartRef.current
-    if (charts.length !== 4 || !price || !score || !relative || !rsi) return
+    if (!price) return
+    const charts: IChartApi[] = [price]
+    if (showScorePane && score) charts.push(score)
+    if (showRelativePane && relative) charts.push(relative)
+    if (showRsiPane && rsi) charts.push(rsi)
 
     const onCrosshair = (src: IChartApi) => (param: { time?: Time } | null) => {
       if (syncingCrosshairRef.current) return
@@ -869,9 +992,21 @@ export default function RpsCustomQueryCharts({
     rsiValueMap,
     scoreChart.chartRef,
     scoreChart.seriesRef,
+    showRelativePane,
+    showRsiPane,
+    showScorePane,
   ])
 
   useEffect(() => {
+    const visiblePanes: Array<'score' | 'relative' | 'rsi'> = []
+    if (showScorePane) visiblePanes.push('score')
+    if (showRelativePane) visiblePanes.push('relative')
+    if (showRsiPane) visiblePanes.push('rsi')
+    const lastPane = visiblePanes.length ? visiblePanes[visiblePanes.length - 1] : null
+    safeSetTimeScaleVisible(priceChart.chartRef.current, lastPane == null)
+    safeSetTimeScaleVisible(scoreChart.chartRef.current, lastPane === 'score')
+    safeSetTimeScaleVisible(relativeChart.chartRef.current, lastPane === 'relative')
+    safeSetTimeScaleVisible(rsiChart.chartRef.current, lastPane === 'rsi')
     const range = visibleRangeRef.current
     const nextRange = clampLogicalRange(range, prepared.length)
     if (!hasValidLogicalRange(nextRange)) return
@@ -885,7 +1020,7 @@ export default function RpsCustomQueryCharts({
     } finally {
       syncingRangeRef.current = false
     }
-  }, [prepared.length, relativeData, priceChart.chartRef, scoreChart.chartRef, relativeChart.chartRef, rsiChart.chartRef])
+  }, [prepared.length, priceChart.chartRef, relativeChart.chartRef, rsiChart.chartRef, scoreChart.chartRef, showRelativePane, showRsiPane, showScorePane])
 
   useEffect(() => {
     const master = priceChart.chartRef.current
@@ -906,8 +1041,44 @@ export default function RpsCustomQueryCharts({
   }, [prepared, priceChart.chartRef, scoreChart.chartRef, relativeChart.chartRef, rsiChart.chartRef])
 
   useEffect(() => {
+    const allCharts = [priceChart.chartRef.current, scoreChart.chartRef.current, relativeChart.chartRef.current, rsiChart.chartRef.current]
+    syncingCrosshairRef.current = true
+    try {
+      for (const chart of allCharts) safeClearCrosshair(chart)
+    } finally {
+      syncingCrosshairRef.current = false
+    }
+    const prev = prevPaneVisibleRef.current
+    const nextPaneVisible: PaneVisibilityState = { showScorePane, showRelativePane, showRsiPane }
+    const paneOpened = (!prev.showScorePane && showScorePane) || (!prev.showRelativePane && showRelativePane) || (!prev.showRsiPane && showRsiPane)
+    if (paneOpened) {
+      scheduleCompensatedPaneSync(nextPaneVisible)
+      return
+    }
+    const synced = syncVisibleRangeToVisiblePanes()
+    if (!synced) {
+      scheduleCompensatedPaneSync(nextPaneVisible)
+      return
+    }
+    prevPaneVisibleRef.current = nextPaneVisible
+  }, [
+    priceChart.chartRef,
+    relativeChart.chartRef,
+    rsiChart.chartRef,
+    scheduleCompensatedPaneSync,
+    scoreChart.chartRef,
+    showRelativePane,
+    showRsiPane,
+    showScorePane,
+    syncVisibleRangeToVisiblePanes,
+  ])
+
+  useEffect(() => clearReplaySyncQueue, [clearReplaySyncQueue])
+
+  useEffect(() => {
     setHoverTime(null)
     visibleRangeRef.current = null
+    prevPaneVisibleRef.current = { showScorePane: true, showRelativePane: true, showRsiPane: true }
   }, [ticker, prepared])
 
   return (
@@ -917,7 +1088,7 @@ export default function RpsCustomQueryCharts({
           <div>
             <div className="text-[15px] font-semibold tracking-tight text-white">{titleLabel || `${displayTickerLabel}关键图表指标`}</div>
             <div className="mt-0.5 text-xs leading-relaxed text-[#94A3B8]">
-              主图展示前复权价格、`SMA60`、`SMA250`、按 Score 四档分段着色与 `1.50x` 放量淡紫点；三张副图分别展示相对 {benchmarkName} 的 RPS Score、RPS 起点归一和 `RSI(14)`。
+              主图支持价格线、`SMA20`、`SMA60`、`SMA250` 开关，并保留按 Score 四档分段着色与 `1.50x` 放量淡紫点；副图可按需显示相对 {benchmarkName} 的 RPS Score、RPS 起点归一和 `RSI(14)`。
             </div>
             <div className="mt-1 text-[11px] text-[#64748B]">
               {subtitleLabel || `当前序列：${displayTickerLabel} | 基准：${benchmarkName}`}
@@ -926,26 +1097,136 @@ export default function RpsCustomQueryCharts({
         </div>
       </div>
       <div className="relative px-3 py-3">
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-[#A9B6CC]">
+          <button
+            type="button"
+            onClick={() => setShowPriceLine((value) => !value)}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+              showPriceLine ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+            )}
+          >
+            <span className="h-2 w-2 rounded-full bg-[#F4D35E]" />
+            价格线
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowSma20((value) => !value)}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+              showSma20 ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+            )}
+          >
+            <span className="h-2 w-2 rounded-full bg-[#F59E0B]" />
+            SMA20
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowSma60((value) => !value)}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+              showSma60 ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+            )}
+          >
+            <span className="h-2 w-2 rounded-full bg-[#93C5FD]" />
+            SMA60
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowSma250((value) => !value)}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+              showSma250 ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+            )}
+          >
+            <span className="h-2 w-2 rounded-full bg-[#CBD5E1]" />
+            SMA250
+          </button>
+          <div className="mx-2 h-4 w-px bg-white/10" />
+          <button
+            type="button"
+            onClick={() => setShowScorePane((value) => !value)}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+              showScorePane ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+            )}
+          >
+            <span className="h-2 w-2 rounded-full bg-[#60A5FA]" />
+            RPS Score
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowRelativePane((value) => !value)}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+              showRelativePane ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+            )}
+          >
+            <span className="h-2 w-2 rounded-full bg-[#F8FAFC]" />
+            RPS起点归一
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowRsiPane((value) => !value)}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+              showRsiPane ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+            )}
+          >
+            <span className="h-2 w-2 rounded-full bg-[#B9A3FF]" />
+            RSI(14)
+          </button>
+        </div>
         {hoverPoint ? (
-          <div className="pointer-events-none absolute right-3 top-3 z-30 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-[#E6EDF7] backdrop-blur">
+          <div className="pointer-events-none absolute right-3 top-12 z-30 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-[#E6EDF7] backdrop-blur">
             <div className="font-mono text-[11px] text-[#A9B6CC]">{hoverPoint.date}</div>
             <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
-              <div className="text-[#A9B6CC]">前复权价格</div>
-              <div className="text-right font-mono">{formatValue(hoverPoint.targetCloseQfq, 4)}</div>
-              <div className="text-[#A9B6CC]">SMA60</div>
-              <div className="text-right font-mono">{formatValue(hoverPoint.sma60, 4)}</div>
-              <div className="text-[#A9B6CC]">SMA250</div>
-              <div className="text-right font-mono">{formatValue(hoverPoint.sma250, 4)}</div>
-              <div className="text-[#A9B6CC]">RPS Score</div>
-              <div className="text-right font-mono">{formatValue(hoverPoint.scorePct, 2)}</div>
+              {showPriceLine ? (
+                <>
+                  <div className="text-[#A9B6CC]">前复权价格</div>
+                  <div className="text-right font-mono">{formatValue(hoverPoint.targetCloseQfq, 4)}</div>
+                </>
+              ) : null}
+              {showSma20 ? (
+                <>
+                  <div className="text-[#A9B6CC]">SMA20</div>
+                  <div className="text-right font-mono">{formatValue(hoverPoint.sma20, 4)}</div>
+                </>
+              ) : null}
+              {showSma60 ? (
+                <>
+                  <div className="text-[#A9B6CC]">SMA60</div>
+                  <div className="text-right font-mono">{formatValue(hoverPoint.sma60, 4)}</div>
+                </>
+              ) : null}
+              {showSma250 ? (
+                <>
+                  <div className="text-[#A9B6CC]">SMA250</div>
+                  <div className="text-right font-mono">{formatValue(hoverPoint.sma250, 4)}</div>
+                </>
+              ) : null}
+              {showScorePane ? (
+                <>
+                  <div className="text-[#A9B6CC]">RPS Score</div>
+                  <div className="text-right font-mono">{formatValue(hoverPoint.scorePct, 2)}</div>
+                </>
+              ) : null}
               <div className="text-[#A9B6CC]">放量倍数</div>
               <div className="text-right font-mono">{formatValue(hoverPoint.turnoverMultipleOfPrev20Avg, 2)}x</div>
-              <div className="text-[#A9B6CC]">RPS起点归一</div>
-              <div className="text-right font-mono">{formatValue(hoverRelativeValue, 4)}</div>
-              <div className="text-[#A9B6CC]">RPS MA50起点归一</div>
-              <div className="text-right font-mono">{formatValue(hoverRelativeMa50Value, 4)}</div>
-              <div className="text-[#A9B6CC]">RSI(14)</div>
-              <div className="text-right font-mono">{formatValue(hoverRsiValue, 2)}</div>
+              {showRelativePane ? (
+                <>
+                  <div className="text-[#A9B6CC]">RPS起点归一</div>
+                  <div className="text-right font-mono">{formatValue(hoverRelativeValue, 4)}</div>
+                  <div className="text-[#A9B6CC]">RPS MA50起点归一</div>
+                  <div className="text-right font-mono">{formatValue(hoverRelativeMa50Value, 4)}</div>
+                </>
+              ) : null}
+              {showRsiPane ? (
+                <>
+                  <div className="text-[#A9B6CC]">RSI(14)</div>
+                  <div className="text-right font-mono">{formatValue(hoverRsiValue, 2)}</div>
+                </>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -953,22 +1234,44 @@ export default function RpsCustomQueryCharts({
         <div className="space-y-2">
           <div className={CHART_PANEL_CLS}>
             <div className={CHART_BADGE_CLS}>
-              前复权价格（主图） | 绿=Score&lt;0 黄=0~10 橙=10~20 红=&gt;20 柔紫点=成交额&gt;=1.50x
+              前复权价格（主图）
+              {showPriceLine ? ' + 价格线' : ''}
+              {showSma20 ? ' + SMA20' : ''}
+              {showSma60 ? ' + SMA60' : ''}
+              {showSma250 ? ' + SMA250' : ''} | 绿=Score&lt;0 黄=0~10 橙=10~20 红=&gt;20 柔紫点=成交额&gt;=1.50x
             </div>
             <div ref={priceHostRef} className="h-[300px] w-full" />
           </div>
 
-          <div className={CHART_PANEL_CLS}>
+          <div
+            className={cn(
+              `${CHART_PANEL_CLS} transition-[height,opacity]`,
+              showScorePane ? 'opacity-100' : 'pointer-events-none opacity-0',
+            )}
+            style={{ height: showScorePane ? 164 : 1 }}
+          >
             <div className={CHART_BADGE_CLS}>RPS Score（副图）</div>
             <div ref={scoreHostRef} className="h-[140px] w-full" />
           </div>
 
-          <div className={CHART_PANEL_CLS}>
+          <div
+            className={cn(
+              `${CHART_PANEL_CLS} transition-[height,opacity]`,
+              showRelativePane ? 'opacity-100' : 'pointer-events-none opacity-0',
+            )}
+            style={{ height: showRelativePane ? 164 : 1 }}
+          >
             <div className={CHART_BADGE_CLS}>RPS起点归一（副图） + MA50</div>
             <div ref={relativeHostRef} className="h-[140px] w-full" />
           </div>
 
-          <div className={CHART_PANEL_CLS}>
+          <div
+            className={cn(
+              `${CHART_PANEL_CLS} transition-[height,opacity]`,
+              showRsiPane ? 'opacity-100' : 'pointer-events-none opacity-0',
+            )}
+            style={{ height: showRsiPane ? 164 : 1 }}
+          >
             <div className={CHART_BADGE_CLS}>RSI(14)（副图） | 红区=&gt;70 绿区=&lt;30</div>
             <div ref={rsiHostRef} className="h-[140px] w-full" />
           </div>
