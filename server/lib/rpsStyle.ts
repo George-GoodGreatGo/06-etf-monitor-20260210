@@ -7,12 +7,13 @@ type CacheEntry<T> = { expiresAt: number; value: T }
 const readCache = new Map<string, CacheEntry<unknown>>()
 const readInflight = new Map<string, Promise<unknown>>()
 const READ_CACHE_TTL_MS = 5 * 60_000
-const RPS_CUSTOM_QUERY_CACHE_VERSION = 'v3'
+const RPS_CUSTOM_QUERY_CACHE_VERSION = 'v5'
 const RPS_ETF_NAME_HTTP_CACHE_VERSION = 'v1'
 const RPS_ETF_NAME_HTTP_SUCCESS_TTL_MS = 6 * 60 * 60_000
 const RPS_ETF_NAME_HTTP_FAILURE_TTL_MS = 30_000
 const EASTMONEY_SUGGEST_TOKEN = 'D43BF722C8E33BDC906FB84D85E326E8'
 const ETF_NAME_LOOKUP_EMPTY_SENTINEL = '__EMPTY__'
+const SHANGHAI_TRADE_DAY_COMPLETE_CUTOFF_MINUTES = 15 * 60 + 30
 
 export const RPS_BENCHMARK_TICKER = 'H30269'
 export const RPS_BENCHMARK_NAME = '红利低波全收益指数'
@@ -138,6 +139,27 @@ export type RpsCustomQueryLatest = {
   scorePct: number | null
 }
 
+export type RpsLatestTurnoverSummary = {
+  date: string
+  turnover: number | null
+  turnoverMultipleOfPrev20Avg: number | null
+  turnoverChangePct1d: number | null
+  turnoverChangePct7dAvg: number | null
+  z90: number | null
+  dataStatus: 'complete' | 'incomplete'
+}
+
+export type RpsCustomQuerySummary = {
+  inputTicker: string
+  ticker: string
+  code: string
+  name: string
+  benchmarkTicker: string
+  benchmarkName: string
+  latest: RpsCustomQueryLatest | null
+  latestTurnoverSummary: RpsLatestTurnoverSummary | null
+}
+
 export type RpsCustomQueryResult = {
   meta: {
     fetchedAt: string
@@ -147,6 +169,7 @@ export type RpsCustomQueryResult = {
     isFallback: boolean
   }
   data: {
+    summary: RpsCustomQuerySummary
     inputTicker: string
     ticker: string
     code: string
@@ -154,6 +177,7 @@ export type RpsCustomQueryResult = {
     benchmarkTicker: string
     benchmarkName: string
     latest: RpsCustomQueryLatest | null
+    latestTurnoverSummary: RpsLatestTurnoverSummary | null
     series: RpsComputedPoint[]
     turnoverSeries: RpsTurnoverHistoryPoint[]
   }
@@ -218,6 +242,65 @@ function roundTo(value: number, digits: number): number {
   if (!Number.isFinite(value)) return value
   const factor = 10 ** Math.max(0, digits)
   return Math.round(value * factor) / factor
+}
+
+function getShanghaiNowContext(now = new Date()): { date: string; minutesOfDay: number } {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(now)
+  const pick = (type: string) => parts.find((part) => part.type === type)?.value || ''
+  const year = pick('year')
+  const month = pick('month')
+  const day = pick('day')
+  const hour = Number(pick('hour'))
+  const minute = Number(pick('minute'))
+  return {
+    date: `${year}-${month}-${day}`,
+    minutesOfDay: (Number.isFinite(hour) ? hour : 0) * 60 + (Number.isFinite(minute) ? minute : 0),
+  }
+}
+
+function resolveLatestCompleteTradingDate(dates: string[], now = new Date()): string | null {
+  const normalized = Array.from(new Set(dates.map(normalizeYmd10).filter(Boolean))).sort()
+  if (!normalized.length) return null
+  const latest = normalized[normalized.length - 1]
+  const shanghaiNow = getShanghaiNowContext(now)
+  if (latest === shanghaiNow.date && shanghaiNow.minutesOfDay < SHANGHAI_TRADE_DAY_COMPLETE_CUTOFF_MINUTES) {
+    return normalized.length >= 2 ? normalized[normalized.length - 2] : null
+  }
+  return latest
+}
+
+function clipSeriesToInclusiveEndDate<T extends { date: string }>(series: T[], endDate: string | null): T[] {
+  const normalizedEndDate = normalizeYmd10(endDate)
+  if (!normalizedEndDate) return []
+  return series.filter((item) => {
+    const date = normalizeYmd10(item.date)
+    return Boolean(date) && date <= normalizedEndDate
+  })
+}
+
+function resolveSharedLatestCompleteTradingDate(args: {
+  rpsSeries: Array<{ date: string }>
+  turnoverSeries: Array<{ date: string }>
+  now?: Date
+}): string | null {
+  const latestRpsDate = resolveLatestCompleteTradingDate(
+    args.rpsSeries.map((item) => item.date),
+    args.now,
+  )
+  const latestTurnoverDate = resolveLatestCompleteTradingDate(
+    args.turnoverSeries.map((item) => item.date),
+    args.now,
+  )
+  if (latestRpsDate && latestTurnoverDate) return latestRpsDate <= latestTurnoverDate ? latestRpsDate : latestTurnoverDate
+  return latestRpsDate || latestTurnoverDate || null
 }
 
 function badRequest(message: string): never {
@@ -521,6 +604,22 @@ export function __buildEtfNameHttpCacheKeyForTest(code: string): string {
   return buildEtfNameHttpCacheKey(code)
 }
 
+export function __resolveLatestCompleteTradingDateForTest(dates: string[], now: Date): string | null {
+  return resolveLatestCompleteTradingDate(dates, now)
+}
+
+export function __resolveSharedLatestCompleteTradingDateForTest(args: {
+  rpsSeries: Array<{ date: string }>
+  turnoverSeries: Array<{ date: string }>
+  now: Date
+}): string | null {
+  return resolveSharedLatestCompleteTradingDate(args)
+}
+
+export function __clipSeriesToInclusiveEndDateForTest<T extends { date: string }>(series: T[], endDate: string | null): T[] {
+  return clipSeriesToInclusiveEndDate(series, endDate)
+}
+
 export type RpsTurnoverHistoryPoint = {
   date: string
   turnover: number | null
@@ -599,6 +698,55 @@ export function buildRpsTurnoverSummaryItem(
     latestAmplifiedDate: null,
     tradingDaysAgo: null,
     status: history.length ? 'no_signal' : 'no_data',
+  }
+}
+
+export function buildRpsLatestTurnoverSummary(history: RpsTurnoverHistoryPoint[]): RpsLatestTurnoverSummary | null {
+  const latest = history.length ? history[history.length - 1] : null
+  if (!latest) return null
+  const previous = history.length >= 2 ? history[history.length - 2] : null
+  const previousTurnover =
+    previous && typeof previous.turnover === 'number' && Number.isFinite(previous.turnover) ? previous.turnover : null
+  const latestTurnover = typeof latest.turnover === 'number' && Number.isFinite(latest.turnover) ? latest.turnover : null
+  let turnoverChangePct1d: number | null = null
+  if (latestTurnover != null && previousTurnover != null && previousTurnover !== 0) {
+    turnoverChangePct1d = roundTo((latestTurnover / previousTurnover - 1) * 100, 2)
+  }
+
+  let turnoverChangePct7dAvg: number | null = null
+  if (history.length >= 8 && latestTurnover != null) {
+    const window = history
+      .slice(history.length - 8, history.length - 1)
+      .map((point) => point.turnover)
+      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+    if (window.length === 7) {
+      const avg7 = window.reduce((sum, value) => sum + value, 0) / 7
+      if (avg7 !== 0) turnoverChangePct7dAvg = roundTo((latestTurnover / avg7 - 1) * 100, 2)
+    }
+  }
+
+  let z90: number | null = null
+  if (history.length >= 91 && latestTurnover != null) {
+    const hist90 = history
+      .slice(history.length - 91, history.length - 1)
+      .map((point) => point.turnover)
+      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+    if (hist90.length === 90) {
+      const mean = hist90.reduce((sum, value) => sum + value, 0) / 90
+      const variance = hist90.reduce((sum, value) => sum + (value - mean) ** 2, 0) / 90
+      const std = Math.sqrt(variance)
+      if (std !== 0) z90 = roundTo((latestTurnover - mean) / std, 4)
+    }
+  }
+
+  return {
+    date: latest.date,
+    turnover: latestTurnover,
+    turnoverMultipleOfPrev20Avg: latest.turnoverMultipleOfPrev20Avg,
+    turnoverChangePct1d,
+    turnoverChangePct7dAvg,
+    z90,
+    dataStatus: latestTurnover != null && z90 != null ? 'complete' : 'incomplete',
   }
 }
 
@@ -1128,20 +1276,37 @@ export async function getRpsCustomQuery(args: {
       computeRpsSeriesForTicker({ ticker: profile.ticker, startDate, endDate }),
       fetchRpsTurnoverSeries({ ticker: profile.ticker, endDate }),
     ])
-    const turnoverSeries = buildRpsTurnoverHistory(turnoverOut.series, {
+    const turnoverSeriesRaw = buildRpsTurnoverHistory(turnoverOut.series, {
       displayDays: RPS_CUSTOM_QUERY_TURNOVER_DISPLAY_DAYS,
     })
-    const latest = seriesOut.series.length
+    const effectiveDataDate = resolveSharedLatestCompleteTradingDate({
+      rpsSeries: seriesOut.series,
+      turnoverSeries: turnoverSeriesRaw,
+    })
+    const series = clipSeriesToInclusiveEndDate(seriesOut.series, effectiveDataDate)
+    const turnoverSeries = clipSeriesToInclusiveEndDate(turnoverSeriesRaw, effectiveDataDate)
+    const latestTurnoverSummary = buildRpsLatestTurnoverSummary(turnoverSeries)
+    const latest = series.length
       ? {
-          date: seriesOut.series[seriesOut.series.length - 1].date,
-          targetCloseQfq: seriesOut.series[seriesOut.series.length - 1].targetCloseQfq,
-          benchmarkCloseQfq: seriesOut.series[seriesOut.series.length - 1].benchmarkCloseQfq,
-          rpsRaw: seriesOut.series[seriesOut.series.length - 1].rpsRaw,
-          rpsMa50: seriesOut.series[seriesOut.series.length - 1].rpsMa50,
-          scorePct: seriesOut.series[seriesOut.series.length - 1].scorePct,
+          date: series[series.length - 1].date,
+          targetCloseQfq: series[series.length - 1].targetCloseQfq,
+          benchmarkCloseQfq: series[series.length - 1].benchmarkCloseQfq,
+          rpsRaw: series[series.length - 1].rpsRaw,
+          rpsMa50: series[series.length - 1].rpsMa50,
+          scorePct: series[series.length - 1].scorePct,
         }
       : null
-    const dataDate = latest?.date ?? turnoverSeries[turnoverSeries.length - 1]?.date ?? null
+    const dataDate = effectiveDataDate ?? latest?.date ?? turnoverSeries[turnoverSeries.length - 1]?.date ?? null
+    const summary = {
+      inputTicker,
+      ticker: profile.ticker,
+      code: profile.code,
+      name: profile.name,
+      benchmarkTicker: seriesOut.benchmarkTicker,
+      benchmarkName: seriesOut.benchmarkName,
+      latest,
+      latestTurnoverSummary,
+    }
     return {
       meta: {
         fetchedAt: new Date().toISOString(),
@@ -1156,10 +1321,13 @@ export async function getRpsCustomQuery(args: {
           `benchmark_source=${seriesOut.benchmarkSource}`,
           `turnover_source=${turnoverOut.source}`,
           `custom_turnover_window=${RPS_CUSTOM_QUERY_TURNOVER_DISPLAY_DAYS} trading_days`,
+          'custom_query_latest_metrics=latest_complete_trading_day_only',
+          ...(effectiveDataDate ? [`effective_data_date=${effectiveDataDate}`] : []),
         ],
         isFallback: false,
       },
       data: {
+        summary,
         inputTicker,
         ticker: profile.ticker,
         code: profile.code,
@@ -1167,7 +1335,8 @@ export async function getRpsCustomQuery(args: {
         benchmarkTicker: seriesOut.benchmarkTicker,
         benchmarkName: seriesOut.benchmarkName,
         latest,
-        series: seriesOut.series,
+        latestTurnoverSummary,
+        series,
         turnoverSeries,
       },
     }

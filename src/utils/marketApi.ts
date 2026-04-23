@@ -192,7 +192,17 @@ export type RpsCustomQueryLatest = {
   scorePct: number | null
 }
 
-export type RpsCustomQueryData = {
+export type RpsLatestTurnoverSummary = {
+  date: string
+  turnover: number | null
+  turnoverMultipleOfPrev20Avg: number | null
+  turnoverChangePct1d: number | null
+  turnoverChangePct7dAvg: number | null
+  z90: number | null
+  dataStatus: 'complete' | 'incomplete'
+}
+
+export type RpsCustomQuerySummary = {
   inputTicker: string
   ticker: string
   code: string
@@ -200,6 +210,19 @@ export type RpsCustomQueryData = {
   benchmarkTicker: string
   benchmarkName: string
   latest: RpsCustomQueryLatest | null
+  latestTurnoverSummary: RpsLatestTurnoverSummary | null
+}
+
+export type RpsCustomQueryData = {
+  summary: RpsCustomQuerySummary
+  inputTicker: string
+  ticker: string
+  code: string
+  name: string
+  benchmarkTicker: string
+  benchmarkName: string
+  latest: RpsCustomQueryLatest | null
+  latestTurnoverSummary: RpsLatestTurnoverSummary | null
   series: RpsStyleSeriesPoint[]
   turnoverSeries: RpsTurnoverHistoryPoint[]
 }

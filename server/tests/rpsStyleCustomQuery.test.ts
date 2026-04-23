@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict'
 import {
   __buildEtfNameHttpCacheKeyForTest,
+  __clipSeriesToInclusiveEndDateForTest,
   __deleteRpsStyleReadCacheForTest,
   __fetchEtfNameByEastmoneySuggestForTest,
   __pickEtfNameFromEastmoneySuggestPayloadForTest,
+  __resolveLatestCompleteTradingDateForTest,
+  __resolveSharedLatestCompleteTradingDateForTest,
   __resetRpsStyleReadCacheForTest,
+  buildRpsLatestTurnoverSummary,
   buildRpsCustomQueryCacheKey,
   resolveRpsCustomTickerProfile,
 } from '../lib/rpsStyle.js'
@@ -49,8 +53,73 @@ assert.equal(fallbackProfile.nameSource, 'fallback_code')
 
 assert.equal(
   buildRpsCustomQueryCacheKey('513310.SH', '2016-01-01', '2026-04-22'),
-  'rps:custom:v3:513310.SH:2016-01-01:2026-04-22',
+  'rps:custom:v5:513310.SH:2016-01-01:2026-04-22',
 )
+
+const turnoverHistory = Array.from({ length: 91 }, (_, index) => ({
+  date: `2026-01-${String(index + 1).padStart(2, '0')}`,
+  turnover: index < 90 ? 100 + index : 250,
+  turnoverMultipleOfPrev20Avg: index < 20 ? null : 1.1,
+}))
+const turnoverSummary = buildRpsLatestTurnoverSummary(turnoverHistory)
+assert.ok(turnoverSummary)
+assert.equal(turnoverSummary?.date, '2026-01-91')
+assert.equal(turnoverSummary?.turnover, 250)
+assert.equal(turnoverSummary?.turnoverChangePct1d, 32.28)
+assert.equal(turnoverSummary?.turnoverChangePct7dAvg, 34.41)
+assert.equal(turnoverSummary?.dataStatus, 'complete')
+assert.ok(typeof turnoverSummary?.z90 === 'number' && Number.isFinite(turnoverSummary.z90))
+
+assert.equal(
+  __resolveLatestCompleteTradingDateForTest(
+    ['2026-04-21', '2026-04-22', '2026-04-23'],
+    new Date('2026-04-23T06:30:00Z'),
+  ),
+  '2026-04-22',
+)
+assert.equal(
+  __resolveLatestCompleteTradingDateForTest(
+    ['2026-04-21', '2026-04-22', '2026-04-23'],
+    new Date('2026-04-23T08:30:00Z'),
+  ),
+  '2026-04-23',
+)
+assert.equal(
+  __resolveSharedLatestCompleteTradingDateForTest({
+    rpsSeries: [{ date: '2026-04-21' }, { date: '2026-04-22' }, { date: '2026-04-23' }],
+    turnoverSeries: [{ date: '2026-04-18' }, { date: '2026-04-22' }],
+    now: new Date('2026-04-23T06:30:00Z'),
+  }),
+  '2026-04-22',
+)
+assert.deepEqual(
+  __clipSeriesToInclusiveEndDateForTest(
+    [
+      { date: '2026-04-21', value: 'a' },
+      { date: '2026-04-22', value: 'b' },
+      { date: '2026-04-23', value: 'c' },
+    ],
+    '2026-04-22',
+  ),
+  [
+    { date: '2026-04-21', value: 'a' },
+    { date: '2026-04-22', value: 'b' },
+  ],
+)
+
+const incompleteTurnoverSummary = buildRpsLatestTurnoverSummary([
+  { date: '2026-04-21', turnover: 100, turnoverMultipleOfPrev20Avg: null },
+  { date: '2026-04-22', turnover: 120, turnoverMultipleOfPrev20Avg: 1.2 },
+])
+assert.deepEqual(incompleteTurnoverSummary, {
+  date: '2026-04-22',
+  turnover: 120,
+  turnoverMultipleOfPrev20Avg: 1.2,
+  turnoverChangePct1d: 20,
+  turnoverChangePct7dAvg: null,
+  z90: null,
+  dataStatus: 'incomplete',
+})
 
 assert.equal(
   __pickEtfNameFromEastmoneySuggestPayloadForTest(

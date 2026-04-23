@@ -25,6 +25,8 @@ type Props = {
   benchmarkName: string
   series: RpsStyleSeriesPoint[]
   turnoverSeries?: RpsTurnoverHistoryPoint[]
+  titleLabel?: string
+  subtitleLabel?: string
 }
 
 type PreparedPoint = {
@@ -548,7 +550,15 @@ function useSingleLineChart(
   }
 }
 
-export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName, series, turnoverSeries = [] }: Props) {
+export default function RpsCustomQueryCharts({
+  ticker,
+  tickerName,
+  benchmarkName,
+  series,
+  turnoverSeries = [],
+  titleLabel,
+  subtitleLabel,
+}: Props) {
   const priceHostRef = useRef<HTMLDivElement | null>(null)
   const scoreHostRef = useRef<HTMLDivElement | null>(null)
   const relativeHostRef = useRef<HTMLDivElement | null>(null)
@@ -803,12 +813,12 @@ export default function RpsCustomQueryCharts({ ticker, tickerName, benchmarkName
       <div className="border-b border-[#1E293B] px-3 py-3">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="text-[15px] font-semibold tracking-tight text-white">三联动图表</div>
+            <div className="text-[15px] font-semibold tracking-tight text-white">{titleLabel || `${displayTickerLabel}关键图表指标`}</div>
             <div className="mt-0.5 text-xs leading-relaxed text-[#94A3B8]">
               主图展示前复权价格、`SMA60`、`SMA250`、Score 阈值分段着色与 `1.50x` 放量黄点；两张副图分别展示相对 {benchmarkName} 的 RPS Score 与 RPS 起点归一。
             </div>
             <div className="mt-1 text-[11px] text-[#64748B]">
-              当前序列：{displayTickerLabel} | 基准：{benchmarkName}
+              {subtitleLabel || `当前序列：${displayTickerLabel} | 基准：${benchmarkName}`}
             </div>
           </div>
         </div>
