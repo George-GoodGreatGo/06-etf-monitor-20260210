@@ -583,7 +583,6 @@ export async function fetchRpsCustomQuery(args: {
   ticker: string
   startDate?: string
   endDate?: string
-  requestId?: string
   signal?: AbortSignal
 }): Promise<ApiOk<RpsCustomQueryData> | ApiErr> {
   const ticker = String(args.ticker || '').trim().toUpperCase()
@@ -591,7 +590,6 @@ export async function fetchRpsCustomQuery(args: {
   qs.set('ticker', ticker)
   if (args.startDate) qs.set('startDate', args.startDate)
   if (args.endDate) qs.set('endDate', args.endDate)
-  if (args.requestId) qs.set('requestId', args.requestId)
   const url = `/api/rps/custom-query?${qs.toString()}`
   let res: Response
   try {

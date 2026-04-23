@@ -1,9 +1,10 @@
 import PageBreadcrumb from '@/components/PageBreadcrumb'
+import PageContentContainer from '@/components/PageContentContainer'
 import RpsStylePanel from '@/components/RpsStylePanel'
 
 export default function MarketRpsCustomQuery() {
   return (
-    <div className="space-y-4">
+    <PageContentContainer>
       <PageBreadcrumb
         items={[
           { label: '市场风格RPS', to: '/market/rps' },
@@ -11,6 +12,6 @@ export default function MarketRpsCustomQuery() {
         ]}
       />
       <RpsStylePanel page="custom-query" />
-    </div>
+    </PageContentContainer>
   )
 }

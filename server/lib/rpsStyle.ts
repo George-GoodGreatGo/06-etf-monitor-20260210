@@ -2,17 +2,17 @@ import { fetchEastmoneyDailyKline, fetchEastmoneyDailyKlineWithAmount } from './
 import { fetchLowVolIndexCloseSeries } from './lowVol.js'
 import { runAkshare } from './akshare.js'
 import { readRpsStyleMeta, readRpsStylePointsRange, type RpsStylePointRow } from './supabaseRest.js'
-import { ETF_UNIVERSE_STATIC_NAME_MAP } from './generated/etfUniverseStaticNameMap.js'
 
 type CacheEntry<T> = { expiresAt: number; value: T }
 const readCache = new Map<string, CacheEntry<unknown>>()
 const readInflight = new Map<string, Promise<unknown>>()
 const READ_CACHE_TTL_MS = 5 * 60_000
-const RPS_CUSTOM_QUERY_CACHE_VERSION = 'v2'
-const RPS_ETF_UNIVERSE_CACHE_VERSION = 'v2'
-const RPS_ETF_UNIVERSE_SUCCESS_TTL_MS = 6 * 60 * 60_000
-const RPS_ETF_UNIVERSE_FAILURE_TTL_MS = 30_000
-const RPS_ETF_UNIVERSE_LAST_GOOD_TTL_MS = 24 * 60 * 60_000
+const RPS_CUSTOM_QUERY_CACHE_VERSION = 'v3'
+const RPS_ETF_NAME_HTTP_CACHE_VERSION = 'v1'
+const RPS_ETF_NAME_HTTP_SUCCESS_TTL_MS = 6 * 60 * 60_000
+const RPS_ETF_NAME_HTTP_FAILURE_TTL_MS = 30_000
+const EASTMONEY_SUGGEST_TOKEN = 'D43BF722C8E33BDC906FB84D85E326E8'
+const ETF_NAME_LOOKUP_EMPTY_SENTINEL = '__EMPTY__'
 
 export const RPS_BENCHMARK_TICKER = 'H30269'
 export const RPS_BENCHMARK_NAME = '红利低波全收益指数'
@@ -393,8 +393,12 @@ export function normalizeRpsCustomTickerInput(tickerRaw: string): string {
   badRequest(`ETF代码格式无效：${raw}`)
 }
 
-type RpsCustomTickerNameSource = 'preset' | 'metadata' | 'fallback_code'
-type EtfUniverseRow = { code?: string; name?: string }
+type RpsCustomTickerNameSource = 'preset' | 'eastmoney_http' | 'fallback_code'
+
+type EastmoneySuggestRow = {
+  Code?: string
+  Name?: string
+}
 
 function normalizeEtfNameCandidate(nameRaw: unknown, code: string): string | null {
   const name = String(nameRaw || '')
@@ -407,78 +411,71 @@ function normalizeEtfNameCandidate(nameRaw: unknown, code: string): string | nul
   return name
 }
 
+function buildEtfNameHttpCacheKey(code: string): string {
+  return `rps:custom:etf-name-http:${RPS_ETF_NAME_HTTP_CACHE_VERSION}:${code}`
+}
+
 export function buildRpsCustomQueryCacheKey(ticker: string, startDate: string, endDate: string): string {
   return `rps:custom:${RPS_CUSTOM_QUERY_CACHE_VERSION}:${ticker}:${startDate}:${endDate}`
 }
 
-function buildEtfUniverseNameMapCacheKey(kind: 'live' | 'last-good' = 'live'): string {
-  return `rps:custom:etf-universe-name-map:${RPS_ETF_UNIVERSE_CACHE_VERSION}:${kind}`
-}
-
-function buildEtfUniverseNameMap(rows: EtfUniverseRow[]): Map<string, string> {
-  const nameMap = new Map<string, string>()
+function pickEtfNameFromEastmoneySuggestPayload(payload: unknown, code: string): string | null {
+  const rows =
+    payload &&
+    typeof payload === 'object' &&
+    'QuotationCodeTable' in payload &&
+    (payload as { QuotationCodeTable?: { Data?: unknown } }).QuotationCodeTable &&
+    Array.isArray((payload as { QuotationCodeTable?: { Data?: unknown[] } }).QuotationCodeTable?.Data)
+      ? ((payload as { QuotationCodeTable?: { Data?: EastmoneySuggestRow[] } }).QuotationCodeTable?.Data ?? [])
+      : []
   for (const row of rows) {
-    const code = typeof row?.code === 'string' ? row.code.trim() : ''
-    if (!/^\d{6}$/.test(code)) continue
-    const name = normalizeEtfNameCandidate(row?.name, code)
-    if (!name) continue
-    nameMap.set(code, name)
+    if (String(row?.Code || '').trim() !== code) continue
+    const name = normalizeEtfNameCandidate(row?.Name, code)
+    if (name) return name
   }
-  return nameMap
+  return null
 }
 
-async function fetchEtfUniverseRows(): Promise<EtfUniverseRow[] | null> {
-  const out = await runAkshare<EtfUniverseRow[]>(
-    `rps:custom:etf-universe:ths:${RPS_ETF_UNIVERSE_CACHE_VERSION}`,
-    ['etf-universe'],
-    { cacheTtlMs: RPS_ETF_UNIVERSE_SUCCESS_TTL_MS, timeoutMs: 120_000 },
-  )
-  if (out.success !== true || !Array.isArray(out.data)) return null
-  return out.data
-}
-
-async function readEtfUniverseNameMap(opts?: {
-  fetchEtfUniverseRows?: () => Promise<EtfUniverseRow[] | null>
-}): Promise<Map<string, string>> {
-  const liveCacheKey = buildEtfUniverseNameMapCacheKey('live')
-  const lastGoodCacheKey = buildEtfUniverseNameMapCacheKey('last-good')
-  const hit = readCacheGet<Map<string, string>>(liveCacheKey)
-  if (hit != null) return hit
-  const inflight = readInflight.get(liveCacheKey)
-  if (inflight) return inflight as Promise<Map<string, string>>
-  const fetchRows = opts?.fetchEtfUniverseRows ?? fetchEtfUniverseRows
-  const p = (async () => {
-    const rows = await fetchRows()
-    const nameMap = Array.isArray(rows) ? buildEtfUniverseNameMap(rows) : new Map<string, string>()
-    if (nameMap.size > 0) {
-      readCacheSet(lastGoodCacheKey, nameMap, RPS_ETF_UNIVERSE_LAST_GOOD_TTL_MS)
-      readCacheSet(liveCacheKey, nameMap, RPS_ETF_UNIVERSE_SUCCESS_TTL_MS)
-      return nameMap
-    }
-    const lastGood = readCacheGet<Map<string, string>>(lastGoodCacheKey)
-    if (lastGood != null && lastGood.size > 0) {
-      readCacheSet(liveCacheKey, lastGood, RPS_ETF_UNIVERSE_FAILURE_TTL_MS)
-      return lastGood
-    }
-    const empty = new Map<string, string>()
-    readCacheSet(liveCacheKey, empty, RPS_ETF_UNIVERSE_FAILURE_TTL_MS)
-    return empty
-  })().finally(() => {
-    readInflight.delete(liveCacheKey)
+async function fetchEtfNameByEastmoneySuggest(
+  code: string,
+  opts?: { fetchImpl?: typeof fetch },
+): Promise<string | null> {
+  const fetchImpl = opts?.fetchImpl ?? fetch
+  const url = new URL('https://searchapi.eastmoney.com/api/suggest/get')
+  url.searchParams.set('input', code)
+  url.searchParams.set('type', '14')
+  url.searchParams.set('token', EASTMONEY_SUGGEST_TOKEN)
+  const res = await fetchImpl(url.toString(), {
+    method: 'GET',
+    headers: {
+      'User-Agent': 'Mozilla/5.0',
+      Accept: 'application/json,text/plain,*/*',
+      Referer: 'https://quote.eastmoney.com/',
+    },
   })
-  readInflight.set(liveCacheKey, p as Promise<unknown>)
-  return await p
+  if (!res.ok) throw new Error(`eastmoney_etf_name_http_${res.status}`)
+  const payload = (await res.json()) as unknown
+  return pickEtfNameFromEastmoneySuggestPayload(payload, code)
 }
 
-async function resolveEtfNameFromMetadata(code: string): Promise<string | null> {
-  const staticName = normalizeEtfNameCandidate(ETF_UNIVERSE_STATIC_NAME_MAP[code], code)
-  const isVercel = process.env.VERCEL === '1' || Boolean(process.env.VERCEL)
-
-  // Vercel Serverless 无法调用本机 Python；优先使用随代码部署的静态 ETF 名称快照。
-  if (isVercel) return staticName
-
-  const nameMap = await readEtfUniverseNameMap()
-  return nameMap.get(code) ?? staticName ?? null
+async function resolveEtfNameFromHttp(code: string): Promise<string | null> {
+  const cacheKey = buildEtfNameHttpCacheKey(code)
+  const cached = readCacheGet<string>(cacheKey)
+  if (cached != null) return cached === ETF_NAME_LOOKUP_EMPTY_SENTINEL ? null : cached
+  try {
+    const cachedName = await readCacheRemember(
+      cacheKey,
+      async () => {
+        const resolved = normalizeEtfNameCandidate(await withRetry(() => fetchEtfNameByEastmoneySuggest(code), 1), code)
+        return resolved ?? ETF_NAME_LOOKUP_EMPTY_SENTINEL
+      },
+      RPS_ETF_NAME_HTTP_SUCCESS_TTL_MS,
+    )
+    return cachedName === ETF_NAME_LOOKUP_EMPTY_SENTINEL ? null : cachedName
+  } catch {
+    readCacheSet(cacheKey, ETF_NAME_LOOKUP_EMPTY_SENTINEL, RPS_ETF_NAME_HTTP_FAILURE_TTL_MS)
+    return null
+  }
 }
 
 export async function resolveRpsCustomTickerProfile(
@@ -489,13 +486,13 @@ export async function resolveRpsCustomTickerProfile(
   const profile = RPS_TICKER_PROFILES[ticker]
   if (profile) return { ...profile, nameSource: 'preset' }
   const code = tickerToCode(ticker)
-  const resolveName = opts?.resolveEtfNameByCode ?? resolveEtfNameFromMetadata
+  const resolveName = opts?.resolveEtfNameByCode ?? resolveEtfNameFromHttp
   const resolvedName = normalizeEtfNameCandidate(await resolveName(code), code)
   return {
     ticker,
     code,
     name: resolvedName ?? code,
-    nameSource: resolvedName ? 'metadata' : 'fallback_code',
+    nameSource: resolvedName ? 'eastmoney_http' : 'fallback_code',
   }
 }
 
@@ -509,14 +506,19 @@ export function __deleteRpsStyleReadCacheForTest(key: string) {
   readInflight.delete(key)
 }
 
-export async function __readEtfUniverseNameMapForTest(opts?: {
-  fetchEtfUniverseRows?: () => Promise<EtfUniverseRow[] | null>
-}): Promise<Map<string, string>> {
-  return await readEtfUniverseNameMap(opts)
+export function __pickEtfNameFromEastmoneySuggestPayloadForTest(payload: unknown, code: string): string | null {
+  return pickEtfNameFromEastmoneySuggestPayload(payload, code)
 }
 
-export function __buildEtfUniverseNameMapLiveCacheKeyForTest(): string {
-  return buildEtfUniverseNameMapCacheKey('live')
+export async function __fetchEtfNameByEastmoneySuggestForTest(
+  code: string,
+  opts?: { fetchImpl?: typeof fetch },
+): Promise<string | null> {
+  return await fetchEtfNameByEastmoneySuggest(code, opts)
+}
+
+export function __buildEtfNameHttpCacheKeyForTest(code: string): string {
+  return buildEtfNameHttpCacheKey(code)
 }
 
 export type RpsTurnoverHistoryPoint = {

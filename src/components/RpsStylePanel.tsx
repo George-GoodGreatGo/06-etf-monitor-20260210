@@ -48,7 +48,6 @@ const RANGE_OPTIONS = [
   { key: 'custom', label: '自定义起点日期' },
 ] as const
 const RPS_METRIC_DISPLAY_DIGITS = 6
-let customQueryRequestSeq = 0
 
 const RPS_OVERVIEW_NAV_SECTIONS: FloatingNavSection[] = [
   { id: 'rps-score-section', label: 'Score截面', shortLabel: 'Score截面' },
@@ -124,11 +123,6 @@ function fmtTradingDaysAgo(v: number | null | undefined): string {
   return `${v}个交易日前`
 }
 
-function buildCustomQueryRequestId(): string {
-  customQueryRequestSeq += 1
-  return `custom-query-${Date.now()}-${customQueryRequestSeq}`
-}
-
 function formatEtfDisplayLabel(args: {
   ticker?: string | null
   code?: string | null
@@ -202,12 +196,12 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   const [turnoverSummaryItems, setTurnoverSummaryItems] = useState<RpsTurnoverSummaryItem[]>([])
   const [customTickerInput, setCustomTickerInput] = useState<string>('159915')
   const [submittedCustomTicker, setSubmittedCustomTicker] = useState<string>('159915')
-  const [customQueryRequestId, setCustomQueryRequestId] = useState<string>(() => buildCustomQueryRequestId())
+  const [customQuerySubmitSeq, setCustomQuerySubmitSeq] = useState(0)
   const [customQueryLoading, setCustomQueryLoading] = useState(isCustomQueryPage)
   const [customQueryError, setCustomQueryError] = useState<string | null>(null)
   const [customQueryMeta, setCustomQueryMeta] = useState<Top100Meta | null>(null)
   const [customQueryData, setCustomQueryData] = useState<RpsCustomQueryData | null>(null)
-  const latestCustomQueryRequestIdRef = useRef(customQueryRequestId)
+  const latestCustomQuerySubmitSeqRef = useRef(customQuerySubmitSeq)
 
   const resolvedRange = useMemo(
     () => resolveDateRange(rangeKey, customStartDateApplied || ymd(addYears(new Date(), -1))),
@@ -378,16 +372,16 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   useEffect(() => {
     if (!isCustomQueryPage) return
     const ac = new AbortController()
-    const requestId = customQueryRequestId
-    latestCustomQueryRequestIdRef.current = requestId
+    const submitSeq = customQuerySubmitSeq
+    latestCustomQuerySubmitSeqRef.current = submitSeq
     ;(async () => {
       setCustomQueryLoading(true)
       setCustomQueryError(null)
       setCustomQueryMeta(null)
       setCustomQueryData(null)
       try {
-        const res = await fetchRpsCustomQuery({ ticker: submittedCustomTicker, requestId, signal: ac.signal })
-        if (latestCustomQueryRequestIdRef.current !== requestId) return
+        const res = await fetchRpsCustomQuery({ ticker: submittedCustomTicker, signal: ac.signal })
+        if (latestCustomQuerySubmitSeqRef.current !== submitSeq) return
         if (res.success !== true) {
           setCustomQueryError(res.message || '获取RPS自定义查询失败')
           setCustomQueryLoading(false)
@@ -399,13 +393,13 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
       } catch (e) {
         const name = e instanceof Error ? e.name : ''
         if (name === 'AbortError') return
-        if (latestCustomQueryRequestIdRef.current !== requestId) return
+        if (latestCustomQuerySubmitSeqRef.current !== submitSeq) return
         setCustomQueryError('网络异常或 API 不可用')
         setCustomQueryLoading(false)
       }
     })()
     return () => ac.abort()
-  }, [customQueryRequestId, isCustomQueryPage, submittedCustomTicker])
+  }, [customQuerySubmitSeq, isCustomQueryPage, submittedCustomTicker])
 
   const modeCls = useMemo(() => {
     return mode === 'risk_on'
@@ -634,7 +628,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                 e.preventDefault()
                 const nextTicker = customTickerInput.trim().toUpperCase()
                 setSubmittedCustomTicker(nextTicker || '159915')
-                setCustomQueryRequestId(buildCustomQueryRequestId())
+                setCustomQuerySubmitSeq((value) => value + 1)
               }}
             >
               <input
@@ -706,7 +700,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
             meta={customQueryMeta}
             incompleteCount={0}
             onRetry={() => {
-              setCustomQueryRequestId(buildCustomQueryRequestId())
+              setCustomQuerySubmitSeq((value) => value + 1)
             }}
             />
           </div>

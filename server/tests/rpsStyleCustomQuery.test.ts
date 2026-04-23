@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import {
-  __buildEtfUniverseNameMapLiveCacheKeyForTest,
+  __buildEtfNameHttpCacheKeyForTest,
   __deleteRpsStyleReadCacheForTest,
-  __readEtfUniverseNameMapForTest,
+  __fetchEtfNameByEastmoneySuggestForTest,
+  __pickEtfNameFromEastmoneySuggestPayloadForTest,
   __resetRpsStyleReadCacheForTest,
   buildRpsCustomQueryCacheKey,
   resolveRpsCustomTickerProfile,
@@ -32,7 +33,7 @@ const metadataProfile = await resolveRpsCustomTickerProfile('513310', {
 assert.equal(metadataProfile.ticker, '513310.SH')
 assert.equal(metadataProfile.code, '513310')
 assert.equal(metadataProfile.name, '德国ETF')
-assert.equal(metadataProfile.nameSource, 'metadata')
+assert.equal(metadataProfile.nameSource, 'eastmoney_http')
 
 const fallbackProfile = await resolveRpsCustomTickerProfile('513999.SH', {
   resolveEtfNameByCode: async (code) => {
@@ -48,56 +49,87 @@ assert.equal(fallbackProfile.nameSource, 'fallback_code')
 
 assert.equal(
   buildRpsCustomQueryCacheKey('513310.SH', '2016-01-01', '2026-04-22'),
-  'rps:custom:v2:513310.SH:2016-01-01:2026-04-22',
+  'rps:custom:v3:513310.SH:2016-01-01:2026-04-22',
 )
 
+assert.equal(
+  __pickEtfNameFromEastmoneySuggestPayloadForTest(
+    {
+      QuotationCodeTable: {
+        Data: [
+          { Code: '159985', Name: '豆粕ETF华夏' },
+          { Code: '513999', Name: 'ETF 513999' },
+        ],
+      },
+    },
+    '159985',
+  ),
+  '豆粕ETF华夏',
+)
+assert.equal(
+  __pickEtfNameFromEastmoneySuggestPayloadForTest(
+    {
+      QuotationCodeTable: {
+        Data: [{ Code: '513999', Name: 'ETF 513999' }],
+      },
+    },
+    '513999',
+  ),
+  null,
+)
+
+let eastmoneyFetchCalls = 0
+const eastmoneyName = await __fetchEtfNameByEastmoneySuggestForTest('159209', {
+  fetchImpl: async () => {
+    eastmoneyFetchCalls += 1
+    return new Response(
+      JSON.stringify({
+        QuotationCodeTable: {
+          Data: [
+            { Code: '159209', Name: '红利质量ETF招商' },
+            { Code: '513310', Name: '中韩半导体ETF华泰柏瑞' },
+          ],
+        },
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    )
+  },
+})
+
+assert.equal(eastmoneyName, '红利质量ETF招商')
+assert.equal(eastmoneyFetchCalls, 1)
+
 __resetRpsStyleReadCacheForTest()
-const firstNameMap = await __readEtfUniverseNameMapForTest({
-  fetchEtfUniverseRows: async () => [
-    { code: '513310', name: '德国ETF' },
-    { code: '513999', name: 'ETF 513999' },
-  ],
-})
-
-assert.equal(firstNameMap.get('513310'), '德国ETF')
-assert.equal(firstNameMap.has('513999'), false)
-
-__deleteRpsStyleReadCacheForTest(__buildEtfUniverseNameMapLiveCacheKeyForTest())
-const fallbackToLastGoodMap = await __readEtfUniverseNameMapForTest({
-  fetchEtfUniverseRows: async () => null,
-})
-
-assert.equal(fallbackToLastGoodMap.get('513310'), '德国ETF')
-
-__resetRpsStyleReadCacheForTest()
-const emptyFailureMap = await __readEtfUniverseNameMapForTest({
-  fetchEtfUniverseRows: async () => null,
-})
-
-assert.equal(emptyFailureMap.size, 0)
-
-__deleteRpsStyleReadCacheForTest(__buildEtfUniverseNameMapLiveCacheKeyForTest())
-const recoveredMap = await __readEtfUniverseNameMapForTest({
-  fetchEtfUniverseRows: async () => [{ code: '513310', name: '德国ETF' }],
-})
-
-assert.equal(recoveredMap.get('513310'), '德国ETF')
+__deleteRpsStyleReadCacheForTest(__buildEtfNameHttpCacheKeyForTest('159209'))
 
 const originalVercel = process.env.VERCEL
 process.env.VERCEL = '1'
 
 try {
-  const vercelStaticProfile = await resolveRpsCustomTickerProfile('159209')
+  let vercelLookupCalls = 0
+  const vercelStaticProfile = await resolveRpsCustomTickerProfile('159209', {
+    resolveEtfNameByCode: async (code) => {
+      vercelLookupCalls += 1
+      assert.equal(code, '159209')
+      return '红利质量ETF招商'
+    },
+  })
   assert.equal(vercelStaticProfile.ticker, '159209.SZ')
   assert.equal(vercelStaticProfile.code, '159209')
-  assert.equal(vercelStaticProfile.name, '招商中证全指红利质量ETF')
-  assert.equal(vercelStaticProfile.nameSource, 'metadata')
+  assert.equal(vercelStaticProfile.name, '红利质量ETF招商')
+  assert.equal(vercelStaticProfile.nameSource, 'eastmoney_http')
+  assert.equal(vercelLookupCalls, 1)
 
-  const vercelStaticProfile2 = await resolveRpsCustomTickerProfile('159985')
+  const vercelStaticProfile2 = await resolveRpsCustomTickerProfile('159985', {
+    resolveEtfNameByCode: async (code) => {
+      assert.equal(code, '159985')
+      return '豆粕ETF华夏'
+    },
+  })
   assert.equal(vercelStaticProfile2.ticker, '159985.SZ')
   assert.equal(vercelStaticProfile2.code, '159985')
-  assert.equal(vercelStaticProfile2.name, '华夏饲料豆粕期货ETF')
-  assert.equal(vercelStaticProfile2.nameSource, 'metadata')
+  assert.equal(vercelStaticProfile2.name, '豆粕ETF华夏')
+  assert.equal(vercelStaticProfile2.nameSource, 'eastmoney_http')
 } finally {
   if (originalVercel == null) delete process.env.VERCEL
   else process.env.VERCEL = originalVercel

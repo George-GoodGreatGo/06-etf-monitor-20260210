@@ -63,7 +63,7 @@ router.get('/custom-query', async (req: Request, res: Response) => {
   try {
     normalizeRpsCustomTickerInput(ticker)
     const out = await getRpsCustomQuery({ ticker, startDate, endDate })
-    res.setHeader('Cache-Control', 'private, max-age=300, stale-while-revalidate=120')
+    res.setHeader('Cache-Control', 'no-store')
     res.status(200).json({ success: true, ...out })
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
