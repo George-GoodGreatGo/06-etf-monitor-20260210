@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { rm } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
 import {
   __buildEtfNameHttpCacheKeyForTest,
   __clipSeriesToInclusiveEndDateForTest,
@@ -12,6 +14,12 @@ import {
   buildRpsCustomQueryCacheKey,
   resolveRpsCustomTickerProfile,
 } from '../lib/rpsStyle.js'
+import {
+  __mergeRpsCustomRecentSearchesForTest,
+  __normalizeStoredRpsCustomRecentSearchItemsForTest,
+  listRpsCustomRecentSearches,
+  recordRpsCustomRecentSearch,
+} from '../lib/rpsRecentSearches.js'
 
 let presetLookupCalls = 0
 const presetProfile = await resolveRpsCustomTickerProfile('159915', {
@@ -202,4 +210,85 @@ try {
 } finally {
   if (originalVercel == null) delete process.env.VERCEL
   else process.env.VERCEL = originalVercel
+}
+
+const mergedRecent = __mergeRpsCustomRecentSearchesForTest(
+  [
+    { ticker: '510300.SH', code: '510300', name: '沪深300ETF', updatedAt: '2026-04-22T10:00:00.000Z' },
+    { ticker: '159915.SZ', code: '159915', name: '创业板ETF', updatedAt: '2026-04-21T10:00:00.000Z' },
+  ],
+  { ticker: '159915.SZ', code: '159915', name: '创业板ETF' },
+  new Date('2026-04-23T10:00:00.000Z'),
+)
+assert.deepEqual(
+  mergedRecent.map((item) => item.ticker),
+  ['159915.SZ', '510300.SH'],
+)
+assert.equal(mergedRecent[0]?.updatedAt, '2026-04-23T10:00:00.000Z')
+
+const limitedRecent = Array.from({ length: 12 }, (_, index) => ({
+  ticker: `${String(510000 + index)}.SH`,
+  code: String(510000 + index),
+  name: '',
+}))
+  .reduce(
+    (items, item, index) =>
+      __mergeRpsCustomRecentSearchesForTest(items, item, new Date(`2026-04-${String(index + 1).padStart(2, '0')}T10:00:00.000Z`)),
+    [] as Array<{ ticker: string; code: string; name: string; updatedAt: string }>,
+  )
+assert.equal(limitedRecent.length, 10)
+assert.equal(limitedRecent[0]?.ticker, '510011.SH')
+assert.equal(limitedRecent[9]?.ticker, '510002.SH')
+
+assert.deepEqual(
+  __normalizeStoredRpsCustomRecentSearchItemsForTest([
+    { ticker: '513310.sh', code: '513310', name: '', updatedAt: '2026-04-20T00:00:00.000Z' },
+    { ticker: '513310.SH', code: '513310', name: '德国ETF', updatedAt: '2026-04-21T00:00:00.000Z' },
+    { ticker: '', code: '000000', name: 'bad', updatedAt: '2026-04-22T00:00:00.000Z' },
+  ]),
+  [{ ticker: '513310.SH', code: '513310', name: '德国ETF', updatedAt: '2026-04-21T00:00:00.000Z' }],
+)
+
+const originalRecentSearchesFile = process.env.RPS_CUSTOM_QUERY_RECENT_SEARCHES_FILE
+const recentSearchesTestFile = fileURLToPath(
+  new URL('../tmp/rps-custom-query-recent-searches.test.json', import.meta.url),
+)
+process.env.RPS_CUSTOM_QUERY_RECENT_SEARCHES_FILE = recentSearchesTestFile
+
+try {
+  await rm(recentSearchesTestFile, { force: true })
+  const userA = 'alice@example.com'
+  const userB = 'bob@example.com'
+  for (let index = 0; index < 11; index += 1) {
+    await recordRpsCustomRecentSearch(userA, {
+      ticker: `${String(159900 + index)}.SZ`,
+      code: String(159900 + index),
+      name: '',
+    })
+  }
+  await recordRpsCustomRecentSearch(userA, {
+    ticker: '159905.SZ',
+    code: '159905',
+    name: '重排ETF',
+  })
+  await recordRpsCustomRecentSearch(userB, {
+    ticker: '510300.SH',
+    code: '510300',
+    name: '沪深300ETF',
+  })
+
+  const userARecent = await listRpsCustomRecentSearches(userA)
+  const userBRecent = await listRpsCustomRecentSearches(userB)
+  assert.equal(userARecent.length, 10)
+  assert.equal(userARecent[0]?.ticker, '159905.SZ')
+  assert.equal(userARecent[0]?.name, '重排ETF')
+  assert.ok(!userARecent.some((item) => item.ticker === '159900.SZ'))
+  assert.deepEqual(
+    userBRecent.map((item) => item.ticker),
+    ['510300.SH'],
+  )
+} finally {
+  await rm(recentSearchesTestFile, { force: true })
+  if (originalRecentSearchesFile == null) delete process.env.RPS_CUSTOM_QUERY_RECENT_SEARCHES_FILE
+  else process.env.RPS_CUSTOM_QUERY_RECENT_SEARCHES_FILE = originalRecentSearchesFile
 }

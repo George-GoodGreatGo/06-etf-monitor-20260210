@@ -1,0 +1,82 @@
+{
+  "pathname": "/market/rps",
+  "buttons": [
+    {
+      "text": "首页",
+      "title": null,
+      "ariaLabel": null,
+      "className": "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-[color,background-color,box-shadow,transform] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0 text-[#A9B6CC] hover:bg-white/5 hover:text-white hover:shadow-[0_10px_26px_rgba(0,0,0,0.22)] active:scale-[0.99] justify-between"
+    },
+    {
+      "text": "ETF200 列表",
+      "title": null,
+      "ariaLabel": null,
+      "className": "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-[color,background-color,box-shadow,transform] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0 text-[#A9B6CC] hover:bg-white/5 hover:text-white hover:shadow-[0_10px_26px_rgba(0,0,0,0.22)] active:scale-[0.99] justify-between"
+    },
+    {
+      "text": "AI 解读",
+      "title": null,
+      "ariaLabel": null,
+      "className": "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-[color,background-color,box-shadow,transform] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0 text-[#A9B6CC] hover:bg-white/5 hover:text-white hover:shadow-[0_10px_26px_rgba(0,0,0,0.22)] active:scale-[0.99] justify-between"
+    },
+    {
+      "text": "大盘看板",
+      "title": null,
+      "ariaLabel": null,
+      "className": "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-[color,background-color,box-shadow,transform] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0 text-[#A9B6CC] hover:bg-white/5 hover:text-white hover:shadow-[0_10px_26px_rgba(0,0,0,0.22)] active:scale-[0.99] justify-between"
+    },
+    {
+      "text": "低波机会",
+      "title": null,
+      "ariaLabel": null,
+      "className": "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-[color,background-color,box-shadow,transform] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0 text-[#A9B6CC] hover:bg-white/5 hover:text-white hover:shadow-[0_10px_26px_rgba(0,0,0,0.22)] active:scale-[0.99] justify-between"
+    },
+    {
+      "text": "价值择时",
+      "title": null,
+      "ariaLabel": null,
+      "className": "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-[color,background-color,box-shadow,transform] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0 text-[#A9B6CC] hover:bg-white/5 hover:text-white hover:shadow-[0_10px_26px_rgba(0,0,0,0.22)] active:scale-[0.99] justify-between"
+    },
+    {
+      "text": "市场风格RPS",
+      "title": null,
+      "ariaLabel": null,
+      "className": "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-[color,background-color,box-shadow,transform] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0 bg-white/8 text-white shadow-[0_10px_26px_rgba(0,0,0,0.22)] justify-between"
+    },
+    {
+      "text": "总览",
+      "title": null,
+      "ariaLabel": null,
+      "className": "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium transition-[color,background-color,box-shadow] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0 bg-[rgba(255,255,255,0.06)] text-[#E6EDF7] shadow-[0_8px_22px_rgba(0,0,0,0.14)]"
+    },
+    {
+      "text": "自定义查询",
+      "title": null,
+      "ariaLabel": null,
+      "className": "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium transition-[color,background-color,box-shadow] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0 text-[#7F8EA3] hover:bg-white/[0.04] hover:text-[#DCE6F3]"
+    },
+    {
+      "text": "数据与方法",
+      "title": null,
+      "ariaLabel": null,
+      "className": "group mt-2 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-[color,background-color,box-shadow,transform] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0 text-[#A9B6CC] hover:bg-white/5 hover:text-white hover:shadow-[0_10px_26px_rgba(0,0,0,0.22)] active:scale-[0.99] justify-between"
+    },
+    {
+      "text": "折叠导航",
+      "title": "折叠导航",
+      "ariaLabel": "折叠导航",
+      "className": "group mt-2 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 text-xs font-semibold text-[#A9B6CC] transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-out hover:border-white/20 hover:bg-white/10 hover:text-white active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0 px-2"
+    }
+  ],
+  "submenu": [
+    {
+      "text": "总览",
+      "className": "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium transition-[color,background-color,box-shadow] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0 bg-[rgba(255,255,255,0.06)] text-[#E6EDF7] shadow-[0_8px_22px_rgba(0,0,0,0.14)]"
+    },
+    {
+      "text": "自定义查询",
+      "className": "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium transition-[color,background-color,box-shadow] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0 text-[#7F8EA3] hover:bg-white/[0.04] hover:text-[#DCE6F3]"
+    }
+  ],
+  "navText": "导航首页ETF200 列表AI 解读大盘看板低波机会价值择时市场风格RPS总览自定义查询数据与方法折叠导航"
+}

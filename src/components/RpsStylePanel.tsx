@@ -7,12 +7,14 @@ import RpsStyleChart from '@/components/charts/RpsStyleChart'
 import { cn } from '@/lib/utils'
 import {
   fetchRpsCustomQuery,
+  fetchRpsCustomRecentSearches,
   fetchRpsStyleMatrix,
   fetchRpsStylePanel,
   fetchRpsStyleSeries,
   fetchRpsStyleSummary,
   fetchRpsTurnoverHistory,
   fetchRpsTurnoverSummary,
+  type RpsCustomRecentSearchItem,
   type RpsCustomQueryData,
   type RpsStyleMatrixItem,
   type RpsStyleSeriesPoint,
@@ -214,6 +216,8 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   const [customQueryError, setCustomQueryError] = useState<string | null>(null)
   const [customQueryMeta, setCustomQueryMeta] = useState<Top100Meta | null>(null)
   const [customQueryData, setCustomQueryData] = useState<RpsCustomQueryData | null>(null)
+  const [recentSearchesLoading, setRecentSearchesLoading] = useState(isCustomQueryPage)
+  const [recentSearches, setRecentSearches] = useState<RpsCustomRecentSearchItem[]>([])
   const latestCustomQuerySubmitSeqRef = useRef(customQuerySubmitSeq)
 
   const resolvedRange = useMemo(
@@ -388,6 +392,30 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   useEffect(() => {
     if (!isCustomQueryPage) return
     const ac = new AbortController()
+    ;(async () => {
+      setRecentSearchesLoading(true)
+      try {
+        const res = await fetchRpsCustomRecentSearches({ signal: ac.signal })
+        if (res.success !== true) {
+          setRecentSearches([])
+          setRecentSearchesLoading(false)
+          return
+        }
+        setRecentSearches(Array.isArray(res.data?.items) ? res.data.items : [])
+        setRecentSearchesLoading(false)
+      } catch (e) {
+        const name = e instanceof Error ? e.name : ''
+        if (name === 'AbortError') return
+        setRecentSearches([])
+        setRecentSearchesLoading(false)
+      }
+    })()
+    return () => ac.abort()
+  }, [isCustomQueryPage])
+
+  useEffect(() => {
+    if (!isCustomQueryPage) return
+    const ac = new AbortController()
     const submitSeq = customQuerySubmitSeq
     latestCustomQuerySubmitSeqRef.current = submitSeq
     ;(async () => {
@@ -406,6 +434,11 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
         }
         setCustomQueryMeta(res.meta || null)
         setCustomQueryData(res.data)
+        const recentRes = await fetchRpsCustomRecentSearches({ signal: ac.signal })
+        if (latestCustomQuerySubmitSeqRef.current !== submitSeq) return
+        if (recentRes.success === true) {
+          setRecentSearches(Array.isArray(recentRes.data?.items) ? recentRes.data.items : [])
+        }
         setCustomQueryLoading(false)
       } catch (e) {
         const name = e instanceof Error ? e.name : ''
@@ -691,6 +724,53 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
         </div>
       </form>
 
+      <div className="mx-auto w-full max-w-[920px]">
+        <div className="rounded-2xl border border-white/8 bg-[rgba(15,23,42,0.72)] px-4 py-3">
+          <div className="flex items-center gap-2">
+            <div className="text-sm font-semibold text-[#E2E8F0]">最近搜索</div>
+            <div className="text-xs text-[#64748B]">仅展示当前用户最近成功返回的 ETF，最多 10 条</div>
+          </div>
+          {recentSearchesLoading ? (
+            <div className="mt-3 text-sm text-[#94A3B8]">正在加载最近搜索...</div>
+          ) : recentSearches.length ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {recentSearches.map((item) => {
+                const displayLabel = formatEtfDisplayLabel({
+                  ticker: item.ticker,
+                  code: item.code,
+                  name: item.name,
+                  fallback: item.code,
+                })
+                const isActive = item.ticker === (customQuerySummary?.ticker ?? customQueryData?.ticker)
+                return (
+                  <button
+                    key={`${item.ticker}-${item.updatedAt}`}
+                    type="button"
+                    onClick={() => {
+                      setCustomTickerInput(item.code)
+                      setSubmittedCustomTicker(item.code)
+                      setCustomQuerySubmitSeq((value) => value + 1)
+                    }}
+                    className={cn(
+                      'inline-flex min-h-10 items-center rounded-full border px-3 py-2 text-left transition',
+                      isActive
+                        ? 'border-[rgba(125,211,252,0.34)] bg-[rgba(125,211,252,0.12)] text-[#E0F2FE]'
+                        : 'border-white/10 bg-[#0B1220] text-[#CBD5E1] hover:border-white/20 hover:bg-white/[0.06]',
+                    )}
+                    title={displayLabel}
+                  >
+                    <span className="font-mono text-xs text-[#93C5FD]">{item.code}</span>
+                    <span className="ml-2 text-sm">{item.name || item.code}</span>
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="mt-3 text-sm text-[#94A3B8]">暂无最近搜索，成功查询后会显示在这里。</div>
+          )}
+        </div>
+      </div>
+
       <DataStatusBanner
         loading={customQueryLoading}
         error={customQueryError}
@@ -787,6 +867,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
             turnoverSeries={customQueryData.turnoverSeries}
             titleLabel={`${customQueryDisplayLabel}关键图表指标`}
             subtitleLabel={`当前序列：${customQueryDisplayLabel} | 基准：${customQueryBenchmarkLabel}`}
+            resetKey={`${submittedCustomTicker}:${customQuerySubmitSeq}`}
           />
 
           <section className="overflow-hidden rounded-md border border-[#1E293B] bg-[#0F172A] shadow-lg">

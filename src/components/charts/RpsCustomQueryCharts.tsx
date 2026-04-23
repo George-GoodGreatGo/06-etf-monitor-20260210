@@ -28,6 +28,7 @@ type Props = {
   turnoverSeries?: RpsTurnoverHistoryPoint[]
   titleLabel?: string
   subtitleLabel?: string
+  resetKey?: string
 }
 
 type PreparedPoint = {
@@ -511,7 +512,7 @@ function usePriceChart(
     if (!chart || priceData.length === 0) return
     chart.timeScale().fitContent()
     didFitRef.current = true
-  }, [priceData, opts?.resetKey])
+  }, [priceData.length, opts?.resetKey])
 
   return {
     chartRef,
@@ -659,6 +660,7 @@ export default function RpsCustomQueryCharts({
   turnoverSeries = [],
   titleLabel,
   subtitleLabel,
+  resetKey,
 }: Props) {
   const priceHostRef = useRef<HTMLDivElement | null>(null)
   const scoreHostRef = useRef<HTMLDivElement | null>(null)
@@ -750,7 +752,10 @@ export default function RpsCustomQueryCharts({
     }
     return Number.isFinite(min) && Number.isFinite(max) ? { min, max } : null
   }, [prepared])
-  const [relativeData, setRelativeData] = useState<{ rps: ChartDatum[]; ma50: ChartDatum[] }>({ rps: [], ma50: [] })
+  const defaultLogicalRange = useMemo(() => buildDefaultLogicalRange(prepared.length), [prepared.length])
+  const [relativeData, setRelativeData] = useState<{ rps: ChartDatum[]; ma50: ChartDatum[] }>(() =>
+    buildRelativeData(prepared, defaultLogicalRange),
+  )
 
   const hoverPointMap = useMemo(() => {
     const map = new Map<UTCTimestamp, PreparedPoint>()
@@ -789,8 +794,9 @@ export default function RpsCustomQueryCharts({
   const hoverRelativeMa50Value = hoverTime ? relativeMa50ValueMap.get(hoverTime) ?? null : null
   const hoverRsiValue = hoverTime ? rsiValueMap.get(hoverTime) ?? null : null
   const displayTickerLabel = useMemo(() => formatEtfDisplayLabel(ticker, tickerName), [ticker, tickerName])
+  const effectiveResetKey = resetKey ?? ticker
   const priceChart = usePriceChart(priceHostRef, prepared, {
-    resetKey: ticker,
+    resetKey: effectiveResetKey,
     showPriceLine,
     showSma20,
     showSma60,
@@ -799,18 +805,18 @@ export default function RpsCustomQueryCharts({
   const scoreChart = useSingleLineChart(scoreHostRef, scoreData, {
     baselinePrice: 0,
     digits: 2,
-    resetKey: ticker,
+    resetKey: effectiveResetKey,
     backgroundBands: scoreRange ? buildScoreBgBands(scoreRange) : [],
   })
   const relativeChart = useSingleLineChart(relativeHostRef, relativeData.rps, {
     overlayData: relativeData.ma50,
     baselinePrice: 1,
     digits: 4,
-    resetKey: ticker,
+    resetKey: effectiveResetKey,
   })
   const rsiChart = useSingleLineChart(rsiHostRef, rsiData, {
     digits: 2,
-    resetKey: ticker,
+    resetKey: effectiveResetKey,
     backgroundBands: buildRsiBgBands(),
     primaryColor: RSI_LINE_COLOR,
     showTimeScale: true,
@@ -865,9 +871,10 @@ export default function RpsCustomQueryCharts({
   )
 
   useEffect(() => {
-    const nextRelative = buildRelativeData(prepared, visibleRangeRef.current)
+    const baseRange = visibleRangeRef.current ?? defaultLogicalRange
+    const nextRelative = buildRelativeData(prepared, baseRange)
     setRelativeData(nextRelative)
-  }, [prepared])
+  }, [defaultLogicalRange, prepared])
 
   useEffect(() => {
     const price = priceChart.chartRef.current
@@ -1025,7 +1032,7 @@ export default function RpsCustomQueryCharts({
   useEffect(() => {
     const master = priceChart.chartRef.current
     if (!master || !prepared.length) return
-    const initialRange = buildDefaultLogicalRange(prepared.length)
+    const initialRange = defaultLogicalRange
     if (!initialRange) return
     visibleRangeRef.current = initialRange
     setRelativeData(buildRelativeData(prepared, initialRange))
@@ -1038,7 +1045,7 @@ export default function RpsCustomQueryCharts({
     } finally {
       syncingRangeRef.current = false
     }
-  }, [prepared, priceChart.chartRef, scoreChart.chartRef, relativeChart.chartRef, rsiChart.chartRef])
+  }, [defaultLogicalRange, effectiveResetKey, prepared, priceChart.chartRef, scoreChart.chartRef, relativeChart.chartRef, rsiChart.chartRef])
 
   useEffect(() => {
     const allCharts = [priceChart.chartRef.current, scoreChart.chartRef.current, relativeChart.chartRef.current, rsiChart.chartRef.current]
@@ -1079,7 +1086,7 @@ export default function RpsCustomQueryCharts({
     setHoverTime(null)
     visibleRangeRef.current = null
     prevPaneVisibleRef.current = { showScorePane: true, showRelativePane: true, showRsiPane: true }
-  }, [ticker, prepared])
+  }, [effectiveResetKey, prepared])
 
   return (
     <section className={PANEL_CLS}>

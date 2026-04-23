@@ -227,6 +227,17 @@ export type RpsCustomQueryData = {
   turnoverSeries: RpsTurnoverHistoryPoint[]
 }
 
+export type RpsCustomRecentSearchItem = {
+  ticker: string
+  code: string
+  name: string
+  updatedAt: string
+}
+
+export type RpsCustomRecentSearchesData = {
+  items: RpsCustomRecentSearchItem[]
+}
+
 export type RpsTurnoverBenchmarkIndex = {
   code: string
   name: string
@@ -647,6 +658,42 @@ export async function fetchRpsCustomQuery(args: {
   }
   const out = json as ApiOk<RpsCustomQueryData> | ApiErr
   return out
+}
+
+export async function fetchRpsCustomRecentSearches(args?: { signal?: AbortSignal }): Promise<ApiOk<RpsCustomRecentSearchesData> | ApiErr> {
+  const url = '/api/rps/custom-query/recent-searches'
+  let res: Response
+  try {
+    res = await fetch(apiUrl(url), {
+      ...(args?.signal ? { signal: args.signal } : {}),
+      cache: 'no-store',
+      credentials: 'include',
+      headers: {
+        ...adminAuthHeaders(),
+      },
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    const name = e instanceof Error ? e.name : ''
+    const aborted = name === 'AbortError' || msg.toLowerCase().includes('aborted')
+    return { success: false, error: 'api_error', message: aborted ? '请求已取消' : msg || '网络异常或 API 不可用' }
+  }
+
+  const text = await res.text()
+  let json: unknown = null
+  try {
+    json = text ? (JSON.parse(text) as unknown) : null
+  } catch {
+    json = null
+  }
+  if (!res.ok) {
+    const msg =
+      json && typeof json === 'object' && json && 'message' in (json as Record<string, unknown>) && typeof (json as Record<string, unknown>).message === 'string'
+        ? String((json as Record<string, unknown>).message)
+        : `HTTP ${res.status}`
+    return { success: false, error: res.status === 401 ? 'unauthorized' : 'api_error', message: msg }
+  }
+  return json as ApiOk<RpsCustomRecentSearchesData> | ApiErr
 }
 
 export async function fetchRpsTurnoverHistory(args: {

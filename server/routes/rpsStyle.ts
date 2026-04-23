@@ -11,8 +11,19 @@ import {
   getRpsStyleTurnoverSupportedTickers,
   normalizeRpsCustomTickerInput,
 } from '../lib/rpsStyle.js'
+import { listRpsCustomRecentSearches, recordRpsCustomRecentSearch } from '../lib/rpsRecentSearches.js'
+import { getCookie, verifySessionToken } from '../lib/session.js'
 
 const router = Router()
+
+function getRpsRecentSearchUserKey(req: Request): string | null {
+  const secret = String(process.env.AUTH_SESSION_SECRET || process.env.ADMIN_ACCESS_TOKEN || process.env.ADMIN_TOKEN || '').trim()
+  if (!secret) return null
+  const token = getCookie(req, 'etf_session')
+  if (!token) return null
+  const verified = verifySessionToken(secret, token)
+  return verified.ok ? verified.username : null
+}
 
 router.get('/summary', async (_req: Request, res: Response) => {
   try {
@@ -63,6 +74,14 @@ router.get('/custom-query', async (req: Request, res: Response) => {
   try {
     normalizeRpsCustomTickerInput(ticker)
     const out = await getRpsCustomQuery({ ticker, startDate, endDate })
+    const userKey = getRpsRecentSearchUserKey(req)
+    if (userKey) {
+      await recordRpsCustomRecentSearch(userKey, {
+        ticker: out.data.ticker,
+        code: out.data.code,
+        name: out.data.name,
+      })
+    }
     res.setHeader('Cache-Control', 'no-store')
     res.status(200).json({ success: true, ...out })
   } catch (e) {
@@ -77,6 +96,23 @@ router.get('/custom-query', async (req: Request, res: Response) => {
       return
     }
     res.status(502).json({ success: false, error: 'upstream_error', message })
+  }
+})
+
+router.get('/custom-query/recent-searches', async (req: Request, res: Response) => {
+  try {
+    const userKey = getRpsRecentSearchUserKey(req)
+    const items = userKey ? await listRpsCustomRecentSearches(userKey) : []
+    res.setHeader('Cache-Control', 'no-store')
+    res.status(200).json({
+      success: true,
+      data: {
+        items,
+      },
+    })
+  } catch (e) {
+    res.setHeader('Cache-Control', 'no-store')
+    res.status(502).json({ success: false, error: 'upstream_error', message: e instanceof Error ? e.message : String(e) })
   }
 })
 
