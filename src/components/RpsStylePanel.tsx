@@ -56,6 +56,10 @@ const RPS_OVERVIEW_NAV_SECTIONS: FloatingNavSection[] = [
   { id: 'rps-turnover-section', label: '成交额', shortLabel: '成交额' },
 ] as const
 const SUMMARY_CARD_CLS = 'rounded-md border border-white/10 bg-[#0F172A] px-3 py-3 shadow-lg'
+const TURNOVER_HIGHLIGHT_ROW_CLS = 'bg-[rgba(196,181,253,0.12)]'
+const TURNOVER_HIGHLIGHT_TEXT_CLS = 'font-semibold text-[#C4B5FD]'
+const TURNOVER_HIGHLIGHT_BADGE_CLS =
+  'rounded-full border border-[rgba(196,181,253,0.36)] bg-[rgba(196,181,253,0.12)] px-1.5 py-0.5 text-[10px] font-semibold leading-4 text-[#DDD6FE]'
 
 type RpsPage = 'overview' | 'custom-query'
 type RpsViewMode = 'raw' | 'relative' | 'score'
@@ -536,7 +540,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                   className={cn(
                     'flex min-h-[112px] min-w-0 flex-col justify-between rounded-md border px-2.5 py-2 text-left transition',
                     isSelected
-                      ? 'border-[rgba(251,191,36,0.35)] bg-[rgba(251,191,36,0.10)] shadow-[inset_0_0_0_1px_rgba(251,191,36,0.12)]'
+                      ? 'border-[rgba(196,181,253,0.36)] bg-[rgba(196,181,253,0.10)] shadow-[inset_0_0_0_1px_rgba(196,181,253,0.16)]'
                       : 'border-white/10 bg-[#0B1220] hover:border-white/20 hover:bg-white/[0.06]',
                   )}
                 >
@@ -547,7 +551,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-1">
                       {hasHit ? (
-                        <span className="rounded-full border border-[rgba(251,191,36,0.35)] bg-[rgba(251,191,36,0.12)] px-1.5 py-0.5 text-[10px] font-semibold leading-4 text-[#FBBF24]">
+                        <span className={TURNOVER_HIGHLIGHT_BADGE_CLS}>
                           {`${fmtTradingDaysAgo(item.tradingDaysAgo)}放量`}
                         </span>
                       ) : null}
@@ -597,13 +601,13 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
               turnoverRows.map((row) => {
                 const isHot = typeof row.turnoverMultipleOfPrev20Avg === 'number' && row.turnoverMultipleOfPrev20Avg >= 1.5
                 return (
-                  <tr key={row.date} className={cn('border-t border-white/5', isHot && 'bg-[rgba(251,191,36,0.08)]')}>
+                  <tr key={row.date} className={cn('border-t border-white/5', isHot && TURNOVER_HIGHLIGHT_ROW_CLS)}>
                     <td className="px-3 py-2 font-mono text-[#E6EDF7]">{formatYmd(row.date)}</td>
                     <td className="px-3 py-2 text-right font-mono text-[#E6EDF7]">{fmtTurnover(row.turnover)}</td>
                     <td
                       className={cn(
                         'px-3 py-2 text-right font-mono',
-                        isHot ? 'font-semibold text-[#FBBF24]' : 'text-[#A9B6CC]',
+                        isHot ? TURNOVER_HIGHLIGHT_TEXT_CLS : 'text-[#A9B6CC]',
                       )}
                     >
                       {fmtMultiple(row.turnoverMultipleOfPrev20Avg)}
@@ -627,7 +631,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   const customQuerySection = (
     <div className="space-y-4">
       <form
-        className="flex w-full flex-col gap-3 sm:flex-row sm:items-center"
+        className="flex w-full flex-col gap-3 rounded-2xl border border-[rgba(96,165,250,0.30)] bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(11,18,32,0.94))] p-3 shadow-[0_0_0_1px_rgba(96,165,250,0.10),0_18px_44px_rgba(2,6,23,0.28),0_0_28px_rgba(59,130,246,0.10)] sm:flex-row sm:items-center"
         onSubmit={(e) => {
           e.preventDefault()
           const nextTicker = customTickerInput.trim().toUpperCase()
@@ -639,14 +643,14 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
           value={customTickerInput}
           onChange={(e) => setCustomTickerInput(e.target.value)}
           placeholder="输入 ETF 代码，如 159915、159915.SZ、510300.SH"
-          className="w-full rounded-full border border-[rgba(96,165,250,0.52)] bg-[#0B1220] px-5 py-4 font-mono text-lg text-[#E6EDF7] shadow-[0_0_0_1px_rgba(96,165,250,0.16),0_0_14px_rgba(37,99,235,0.10)] outline-none transition hover:border-[rgba(147,197,253,0.72)] hover:shadow-[0_0_0_1px_rgba(147,197,253,0.22),0_0_0_5px_rgba(59,130,246,0.10),0_0_18px_rgba(37,99,235,0.14)] focus:border-[#BFDBFE] focus:shadow-[0_0_0_1px_rgba(191,219,254,0.46),0_0_0_4px_rgba(96,165,250,0.22),0_0_22px_rgba(37,99,235,0.18)]"
+          className="w-full rounded-full border border-[rgba(147,197,253,0.70)] bg-[linear-gradient(180deg,rgba(15,23,42,0.98),rgba(8,15,28,0.96))] px-5 py-4 font-mono text-lg text-[#F8FAFC] shadow-[0_0_0_1px_rgba(147,197,253,0.18),0_0_0_6px_rgba(59,130,246,0.08),0_12px_30px_rgba(37,99,235,0.14)] outline-none transition placeholder:text-[#7C93B6] hover:border-[#BFDBFE] hover:shadow-[0_0_0_1px_rgba(191,219,254,0.24),0_0_0_8px_rgba(96,165,250,0.10),0_16px_36px_rgba(37,99,235,0.18)] focus:border-[#DBEAFE] focus:shadow-[0_0_0_1px_rgba(219,234,254,0.34),0_0_0_8px_rgba(96,165,250,0.16),0_20px_40px_rgba(37,99,235,0.20)]"
         />
         <button
           type="submit"
           disabled={customQueryLoading}
-          className="rounded-full border border-[rgba(96,165,250,0.28)] bg-[linear-gradient(135deg,#1D4ED8,#2563EB)] px-7 py-4 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(37,99,235,0.25)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-full border border-[rgba(191,219,254,0.38)] bg-[linear-gradient(135deg,#2563EB,#1D4ED8)] px-8 py-4 text-sm font-semibold tracking-[0.02em] text-white shadow-[0_0_0_1px_rgba(191,219,254,0.10),0_16px_36px_rgba(37,99,235,0.28)] transition hover:-translate-y-0.5 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {customQueryLoading ? '查询中...' : '提交查询'}
+          {customQueryLoading ? '查询中...' : '查询'}
         </button>
       </form>
 
@@ -779,13 +783,13 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                       customTurnoverRows.map((row) => {
                         const isHot = typeof row.turnoverMultipleOfPrev20Avg === 'number' && row.turnoverMultipleOfPrev20Avg >= 1.5
                         return (
-                          <tr key={row.date} className={cn('border-t border-[#162033]', isHot && 'bg-[rgba(251,191,36,0.08)]')}>
+                          <tr key={row.date} className={cn('border-t border-[#162033]', isHot && TURNOVER_HIGHLIGHT_ROW_CLS)}>
                             <td className="px-3 py-2 font-mono text-[#E6EDF7]">{formatYmd(row.date)}</td>
                             <td className="px-3 py-2 text-right font-mono text-[#E6EDF7]">{fmtTurnover(row.turnover)}</td>
                             <td
                               className={cn(
                                 'px-3 py-2 text-right font-mono',
-                                isHot ? 'font-semibold text-[#FBBF24]' : 'text-[#A9B6CC]',
+                                isHot ? TURNOVER_HIGHLIGHT_TEXT_CLS : 'text-[#A9B6CC]',
                               )}
                             >
                               {fmtMultiple(row.turnoverMultipleOfPrev20Avg)}

@@ -1,16 +1,33 @@
+import { Suspense, lazy, type ReactNode } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import Home from '@/pages/Home'
-import QuotesHome from '@/pages/QuotesHome'
-import EtfDetail from '@/pages/EtfDetail'
-import Methodology from '@/pages/Methodology'
-import Login from '@/pages/Login'
-import MarketRpsOverview from '@/pages/MarketRpsOverview'
-import MarketRpsCustomQuery from '@/pages/MarketRpsCustomQuery'
-import DevRpsCustomQueryLive from '@/pages/DevRpsCustomQueryLive'
-import DevRpsCustomQueryMock from '@/pages/DevRpsCustomQueryMock'
 import RequireAuth from '@/components/RequireAuth'
 import AppShell from '@/components/AppShell'
 import BackToTopButton from '@/components/BackToTopButton'
+
+const Home = lazy(() => import('@/pages/Home'))
+const QuotesHome = lazy(() => import('@/pages/QuotesHome'))
+const EtfDetail = lazy(() => import('@/pages/EtfDetail'))
+const Methodology = lazy(() => import('@/pages/Methodology'))
+const Login = lazy(() => import('@/pages/Login'))
+const MarketRpsOverview = lazy(() => import('@/pages/MarketRpsOverview'))
+const MarketRpsCustomQuery = lazy(() => import('@/pages/MarketRpsCustomQuery'))
+const DevRpsCustomQueryLive = lazy(() => import('@/pages/DevRpsCustomQueryLive'))
+const DevRpsCustomQueryMock = lazy(() => import('@/pages/DevRpsCustomQueryMock'))
+
+function RouteLoadingFallback() {
+  return (
+    <div className="flex min-h-[40vh] items-center justify-center px-4 py-10 text-sm text-[#A9B6CC]">
+      <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
+        <span>页面加载中...</span>
+      </div>
+    </div>
+  )
+}
+
+function withRouteSuspense(page: ReactNode) {
+  return <Suspense fallback={<RouteLoadingFallback />}>{page}</Suspense>
+}
 
 export default function App() {
   return (
@@ -18,9 +35,13 @@ export default function App() {
       <BackToTopButton />
       <Router>
         <Routes>
-          <Route path="/login" element={<Login />} />
-          {import.meta.env.DEV ? <Route path="/dev/rps-custom-query-mock" element={<DevRpsCustomQueryMock />} /> : null}
-          {import.meta.env.DEV ? <Route path="/dev/rps-custom-query-live" element={<DevRpsCustomQueryLive />} /> : null}
+          <Route path="/login" element={withRouteSuspense(<Login />)} />
+          {import.meta.env.DEV ? (
+            <Route path="/dev/rps-custom-query-mock" element={withRouteSuspense(<DevRpsCustomQueryMock />)} />
+          ) : null}
+          {import.meta.env.DEV ? (
+            <Route path="/dev/rps-custom-query-live" element={withRouteSuspense(<DevRpsCustomQueryLive />)} />
+          ) : null}
           <Route
             element={
               <RequireAuth>
@@ -28,12 +49,12 @@ export default function App() {
               </RequireAuth>
             }
           >
-            <Route path="/" element={<QuotesHome />} />
-            <Route path="/market" element={<Home />} />
-            <Route path="/market/rps" element={<MarketRpsOverview />} />
-            <Route path="/market/rps/custom-query" element={<MarketRpsCustomQuery />} />
-            <Route path="/etf/:code" element={<EtfDetail />} />
-            <Route path="/methodology" element={<Methodology />} />
+            <Route path="/" element={withRouteSuspense(<QuotesHome />)} />
+            <Route path="/market" element={withRouteSuspense(<Home />)} />
+            <Route path="/market/rps" element={withRouteSuspense(<MarketRpsOverview />)} />
+            <Route path="/market/rps/custom-query" element={withRouteSuspense(<MarketRpsCustomQuery />)} />
+            <Route path="/etf/:code" element={withRouteSuspense(<EtfDetail />)} />
+            <Route path="/methodology" element={withRouteSuspense(<Methodology />)} />
           </Route>
         </Routes>
       </Router>

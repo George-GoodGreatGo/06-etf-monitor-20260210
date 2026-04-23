@@ -4,6 +4,52 @@ import legacy from '@vitejs/plugin-legacy'
 import tsconfigPaths from "vite-tsconfig-paths";
 import { traeBadgePlugin } from 'vite-plugin-trae-solo-badge';
 
+const MARKDOWN_PACKAGE_MARKERS = [
+  '/react-markdown/',
+  '/remark-gfm/',
+  '/remark-',
+  '/rehype-',
+  '/unified/',
+  '/micromark/',
+  '/mdast-util-',
+  '/hast-util-',
+]
+
+function manualChunks(id: string) {
+  const normalizedId = id.replaceAll('\\', '/')
+  if (!normalizedId.includes('/node_modules/')) return undefined
+
+  if (
+    normalizedId.includes('/react/') ||
+    normalizedId.includes('/react-dom/') ||
+    normalizedId.includes('/scheduler/')
+  ) {
+    return 'react-vendor'
+  }
+
+  if (normalizedId.includes('/react-router/') || normalizedId.includes('/react-router-dom/')) {
+    return 'router-vendor'
+  }
+
+  if (normalizedId.includes('/lightweight-charts/')) {
+    return 'charts-vendor'
+  }
+
+  if (normalizedId.includes('/lucide-react/')) {
+    return 'icons-vendor'
+  }
+
+  if (normalizedId.includes('/xlsx/')) {
+    return 'xlsx-vendor'
+  }
+
+  if (MARKDOWN_PACKAGE_MARKERS.some((marker) => normalizedId.includes(marker))) {
+    return 'markdown-vendor'
+  }
+
+  return 'app-vendor'
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -39,5 +85,12 @@ export default defineConfig({
         proxyTimeout: 900_000,
       }
     }
-  }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks,
+      },
+    },
+  },
 })
