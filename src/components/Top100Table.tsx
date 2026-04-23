@@ -46,6 +46,8 @@ export default function Top100Table({
   buildRpsAnalysisHref?: (row: EtfTopRow) => string
 }) {
   const q = keyword.trim().toLowerCase()
+  const actionButtonClassName =
+    'inline-flex items-center justify-center gap-2 rounded-[6px] border border-[#334155] bg-[#1E293B] px-3 py-1.5 text-xs font-medium text-[#E2E8F0] transition hover:border-[#475569] hover:bg-[#334155] hover:text-white'
   const filtered = q
     ? rows.filter(
         (r) =>
@@ -117,6 +119,7 @@ export default function Top100Table({
               >
                 90日Z
               </SortableTh>
+              <th className="px-4 py-3 text-right">RPS分析</th>
               <th className="px-4 py-3 text-right">异动详情</th>
             </tr>
           </thead>
@@ -129,11 +132,12 @@ export default function Top100Table({
                     <div className="h-4 w-full rounded bg-[#1E293B]" />
                   </td>
                   <td className="px-4 py-3" />
+                  <td className="px-4 py-3" />
                 </tr>
               ))
             ) : data.length === 0 ? (
               <tr>
-                <td className="px-4 py-10" colSpan={9}>
+                <td className="px-4 py-10" colSpan={10}>
                   <div className="flex flex-col items-center gap-2 text-center">
                     <div className="text-sm font-medium text-[#E2E8F0]">暂无可展示数据</div>
                     <div className="text-xs text-[#94A3B8]">
@@ -218,20 +222,25 @@ export default function Top100Table({
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end">
                         <a
                           href={buildRpsAnalysisHref ? buildRpsAnalysisHref(r) : `/market/rps/custom-query?ticker=${encodeURIComponent(r.code)}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="ui-btn ui-btn-outline px-3 py-1.5 text-xs"
+                          className={actionButtonClassName}
                         >
-                          RPS分析
+                          查看
+                          <ExternalLink className="h-3.5 w-3.5 opacity-70" />
                         </a>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end">
                         <a
                           href={`/etf/${encodeURIComponent(r.code)}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center justify-center gap-2 rounded-[6px] border border-[#334155] bg-[#1E293B] px-3 py-1.5 text-xs font-medium text-[#E2E8F0] transition hover:border-[#475569] hover:bg-[#334155] hover:text-white"
+                          className={actionButtonClassName}
                         >
                           查看
                           <ExternalLink className="h-3.5 w-3.5 opacity-70" />

@@ -191,7 +191,7 @@ export default function DevRpsCustomQueryMock() {
               <div className="text-xl font-semibold tracking-tight text-white">RPS 自定义查询 Mock 验收页</div>
               <div className="mt-2 space-y-1 text-[13px] leading-relaxed text-[#94A3B8]">
                 <p>该页面仅用于本地开发环境回归验收，绕开登录态模拟“Top200 列表到 RPS分析，再到自定义查询自动带参”的链路。</p>
-                <p>点击下方 mock 列表中的 `RPS分析` 会新开当前 mock 页，并通过 `ticker` 参数自动切换到对应样本。</p>
+                <p>点击下方 mock 列表中 `RPS分析` 列的 `查看` 按钮，会新开当前 mock 页，并通过 `ticker` 参数自动切换到对应样本。</p>
               </div>
             </div>
 
@@ -218,7 +218,7 @@ export default function DevRpsCustomQueryMock() {
           <div className="border-b border-white/10 px-4 py-4">
             <div className="text-lg font-semibold tracking-tight text-white">Top200 列表 Mock 入口</div>
             <div className="mt-1 text-sm leading-relaxed text-[#94A3B8]">
-              该列表直接复用真实 `Top100Table` 的 `RPS分析` 按钮样式与新开窗口行为，仅将目标地址改为当前 mock 页，便于本地回归。
+              该列表直接复用真实 `Top100Table` 的操作列样式与新开窗口行为，仅将 `RPS分析` 列目标地址改为当前 mock 页，便于本地回归。
             </div>
           </div>
           <div className="px-4 py-4">

@@ -25,3 +25,21 @@
 - Task 2 depends on Task 1
 - Task 3 depends on Task 1
 - Task 4 depends on Task 2 and Task 3
+- Task 6 depends on Task 5
+- Task 7 depends on Task 5 and Task 6
+
+- [x] Task 5: 调整 Top200 列表中 RPS 入口列的表头与按钮文案
+  - [x] SubTask 5.1: 在 `src/components/Top100Table.tsx` 中为 RPS 跳转入口补充独立表头 `RPS分析`
+  - [x] SubTask 5.2: 将当前 RPS 跳转按钮文案从 `RPS分析` 调整为 `查看`
+  - [x] SubTask 5.3: 保持 `异动详情` 列及其跳转行为不变，不影响现有详情入口
+
+- [x] Task 6: 对齐 RPS 入口按钮与异动详情按钮的视觉样式
+  - [x] SubTask 6.1: 复用或对齐 `异动详情` 按钮的边框、背景、字号、间距与 hover 样式
+  - [x] SubTask 6.2: 校对新增样式后两列按钮在同一行中的对齐、宽度和密度表现
+  - [x] SubTask 6.3: 保证 mock 页复用 `Top100Table` 时，样式调整不会破坏本地回归链路
+
+- [x] Task 7: 回归验证本轮表头与样式调整
+  - [x] SubTask 7.1: 验证表头已显示 `RPS分析`，且每行按钮文案为 `查看`
+  - [x] SubTask 7.2: 验证 `RPS分析` 列按钮样式与 `异动详情` 按钮样式一致
+  - [x] SubTask 7.3: 验证 `RPS分析` 跳转与 `异动详情` 跳转仍可正常使用
+  - [x] SubTask 7.4: 运行直接相关检查，如前端 `lint`、`typecheck` 或等价验证
