@@ -3,10 +3,12 @@ import {
   BaselineSeries,
   ColorType,
   CrosshairMode,
+  HistogramSeries,
   LineSeries,
   LineStyle,
   createChart,
   createSeriesMarkers,
+  type HistogramData,
   type IChartApi,
   type ISeriesMarkersPluginApi,
   type ISeriesApi,
@@ -42,6 +44,9 @@ type PreparedPoint = {
   sma60: number | null
   sma250: number | null
   rsi14: number | null
+  macdDiff: number | null
+  macdDea: number | null
+  macdHist: number | null
   turnoverMultipleOfPrev20Avg: number | null
   isAmplified: boolean
 }
@@ -51,6 +56,7 @@ type BackgroundBand = { top: number; bottom: number; color: string }
 type PriceTone = 'negative' | 'neutral' | 'positive' | 'strong'
 type PriceRun = { tone: PriceTone; data: LineData<Time>[] }
 type PaneVisibilityState = {
+  showMacdPane: boolean
   showScorePane: boolean
   showRelativePane: boolean
   showRsiPane: boolean
@@ -67,6 +73,10 @@ const SMA20_LINE_COLOR = '#F59E0B'
 const SMA60_LINE_COLOR = 'rgba(147,197,253,0.95)'
 const SMA250_LINE_COLOR = 'rgba(226,232,240,0.72)'
 const RSI_LINE_COLOR = '#B9A3FF'
+const MACD_DIFF_LINE_COLOR = '#60A5FA'
+const MACD_DEA_LINE_COLOR = '#F472B6'
+const MACD_HIST_POSITIVE_COLOR = '#F38B8F'
+const MACD_HIST_NEGATIVE_COLOR = '#6EE7B7'
 const TURNOVER_MARKER_COLOR = '#CBB8FF'
 const SCALE_MIN_WIDTH = 110
 const PANEL_CLS = 'overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] shadow-lg'
@@ -75,6 +85,7 @@ const CHART_BADGE_CLS =
   'pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur'
 const AXIS_BORDER_COLOR = 'rgba(255,255,255,0.05)'
 const DEFAULT_WINDOW_BARS = 252
+const EMPTY_TURNOVER_SERIES: RpsTurnoverHistoryPoint[] = []
 
 function formatEtfDisplayLabel(ticker: string, tickerName?: string): string {
   const code = ticker.includes('.') ? ticker.split('.')[0] || ticker : ticker
@@ -179,6 +190,49 @@ function buildSma(values: number[], period: number): Array<number | null> {
     sum += value
     if (i >= window) sum -= values[i - window]
     if (i >= window - 1) out[i] = sum / window
+  }
+  return out
+}
+
+function buildEma(values: number[], period: number): Array<number | null> {
+  const window = Math.max(1, Math.floor(period))
+  const out: Array<number | null> = new Array(values.length).fill(null)
+  if (values.length < window) return out
+  let sum = 0
+  for (let i = 0; i < window; i += 1) sum += values[i]
+  let ema = sum / window
+  out[window - 1] = ema
+  const multiplier = 2 / (window + 1)
+  for (let i = window; i < values.length; i += 1) {
+    ema = (values[i] - ema) * multiplier + ema
+    out[i] = ema
+  }
+  return out
+}
+
+function buildMacd(
+  values: number[],
+  shortPeriod: number,
+  longPeriod: number,
+  signalPeriod: number,
+): Array<{ diff: number | null; dea: number | null; hist: number | null }> {
+  const shortEma = buildEma(values, shortPeriod)
+  const longEma = buildEma(values, longPeriod)
+  const out = values.map(() => ({ diff: null, dea: null, hist: null }))
+  const diffValues = values.map((_, index) => {
+    const shortValue = shortEma[index]
+    const longValue = longEma[index]
+    if (typeof shortValue !== 'number' || !Number.isFinite(shortValue)) return null
+    if (typeof longValue !== 'number' || !Number.isFinite(longValue)) return null
+    return shortValue - longValue
+  })
+  const multiplier = 2 / (Math.max(1, Math.floor(signalPeriod)) + 1)
+  let dea: number | null = null
+  for (let i = 0; i < diffValues.length; i += 1) {
+    const diff = diffValues[i]
+    if (typeof diff !== 'number' || !Number.isFinite(diff)) continue
+    dea = dea == null ? diff : (diff - dea) * multiplier + dea
+    out[i] = { diff, dea, hist: diff - dea }
   }
   return out
 }
@@ -298,6 +352,96 @@ function buildRsiBgBands(): BackgroundBand[] {
     { top: 100, bottom: 70, color: 'rgba(239, 68, 68, 0.14)' },
     { top: 30, bottom: 0, color: 'rgba(34, 197, 94, 0.14)' },
   ]
+}
+
+function useMacdChart(
+  hostRef: RefObject<HTMLDivElement | null>,
+  opts: {
+    diffData: ChartDatum[]
+    deaData: ChartDatum[]
+    histData: HistogramData<Time>[]
+    resetKey?: string
+  },
+) {
+  const chartRef = useRef<IChartApi | null>(null)
+  const histSeriesRef = useRef<ISeriesApi<'Histogram', Time> | null>(null)
+  const diffSeriesRef = useRef<ISeriesApi<'Line', Time> | null>(null)
+  const deaSeriesRef = useRef<ISeriesApi<'Line', Time> | null>(null)
+  const didFitRef = useRef(false)
+  const latestValue = useMemo(() => {
+    for (let i = opts.histData.length - 1; i >= 0; i -= 1) {
+      const datum = opts.histData[i]
+      if (typeof datum?.value === 'number' && Number.isFinite(datum.value)) return datum.value
+    }
+    return null
+  }, [opts.histData])
+
+  useEffect(() => {
+    const host = hostRef.current
+    if (!host || chartRef.current) return
+    const chart = createBaseChart(host)
+    const histSeries = chart.addSeries(HistogramSeries, {
+      color: '#A9B6CC',
+      priceLineVisible: false,
+      lastValueVisible: true,
+    })
+    const diffSeries = chart.addSeries(LineSeries, {
+      color: MACD_DIFF_LINE_COLOR,
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    })
+    const deaSeries = chart.addSeries(LineSeries, {
+      color: MACD_DEA_LINE_COLOR,
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    })
+    chartRef.current = chart
+    histSeriesRef.current = histSeries
+    diffSeriesRef.current = diffSeries
+    deaSeriesRef.current = deaSeries
+    return () => {
+      chart.remove()
+      chartRef.current = null
+      histSeriesRef.current = null
+      diffSeriesRef.current = null
+      deaSeriesRef.current = null
+    }
+  }, [hostRef])
+
+  useEffect(() => {
+    const chart = chartRef.current
+    const histSeries = histSeriesRef.current
+    const diffSeries = diffSeriesRef.current
+    const deaSeries = deaSeriesRef.current
+    if (!chart || !histSeries || !diffSeries || !deaSeries) return
+    histSeries.setData(opts.histData)
+    diffSeries.setData(opts.diffData as never)
+    deaSeries.setData(opts.deaData as never)
+    if (!didFitRef.current && opts.histData.length > 0) {
+      chart.timeScale().fitContent()
+      didFitRef.current = true
+    }
+  }, [opts.deaData, opts.diffData, opts.histData])
+
+  useEffect(() => {
+    didFitRef.current = false
+    const chart = chartRef.current
+    if (!chart || opts.histData.length === 0) return
+    chart.timeScale().fitContent()
+    didFitRef.current = true
+  }, [opts.histData.length, opts.resetKey])
+
+  return {
+    chartRef,
+    histSeriesRef,
+    diffSeriesRef,
+    deaSeriesRef,
+    latestValue: formatValue(latestValue, 4),
+  }
 }
 
 function createBaseChart(host: HTMLDivElement, opts?: { showTimeScale?: boolean }): IChartApi {
@@ -657,12 +801,13 @@ export default function RpsCustomQueryCharts({
   tickerName,
   benchmarkName,
   series,
-  turnoverSeries = [],
+  turnoverSeries = EMPTY_TURNOVER_SERIES,
   titleLabel,
   subtitleLabel,
   resetKey,
 }: Props) {
   const priceHostRef = useRef<HTMLDivElement | null>(null)
+  const macdHostRef = useRef<HTMLDivElement | null>(null)
   const scoreHostRef = useRef<HTMLDivElement | null>(null)
   const relativeHostRef = useRef<HTMLDivElement | null>(null)
   const rsiHostRef = useRef<HTMLDivElement | null>(null)
@@ -672,6 +817,7 @@ export default function RpsCustomQueryCharts({
   const replaySyncRafRef = useRef<number[]>([])
   const replaySyncCycleRef = useRef(0)
   const prevPaneVisibleRef = useRef<PaneVisibilityState>({
+    showMacdPane: true,
     showScorePane: true,
     showRelativePane: true,
     showRsiPane: true,
@@ -681,6 +827,7 @@ export default function RpsCustomQueryCharts({
   const [showSma20, setShowSma20] = useState(true)
   const [showSma60, setShowSma60] = useState(true)
   const [showSma250, setShowSma250] = useState(true)
+  const [showMacdPane, setShowMacdPane] = useState(true)
   const [showScorePane, setShowScorePane] = useState(true)
   const [showRelativePane, setShowRelativePane] = useState(true)
   const [showRsiPane, setShowRsiPane] = useState(true)
@@ -705,6 +852,9 @@ export default function RpsCustomQueryCharts({
           sma60: null,
           sma250: null,
           rsi14: null,
+          macdDiff: null,
+          macdDea: null,
+          macdHist: null,
           turnoverMultipleOfPrev20Avg: null,
           isAmplified: false,
         }
@@ -715,6 +865,7 @@ export default function RpsCustomQueryCharts({
     const sma60 = buildSma(priceValues, 60)
     const sma250 = buildSma(priceValues, 250)
     const rsi14 = buildRsi(priceValues, 14)
+    const macd = buildMacd(priceValues, 8, 21, 5)
     return basePoints.map((point, index) => {
       const turnoverMultipleOfPrev20Avg = turnoverMap.get(point.date) ?? null
       return {
@@ -723,6 +874,9 @@ export default function RpsCustomQueryCharts({
         sma60: sma60[index] ?? null,
         sma250: sma250[index] ?? null,
         rsi14: rsi14[index] ?? null,
+        macdDiff: macd[index]?.diff ?? null,
+        macdDea: macd[index]?.dea ?? null,
+        macdHist: macd[index]?.hist ?? null,
         turnoverMultipleOfPrev20Avg,
         isAmplified:
           typeof turnoverMultipleOfPrev20Avg === 'number' && Number.isFinite(turnoverMultipleOfPrev20Avg) && turnoverMultipleOfPrev20Avg >= 1.5,
@@ -740,6 +894,29 @@ export default function RpsCustomQueryCharts({
   const rsiData = useMemo<ChartDatum[]>(() => {
     return prepared.map((point) =>
       typeof point.rsi14 === 'number' && Number.isFinite(point.rsi14) ? { time: point.time, value: point.rsi14 } : toWhitespacePoint(point.time),
+    )
+  }, [prepared])
+  const macdDiffData = useMemo<ChartDatum[]>(() => {
+    return prepared.map((point) =>
+      typeof point.macdDiff === 'number' && Number.isFinite(point.macdDiff)
+        ? { time: point.time, value: point.macdDiff }
+        : toWhitespacePoint(point.time),
+    )
+  }, [prepared])
+  const macdDeaData = useMemo<ChartDatum[]>(() => {
+    return prepared.map((point) =>
+      typeof point.macdDea === 'number' && Number.isFinite(point.macdDea) ? { time: point.time, value: point.macdDea } : toWhitespacePoint(point.time),
+    )
+  }, [prepared])
+  const macdHistData = useMemo<HistogramData<Time>[]>(() => {
+    return prepared.map((point) =>
+      typeof point.macdHist === 'number' && Number.isFinite(point.macdHist)
+        ? {
+            time: point.time,
+            value: point.macdHist,
+            color: point.macdHist >= 0 ? MACD_HIST_POSITIVE_COLOR : MACD_HIST_NEGATIVE_COLOR,
+          }
+        : { time: point.time, value: 0, color: 'rgba(255,255,255,0)' },
     )
   }, [prepared])
   const scoreRange = useMemo(() => {
@@ -789,10 +966,19 @@ export default function RpsCustomQueryCharts({
     }
     return map
   }, [rsiData])
+  const macdHistValueMap = useMemo(() => {
+    const map = new Map<UTCTimestamp, number>()
+    for (const point of macdHistData) {
+      if (typeof point.time !== 'number' || typeof point.value !== 'number' || !Number.isFinite(point.value)) continue
+      map.set(point.time as UTCTimestamp, point.value)
+    }
+    return map
+  }, [macdHistData])
   const hoverPoint = hoverTime ? hoverPointMap.get(hoverTime) ?? null : null
   const hoverRelativeValue = hoverTime ? relativeValueMap.get(hoverTime) ?? null : null
   const hoverRelativeMa50Value = hoverTime ? relativeMa50ValueMap.get(hoverTime) ?? null : null
   const hoverRsiValue = hoverTime ? rsiValueMap.get(hoverTime) ?? null : null
+  const hoverMacdHistValue = hoverTime ? macdHistValueMap.get(hoverTime) ?? null : null
   const displayTickerLabel = useMemo(() => formatEtfDisplayLabel(ticker, tickerName), [ticker, tickerName])
   const effectiveResetKey = resetKey ?? ticker
   const priceChart = usePriceChart(priceHostRef, prepared, {
@@ -801,6 +987,12 @@ export default function RpsCustomQueryCharts({
     showSma20,
     showSma60,
     showSma250,
+  })
+  const macdChart = useMacdChart(macdHostRef, {
+    diffData: macdDiffData,
+    deaData: macdDeaData,
+    histData: macdHistData,
+    resetKey: effectiveResetKey,
   })
   const scoreChart = useSingleLineChart(scoreHostRef, scoreData, {
     baselinePrice: 0,
@@ -842,11 +1034,12 @@ export default function RpsCustomQueryCharts({
     const nextRange = clampLogicalRange(range, prepared.length)
     if (!nextRange) return false
     visibleRangeRef.current = nextRange
+    if (showMacdPane) safeSetVisibleLogicalRange(macdChart.chartRef.current, nextRange)
     if (showScorePane) safeSetVisibleLogicalRange(scoreChart.chartRef.current, nextRange)
     if (showRelativePane) safeSetVisibleLogicalRange(relativeChart.chartRef.current, nextRange)
     if (showRsiPane) safeSetVisibleLogicalRange(rsiChart.chartRef.current, nextRange)
     return true
-  }, [prepared.length, priceChart.chartRef, relativeChart.chartRef, rsiChart.chartRef, scoreChart.chartRef, showRelativePane, showRsiPane, showScorePane])
+  }, [macdChart.chartRef, prepared.length, priceChart.chartRef, relativeChart.chartRef, rsiChart.chartRef, scoreChart.chartRef, showMacdPane, showRelativePane, showRsiPane, showScorePane])
   const scheduleCompensatedPaneSync = useCallback(
     (nextPaneVisible?: PaneVisibilityState) => {
       clearReplaySyncQueue()
@@ -878,11 +1071,13 @@ export default function RpsCustomQueryCharts({
 
   useEffect(() => {
     const price = priceChart.chartRef.current
+    const macd = macdChart.chartRef.current
     const score = scoreChart.chartRef.current
     const relative = relativeChart.chartRef.current
     const rsi = rsiChart.chartRef.current
     if (!price) return
     const charts: IChartApi[] = [price]
+    if (showMacdPane && macd) charts.push(macd)
     if (showScorePane && score) charts.push(score)
     if (showRelativePane && relative) charts.push(relative)
     if (showRsiPane && rsi) charts.push(rsi)
@@ -910,15 +1105,17 @@ export default function RpsCustomQueryCharts({
     return () => {
       for (const unsubscribe of unsubs) unsubscribe()
     }
-  }, [prepared, priceChart.chartRef, relativeChart.chartRef, rsiChart.chartRef, scoreChart.chartRef, showRelativePane, showRsiPane, showScorePane])
+  }, [macdChart.chartRef, prepared, priceChart.chartRef, relativeChart.chartRef, rsiChart.chartRef, scoreChart.chartRef, showMacdPane, showRelativePane, showRsiPane, showScorePane])
 
   useEffect(() => {
     const price = priceChart.chartRef.current
+    const macd = macdChart.chartRef.current
     const score = scoreChart.chartRef.current
     const relative = relativeChart.chartRef.current
     const rsi = rsiChart.chartRef.current
     if (!price) return
     const charts: IChartApi[] = [price]
+    if (showMacdPane && macd) charts.push(macd)
     if (showScorePane && score) charts.push(score)
     if (showRelativePane && relative) charts.push(relative)
     if (showRsiPane && rsi) charts.push(rsi)
@@ -947,6 +1144,7 @@ export default function RpsCustomQueryCharts({
       }
       setHoverTime(time)
 
+      const macdHistValue = macdHistValueMap.get(time)
       const relativeValue = relativeValueMap.get(time)
       const rsiValue = rsiValueMap.get(time)
       syncingCrosshairRef.current = true
@@ -955,6 +1153,22 @@ export default function RpsCustomQueryCharts({
           if (chart === src) continue
           const synced =
             (chart === price && safeSetCrosshair(chart, point.targetCloseQfq, time, priceChart.seriesRef.current)) ||
+            (chart === macd &&
+              (((() => {
+                if (typeof macdHistValue !== 'number' || !Number.isFinite(macdHistValue) || !time || !macdChart.histSeriesRef.current) return false
+                try {
+                  chart.setCrosshairPosition(macdHistValue, time, macdChart.histSeriesRef.current)
+                  return true
+                } catch {
+                  return false
+                }
+              })()) ||
+                (typeof point.macdDiff === 'number' &&
+                  Number.isFinite(point.macdDiff) &&
+                  safeSetCrosshair(chart, point.macdDiff, time, macdChart.diffSeriesRef.current)) ||
+                (typeof point.macdDea === 'number' &&
+                  Number.isFinite(point.macdDea) &&
+                  safeSetCrosshair(chart, point.macdDea, time, macdChart.deaSeriesRef.current)))) ||
             (chart === score &&
               safeSetCrosshair(
                 chart,
@@ -989,6 +1203,11 @@ export default function RpsCustomQueryCharts({
     }
   }, [
     hoverPointMap,
+    macdChart.chartRef,
+    macdChart.deaSeriesRef,
+    macdChart.diffSeriesRef,
+    macdChart.histSeriesRef,
+    macdHistValueMap,
     priceChart.chartRef,
     priceChart.seriesRef,
     relativeChart.chartRef,
@@ -999,18 +1218,21 @@ export default function RpsCustomQueryCharts({
     rsiValueMap,
     scoreChart.chartRef,
     scoreChart.seriesRef,
+    showMacdPane,
     showRelativePane,
     showRsiPane,
     showScorePane,
   ])
 
   useEffect(() => {
-    const visiblePanes: Array<'score' | 'relative' | 'rsi'> = []
+    const visiblePanes: Array<'macd' | 'score' | 'relative' | 'rsi'> = []
+    if (showMacdPane) visiblePanes.push('macd')
     if (showScorePane) visiblePanes.push('score')
     if (showRelativePane) visiblePanes.push('relative')
     if (showRsiPane) visiblePanes.push('rsi')
     const lastPane = visiblePanes.length ? visiblePanes[visiblePanes.length - 1] : null
     safeSetTimeScaleVisible(priceChart.chartRef.current, lastPane == null)
+    safeSetTimeScaleVisible(macdChart.chartRef.current, lastPane === 'macd')
     safeSetTimeScaleVisible(scoreChart.chartRef.current, lastPane === 'score')
     safeSetTimeScaleVisible(relativeChart.chartRef.current, lastPane === 'relative')
     safeSetTimeScaleVisible(rsiChart.chartRef.current, lastPane === 'rsi')
@@ -1021,13 +1243,14 @@ export default function RpsCustomQueryCharts({
     try {
       visibleRangeRef.current = nextRange
       safeSetVisibleLogicalRange(priceChart.chartRef.current, nextRange)
+      safeSetVisibleLogicalRange(macdChart.chartRef.current, nextRange)
       safeSetVisibleLogicalRange(scoreChart.chartRef.current, nextRange)
       safeSetVisibleLogicalRange(relativeChart.chartRef.current, nextRange)
       safeSetVisibleLogicalRange(rsiChart.chartRef.current, nextRange)
     } finally {
       syncingRangeRef.current = false
     }
-  }, [prepared.length, priceChart.chartRef, relativeChart.chartRef, rsiChart.chartRef, scoreChart.chartRef, showRelativePane, showRsiPane, showScorePane])
+  }, [macdChart.chartRef, prepared.length, priceChart.chartRef, relativeChart.chartRef, rsiChart.chartRef, scoreChart.chartRef, showMacdPane, showRelativePane, showRsiPane, showScorePane])
 
   useEffect(() => {
     const master = priceChart.chartRef.current
@@ -1039,16 +1262,17 @@ export default function RpsCustomQueryCharts({
     syncingRangeRef.current = true
     try {
       safeSetVisibleLogicalRange(master, initialRange)
+      safeSetVisibleLogicalRange(macdChart.chartRef.current, initialRange)
       safeSetVisibleLogicalRange(scoreChart.chartRef.current, initialRange)
       safeSetVisibleLogicalRange(relativeChart.chartRef.current, initialRange)
       safeSetVisibleLogicalRange(rsiChart.chartRef.current, initialRange)
     } finally {
       syncingRangeRef.current = false
     }
-  }, [defaultLogicalRange, effectiveResetKey, prepared, priceChart.chartRef, scoreChart.chartRef, relativeChart.chartRef, rsiChart.chartRef])
+  }, [defaultLogicalRange, effectiveResetKey, macdChart.chartRef, prepared, priceChart.chartRef, scoreChart.chartRef, relativeChart.chartRef, rsiChart.chartRef])
 
   useEffect(() => {
-    const allCharts = [priceChart.chartRef.current, scoreChart.chartRef.current, relativeChart.chartRef.current, rsiChart.chartRef.current]
+    const allCharts = [priceChart.chartRef.current, macdChart.chartRef.current, scoreChart.chartRef.current, relativeChart.chartRef.current, rsiChart.chartRef.current]
     syncingCrosshairRef.current = true
     try {
       for (const chart of allCharts) safeClearCrosshair(chart)
@@ -1056,8 +1280,12 @@ export default function RpsCustomQueryCharts({
       syncingCrosshairRef.current = false
     }
     const prev = prevPaneVisibleRef.current
-    const nextPaneVisible: PaneVisibilityState = { showScorePane, showRelativePane, showRsiPane }
-    const paneOpened = (!prev.showScorePane && showScorePane) || (!prev.showRelativePane && showRelativePane) || (!prev.showRsiPane && showRsiPane)
+    const nextPaneVisible: PaneVisibilityState = { showMacdPane, showScorePane, showRelativePane, showRsiPane }
+    const paneOpened =
+      (!prev.showMacdPane && showMacdPane) ||
+      (!prev.showScorePane && showScorePane) ||
+      (!prev.showRelativePane && showRelativePane) ||
+      (!prev.showRsiPane && showRsiPane)
     if (paneOpened) {
       scheduleCompensatedPaneSync(nextPaneVisible)
       return
@@ -1069,11 +1297,13 @@ export default function RpsCustomQueryCharts({
     }
     prevPaneVisibleRef.current = nextPaneVisible
   }, [
+    macdChart.chartRef,
     priceChart.chartRef,
     relativeChart.chartRef,
     rsiChart.chartRef,
     scheduleCompensatedPaneSync,
     scoreChart.chartRef,
+    showMacdPane,
     showRelativePane,
     showRsiPane,
     showScorePane,
@@ -1085,7 +1315,7 @@ export default function RpsCustomQueryCharts({
   useEffect(() => {
     setHoverTime(null)
     visibleRangeRef.current = null
-    prevPaneVisibleRef.current = { showScorePane: true, showRelativePane: true, showRsiPane: true }
+    prevPaneVisibleRef.current = { showMacdPane: true, showScorePane: true, showRelativePane: true, showRsiPane: true }
   }, [effectiveResetKey, prepared])
 
   return (
@@ -1095,7 +1325,7 @@ export default function RpsCustomQueryCharts({
           <div>
             <div className="text-[15px] font-semibold tracking-tight text-white">{titleLabel || `${displayTickerLabel}关键图表指标`}</div>
             <div className="mt-0.5 text-xs leading-relaxed text-[#94A3B8]">
-              主图支持价格线、`SMA20`、`SMA60`、`SMA250` 开关，并保留按 Score 四档分段着色与 `1.50x` 放量淡紫点；副图可按需显示相对 {benchmarkName} 的 RPS Score、RPS 起点归一和 `RSI(14)`。
+              主图支持价格线、`SMA20`、`SMA60`、`SMA250` 开关，并保留按 Score 四档分段着色与 `1.50x` 放量淡紫点；副图可按需显示 `MACD(8,21,5)`、相对 {benchmarkName} 的 RPS Score、RPS 起点归一和 `RSI(14)`。
             </div>
             <div className="mt-1 text-[11px] text-[#64748B]">
               {subtitleLabel || `当前序列：${displayTickerLabel} | 基准：${benchmarkName}`}
@@ -1150,6 +1380,17 @@ export default function RpsCustomQueryCharts({
             SMA250
           </button>
           <div className="mx-2 h-4 w-px bg-white/10" />
+          <button
+            type="button"
+            onClick={() => setShowMacdPane((value) => !value)}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-md border px-2 py-1 transition',
+              showMacdPane ? 'border-white/15 bg-white/5 text-[#E6EDF7]' : 'border-white/10 bg-transparent hover:border-white/15',
+            )}
+          >
+            <span className="h-2 w-2 rounded-full bg-[#60A5FA]" />
+            MACD(8,21,5)
+          </button>
           <button
             type="button"
             onClick={() => setShowScorePane((value) => !value)}
@@ -1218,6 +1459,16 @@ export default function RpsCustomQueryCharts({
                   <div className="text-right font-mono">{formatValue(hoverPoint.scorePct, 2)}</div>
                 </>
               ) : null}
+              {showMacdPane ? (
+                <>
+                  <div className="text-[#A9B6CC]">DIFF</div>
+                  <div className="text-right font-mono">{formatValue(hoverPoint.macdDiff, 4)}</div>
+                  <div className="text-[#A9B6CC]">DEA</div>
+                  <div className="text-right font-mono">{formatValue(hoverPoint.macdDea, 4)}</div>
+                  <div className="text-[#A9B6CC]">MACD</div>
+                  <div className="text-right font-mono">{formatValue(hoverMacdHistValue, 4)}</div>
+                </>
+              ) : null}
               <div className="text-[#A9B6CC]">放量倍数</div>
               <div className="text-right font-mono">{formatValue(hoverPoint.turnoverMultipleOfPrev20Avg, 2)}x</div>
               {showRelativePane ? (
@@ -1248,6 +1499,17 @@ export default function RpsCustomQueryCharts({
               {showSma250 ? ' + SMA250' : ''} | 绿=Score&lt;0 黄=0~10 橙=10~20 红=&gt;20 柔紫点=成交额&gt;=1.50x
             </div>
             <div ref={priceHostRef} className="h-[300px] w-full" />
+          </div>
+
+          <div
+            className={cn(
+              `${CHART_PANEL_CLS} transition-[height,opacity]`,
+              showMacdPane ? 'opacity-100' : 'pointer-events-none opacity-0',
+            )}
+            style={{ height: showMacdPane ? 164 : 1 }}
+          >
+            <div className={CHART_BADGE_CLS}>MACD(8,21,5)（第一副图） | 蓝=DIFF 粉=DEA 柱=MACD</div>
+            <div ref={macdHostRef} className="h-[140px] w-full" />
           </div>
 
           <div

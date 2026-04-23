@@ -34,6 +34,7 @@ export default function Top100Table({
   sortKey,
   sortDir,
   onToggleSort,
+  buildRpsAnalysisHref,
 }: {
   rows: EtfTopRow[]
   loading: boolean
@@ -42,6 +43,7 @@ export default function Top100Table({
   sortKey: Top100SortKey
   sortDir: SortDir
   onToggleSort: (key: Top100SortKey) => void
+  buildRpsAnalysisHref?: (row: EtfTopRow) => string
 }) {
   const q = keyword.trim().toLowerCase()
   const filtered = q
@@ -215,16 +217,26 @@ export default function Top100Table({
                         <ZBadge z={r.z90} status={r.dataStatus} />
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <a
-                        href={`/etf/${encodeURIComponent(r.code)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center justify-center gap-2 rounded-[6px] border border-[#334155] bg-[#1E293B] px-3 py-1.5 text-xs font-medium text-[#E2E8F0] transition hover:border-[#475569] hover:bg-[#334155] hover:text-white"
-                      >
-                        查看
-                        <ExternalLink className="h-3.5 w-3.5 opacity-70" />
-                      </a>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-2">
+                        <a
+                          href={buildRpsAnalysisHref ? buildRpsAnalysisHref(r) : `/market/rps/custom-query?ticker=${encodeURIComponent(r.code)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="ui-btn ui-btn-outline px-3 py-1.5 text-xs"
+                        >
+                          RPS分析
+                        </a>
+                        <a
+                          href={`/etf/${encodeURIComponent(r.code)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center justify-center gap-2 rounded-[6px] border border-[#334155] bg-[#1E293B] px-3 py-1.5 text-xs font-medium text-[#E2E8F0] transition hover:border-[#475569] hover:bg-[#334155] hover:text-white"
+                        >
+                          查看
+                          <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+                        </a>
+                      </div>
                     </td>
                   </tr>
                 )

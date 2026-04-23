@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import DataStatusBanner from '@/components/DataStatusBanner'
 import FloatingSectionNav, { type FloatingNavSection } from '@/components/FloatingSectionNav'
 import ZBadge from '@/components/ZBadge'
@@ -25,6 +26,7 @@ import type { Top100Meta } from '@/utils/etfApi'
 import { formatCompactNumber, formatPct, formatYmd } from '@/utils/format'
 
 const DEFAULT_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH', '512050.SH', '560010.SH']
+const DEFAULT_CUSTOM_QUERY_TICKER = '159915'
 const TURNOVER_TICKERS = ['512890.SH', ...DEFAULT_TICKERS]
 const RPS_BENCHMARK_CODE = 'H30269'
 const RPS_BENCHMARK_NAME = '红利低波全收益指数'
@@ -138,6 +140,11 @@ function fmtTradingDaysAgo(v: number | null | undefined): string {
   return `${v}个交易日前`
 }
 
+function normalizeCustomQueryTicker(value: string | null | undefined): string {
+  const normalized = String(value || '').trim().toUpperCase()
+  return normalized || DEFAULT_CUSTOM_QUERY_TICKER
+}
+
 function formatEtfDisplayLabel(args: {
   ticker?: string | null
   code?: string | null
@@ -189,6 +196,9 @@ function resolveScoreState(score: number | null | undefined): { label: string; t
 export default function RpsStylePanel({ page }: { page: RpsPage }) {
   const isOverviewPage = page === 'overview'
   const isCustomQueryPage = page === 'custom-query'
+  const [searchParams] = useSearchParams()
+  const initialCustomTickerRef = useRef<string>(normalizeCustomQueryTicker(searchParams.get('ticker')))
+  const initialCustomTicker = initialCustomTickerRef.current
 
   const [loading, setLoading] = useState(isOverviewPage)
   const [error, setError] = useState<string | null>(null)
@@ -209,8 +219,8 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   const [turnoverSummaryLoading, setTurnoverSummaryLoading] = useState(false)
   const [turnoverSummaryError, setTurnoverSummaryError] = useState<string | null>(null)
   const [turnoverSummaryItems, setTurnoverSummaryItems] = useState<RpsTurnoverSummaryItem[]>([])
-  const [customTickerInput, setCustomTickerInput] = useState<string>('159915')
-  const [submittedCustomTicker, setSubmittedCustomTicker] = useState<string>('159915')
+  const [customTickerInput, setCustomTickerInput] = useState<string>(initialCustomTicker)
+  const [submittedCustomTicker, setSubmittedCustomTicker] = useState<string>(initialCustomTicker)
   const [customQuerySubmitSeq, setCustomQuerySubmitSeq] = useState(0)
   const [customQueryLoading, setCustomQueryLoading] = useState(isCustomQueryPage)
   const [customQueryError, setCustomQueryError] = useState<string | null>(null)
@@ -667,8 +677,8 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
         className="mx-auto w-full max-w-[920px]"
         onSubmit={(e) => {
           e.preventDefault()
-          const nextTicker = customTickerInput.trim().toUpperCase()
-          setSubmittedCustomTicker(nextTicker || '159915')
+          const nextTicker = normalizeCustomQueryTicker(customTickerInput)
+          setSubmittedCustomTicker(nextTicker)
           setCustomQuerySubmitSeq((value) => value + 1)
         }}
       >

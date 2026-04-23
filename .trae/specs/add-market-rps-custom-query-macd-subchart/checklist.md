@@ -1,0 +1,16 @@
+- [x] “自定义查询”图表区新增一个 MACD 副图，且位于副图第一顺位
+- [x] MACD 副图参数固定为 `(8, 21, 5)`，并正确展示 `DIFF`、`DEA` 与 `MACD` 柱体
+- [x] 新增 MACD 副图后，原有副图顺序顺延，但既有指标口径与视觉语义不回退
+- [x] 悬停任意图表时，MACD 副图与其他图表保持同一交易日日期解读
+- [x] 拖拽、缩放和切换 ETF 后，MACD 副图与其他图表的可见范围仍保持同步
+- [x] 直接相关检查通过，且自定义查询原有摘要区、副图和成交额追踪无新增明显回归
+
+- 验证记录：`npm run check` 通过
+- 验证记录：`npm run lint` 通过
+- 验证记录：`npm run build` 通过
+- 验证记录：VS Code diagnostics 对 `RpsCustomQueryCharts.tsx` 无新增报错
+- 验证记录：`/dev/rps-custom-query-mock` 截图显示 `MACD(8,21,5)` 位于主图下方第一副图，且 hover 竖线在 MACD、Score、RPS起点归一、RSI 间保持同一交易日对齐
+- 验证记录：代码核对 `visible range` 与 `crosshair` 同步逻辑时，`MACD` 已并入与其余图表相同的同步链路
+- 验证记录：修复默认空数组引用后，mock 页浏览器控制台仅剩 React DevTools 提示与既有 `boot-guard` warn，不再出现 `Maximum update depth exceeded`
+- 验证记录：`/dev/rps-custom-query-live` 截图确认真实 `RpsStylePanel` 的摘要区、关键图表区与最近250个交易日成交额追踪均正常渲染
+- 验证记录：`/dev/rps-custom-query-live` 浏览器控制台无新增 error
