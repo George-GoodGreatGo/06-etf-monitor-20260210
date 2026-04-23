@@ -82,3 +82,23 @@ const recoveredMap = await __readEtfUniverseNameMapForTest({
 })
 
 assert.equal(recoveredMap.get('513310'), '德国ETF')
+
+const originalVercel = process.env.VERCEL
+process.env.VERCEL = '1'
+
+try {
+  const vercelStaticProfile = await resolveRpsCustomTickerProfile('159209')
+  assert.equal(vercelStaticProfile.ticker, '159209.SZ')
+  assert.equal(vercelStaticProfile.code, '159209')
+  assert.equal(vercelStaticProfile.name, '招商中证全指红利质量ETF')
+  assert.equal(vercelStaticProfile.nameSource, 'metadata')
+
+  const vercelStaticProfile2 = await resolveRpsCustomTickerProfile('159985')
+  assert.equal(vercelStaticProfile2.ticker, '159985.SZ')
+  assert.equal(vercelStaticProfile2.code, '159985')
+  assert.equal(vercelStaticProfile2.name, '华夏饲料豆粕期货ETF')
+  assert.equal(vercelStaticProfile2.nameSource, 'metadata')
+} finally {
+  if (originalVercel == null) delete process.env.VERCEL
+  else process.env.VERCEL = originalVercel
+}

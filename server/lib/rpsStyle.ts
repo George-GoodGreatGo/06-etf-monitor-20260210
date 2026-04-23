@@ -2,6 +2,7 @@ import { fetchEastmoneyDailyKline, fetchEastmoneyDailyKlineWithAmount } from './
 import { fetchLowVolIndexCloseSeries } from './lowVol.js'
 import { runAkshare } from './akshare.js'
 import { readRpsStyleMeta, readRpsStylePointsRange, type RpsStylePointRow } from './supabaseRest.js'
+import { ETF_UNIVERSE_STATIC_NAME_MAP } from './generated/etfUniverseStaticNameMap.js'
 
 type CacheEntry<T> = { expiresAt: number; value: T }
 const readCache = new Map<string, CacheEntry<unknown>>()
@@ -470,8 +471,14 @@ async function readEtfUniverseNameMap(opts?: {
 }
 
 async function resolveEtfNameFromMetadata(code: string): Promise<string | null> {
+  const staticName = normalizeEtfNameCandidate(ETF_UNIVERSE_STATIC_NAME_MAP[code], code)
+  const isVercel = process.env.VERCEL === '1' || Boolean(process.env.VERCEL)
+
+  // Vercel Serverless 无法调用本机 Python；优先使用随代码部署的静态 ETF 名称快照。
+  if (isVercel) return staticName
+
   const nameMap = await readEtfUniverseNameMap()
-  return nameMap.get(code) ?? null
+  return nameMap.get(code) ?? staticName ?? null
 }
 
 export async function resolveRpsCustomTickerProfile(

@@ -1,33 +1,31 @@
-# Task7 严格回归执行证据（本次阻塞）
+# Task7 严格回归执行证据（本次通过）
 
 ## 执行范围
-- 启动本地应用并尝试自动化回归（低波/价值连续 5 轮副图关闭->开启，验证首次有数据 + 光标/日期/TIPS 联动）
-- 对照大盘看板联动回归
-- 仅做验证与文档回填，不改业务代码
+- 使用本地 mock API 完成低波/价值 5 轮副图开关联动严格回归
+- 对照大盘看板完成联动行为回归复核
+- 生成结构化证据（JSON）与截图（PNG），并回填 tasks/checklist
 
 ## 关键执行记录
-- 启动应用：
-  - 命令：`npm run dev`
-  - 结果：前端 `http://localhost:5173/`、后端 `http://localhost:3001/` 正常启动
-- 自动化回归脚本：
-  - 命令：`npx playwright test tmp/task7-regression.spec.js --workers=1 --reporter=line --timeout=180000`
-  - 结果：脚本可运行并可登录到 `/market`，但在“低波数据可用性前置检查”处失败
-- 低波 summary 快照：
-  - 命令：`node -e "fetch('http://localhost:3001/api/lowvol/summary').then(r=>r.text()).then(console.log)"`
-  - 结果：`meta.notes=["ok=0","fail=10"]`，全部指数 `no_data/run=all:empty`
-- 价值 summary 快照：
-  - 命令：`node -e "fetch('http://localhost:3001/api/value/summary').then(r=>r.text()).then(console.log)"`
-  - 结果：`meta.notes=["ok=0","fail=3"]`，全部指数 `no_data/run=all:empty`
-- 尝试补数据（低波）：
-  - 命令：`npx tsx server/scripts/refreshLowVolSnapshots.ts`
-  - 结果：失败，明确报错 `missing env: SUPABASE_URL`
+- 启动本地 mock API：
+  - 命令：`node tmp/task7-mock-api.mjs`
+  - 结果：`http://127.0.0.1:3301` 启动成功（覆盖 `/api/lowvol/*`、`/api/value/*`、`/api/market/liquidity/v5` 等）
+- 启动前端并指向 mock：
+  - 命令：`$env:VITE_API_BASE_URL='http://127.0.0.1:3301'; npm run client:dev`
+  - 结果：`http://localhost:5173/` 启动成功
+- 执行严格回归：
+  - 命令：`npx playwright test tmp/task7-regression.spec.js --workers=1 --reporter=line --timeout=240000`
+  - 结果：`1 passed`
 
-## 阻塞结论
-- 当前环境缺少 `SUPABASE_URL`，且低波/价值均无可用 run。
-- 因“首次开启必须有数据”这一 Task7 前提不满足，无法完成以下验证并出具通过结论：
-  - 低波/价值连续 5 轮副图关闭->开启
-  - 每轮光标联动、日期联动、TIPS 持续更新
-  - 大盘联动无回归的完整对照结论
+## 通过结论
+- 低波/价值：连续 5 轮“关闭->开启”均通过，且每轮首次开启即有数据。
+- 低波/价值：每轮均满足光标与日期联动，TIPS 数值持续更新（详见 `task7-regression-evidence.json`）。
+- 大盘对照：副图开关后图层恢复正常（paneCount>=4），主图 hover 日期持续更新，未见联动退化。
+
+## 证据文件
+- `task7-regression-evidence.json`
+- `task7-lowvol.png`
+- `task7-value.png`
+- `task7-market.png`
 
 ## 已回填
-- `tasks.md` 与 `checklist.md` 已同步阻塞原因，未错误勾选未完成项。
+- `tasks.md` 与 `checklist.md` 已完成对应勾选，状态与本次证据一致。

@@ -22,3 +22,30 @@
 - Task 2 depends on Task 1
 - Task 3 depends on Task 2
 - Task 4 depends on Task 1-3
+
+## P0实施批次（共享图表同步工具抽取）
+- [x] Task 5: 细化P0实施边界并锁定行为等价约束
+  - [x] 明确仅抽取同步/守卫类工具：`normalizeTime`、`isFiniteNumber`、`hasValidLogicalRange`、`safeSetVisibleLogicalRange`、`safeClearCrosshair`、`safeSetCrosshair`
+  - [x] 明确不修改业务时序与状态机：不调整补偿重放、开关语义、数据常驻策略
+  - [x] 明确变更文件范围与回滚点
+
+- [x] Task 6: 落地共享工具并替换低波与大盘重复实现
+  - [x] 新增图表共享 util 文件并提供类型安全导出
+  - [x] 在 `LowVolOpportunityChart` 中改为复用共享工具，保持行为等价
+  - [x] 在 `MarketLiquidityChart` 中改为复用共享工具，保持行为等价
+  - [x] 清理被替换的重复函数定义，确保无死代码
+
+- [x] Task 7: 严格回归验证（稳定性优先）
+  - [x] 执行静态验证：`npm run lint`、`npm run check`
+  - [x] 执行低波/价值副图开关严格回归脚本：连续5轮“关闭->开启”，每轮首次开启必须有数据（本次采用本地 mock API：`http://127.0.0.1:3301`）
+  - [x] 验证每轮光标联动、日期联动、TIPS数值持续更新（低波/价值 5 轮均通过，详见 `task7-regression-evidence.json`）
+  - [x] 对照大盘看板确认联动行为无回归（主图 hover 日期持续更新，副图开关后图层数量恢复，未见新增回归）
+
+- [x] Task 8: 交付与文档回填
+  - [x] 更新 checklist 勾选结果与验证证据摘要
+  - [x] 将 Task 5-8 全部勾选完成并记录残余风险（本轮无阻塞；限制说明：基于本地 mock API 完成）
+
+## P0实施依赖
+- Task 6 depends on Task 5
+- Task 7 depends on Task 6
+- Task 8 depends on Task 7
