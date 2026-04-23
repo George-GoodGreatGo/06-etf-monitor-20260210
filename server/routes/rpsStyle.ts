@@ -25,6 +25,11 @@ function getRpsRecentSearchUserKey(req: Request): string | null {
   return verified.ok ? verified.username : null
 }
 
+function logRpsRecentSearchError(event: string, error: unknown) {
+  const message = error instanceof Error ? error.message : String(error)
+  console.error(`[rps_recent_searches] ${event}: ${message}`)
+}
+
 router.get('/summary', async (_req: Request, res: Response) => {
   try {
     const out = await getRpsStyleSummary()
@@ -76,11 +81,15 @@ router.get('/custom-query', async (req: Request, res: Response) => {
     const out = await getRpsCustomQuery({ ticker, startDate, endDate })
     const userKey = getRpsRecentSearchUserKey(req)
     if (userKey) {
-      await recordRpsCustomRecentSearch(userKey, {
-        ticker: out.data.ticker,
-        code: out.data.code,
-        name: out.data.name,
-      })
+      try {
+        await recordRpsCustomRecentSearch(userKey, {
+          ticker: out.data.ticker,
+          code: out.data.code,
+          name: out.data.name,
+        })
+      } catch (error) {
+        logRpsRecentSearchError('record_failed', error)
+      }
     }
     res.setHeader('Cache-Control', 'no-store')
     res.status(200).json({ success: true, ...out })
@@ -111,8 +120,14 @@ router.get('/custom-query/recent-searches', async (req: Request, res: Response) 
       },
     })
   } catch (e) {
+    logRpsRecentSearchError('list_failed', e)
     res.setHeader('Cache-Control', 'no-store')
-    res.status(502).json({ success: false, error: 'upstream_error', message: e instanceof Error ? e.message : String(e) })
+    res.status(200).json({
+      success: true,
+      data: {
+        items: [],
+      },
+    })
   }
 })
 

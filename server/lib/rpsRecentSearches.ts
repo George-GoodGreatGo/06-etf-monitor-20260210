@@ -18,10 +18,25 @@ const EMPTY_STORAGE: RecentSearchStorage = { users: {} }
 
 let storageWriteQueue = Promise.resolve()
 
-function getStorageFilePath(): string {
+function getStorageFileOverridePath(): string {
   const override = String(process.env.RPS_CUSTOM_QUERY_RECENT_SEARCHES_FILE || '').trim()
-  if (override) return override
-  return path.resolve(process.cwd(), 'server', '.cache', 'rps-custom-query-recent-searches.json')
+  return override
+}
+
+function getSupabaseConfig(): { supabaseUrl: string; serviceKey: string } | null {
+  const supabaseUrl = String(process.env.SUPABASE_URL || '')
+    .trim()
+    .replace(/\/+$/, '')
+  const serviceKey = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
+  if (!supabaseUrl || !serviceKey) return null
+  return { supabaseUrl, serviceKey }
+}
+
+function getSupabaseHeaders(serviceKey: string): Record<string, string> {
+  return {
+    apikey: serviceKey,
+    Authorization: `Bearer ${serviceKey}`,
+  }
 }
 
 function normalizeUserKey(userKeyRaw: string): string {
@@ -100,7 +115,8 @@ async function ensureStorageDir(filePath: string): Promise<void> {
 }
 
 async function readStorage(): Promise<RecentSearchStorage> {
-  const filePath = getStorageFilePath()
+  const filePath = getStorageFileOverridePath()
+  if (!filePath) return { ...EMPTY_STORAGE }
   try {
     const text = await readFile(filePath, 'utf-8')
     const parsed = JSON.parse(text) as unknown
@@ -125,7 +141,8 @@ async function readStorage(): Promise<RecentSearchStorage> {
 }
 
 async function writeStorage(storage: RecentSearchStorage): Promise<void> {
-  const filePath = getStorageFilePath()
+  const filePath = getStorageFileOverridePath()
+  if (!filePath) return
   await ensureStorageDir(filePath)
   await writeFile(filePath, `${JSON.stringify(storage, null, 2)}\n`, 'utf-8')
 }
@@ -139,11 +156,76 @@ async function withStorageLock<T>(task: () => Promise<T>): Promise<T> {
   return await run
 }
 
+async function listRpsCustomRecentSearchesFromSupabase(userKey: string): Promise<RpsCustomRecentSearchItem[]> {
+  const config = getSupabaseConfig()
+  if (!config) return []
+  const url =
+    `${config.supabaseUrl}/rest/v1/rps_custom_recent_search?` +
+    `user_key=eq.${encodeURIComponent(userKey)}` +
+    `&select=ticker,code,name,updated_at` +
+    `&order=updated_at.desc,ticker.asc` +
+    `&limit=${RPS_CUSTOM_QUERY_RECENT_SEARCHES_LIMIT}`
+  const res = await fetch(url, {
+    headers: getSupabaseHeaders(config.serviceKey),
+  })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`supabase read rps_custom_recent_search failed: HTTP ${res.status} ${body}`)
+  }
+  const rows = (await res.json().catch(() => null)) as unknown
+  if (!Array.isArray(rows)) return []
+  return normalizeStoredItems(
+    rows.map((row) => {
+      const record = row as Record<string, unknown>
+      return {
+        ticker: record.ticker,
+        code: record.code,
+        name: record.name,
+        updatedAt: record.updated_at,
+      }
+    }),
+  )
+}
+
+async function recordRpsCustomRecentSearchToSupabase(
+  userKey: string,
+  item: Pick<RpsCustomRecentSearchItem, 'ticker' | 'code' | 'name'>,
+): Promise<RpsCustomRecentSearchItem[]> {
+  const config = getSupabaseConfig()
+  if (!config) return []
+  const normalized = normalizeItem(item)
+  if (!normalized) return []
+  const rpcUrl = `${config.supabaseUrl}/rest/v1/rpc/upsert_rps_custom_recent_search`
+  const rpcRes = await fetch(rpcUrl, {
+    method: 'POST',
+    headers: {
+      ...getSupabaseHeaders(config.serviceKey),
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify({
+      p_user_key: userKey,
+      p_ticker: normalized.ticker,
+      p_code: normalized.code,
+      p_name: normalized.name,
+      p_limit: RPS_CUSTOM_QUERY_RECENT_SEARCHES_LIMIT,
+    }),
+  })
+  if (!rpcRes.ok) {
+    const body = await rpcRes.text().catch(() => '')
+    throw new Error(`supabase rpc upsert_rps_custom_recent_search failed: HTTP ${rpcRes.status} ${body}`)
+  }
+  return await listRpsCustomRecentSearchesFromSupabase(userKey)
+}
+
 export async function listRpsCustomRecentSearches(userKeyRaw: string): Promise<RpsCustomRecentSearchItem[]> {
   const userKey = normalizeUserKey(userKeyRaw)
   if (!userKey) return []
-  const storage = await readStorage()
-  return normalizeStoredItems(storage.users[userKey])
+  if (getStorageFileOverridePath()) {
+    const storage = await readStorage()
+    return normalizeStoredItems(storage.users[userKey])
+  }
+  return await listRpsCustomRecentSearchesFromSupabase(userKey)
 }
 
 export async function recordRpsCustomRecentSearch(
@@ -152,6 +234,9 @@ export async function recordRpsCustomRecentSearch(
 ): Promise<RpsCustomRecentSearchItem[]> {
   const userKey = normalizeUserKey(userKeyRaw)
   if (!userKey) return []
+  if (!getStorageFileOverridePath()) {
+    return await recordRpsCustomRecentSearchToSupabase(userKey, item)
+  }
   return await withStorageLock(async () => {
     const storage = await readStorage()
     const nextItems = mergeRecentSearches(storage.users[userKey] || [], item)

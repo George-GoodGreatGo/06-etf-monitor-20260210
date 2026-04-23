@@ -292,3 +292,97 @@ try {
   if (originalRecentSearchesFile == null) delete process.env.RPS_CUSTOM_QUERY_RECENT_SEARCHES_FILE
   else process.env.RPS_CUSTOM_QUERY_RECENT_SEARCHES_FILE = originalRecentSearchesFile
 }
+
+const originalSupabaseUrl = process.env.SUPABASE_URL
+const originalSupabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const originalFetch = globalThis.fetch
+delete process.env.RPS_CUSTOM_QUERY_RECENT_SEARCHES_FILE
+process.env.SUPABASE_URL = 'https://example.supabase.co'
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key'
+
+try {
+  type MockRecentRow = { user_key: string; ticker: string; code: string; name: string; updated_at: string }
+  const supabaseRows = new Map<string, MockRecentRow[]>()
+  let callSeq = 0
+
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+    if (url === 'https://example.supabase.co/rest/v1/rpc/upsert_rps_custom_recent_search') {
+      const payload = JSON.parse(String(init?.body || '{}')) as {
+        p_user_key?: string
+        p_ticker?: string
+        p_code?: string
+        p_name?: string
+        p_limit?: number
+      }
+      const userKey = String(payload.p_user_key || '').trim().toLowerCase()
+      const ticker = String(payload.p_ticker || '').trim().toUpperCase()
+      const code = String(payload.p_code || '').trim() || ticker.split('.')[0] || ticker
+      const name = String(payload.p_name || '').trim() || code
+      const limit = Math.max(1, Math.floor(Number(payload.p_limit) || 10))
+      const updatedAt = new Date(Date.UTC(2026, 3, 1, 0, 0, callSeq)).toISOString()
+      callSeq += 1
+      const current = supabaseRows.get(userKey) || []
+      const next = [
+        { user_key: userKey, ticker, code, name, updated_at: updatedAt },
+        ...current.filter((item) => item.ticker !== ticker),
+      ]
+        .sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at) || a.ticker.localeCompare(b.ticker))
+        .slice(0, limit)
+      supabaseRows.set(userKey, next)
+      return new Response(null, { status: 204 })
+    }
+    if (url.startsWith('https://example.supabase.co/rest/v1/rps_custom_recent_search?')) {
+      const parsed = new URL(url)
+      const userKey = (parsed.searchParams.get('user_key') || '').replace(/^eq\./, '').toLowerCase()
+      const rows = (supabaseRows.get(userKey) || []).map((item) => ({
+        ticker: item.ticker,
+        code: item.code,
+        name: item.name,
+        updated_at: item.updated_at,
+      }))
+      return new Response(JSON.stringify(rows), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    throw new Error(`unexpected fetch url: ${url}`)
+  }) as typeof fetch
+
+  const userA = 'alice@example.com'
+  const userB = 'bob@example.com'
+  for (let index = 0; index < 11; index += 1) {
+    await recordRpsCustomRecentSearch(userA, {
+      ticker: `${String(510100 + index)}.SH`,
+      code: String(510100 + index),
+      name: '',
+    })
+  }
+  await recordRpsCustomRecentSearch(userA, {
+    ticker: '510105.SH',
+    code: '510105',
+    name: '重排ETF',
+  })
+  await recordRpsCustomRecentSearch(userB, {
+    ticker: '159915.SZ',
+    code: '159915',
+    name: '创业板ETF',
+  })
+
+  const userARecent = await listRpsCustomRecentSearches(userA)
+  const userBRecent = await listRpsCustomRecentSearches(userB)
+  assert.equal(userARecent.length, 10)
+  assert.equal(userARecent[0]?.ticker, '510105.SH')
+  assert.equal(userARecent[0]?.name, '重排ETF')
+  assert.ok(!userARecent.some((item) => item.ticker === '510100.SH'))
+  assert.deepEqual(
+    userBRecent.map((item) => item.ticker),
+    ['159915.SZ'],
+  )
+} finally {
+  globalThis.fetch = originalFetch
+  if (originalSupabaseUrl == null) delete process.env.SUPABASE_URL
+  else process.env.SUPABASE_URL = originalSupabaseUrl
+  if (originalSupabaseServiceRoleKey == null) delete process.env.SUPABASE_SERVICE_ROLE_KEY
+  else process.env.SUPABASE_SERVICE_ROLE_KEY = originalSupabaseServiceRoleKey
+}
