@@ -50,15 +50,15 @@ type PriceRun = { tone: PriceTone; data: LineData<Time>[] }
 
 const LINE_COLOR = '#60A5FA'
 const MA_LINE_COLOR = 'rgba(248,250,252,0.62)'
-const PRICE_NEGATIVE_COLOR = '#34D399'
-const PRICE_NEUTRAL_COLOR = '#FACC15'
-const PRICE_POSITIVE_COLOR = '#FB923C'
-const PRICE_STRONG_COLOR = '#F87171'
+const PRICE_NEGATIVE_COLOR = '#6EE7B7'
+const PRICE_NEUTRAL_COLOR = '#F4D35E'
+const PRICE_POSITIVE_COLOR = '#F5A65B'
+const PRICE_STRONG_COLOR = '#F38B8F'
 const PRICE_ALIGN_COLOR = 'rgba(0,0,0,0)'
 const SMA60_LINE_COLOR = 'rgba(147,197,253,0.95)'
 const SMA250_LINE_COLOR = 'rgba(226,232,240,0.72)'
-const RSI_LINE_COLOR = '#A78BFA'
-const TURNOVER_MARKER_COLOR = '#C4B5FD'
+const RSI_LINE_COLOR = '#B9A3FF'
+const TURNOVER_MARKER_COLOR = '#CBB8FF'
 const SCALE_MIN_WIDTH = 110
 const PANEL_CLS = 'overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] shadow-lg'
 const CHART_PANEL_CLS = 'relative rounded-lg border border-white/10 bg-[#111B2E] pt-6'
@@ -738,13 +738,13 @@ export default function RpsCustomQueryCharts({
     baselinePrice: 1,
     digits: 4,
     resetKey: ticker,
-    showTimeScale: true,
   })
   const rsiChart = useSingleLineChart(rsiHostRef, rsiData, {
     digits: 2,
     resetKey: ticker,
     backgroundBands: buildRsiBgBands(),
     primaryColor: RSI_LINE_COLOR,
+    showTimeScale: true,
   })
 
   useEffect(() => {
@@ -953,7 +953,7 @@ export default function RpsCustomQueryCharts({
         <div className="space-y-2">
           <div className={CHART_PANEL_CLS}>
             <div className={CHART_BADGE_CLS}>
-              前复权价格（主图） | 绿=Score&lt;0 黄=0~10 橙=10~20 红=&gt;20 淡紫点=成交额&gt;=1.50x
+              前复权价格（主图） | 绿=Score&lt;0 黄=0~10 橙=10~20 红=&gt;20 柔紫点=成交额&gt;=1.50x
             </div>
             <div ref={priceHostRef} className="h-[300px] w-full" />
           </div>

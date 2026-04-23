@@ -56,10 +56,10 @@ const RPS_OVERVIEW_NAV_SECTIONS: FloatingNavSection[] = [
   { id: 'rps-turnover-section', label: '成交额', shortLabel: '成交额' },
 ] as const
 const SUMMARY_CARD_CLS = 'rounded-md border border-white/10 bg-[#0F172A] px-3 py-3 shadow-lg'
-const TURNOVER_HIGHLIGHT_ROW_CLS = 'bg-[rgba(196,181,253,0.12)]'
-const TURNOVER_HIGHLIGHT_TEXT_CLS = 'font-semibold text-[#C4B5FD]'
+const TURNOVER_HIGHLIGHT_ROW_CLS = 'bg-[rgba(203,184,255,0.10)]'
+const TURNOVER_HIGHLIGHT_TEXT_CLS = 'font-semibold text-[#CBB8FF]'
 const TURNOVER_HIGHLIGHT_BADGE_CLS =
-  'rounded-full border border-[rgba(196,181,253,0.36)] bg-[rgba(196,181,253,0.12)] px-1.5 py-0.5 text-[10px] font-semibold leading-4 text-[#DDD6FE]'
+  'rounded-full border border-[rgba(203,184,255,0.28)] bg-[rgba(203,184,255,0.10)] px-1.5 py-0.5 text-[10px] font-semibold leading-4 text-[#E5DBFF]'
 
 type RpsPage = 'overview' | 'custom-query'
 type RpsViewMode = 'raw' | 'relative' | 'score'
@@ -631,7 +631,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   const customQuerySection = (
     <div className="space-y-4">
       <form
-        className="flex w-full flex-col gap-3 rounded-2xl border border-[rgba(96,165,250,0.30)] bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(11,18,32,0.94))] p-3 shadow-[0_0_0_1px_rgba(96,165,250,0.10),0_18px_44px_rgba(2,6,23,0.28),0_0_28px_rgba(59,130,246,0.10)] sm:flex-row sm:items-center"
+        className="mx-auto w-full max-w-[920px]"
         onSubmit={(e) => {
           e.preventDefault()
           const nextTicker = customTickerInput.trim().toUpperCase()
@@ -639,19 +639,27 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
           setCustomQuerySubmitSeq((value) => value + 1)
         }}
       >
-        <input
-          value={customTickerInput}
-          onChange={(e) => setCustomTickerInput(e.target.value)}
-          placeholder="输入 ETF 代码，如 159915、159915.SZ、510300.SH"
-          className="w-full rounded-full border border-[rgba(147,197,253,0.70)] bg-[linear-gradient(180deg,rgba(15,23,42,0.98),rgba(8,15,28,0.96))] px-5 py-4 font-mono text-lg text-[#F8FAFC] shadow-[0_0_0_1px_rgba(147,197,253,0.18),0_0_0_6px_rgba(59,130,246,0.08),0_12px_30px_rgba(37,99,235,0.14)] outline-none transition placeholder:text-[#7C93B6] hover:border-[#BFDBFE] hover:shadow-[0_0_0_1px_rgba(191,219,254,0.24),0_0_0_8px_rgba(96,165,250,0.10),0_16px_36px_rgba(37,99,235,0.18)] focus:border-[#DBEAFE] focus:shadow-[0_0_0_1px_rgba(219,234,254,0.34),0_0_0_8px_rgba(96,165,250,0.16),0_20px_40px_rgba(37,99,235,0.20)]"
-        />
-        <button
-          type="submit"
-          disabled={customQueryLoading}
-          className="rounded-full border border-[rgba(191,219,254,0.38)] bg-[linear-gradient(135deg,#2563EB,#1D4ED8)] px-8 py-4 text-sm font-semibold tracking-[0.02em] text-white shadow-[0_0_0_1px_rgba(191,219,254,0.10),0_16px_36px_rgba(37,99,235,0.28)] transition hover:-translate-y-0.5 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {customQueryLoading ? '查询中...' : '查询'}
-        </button>
+        <div className="group flex min-h-[64px] w-full items-center gap-3 rounded-full border border-white/10 bg-[rgba(15,23,42,0.92)] px-4 py-2.5 shadow-[0_12px_30px_rgba(2,6,23,0.22)] transition hover:border-[rgba(203,184,255,0.28)] hover:bg-[rgba(15,23,42,0.96)] focus-within:border-[rgba(203,184,255,0.40)] focus-within:bg-[rgba(15,23,42,0.98)] focus-within:shadow-[0_0_0_1px_rgba(203,184,255,0.12),0_18px_40px_rgba(2,6,23,0.28)]">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/5 text-[#8EA2C3] transition group-hover:text-[#CBB8FF] group-focus-within:bg-[rgba(203,184,255,0.10)] group-focus-within:text-[#E5DBFF]">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="h-4 w-4">
+              <path d="M8.75 3.75a5 5 0 1 0 0 10a5 5 0 0 0 0-10Z" stroke="currentColor" strokeWidth="1.8" />
+              <path d="m12.5 12.5 3.75 3.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+          </span>
+          <input
+            value={customTickerInput}
+            onChange={(e) => setCustomTickerInput(e.target.value)}
+            placeholder="输入 ETF 代码，如 159915、159915.SZ、510300.SH"
+            className="h-11 flex-1 bg-transparent font-mono text-base text-[#F8FAFC] outline-none placeholder:text-[#7388A9] sm:text-lg"
+          />
+          <button
+            type="submit"
+            disabled={customQueryLoading}
+            className="inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-[rgba(203,184,255,0.14)] px-5 text-sm font-semibold tracking-[0.02em] text-[#F3EEFF] transition hover:bg-[rgba(203,184,255,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(203,184,255,0.30)] disabled:cursor-not-allowed disabled:bg-white/8 disabled:text-[#94A3B8] sm:min-w-[108px] sm:px-6"
+          >
+            {customQueryLoading ? '查询中...' : '查询'}
+          </button>
+        </div>
       </form>
 
       <DataStatusBanner
