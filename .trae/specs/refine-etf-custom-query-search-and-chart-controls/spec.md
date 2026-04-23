@@ -2,6 +2,7 @@
 
 ## Why
 当前“ETF自定义查询”页的顶部搜索栏颜色偏暗，首屏入口不够醒目，用户容易忽略。前复权价格主图也缺少更短周期均线与可控的指标/副图开关，导致用户无法像在“大盘看板”中那样按需聚焦主图信号与副图信息。
+在本轮控制项与副图显隐增强后，图表的 X 轴拖拽缩放出现回归：用户拖拽日期范围时，视窗不能正常放大、缩小或被立即重置，影响图表分析体验。需要补充稳定性要求，避免联动补偿逻辑覆盖用户主动手势。
 
 ## What Changes
 - 提亮“ETF自定义查询”顶部搜索栏的默认态、hover 和 focus 视觉层级，让输入框在深色主题下更易辨识
@@ -10,10 +11,12 @@
 - 参考“大盘看板”为副图增加显示/隐藏开关，允许用户按需折叠或恢复各副图
 - 保持现有 hover 日期、十字光标、可见范围同步与数据提示行为不回退
 - 对齐“大盘看板”的稳定实践：副图开关仅控制可见性与联动集合，不因隐藏而丢失数据
+- 排查并修复“ETF自定义查询”在最新迭代后出现的 X 轴拖拽缩放失效问题
+- 收敛 `visible range` 初始化、联动同步与补偿回放逻辑，避免在用户拖拽或缩放后被 effect 立即覆盖
 
 ## Impact
 - Affected specs: `市场风格RPS自定义查询`
-- Affected code: `src/components/RpsStylePanel.tsx`, `src/components/charts/RpsCustomQueryCharts.tsx`, `src/pages/MarketRpsCustomQuery.tsx`, `src/utils/marketApi.ts`
+- Affected code: `src/components/RpsStylePanel.tsx`, `src/components/charts/RpsCustomQueryCharts.tsx`, `src/components/charts/chartSyncGuards.ts`, `src/pages/MarketRpsCustomQuery.tsx`, `src/utils/marketApi.ts`
 
 ## ADDED Requirements
 ### Requirement: 搜索栏高可见性
@@ -64,14 +67,32 @@
 - **THEN** 该副图应恢复显示并继续参与联动
 - **AND** 不需要重新查询数据
 
+### Requirement: X轴拖拽缩放持续可用
+系统 SHALL 在“ETF自定义查询”图表中持续支持用户通过 X 轴或时间范围交互执行放大、缩小与平移，不因联动同步、初始范围设置或副图补偿逻辑而失效。
+
+#### Scenario: 用户拖拽后视窗变化生效
+- **WHEN** 用户在主图或可见副图上拖拽 X 轴日期范围以放大或缩小当前视窗
+- **THEN** 当前图表视窗应按用户操作发生变化
+- **AND** 不会在下一帧或后续 effect 中被立即恢复到旧范围
+
+#### Scenario: 用户缩放后继续平移
+- **WHEN** 用户完成一次缩放后继续左右拖动时间范围
+- **THEN** 图表应继续允许平移浏览历史区间
+- **AND** 主图与当前可见副图保持同一可见范围
+
 ## MODIFIED Requirements
 ### Requirement: 自定义查询图表联动与可见性管理
-系统 SHALL 在新增主图指标控制与副图显示开关后，继续保持“ETF自定义查询”现有的可见范围同步、十字光标同步、hover 日期与数据提示能力；隐藏的副图不参与联动计算，但其数据状态应保留，重新显示时可直接恢复。
+系统 SHALL 在新增主图指标控制与副图显示开关后，继续保持“ETF自定义查询”现有的可见范围同步、十字光标同步、hover 日期与数据提示能力；隐藏的副图不参与联动计算，但其数据状态应保留，重新显示时可直接恢复。所有同步与补偿逻辑都不得持续覆盖用户主动触发的拖拽缩放、滚轮缩放或平移结果。
 
 #### Scenario: 开关后联动保持稳定
 - **WHEN** 用户执行主图指标显示切换或副图显示/隐藏切换
 - **THEN** 图表不会出现日期错位、hover 失效或联动中断
 - **AND** 当前可见图表之间仍保持稳定同步
+
+#### Scenario: 开关后缩放能力仍保留
+- **WHEN** 用户完成主图指标切换或副图显示/隐藏后再次拖拽 X 轴进行缩放
+- **THEN** 缩放和后续平移仍应正常生效
+- **AND** 不会因为补偿同步或初始化逻辑而失效
 
 ## REMOVED Requirements
 ### Requirement: 无

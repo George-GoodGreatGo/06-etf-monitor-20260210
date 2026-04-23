@@ -641,7 +641,7 @@ function useSingleLineChart(
     if (!chart || primaryData.length === 0) return
     chart.timeScale().fitContent()
     didFitRef.current = true
-  }, [primaryData, opts?.resetKey])
+  }, [primaryData.length, opts?.resetKey])
 
   return {
     chartRef,
