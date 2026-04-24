@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import DataStatusBanner from '@/components/DataStatusBanner'
 import FloatingSectionNav, { type FloatingNavSection } from '@/components/FloatingSectionNav'
 import ZBadge from '@/components/ZBadge'
@@ -24,6 +24,7 @@ import {
 } from '@/utils/marketApi'
 import type { Top100Meta } from '@/utils/etfApi'
 import { formatCompactNumber, formatPct, formatYmd } from '@/utils/format'
+import { CONFIRM_TRAIL12_METHOD_PATH, CONFIRM_TRAIL12_SUMMARY_LINES } from '@/utils/confirmTrail12Methodology'
 
 const DEFAULT_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH', '512050.SH', '560010.SH']
 const DEFAULT_CUSTOM_QUERY_TICKER = '159915'
@@ -595,7 +596,30 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
     </section>
   )
 
-  const customQueryIntro = <div className="text-xl font-semibold tracking-tight text-white">动量分析</div>
+  const customQueryIntro = (
+    <section className="overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="max-w-[920px]">
+          <div className="text-xl font-semibold tracking-tight text-white">动量分析</div>
+          <div className="mt-2 space-y-2 text-[13px] leading-relaxed text-[#94A3B8]">
+            {CONFIRM_TRAIL12_SUMMARY_LINES.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
+        </div>
+        <div className="flex min-w-[280px] flex-col gap-2 rounded-lg border border-[rgba(125,211,252,0.20)] bg-[rgba(8,47,73,0.14)] px-3 py-3 text-xs text-[#CBD5E1]">
+          <div className="font-semibold uppercase tracking-[0.16em] text-[#93C5FD]">方法入口</div>
+          <div className="leading-5 text-[#A9B6CC]">查看完整规则、边界说明与样本 ETF 回测结果。</div>
+          <Link
+            to={CONFIRM_TRAIL12_METHOD_PATH}
+            className="inline-flex w-fit items-center rounded-full border border-[rgba(125,211,252,0.28)] bg-[rgba(15,23,42,0.86)] px-3 py-1.5 text-[12px] font-semibold text-[#E0F2FE] transition hover:border-[rgba(125,211,252,0.45)] hover:text-white"
+          >
+            打开分析方法页
+          </Link>
+        </div>
+      </div>
+    </section>
+  )
 
   const turnoverSection = (
     <>
@@ -962,14 +986,17 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
           <section className="rounded-md border border-[rgba(248,250,252,0.08)] bg-[rgba(11,18,32,0.82)] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-[13px] font-semibold text-[#F8FAFC]">主图信号图例</div>
-              <div className="text-[11px] text-[#64748B]">与价格分段着色、放量标记同时展示</div>
+              <div className="text-[11px] text-[#64748B]">默认策略：confirmTrail12，与价格分段着色、放量标记同时展示</div>
             </div>
             <div className="mt-2 flex flex-wrap gap-2 text-[12px] leading-5 text-[#CBD5E1]">
               <span className="rounded-full border border-[rgba(248,113,113,0.28)] bg-[rgba(127,29,29,0.18)] px-2 py-0.5 text-[#FCA5A5]">
-                红色向上箭头：绿转黄且价格高于 SMA250
+                红色向上箭头：绿转黄且收盘价不低于 SMA250
               </span>
               <span className="rounded-full border border-[rgba(52,211,153,0.24)] bg-[rgba(6,78,59,0.18)] px-2 py-0.5 text-[#6EE7B7]">
-                绿色向下箭头：黄转绿
+                绿色向下箭头：黄转绿，且 close&lt;SMA20 / MACD Hist&lt;0 / RSI&lt;50 任一成立
+              </span>
+              <span className="rounded-full border border-[rgba(251,191,36,0.24)] bg-[rgba(120,53,15,0.18)] px-2 py-0.5 text-[#FCD34D]">
+                金色向下箭头：持仓后相对高点回撤达到 12%
               </span>
               <span className="rounded-full border border-[rgba(203,184,255,0.24)] bg-[rgba(91,33,182,0.14)] px-2 py-0.5 text-[#DDD6FE]">
                 淡紫圆点：成交额 &gt;= 前20日均值 1.50x

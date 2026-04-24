@@ -32,7 +32,8 @@ export default function SideNav({
   const isMarket = loc.pathname === '/market'
   const isRpsOverview = loc.pathname === '/market/rps'
   const isRpsCustomQuery = loc.pathname === '/market/rps/custom-query'
-  const isRpsRoute = isRpsOverview || isRpsCustomQuery
+  const isRpsMethodology = loc.pathname === '/market/rps/methodology'
+  const isRpsRoute = isRpsOverview || isRpsCustomQuery || isRpsMethodology
   const isMethod = loc.pathname === '/methodology'
   const rawTab = isMarket ? searchParams.get('tab') : null
   const tab: HomeTab =
@@ -224,6 +225,7 @@ export default function SideNav({
                 {[
                   { key: 'market-rps:overview', label: '总览', to: '/market/rps', active: isRpsOverview },
                   { key: 'market-rps:custom-query', label: '动量分析', to: '/market/rps/custom-query', active: isRpsCustomQuery },
+                  { key: 'market-rps:methodology', label: '分析方法', to: '/market/rps/methodology', active: isRpsMethodology },
                 ].map((item) => (
                   <button
                     key={item.key}

@@ -11,6 +11,7 @@ const Methodology = lazy(() => import('@/pages/Methodology'))
 const Login = lazy(() => import('@/pages/Login'))
 const MarketRpsOverview = lazy(() => import('@/pages/MarketRpsOverview'))
 const MarketRpsCustomQuery = lazy(() => import('@/pages/MarketRpsCustomQuery'))
+const MarketRpsMethodology = lazy(() => import('@/pages/MarketRpsMethodology'))
 const DevRpsCustomQueryLive = lazy(() => import('@/pages/DevRpsCustomQueryLive'))
 const DevRpsCustomQueryMock = lazy(() => import('@/pages/DevRpsCustomQueryMock'))
 
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="/market" element={withRouteSuspense(<Home />)} />
             <Route path="/market/rps" element={withRouteSuspense(<MarketRpsOverview />)} />
             <Route path="/market/rps/custom-query" element={withRouteSuspense(<MarketRpsCustomQuery />)} />
+            <Route path="/market/rps/methodology" element={withRouteSuspense(<MarketRpsMethodology />)} />
             <Route path="/etf/:code" element={withRouteSuspense(<EtfDetail />)} />
             <Route path="/methodology" element={withRouteSuspense(<Methodology />)} />
           </Route>

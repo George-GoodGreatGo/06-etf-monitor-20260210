@@ -14,6 +14,7 @@ import {
   type ISeriesApi,
   type LineData,
   type LogicalRange,
+  type MouseEventParams,
   type SeriesMarker,
   type Time,
   type UTCTimestamp,
@@ -55,6 +56,27 @@ type ChartDatum = LineData<Time> | { time: Time }
 type BackgroundBand = { top: number; bottom: number; color: string }
 type PriceTone = 'negative' | 'neutral' | 'positive' | 'strong'
 type PriceRun = { tone: PriceTone; data: LineData<Time>[] }
+type SignalMarkerKind = 'buy' | 'confirm-sell' | 'risk-sell'
+type SignalMarkerDetail = {
+  id: string
+  kind: SignalMarkerKind
+  time: UTCTimestamp
+  date: string
+  price: number
+  position: SeriesMarker<Time>['position']
+  shape: SeriesMarker<Time>['shape']
+  color: string
+  text: string
+  size: number
+  title: string
+  description: string
+  reasonLines: string[]
+}
+type SelectedSignalPopup = {
+  detail: SignalMarkerDetail
+  left: number
+  top: number
+}
 type PaneVisibilityState = {
   showMacdPane: boolean
   showScorePane: boolean
@@ -85,7 +107,14 @@ const CHART_BADGE_CLS =
   'pointer-events-none absolute left-3 top-2 z-20 rounded bg-black/20 px-2 py-1 text-[11px] font-semibold text-[#94A3B8] backdrop-blur'
 const AXIS_BORDER_COLOR = 'rgba(255,255,255,0.05)'
 const DEFAULT_WINDOW_BARS = 252
+const SIGNAL_MARKER_HIT_RADIUS_PX = 18
+const SIGNAL_MARKER_SELECTED_SIZE_DELTA = 0.35
 const EMPTY_TURNOVER_SERIES: RpsTurnoverHistoryPoint[] = []
+const SELECTED_SIGNAL_MARKER_COLOR: Record<SignalMarkerKind, string> = {
+  buy: '#FCA5A5',
+  'confirm-sell': '#86EFAC',
+  'risk-sell': '#FDE68A',
+}
 
 function formatEtfDisplayLabel(ticker: string, tickerName?: string): string {
   const code = ticker.includes('.') ? ticker.split('.')[0] || ticker : ticker
@@ -323,43 +352,125 @@ function buildPriceRuns(points: PreparedPoint[]): PriceRun[] {
   return runs
 }
 
-function buildTradeSignalMarkers(points: PreparedPoint[]): SeriesMarker<Time>[] {
+function buildConfirmSellReasons(point: PreparedPoint): string[] {
+  const reasons: string[] = []
+  if (isFiniteNumber(point.sma20) && point.targetCloseQfq < point.sma20) reasons.push('close<SMA20')
+  if (isFiniteNumber(point.macdHist) && point.macdHist < 0) reasons.push('MACD Hist<0')
+  if (isFiniteNumber(point.rsi14) && point.rsi14 < 50) reasons.push('RSI<50')
+  return reasons
+}
+
+function buildTradeSignalMarkerDetails(points: PreparedPoint[]): SignalMarkerDetail[] {
   if (points.length < 2) return []
-  const markers: SeriesMarker<Time>[] = []
+  const markers: SignalMarkerDetail[] = []
+  let inPosition = false
+  let highestCloseSinceEntry = 0
   for (let i = 1; i < points.length; i += 1) {
     const prevPoint = points[i - 1]
     const point = points[i]
     const prevTone = resolvePriceTone(prevPoint.scorePct)
     const tone = resolvePriceTone(point.scorePct)
-    const aboveSma250 = isFiniteNumber(point.sma250) && point.targetCloseQfq > point.sma250
+    const aboveSma250 = isFiniteNumber(point.sma250) && point.targetCloseQfq >= point.sma250
 
-    if (prevTone === 'negative' && tone === 'neutral' && aboveSma250) {
+    if (!inPosition && prevTone === 'negative' && tone === 'neutral' && aboveSma250) {
       markers.push({
         id: `${point.date}-buy`,
+        kind: 'buy',
         time: point.time,
-        position: 'atPriceBottom',
+        date: point.date,
         price: point.targetCloseQfq,
+        position: 'atPriceBottom',
         shape: 'arrowUp',
         color: '#F87171',
         text: '买',
         size: 1.6,
+        title: '买点说明',
+        description: '价格线由绿转黄，且当日收盘价不低于 SMA250，满足默认买入条件。',
+        reasonLines: ['价格线由绿转黄', '当日收盘价 >= SMA250'],
       })
+      inPosition = true
+      highestCloseSinceEntry = point.targetCloseQfq
+      continue
     }
 
-    if (prevTone === 'neutral' && tone === 'negative') {
-      markers.push({
-        id: `${point.date}-sell`,
-        time: point.time,
-        position: 'atPriceTop',
-        price: point.targetCloseQfq,
-        shape: 'arrowDown',
-        color: '#34D399',
-        text: '卖',
-        size: 1.6,
-      })
+    if (!inPosition) continue
+    highestCloseSinceEntry = Math.max(highestCloseSinceEntry, point.targetCloseQfq)
+    const confirmSellReasons = prevTone === 'neutral' && tone === 'negative' ? buildConfirmSellReasons(point) : []
+    const hitRiskSell = highestCloseSinceEntry > 0 && point.targetCloseQfq <= highestCloseSinceEntry * 0.88
+    if (!confirmSellReasons.length && !hitRiskSell) continue
+
+    const kind: SignalMarkerKind = hitRiskSell ? 'risk-sell' : 'confirm-sell'
+    markers.push({
+      id: `${point.date}-${kind}`,
+      kind,
+      time: point.time,
+      date: point.date,
+      price: point.targetCloseQfq,
+      position: 'atPriceTop',
+      shape: 'arrowDown',
+      color: hitRiskSell ? '#FBBF24' : '#34D399',
+      text: hitRiskSell ? '风控卖' : '卖',
+      size: hitRiskSell ? 1.8 : 1.6,
+      title: hitRiskSell ? '12%风控卖点说明' : '确认卖点说明',
+      description: hitRiskSell
+        ? '本轮持仓后，当前收盘价相对持仓期最高收盘价回撤达到 12%，触发增强风控卖点。'
+        : `价格线由黄转绿，且当日满足 ${confirmSellReasons.join(' / ')}，触发确认卖点。`,
+      reasonLines: hitRiskSell ? ['持仓后相对高点回撤达到 12%'] : ['价格线由黄转绿', ...confirmSellReasons],
+    })
+    inPosition = false
+    highestCloseSinceEntry = 0
+  }
+
+  return markers
+}
+
+function toSeriesMarker(detail: SignalMarkerDetail, selected = false): SeriesMarker<Time> {
+  return {
+    id: detail.id,
+    time: detail.time,
+    position: detail.position,
+    price: detail.price,
+    shape: detail.shape,
+    color: selected ? SELECTED_SIGNAL_MARKER_COLOR[detail.kind] : detail.color,
+    text: detail.text,
+    size: selected ? detail.size + SIGNAL_MARKER_SELECTED_SIZE_DELTA : detail.size,
+  }
+}
+
+function resolveSignalMarkerFromClick(
+  candidates: SignalMarkerDetail[],
+  param: MouseEventParams<Time>,
+  chart: IChartApi,
+  series: ISeriesApi<'Line', Time>,
+): SignalMarkerDetail | null {
+  const clickPoint = param.point
+  if (!clickPoint || !candidates.length) return null
+
+  let matched: SignalMarkerDetail | null = null
+  let bestDistance = Number.POSITIVE_INFINITY
+  for (const candidate of candidates) {
+    const x = chart.timeScale().timeToCoordinate(candidate.time)
+    const y = series.priceToCoordinate(candidate.price)
+    if (typeof x !== 'number' || !Number.isFinite(x) || typeof y !== 'number' || !Number.isFinite(y)) continue
+    const distance = Math.hypot(clickPoint.x - x, clickPoint.y - y)
+    if (distance <= SIGNAL_MARKER_HIT_RADIUS_PX && distance < bestDistance) {
+      matched = candidate
+      bestDistance = distance
     }
   }
-  return markers
+  return matched
+}
+
+function buildSignalPopupPosition(point: { x: number; y: number }, host: HTMLDivElement): { left: number; top: number } {
+  const popupWidth = 320
+  const popupHeight = 170
+  const padding = 12
+  const left = Math.max(padding, Math.min(point.x + 16, host.clientWidth - popupWidth - padding))
+  const preferAbove = point.y > host.clientHeight * 0.55
+  const top = preferAbove
+    ? Math.max(40, Math.min(point.y - popupHeight + 8, host.clientHeight - popupHeight - padding))
+    : Math.max(40, Math.min(point.y + 16, host.clientHeight - popupHeight - padding))
+  return { left, top }
 }
 
 function compareSeriesMarkers(a: SeriesMarker<Time>, b: SeriesMarker<Time>): number {
@@ -575,6 +686,7 @@ function usePriceChart(
     showSma60?: boolean
     showSma250?: boolean
     visibleRange?: LogicalRange | null
+    priceMarkers?: SeriesMarker<Time>[]
   },
 ) {
   const chartRef = useRef<IChartApi | null>(null)
@@ -615,7 +727,6 @@ function usePriceChart(
     [prepared],
   )
   const priceRuns = useMemo(() => buildPriceRuns(prepared), [prepared])
-  const tradeSignalMarkers = useMemo<SeriesMarker<Time>[]>(() => buildTradeSignalMarkers(prepared), [prepared])
   const turnoverMarkers = useMemo<SeriesMarker<Time>[]>(
     () =>
       prepared
@@ -632,8 +743,8 @@ function usePriceChart(
     [prepared],
   )
   const priceMarkers = useMemo<SeriesMarker<Time>[]>(
-    () => sortSeriesMarkers([...tradeSignalMarkers, ...turnoverMarkers]),
-    [tradeSignalMarkers, turnoverMarkers],
+    () => sortSeriesMarkers([...(opts?.priceMarkers ?? []), ...turnoverMarkers]),
+    [opts?.priceMarkers, turnoverMarkers],
   )
   const visibleMarkerWindow = useMemo(
     () => buildVisibleMarkerWindow(prepared, opts?.visibleRange),
@@ -905,6 +1016,7 @@ export default function RpsCustomQueryCharts({
   resetKey,
 }: Props) {
   const priceHostRef = useRef<HTMLDivElement | null>(null)
+  const pricePanelRef = useRef<HTMLDivElement | null>(null)
   const macdHostRef = useRef<HTMLDivElement | null>(null)
   const scoreHostRef = useRef<HTMLDivElement | null>(null)
   const relativeHostRef = useRef<HTMLDivElement | null>(null)
@@ -930,6 +1042,8 @@ export default function RpsCustomQueryCharts({
   const [showRelativePane, setShowRelativePane] = useState(true)
   const [showRsiPane, setShowRsiPane] = useState(true)
   const [markerVisibleRange, setMarkerVisibleRange] = useState<LogicalRange | null>(null)
+  const [selectedSignalId, setSelectedSignalId] = useState<string | null>(null)
+  const [selectedSignalPopup, setSelectedSignalPopup] = useState<SelectedSignalPopup | null>(null)
 
   const prepared = useMemo<PreparedPoint[]>(() => {
     const turnoverMap = new Map<string, number | null>()
@@ -1073,6 +1187,20 @@ export default function RpsCustomQueryCharts({
     }
     return map
   }, [macdHistData])
+  const signalMarkerDetails = useMemo<SignalMarkerDetail[]>(() => buildTradeSignalMarkerDetails(prepared), [prepared])
+  const signalMarkerDetailsByTime = useMemo(() => {
+    const map = new Map<UTCTimestamp, SignalMarkerDetail[]>()
+    for (const marker of signalMarkerDetails) {
+      const list = map.get(marker.time)
+      if (list) list.push(marker)
+      else map.set(marker.time, [marker])
+    }
+    return map
+  }, [signalMarkerDetails])
+  const tradeSignalMarkers = useMemo<SeriesMarker<Time>[]>(
+    () => signalMarkerDetails.map((marker) => toSeriesMarker(marker, marker.id === selectedSignalId)),
+    [selectedSignalId, signalMarkerDetails],
+  )
   const hoverPoint = hoverTime ? hoverPointMap.get(hoverTime) ?? null : null
   const hoverRelativeValue = hoverTime ? relativeValueMap.get(hoverTime) ?? null : null
   const hoverRelativeMa50Value = hoverTime ? relativeMa50ValueMap.get(hoverTime) ?? null : null
@@ -1087,6 +1215,7 @@ export default function RpsCustomQueryCharts({
     showSma60,
     showSma250,
     visibleRange: markerVisibleRange,
+    priceMarkers: tradeSignalMarkers,
   })
   const macdChart = useMacdChart(macdHostRef, {
     diffData: macdDiffData,
@@ -1326,6 +1455,43 @@ export default function RpsCustomQueryCharts({
   ])
 
   useEffect(() => {
+    const chart = priceChart.chartRef.current
+    const seriesApi = priceChart.seriesRef.current
+    const host = pricePanelRef.current
+    if (!chart || !seriesApi || !host) return
+
+    const onClick = (param: MouseEventParams<Time>) => {
+      const time = normalizeTime(param.time)
+      if (!time || !param.point) {
+        setSelectedSignalId(null)
+        setSelectedSignalPopup(null)
+        return
+      }
+
+      const candidates = signalMarkerDetailsByTime.get(time) ?? []
+      const matched = resolveSignalMarkerFromClick(candidates, param, chart, seriesApi)
+      if (!matched) {
+        setSelectedSignalId(null)
+        setSelectedSignalPopup(null)
+        return
+      }
+
+      const position = buildSignalPopupPosition(param.point, host)
+      setSelectedSignalId(matched.id)
+      setSelectedSignalPopup({
+        detail: matched,
+        left: position.left,
+        top: position.top,
+      })
+    }
+
+    chart.subscribeClick(onClick)
+    return () => {
+      chart.unsubscribeClick(onClick)
+    }
+  }, [priceChart.chartRef, priceChart.seriesRef, signalMarkerDetailsByTime])
+
+  useEffect(() => {
     const visiblePanes: Array<'macd' | 'score' | 'relative' | 'rsi'> = []
     if (showMacdPane) visiblePanes.push('macd')
     if (showScorePane) visiblePanes.push('score')
@@ -1417,6 +1583,8 @@ export default function RpsCustomQueryCharts({
 
   useEffect(() => {
     setHoverTime(null)
+    setSelectedSignalId(null)
+    setSelectedSignalPopup(null)
     visibleRangeRef.current = null
     setMarkerVisibleRange(null)
     prevPaneVisibleRef.current = { showMacdPane: true, showScorePane: true, showRelativePane: true, showRsiPane: true }
@@ -1429,11 +1597,14 @@ export default function RpsCustomQueryCharts({
           <div>
             <div className="text-[15px] font-semibold tracking-tight text-white">{titleLabel || `${displayTickerLabel}关键图表指标`}</div>
             <div className="mt-0.5 text-xs leading-relaxed text-[#94A3B8]">
-              主图支持价格线、`SMA20`、`SMA60`、`SMA250` 开关，并保留按 Score 四档分段着色、`1.50x` 放量淡紫点，以及“绿转黄且价格高于 `SMA250`”的红色向上买入箭头与“黄转绿”的绿色向下卖出箭头；副图可按需显示 `MACD(8,21,5)`、相对 {benchmarkName} 的 RPS Score、RPS 起点归一和 `RSI(14)`。
+              {'主图支持价格线、`SMA20`、`SMA60`、`SMA250` 开关，并保留按 Score 四档分段着色、`1.50x` 放量淡紫点，以及 “绿转黄且收盘价不低于 `SMA250`” 的红色向上买入箭头、“黄转绿且 `close<SMA20 / MACD Hist<0 / RSI<50` 任一成立”的绿色确认卖点箭头、以及“持仓后相对高点回撤 12%”的金色风控卖点箭头；副图可按需显示 `MACD(8,21,5)`、相对 '}
+              {benchmarkName}
+              {' 的 RPS Score、RPS 起点归一和 `RSI(14)`。'}
             </div>
             <div className="mt-1 text-[11px] text-[#64748B]">
               {subtitleLabel || `当前序列：${displayTickerLabel} | 基准：${benchmarkName}`}
             </div>
+            <div className="mt-1 text-[11px] text-[#7DD3FC]">点击主图买卖箭头可查看该信号的触发原因。</div>
           </div>
         </div>
       </div>
@@ -1594,14 +1765,64 @@ export default function RpsCustomQueryCharts({
         ) : null}
 
         <div className="space-y-2">
-          <div className={CHART_PANEL_CLS}>
+          <div ref={pricePanelRef} className={CHART_PANEL_CLS}>
             <div className={CHART_BADGE_CLS}>
               前复权价格（主图）
               {showPriceLine ? ' + 价格线' : ''}
               {showSma20 ? ' + SMA20' : ''}
               {showSma60 ? ' + SMA60' : ''}
-              {showSma250 ? ' + SMA250' : ''} | 绿=Score&lt;0 黄=0~10 橙=10~20 红=&gt;20 红箭头=绿转黄且价&gt;SMA250 绿箭头=黄转绿 柔紫点=成交额&gt;=1.50x
+              {showSma250 ? ' + SMA250' : ''} | 绿=Score&lt;0 黄=0~10 橙=10~20 红=&gt;20 红箭头=绿转黄且价&gt;=SMA250 绿箭头=确认卖点 金箭头=12%风控卖点 柔紫点=成交额&gt;=1.50x
             </div>
+            {selectedSignalPopup ? (
+              <div
+                className="absolute z-30 w-[320px] rounded-xl border border-[rgba(125,211,252,0.28)] bg-[rgba(15,23,42,0.96)] p-3 text-xs text-[#E6EDF7] shadow-[0_18px_48px_rgba(2,6,23,0.48)] backdrop-blur"
+                style={{ left: selectedSignalPopup.left, top: selectedSignalPopup.top }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-medium tracking-[0.12em] text-[#7DD3FC]">已选中信号</div>
+                    <div className="mt-1 text-sm font-semibold text-white">{selectedSignalPopup.detail.title}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedSignalId(null)
+                      setSelectedSignalPopup(null)
+                    }}
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#A9B6CC] transition hover:border-white/15 hover:bg-white/10 hover:text-white"
+                    aria-label="关闭信号说明"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-white/5 px-2 py-0.5 font-mono text-[11px] text-[#CBD5E1]">{selectedSignalPopup.detail.date}</span>
+                  <span
+                    className={cn(
+                      'rounded-full px-2 py-0.5 text-[11px] font-medium',
+                      selectedSignalPopup.detail.kind === 'buy'
+                        ? 'bg-[rgba(248,113,113,0.16)] text-[#FCA5A5]'
+                        : selectedSignalPopup.detail.kind === 'confirm-sell'
+                          ? 'bg-[rgba(52,211,153,0.16)] text-[#86EFAC]'
+                          : 'bg-[rgba(251,191,36,0.16)] text-[#FDE68A]',
+                    )}
+                  >
+                    {selectedSignalPopup.detail.text}
+                  </span>
+                  <span className="rounded-full bg-white/5 px-2 py-0.5 font-mono text-[11px] text-[#A9B6CC]">
+                    价格 {formatValue(selectedSignalPopup.detail.price, 4)}
+                  </span>
+                </div>
+                <div className="mt-2 leading-5 text-[#D7E0EC]">{selectedSignalPopup.detail.description}</div>
+                <div className="mt-3 space-y-1">
+                  {selectedSignalPopup.detail.reasonLines.map((line) => (
+                    <div key={line} className="rounded-md bg-white/[0.04] px-2.5 py-1.5 text-[11px] leading-4.5 text-[#BFDBFE]">
+                      {line}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <div ref={priceHostRef} className="h-[300px] w-full" />
           </div>
 
