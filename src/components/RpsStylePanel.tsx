@@ -228,6 +228,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   const [customQueryData, setCustomQueryData] = useState<RpsCustomQueryData | null>(null)
   const [recentSearchesLoading, setRecentSearchesLoading] = useState(isCustomQueryPage)
   const [recentSearches, setRecentSearches] = useState<RpsCustomRecentSearchItem[]>([])
+  const [recentSearchesCollapsed, setRecentSearchesCollapsed] = useState(false)
   const latestCustomQuerySubmitSeqRef = useRef(customQuerySubmitSeq)
 
   const resolvedRange = useMemo(
@@ -736,63 +737,94 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
         </form>
 
         <div className="w-full">
-          <div className="rounded-xl border border-[rgba(71,85,105,0.28)] bg-[linear-gradient(180deg,rgba(9,19,36,0.90),rgba(9,18,32,0.72))] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:px-4.5">
-            <div className="flex flex-col items-start gap-1.5">
-              <div className="flex min-w-0 items-center gap-2">
-                <div className="text-[12px] font-semibold tracking-[0.08em] text-[#D7E2F3]">最近搜索</div>
-                <div className="h-1 w-1 rounded-full bg-[#3B82F6]/70" />
+          <div className="rounded-xl border border-[rgba(71,85,105,0.22)] bg-[linear-gradient(180deg,rgba(9,19,36,0.84),rgba(9,18,32,0.66))] px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:px-4.5">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-left">
+                  <div className="text-[12px] font-semibold tracking-[0.08em] text-[#D7E2F3]">最近搜索</div>
+                  <div className="h-1 w-1 shrink-0 rounded-full bg-[#3B82F6]/60" />
+                  <div className="min-w-0 text-[11px] leading-4 text-[#7B8BA5]">
+                    仅展示当前用户最近成功返回的 ETF，最多 10 条
+                  </div>
+                </div>
               </div>
-              <div className="text-left text-[11px] leading-4 text-[#6B7A93]">
-                仅展示当前用户最近成功返回的 ETF，最多 10 条
-              </div>
+              <button
+                type="button"
+                aria-expanded={!recentSearchesCollapsed}
+                aria-controls="rps-custom-query-recent-searches"
+                onClick={() => setRecentSearchesCollapsed((value) => !value)}
+                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[rgba(148,163,184,0.18)] bg-[rgba(15,23,42,0.56)] px-2.5 py-1 text-[11px] font-medium text-[#B7C5DA] transition hover:border-[rgba(125,211,252,0.24)] hover:bg-[rgba(21,32,53,0.76)] hover:text-[#E2E8F0]"
+              >
+                <span>{recentSearchesCollapsed ? '展开' : '收起'}</span>
+                <svg
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  aria-hidden="true"
+                  className={cn('h-3.5 w-3.5 transition-transform', recentSearchesCollapsed ? 'rotate-180' : 'rotate-0')}
+                >
+                  <path
+                    d="m5.25 7.75 4.75 4.75 4.75-4.75"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
             </div>
-            {recentSearchesLoading ? (
-              <div className="mt-3 text-xs text-[#8EA0B8]">正在加载最近搜索...</div>
-            ) : recentSearches.length ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {recentSearches.map((item) => {
-                  const displayLabel = formatEtfDisplayLabel({
-                    ticker: item.ticker,
-                    code: item.code,
-                    name: item.name,
-                    fallback: item.code,
-                  })
-                  const isActive = item.ticker === (customQuerySummary?.ticker ?? customQueryData?.ticker)
-                  return (
-                    <button
-                      key={`${item.ticker}-${item.updatedAt}`}
-                      type="button"
-                      onClick={() => {
-                        setCustomTickerInput(item.code)
-                        setSubmittedCustomTicker(item.code)
-                        setCustomQuerySubmitSeq((value) => value + 1)
-                      }}
-                      className={cn(
-                        'inline-flex min-h-[36px] max-w-full min-w-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-left transition',
-                        isActive
-                          ? 'border-[rgba(96,165,250,0.26)] bg-[rgba(37,99,235,0.14)] text-[#E0F2FE] shadow-[inset_0_0_0_1px_rgba(125,211,252,0.08)]'
-                          : 'border-[rgba(71,85,105,0.26)] bg-[rgba(15,23,42,0.82)] text-[#C5D0E3] hover:border-[rgba(96,165,250,0.24)] hover:bg-[rgba(20,33,57,0.92)] hover:text-[#E2E8F0]',
-                      )}
-                      title={displayLabel}
-                    >
-                      <span
+            {!recentSearchesCollapsed ? (
+              recentSearchesLoading ? (
+                <div id="rps-custom-query-recent-searches" className="mt-2.5 text-xs text-[#8EA0B8]">
+                  正在加载最近搜索...
+                </div>
+              ) : recentSearches.length ? (
+                <div id="rps-custom-query-recent-searches" className="mt-2.5 flex flex-wrap gap-1.5">
+                  {recentSearches.map((item) => {
+                    const displayLabel = formatEtfDisplayLabel({
+                      ticker: item.ticker,
+                      code: item.code,
+                      name: item.name,
+                      fallback: item.code,
+                    })
+                    const isActive = item.ticker === (customQuerySummary?.ticker ?? customQueryData?.ticker)
+                    return (
+                      <button
+                        key={`${item.ticker}-${item.updatedAt}`}
+                        type="button"
+                        onClick={() => {
+                          setCustomTickerInput(item.code)
+                          setSubmittedCustomTicker(item.code)
+                          setCustomQuerySubmitSeq((value) => value + 1)
+                        }}
                         className={cn(
-                          'shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[11px]',
-                          isActive ? 'bg-[rgba(148,197,255,0.14)] text-[#BFDBFE]' : 'bg-white/[0.04] text-[#9FB7D9]',
+                          'inline-flex min-h-[32px] max-w-full min-w-0 items-center gap-1.5 rounded-full border px-2 py-1 text-left transition',
+                          isActive
+                            ? 'border-[rgba(96,165,250,0.24)] bg-[rgba(37,99,235,0.12)] text-[#EAF4FF] shadow-[inset_0_0_0_1px_rgba(125,211,252,0.06)]'
+                            : 'border-[rgba(71,85,105,0.22)] bg-[rgba(15,23,42,0.68)] text-[#CBD5E1] hover:border-[rgba(96,165,250,0.22)] hover:bg-[rgba(19,31,52,0.82)] hover:text-[#E2E8F0]',
                         )}
+                        title={displayLabel}
                       >
-                        {item.code}
-                      </span>
-                      <span className="max-w-[140px] truncate text-[12px] font-medium sm:max-w-[180px]">
-                        {item.name || item.code}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="mt-3 text-xs text-[#8EA0B8]">暂无最近搜索，成功查询后会显示在这里。</div>
-            )}
+                        <span
+                          className={cn(
+                            'shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[10px] leading-4',
+                            isActive ? 'bg-[rgba(148,197,255,0.12)] text-[#BFDBFE]' : 'bg-white/[0.035] text-[#A9BDD9]',
+                          )}
+                        >
+                          {item.code}
+                        </span>
+                        <span className="max-w-[148px] truncate text-[12px] font-medium leading-4.5 text-inherit sm:max-w-[190px]">
+                          {item.name || item.code}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div id="rps-custom-query-recent-searches" className="mt-2.5 text-xs text-[#8EA0B8]">
+                  暂无最近搜索，成功查询后会显示在这里。
+                </div>
+              )
+            ) : null}
           </div>
         </div>
       </div>
