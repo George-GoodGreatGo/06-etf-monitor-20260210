@@ -25,11 +25,11 @@
   - [x] SubTask 5.3: 点击确认卖点或风控卖点时展示对应触发原因说明
   - [x] SubTask 5.4: 保证弹窗不破坏现有 hover、缩放、十字光标和多图联动
 
-- [ ] Task 6: 回归验证页面、信号和交互
-  - [ ] SubTask 6.1: 验证 `市场风格RPS > 分析方法` 页面可进入，导航与面包屑正确
-  - [ ] SubTask 6.2: 验证 `动量分析` 页面默认买卖点已切换为 `confirmTrail12`
-  - [ ] SubTask 6.3: 验证点击买卖点后弹窗说明与实际触发条件一致
-  - [ ] SubTask 6.4: 运行直接相关检查，如前端 `lint`、`typecheck` 或等价验证，确认未引入明显回归
+- [x] Task 6: 回归验证页面、信号和交互
+  - [x] SubTask 6.1: 验证 `市场风格RPS > 分析方法` 页面可进入，导航与面包屑正确
+  - [x] SubTask 6.2: 验证 `动量分析` 页面默认买卖点已切换为 `confirmTrail12`
+  - [x] SubTask 6.3: 验证点击买卖点后弹窗说明与实际触发条件一致
+  - [x] SubTask 6.4: 运行直接相关检查，如前端 `lint`、`typecheck` 或等价验证，确认未引入明显回归
 
 # Task Dependencies
 - Task 2 depends on Task 1
