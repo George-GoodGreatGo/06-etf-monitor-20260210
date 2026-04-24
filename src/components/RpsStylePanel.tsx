@@ -961,41 +961,18 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
 
           <section className="rounded-md border border-[rgba(248,250,252,0.08)] bg-[rgba(11,18,32,0.82)] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-[13px] font-semibold text-[#F8FAFC]">推荐平衡版策略</div>
-              <div className="text-[11px] text-[#64748B]">主图 hover 到箭头时可查看当日触发原因</div>
+              <div className="text-[13px] font-semibold text-[#F8FAFC]">主图信号图例</div>
+              <div className="text-[11px] text-[#64748B]">与价格分段着色、放量标记同时展示</div>
             </div>
-            <div className="mt-3 grid gap-3 lg:grid-cols-3">
-              <div className="rounded-md border border-[rgba(248,113,113,0.18)] bg-[rgba(127,29,29,0.10)] px-3 py-2.5">
-                <div className="text-[12px] font-semibold text-[#FCA5A5]">买入规则</div>
-                <div className="mt-1 text-[12px] leading-5 text-[#CBD5E1]">
-                  仅在上升通道内触发：`绿 -&gt; 黄` 且 `价格 &gt;= SMA250` 且 `价格 &gt;= SMA20` 且 `SMA60 &gt;= SMA250`。
-                </div>
-              </div>
-              <div className="rounded-md border border-[rgba(52,211,153,0.18)] bg-[rgba(6,78,59,0.10)] px-3 py-2.5">
-                <div className="text-[12px] font-semibold text-[#6EE7B7]">卖出规则</div>
-                <div className="mt-1 text-[12px] leading-5 text-[#CBD5E1]">
-                  `黄 -&gt; 绿` 后，还需命中 `价格 &lt; SMA20`、`MACD Hist &lt; 0`、`RSI(14) &lt; 50` 中至少一项，减少噪声卖点。
-                </div>
-              </div>
-              <div className="rounded-md border border-[rgba(148,163,184,0.16)] bg-[rgba(15,23,42,0.52)] px-3 py-2.5">
-                <div className="text-[12px] font-semibold text-[#E2E8F0]">辅助指标</div>
-                <div className="mt-1 text-[12px] leading-5 text-[#CBD5E1]">
-                  `SMA20` 负责短线强弱，`SMA60` 与 `SMA250` 约束趋势通道，`MACD Hist` 与 `RSI(14)` 用于卖出确认。
-                </div>
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2 text-[12px] leading-5 text-[#CBD5E1]">
+            <div className="mt-2 flex flex-wrap gap-2 text-[12px] leading-5 text-[#CBD5E1]">
               <span className="rounded-full border border-[rgba(248,113,113,0.28)] bg-[rgba(127,29,29,0.18)] px-2 py-0.5 text-[#FCA5A5]">
-                红色向上箭头：推荐平衡版买入
+                红色向上箭头：绿转黄且价格高于 SMA250
               </span>
               <span className="rounded-full border border-[rgba(52,211,153,0.24)] bg-[rgba(6,78,59,0.18)] px-2 py-0.5 text-[#6EE7B7]">
-                绿色向下箭头：推荐平衡版卖出
+                绿色向下箭头：黄转绿
               </span>
               <span className="rounded-full border border-[rgba(203,184,255,0.24)] bg-[rgba(91,33,182,0.14)] px-2 py-0.5 text-[#DDD6FE]">
                 淡紫圆点：成交额 &gt;= 前20日均值 1.50x
-              </span>
-              <span className="rounded-full border border-[rgba(148,163,184,0.20)] bg-[rgba(15,23,42,0.56)] px-2 py-0.5 text-[#CBD5E1]">
-                价格分段：绿=Score&lt;0，黄=0~10，橙=10~20，红=&gt;20
               </span>
             </div>
           </section>

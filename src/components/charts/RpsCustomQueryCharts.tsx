@@ -14,7 +14,6 @@ import {
   type ISeriesApi,
   type LineData,
   type LogicalRange,
-  type MouseEventParams,
   type SeriesMarker,
   type Time,
   type UTCTimestamp,
@@ -61,16 +60,6 @@ type PaneVisibilityState = {
   showScorePane: boolean
   showRelativePane: boolean
   showRsiPane: boolean
-}
-type TradeSignalKind = 'buy' | 'sell'
-type TradeSignal = {
-  id: string
-  time: UTCTimestamp
-  date: string
-  kind: TradeSignalKind
-  price: number
-  title: string
-  reasons: string[]
 }
 
 const LINE_COLOR = '#60A5FA'
@@ -334,67 +323,43 @@ function buildPriceRuns(points: PreparedPoint[]): PriceRun[] {
   return runs
 }
 
-function buildTradeSignals(points: PreparedPoint[]): TradeSignal[] {
+function buildTradeSignalMarkers(points: PreparedPoint[]): SeriesMarker<Time>[] {
   if (points.length < 2) return []
-  const signals: TradeSignal[] = []
+  const markers: SeriesMarker<Time>[] = []
   for (let i = 1; i < points.length; i += 1) {
     const prevPoint = points[i - 1]
     const point = points[i]
     const prevTone = resolvePriceTone(prevPoint.scorePct)
     const tone = resolvePriceTone(point.scorePct)
-    const buySignalReady =
-      prevTone === 'negative' &&
-      tone === 'neutral' &&
-      isFiniteNumber(point.sma250) &&
-      point.targetCloseQfq >= point.sma250 &&
-      isFiniteNumber(point.sma20) &&
-      point.targetCloseQfq >= point.sma20 &&
-      isFiniteNumber(point.sma60) &&
-      point.sma60 >= point.sma250
+    const aboveSma250 = isFiniteNumber(point.sma250) && point.targetCloseQfq > point.sma250
 
-    if (buySignalReady) {
-      signals.push({
+    if (prevTone === 'negative' && tone === 'neutral' && aboveSma250) {
+      markers.push({
         id: `${point.date}-buy`,
         time: point.time,
+        position: 'atPriceBottom',
         price: point.targetCloseQfq,
-        date: point.date,
-        kind: 'buy',
-        title: '推荐平衡版买入',
-        reasons: ['绿 -> 黄', '价格 >= SMA250', '价格 >= SMA20', 'SMA60 >= SMA250'],
+        shape: 'arrowUp',
+        color: '#F87171',
+        text: '买',
+        size: 1.6,
       })
     }
 
-    const sellReasons: string[] = []
-    if (isFiniteNumber(point.sma20) && point.targetCloseQfq < point.sma20) sellReasons.push('价格 < SMA20')
-    if (isFiniteNumber(point.macdHist) && point.macdHist < 0) sellReasons.push('MACD Hist < 0')
-    if (isFiniteNumber(point.rsi14) && point.rsi14 < 50) sellReasons.push('RSI(14) < 50')
-
-    if (prevTone === 'neutral' && tone === 'negative' && sellReasons.length > 0) {
-      signals.push({
+    if (prevTone === 'neutral' && tone === 'negative') {
+      markers.push({
         id: `${point.date}-sell`,
         time: point.time,
+        position: 'atPriceTop',
         price: point.targetCloseQfq,
-        date: point.date,
-        kind: 'sell',
-        title: '推荐平衡版卖出',
-        reasons: ['黄 -> 绿', ...sellReasons],
+        shape: 'arrowDown',
+        color: '#34D399',
+        text: '卖',
+        size: 1.6,
       })
     }
   }
-  return signals
-}
-
-function buildTradeSignalMarkers(signals: TradeSignal[]): SeriesMarker<Time>[] {
-  return signals.map((signal) => ({
-    id: signal.id,
-    time: signal.time,
-    position: signal.kind === 'buy' ? 'atPriceBottom' : 'atPriceTop',
-    price: signal.price,
-    shape: signal.kind === 'buy' ? 'arrowUp' : 'arrowDown',
-    color: signal.kind === 'buy' ? '#F87171' : '#34D399',
-    text: signal.kind === 'buy' ? '买' : '卖',
-    size: 1.6,
-  }))
+  return markers
 }
 
 function compareSeriesMarkers(a: SeriesMarker<Time>, b: SeriesMarker<Time>): number {
@@ -609,7 +574,6 @@ function usePriceChart(
     showSma20?: boolean
     showSma60?: boolean
     showSma250?: boolean
-    tradeSignalMarkers?: SeriesMarker<Time>[]
     visibleRange?: LogicalRange | null
   },
 ) {
@@ -651,6 +615,7 @@ function usePriceChart(
     [prepared],
   )
   const priceRuns = useMemo(() => buildPriceRuns(prepared), [prepared])
+  const tradeSignalMarkers = useMemo<SeriesMarker<Time>[]>(() => buildTradeSignalMarkers(prepared), [prepared])
   const turnoverMarkers = useMemo<SeriesMarker<Time>[]>(
     () =>
       prepared
@@ -667,8 +632,8 @@ function usePriceChart(
     [prepared],
   )
   const priceMarkers = useMemo<SeriesMarker<Time>[]>(
-    () => sortSeriesMarkers([...(opts?.tradeSignalMarkers ?? []), ...turnoverMarkers]),
-    [opts?.tradeSignalMarkers, turnoverMarkers],
+    () => sortSeriesMarkers([...tradeSignalMarkers, ...turnoverMarkers]),
+    [tradeSignalMarkers, turnoverMarkers],
   )
   const visibleMarkerWindow = useMemo(
     () => buildVisibleMarkerWindow(prepared, opts?.visibleRange),
@@ -965,7 +930,6 @@ export default function RpsCustomQueryCharts({
   const [showRelativePane, setShowRelativePane] = useState(true)
   const [showRsiPane, setShowRsiPane] = useState(true)
   const [markerVisibleRange, setMarkerVisibleRange] = useState<LogicalRange | null>(null)
-  const [hoveredSignalId, setHoveredSignalId] = useState<string | null>(null)
 
   const prepared = useMemo<PreparedPoint[]>(() => {
     const turnoverMap = new Map<string, number | null>()
@@ -1074,13 +1038,6 @@ export default function RpsCustomQueryCharts({
     for (const point of prepared) map.set(point.time, point)
     return map
   }, [prepared])
-  const tradeSignals = useMemo(() => buildTradeSignals(prepared), [prepared])
-  const tradeSignalMarkerMap = useMemo(() => {
-    const map = new Map<string, TradeSignal>()
-    for (const signal of tradeSignals) map.set(signal.id, signal)
-    return map
-  }, [tradeSignals])
-  const tradeSignalMarkers = useMemo(() => buildTradeSignalMarkers(tradeSignals), [tradeSignals])
   const relativeValueMap = useMemo(() => {
     const map = new Map<UTCTimestamp, number>()
     for (const point of relativeData.rps) {
@@ -1121,7 +1078,6 @@ export default function RpsCustomQueryCharts({
   const hoverRelativeMa50Value = hoverTime ? relativeMa50ValueMap.get(hoverTime) ?? null : null
   const hoverRsiValue = hoverTime ? rsiValueMap.get(hoverTime) ?? null : null
   const hoverMacdHistValue = hoverTime ? macdHistValueMap.get(hoverTime) ?? null : null
-  const hoveredTradeSignal = hoveredSignalId ? tradeSignalMarkerMap.get(hoveredSignalId) ?? null : null
   const displayTickerLabel = useMemo(() => formatEtfDisplayLabel(ticker, tickerName), [ticker, tickerName])
   const effectiveResetKey = resetKey ?? ticker
   const priceChart = usePriceChart(priceHostRef, prepared, {
@@ -1130,7 +1086,6 @@ export default function RpsCustomQueryCharts({
     showSma20,
     showSma60,
     showSma250,
-    tradeSignalMarkers,
     visibleRange: markerVisibleRange,
   })
   const macdChart = useMacdChart(macdHostRef, {
@@ -1266,12 +1221,11 @@ export default function RpsCustomQueryCharts({
     if (showRelativePane && relative) charts.push(relative)
     if (showRsiPane && rsi) charts.push(rsi)
 
-    const onCrosshair = (src: IChartApi) => (param: MouseEventParams<Time>) => {
+    const onCrosshair = (src: IChartApi) => (param: { time?: Time } | null) => {
       if (syncingCrosshairRef.current) return
       const time = normalizeTime(param?.time)
       if (!time) {
         setHoverTime(null)
-        setHoveredSignalId(null)
         syncingCrosshairRef.current = true
         try {
           for (const chart of charts) {
@@ -1287,16 +1241,9 @@ export default function RpsCustomQueryCharts({
       const point = hoverPointMap.get(time)
       if (!point) {
         setHoverTime(null)
-        setHoveredSignalId(null)
         return
       }
       setHoverTime(time)
-      const hoveredObjectId = param?.hoveredObjectId
-      const hoveredSignalKey =
-        src === price && hoveredObjectId != null && tradeSignalMarkerMap.has(String(hoveredObjectId))
-          ? String(hoveredObjectId)
-          : null
-      setHoveredSignalId(hoveredSignalKey)
 
       const macdHistValue = macdHistValueMap.get(time)
       const relativeValue = relativeValueMap.get(time)
@@ -1376,7 +1323,6 @@ export default function RpsCustomQueryCharts({
     showRelativePane,
     showRsiPane,
     showScorePane,
-    tradeSignalMarkerMap,
   ])
 
   useEffect(() => {
@@ -1471,7 +1417,6 @@ export default function RpsCustomQueryCharts({
 
   useEffect(() => {
     setHoverTime(null)
-    setHoveredSignalId(null)
     visibleRangeRef.current = null
     setMarkerVisibleRange(null)
     prevPaneVisibleRef.current = { showMacdPane: true, showScorePane: true, showRelativePane: true, showRsiPane: true }
@@ -1484,10 +1429,7 @@ export default function RpsCustomQueryCharts({
           <div>
             <div className="text-[15px] font-semibold tracking-tight text-white">{titleLabel || `${displayTickerLabel}关键图表指标`}</div>
             <div className="mt-0.5 text-xs leading-relaxed text-[#94A3B8]">
-              主图支持价格线、SMA20、SMA60、SMA250 开关，并按推荐平衡版策略展示信号：买入需满足“绿转黄 + 价格 &gt;=
-              SMA250 + 价格 &gt;= SMA20 + SMA60 &gt;= SMA250”，卖出需满足“黄转绿”且命中“价格 &lt; SMA20”“MACD Hist &lt; 0”
-              “RSI(14) &lt; 50”至少一项；副图可按需显示 MACD(8,21,5)、相对 {benchmarkName} 的 RPS Score、RPS 起点归一和
-              RSI(14)。
+              主图支持价格线、`SMA20`、`SMA60`、`SMA250` 开关，并保留按 Score 四档分段着色、`1.50x` 放量淡紫点，以及“绿转黄且价格高于 `SMA250`”的红色向上买入箭头与“黄转绿”的绿色向下卖出箭头；副图可按需显示 `MACD(8,21,5)`、相对 {benchmarkName} 的 RPS Score、RPS 起点归一和 `RSI(14)`。
             </div>
             <div className="mt-1 text-[11px] text-[#64748B]">
               {subtitleLabel || `当前序列：${displayTickerLabel} | 基准：${benchmarkName}`}
@@ -1648,21 +1590,6 @@ export default function RpsCustomQueryCharts({
                 </>
               ) : null}
             </div>
-            {hoveredTradeSignal ? (
-              <div className="mt-2 border-t border-white/10 pt-2">
-                <div className="text-[11px] font-semibold text-[#F8FAFC]">{hoveredTradeSignal.title}</div>
-                <div className="mt-1 flex max-w-[320px] flex-wrap gap-1.5">
-                  {hoveredTradeSignal.reasons.map((reason) => (
-                    <span
-                      key={`${hoveredTradeSignal.id}-${reason}`}
-                      className="rounded-full border border-[rgba(148,163,184,0.20)] bg-[rgba(15,23,42,0.50)] px-2 py-0.5 text-[11px] leading-4 text-[#CBD5E1]"
-                    >
-                      {reason}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ) : null}
           </div>
         ) : null}
 
@@ -1673,7 +1600,7 @@ export default function RpsCustomQueryCharts({
               {showPriceLine ? ' + 价格线' : ''}
               {showSma20 ? ' + SMA20' : ''}
               {showSma60 ? ' + SMA60' : ''}
-              {showSma250 ? ' + SMA250' : ''} | 绿=Score&lt;0 黄=0~10 橙=10~20 红=&gt;20 红箭头=推荐平衡版买入 绿箭头=推荐平衡版卖出 柔紫点=成交额&gt;=1.50x
+              {showSma250 ? ' + SMA250' : ''} | 绿=Score&lt;0 黄=0~10 橙=10~20 红=&gt;20 红箭头=绿转黄且价&gt;SMA250 绿箭头=黄转绿 柔紫点=成交额&gt;=1.50x
             </div>
             <div ref={priceHostRef} className="h-[300px] w-full" />
           </div>

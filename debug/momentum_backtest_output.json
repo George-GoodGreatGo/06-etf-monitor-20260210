@@ -1,0 +1,3722 @@
+{
+  "meta": {
+    "startDate": "2016-01-01",
+    "endDate": "2026-04-24",
+    "tickers": [
+      "159915.SZ",
+      "513020.SH",
+      "513750.SH",
+      "159516.SZ",
+      "513120.SH"
+    ],
+    "feeRatePerSide": 0.001,
+    "benchmark": "H30269",
+    "configsTested": 511
+  },
+  "baseline": {
+    "name": "baseline",
+    "exitMode": "base",
+    "entryFlags": [],
+    "aggregate": {
+      "avgTotalReturnPct": 60.72,
+      "medianTotalReturnPct": 43.15,
+      "avgCagrPct": 9.81,
+      "avgMaxDrawdownPct": 20.14,
+      "avgTrades": 15.8,
+      "avgWinRatePct": 32.76,
+      "avgHoldDays": 25.9,
+      "avgExposurePct": 25.44
+    },
+    "byTicker": [
+      {
+        "ticker": "159915.SZ",
+        "bars": 2501,
+        "startDate": "2016-01-04",
+        "endDate": "2026-04-23",
+        "totalReturnPct": 180.88,
+        "cagrPct": 10.97,
+        "maxDrawdownPct": 19.77,
+        "trades": 31,
+        "winRatePct": 35.48,
+        "avgHoldDays": 31.58,
+        "exposurePct": 25.91
+      },
+      {
+        "ticker": "513020.SH",
+        "bars": 1021,
+        "startDate": "2022-02-08",
+        "endDate": "2026-04-23",
+        "totalReturnPct": 7.9,
+        "cagrPct": 1.9,
+        "maxDrawdownPct": 21.48,
+        "trades": 15,
+        "winRatePct": 20,
+        "avgHoldDays": 20,
+        "exposurePct": 19.98
+      },
+      {
+        "ticker": "513750.SH",
+        "bars": 582,
+        "startDate": "2023-11-27",
+        "endDate": "2026-04-23",
+        "totalReturnPct": 24.87,
+        "cagrPct": 10.1,
+        "maxDrawdownPct": 23.07,
+        "trades": 12,
+        "winRatePct": 41.67,
+        "avgHoldDays": 24.58,
+        "exposurePct": 34.02
+      },
+      {
+        "ticker": "159516.SZ",
+        "bars": 663,
+        "startDate": "2023-07-27",
+        "endDate": "2026-04-23",
+        "totalReturnPct": 46.79,
+        "cagrPct": 15.71,
+        "maxDrawdownPct": 14.17,
+        "trades": 12,
+        "winRatePct": 33.33,
+        "avgHoldDays": 22,
+        "exposurePct": 26.55
+      },
+      {
+        "ticker": "513120.SH",
+        "bars": 917,
+        "startDate": "2022-07-12",
+        "endDate": "2026-04-23",
+        "totalReturnPct": 43.15,
+        "cagrPct": 10.36,
+        "maxDrawdownPct": 22.19,
+        "trades": 9,
+        "winRatePct": 33.33,
+        "avgHoldDays": 31.33,
+        "exposurePct": 20.72
+      }
+    ]
+  },
+  "highlights": {
+    "bestReturn": {
+      "name": "entry:sma60>=sma250|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "sma60>=sma250"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 68.65,
+        "medianTotalReturnPct": 43.15,
+        "avgCagrPct": 11.96,
+        "avgMaxDrawdownPct": 18.8,
+        "avgTrades": 11.8,
+        "avgWinRatePct": 49.15,
+        "avgHoldDays": 40.68,
+        "avgExposurePct": 26.27
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 188.02,
+          "cagrPct": 11.25,
+          "maxDrawdownPct": 19.77,
+          "trades": 27,
+          "winRatePct": 40.74,
+          "avgHoldDays": 36.56,
+          "exposurePct": 26.15
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 10.06,
+          "cagrPct": 2.4,
+          "maxDrawdownPct": 21.48,
+          "trades": 12,
+          "winRatePct": 25,
+          "avgHoldDays": 22.25,
+          "exposurePct": 17.63
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 39.83,
+          "cagrPct": 15.62,
+          "maxDrawdownPct": 17.4,
+          "trades": 5,
+          "winRatePct": 80,
+          "avgHoldDays": 66.6,
+          "exposurePct": 38.49
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 62.19,
+          "cagrPct": 20.18,
+          "maxDrawdownPct": 13.15,
+          "trades": 6,
+          "winRatePct": 66.67,
+          "avgHoldDays": 46.67,
+          "exposurePct": 28.36
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 43.15,
+          "cagrPct": 10.36,
+          "maxDrawdownPct": 22.19,
+          "trades": 9,
+          "winRatePct": 33.33,
+          "avgHoldDays": 31.33,
+          "exposurePct": 20.72
+        }
+      ]
+    },
+    "balanced": {
+      "name": "entry:close>=sma20+sma60>=sma250|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "close>=sma20",
+        "sma60>=sma250"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 65.94,
+        "medianTotalReturnPct": 43.02,
+        "avgCagrPct": 12.67,
+        "avgMaxDrawdownPct": 16.43,
+        "avgTrades": 8.2,
+        "avgWinRatePct": 60.43,
+        "avgHoldDays": 58.08,
+        "avgExposurePct": 24.74
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 156.79,
+          "cagrPct": 9.97,
+          "maxDrawdownPct": 14.72,
+          "trades": 20,
+          "winRatePct": 45,
+          "avgHoldDays": 40.9,
+          "exposurePct": 21.91
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 19.65,
+          "cagrPct": 4.53,
+          "maxDrawdownPct": 16.29,
+          "trades": 7,
+          "winRatePct": 28.57,
+          "avgHoldDays": 37.43,
+          "exposurePct": 17.14
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 43.02,
+          "cagrPct": 16.76,
+          "maxDrawdownPct": 15.28,
+          "trades": 3,
+          "winRatePct": 100,
+          "avgHoldDays": 105.67,
+          "exposurePct": 37.46
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 69.74,
+          "cagrPct": 22.28,
+          "maxDrawdownPct": 12.22,
+          "trades": 4,
+          "winRatePct": 100,
+          "avgHoldDays": 69.25,
+          "exposurePct": 27.9
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 40.51,
+          "cagrPct": 9.8,
+          "maxDrawdownPct": 23.63,
+          "trades": 7,
+          "winRatePct": 28.57,
+          "avgHoldDays": 37.14,
+          "exposurePct": 19.3
+        }
+      ]
+    },
+    "lowFriction": null
+  },
+  "topByReturn": [
+    {
+      "name": "entry:sma60>=sma250|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "sma60>=sma250"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 68.65,
+        "medianTotalReturnPct": 43.15,
+        "avgCagrPct": 11.96,
+        "avgMaxDrawdownPct": 18.8,
+        "avgTrades": 11.8,
+        "avgWinRatePct": 49.15,
+        "avgHoldDays": 40.68,
+        "avgExposurePct": 26.27
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 188.02,
+          "cagrPct": 11.25,
+          "maxDrawdownPct": 19.77,
+          "trades": 27,
+          "winRatePct": 40.74,
+          "avgHoldDays": 36.56,
+          "exposurePct": 26.15
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 10.06,
+          "cagrPct": 2.4,
+          "maxDrawdownPct": 21.48,
+          "trades": 12,
+          "winRatePct": 25,
+          "avgHoldDays": 22.25,
+          "exposurePct": 17.63
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 39.83,
+          "cagrPct": 15.62,
+          "maxDrawdownPct": 17.4,
+          "trades": 5,
+          "winRatePct": 80,
+          "avgHoldDays": 66.6,
+          "exposurePct": 38.49
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 62.19,
+          "cagrPct": 20.18,
+          "maxDrawdownPct": 13.15,
+          "trades": 6,
+          "winRatePct": 66.67,
+          "avgHoldDays": 46.67,
+          "exposurePct": 28.36
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 43.15,
+          "cagrPct": 10.36,
+          "maxDrawdownPct": 22.19,
+          "trades": 9,
+          "winRatePct": 33.33,
+          "avgHoldDays": 31.33,
+          "exposurePct": 20.72
+        }
+      ]
+    },
+    {
+      "name": "entry:sma60>=sma250+rsi<=75|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "sma60>=sma250",
+        "rsi<=75"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 68.65,
+        "medianTotalReturnPct": 43.15,
+        "avgCagrPct": 11.96,
+        "avgMaxDrawdownPct": 18.8,
+        "avgTrades": 11.8,
+        "avgWinRatePct": 49.15,
+        "avgHoldDays": 40.68,
+        "avgExposurePct": 26.27
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 188.02,
+          "cagrPct": 11.25,
+          "maxDrawdownPct": 19.77,
+          "trades": 27,
+          "winRatePct": 40.74,
+          "avgHoldDays": 36.56,
+          "exposurePct": 26.15
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 10.06,
+          "cagrPct": 2.4,
+          "maxDrawdownPct": 21.48,
+          "trades": 12,
+          "winRatePct": 25,
+          "avgHoldDays": 22.25,
+          "exposurePct": 17.63
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 39.83,
+          "cagrPct": 15.62,
+          "maxDrawdownPct": 17.4,
+          "trades": 5,
+          "winRatePct": 80,
+          "avgHoldDays": 66.6,
+          "exposurePct": 38.49
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 62.19,
+          "cagrPct": 20.18,
+          "maxDrawdownPct": 13.15,
+          "trades": 6,
+          "winRatePct": 66.67,
+          "avgHoldDays": 46.67,
+          "exposurePct": 28.36
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 43.15,
+          "cagrPct": 10.36,
+          "maxDrawdownPct": 22.19,
+          "trades": 9,
+          "winRatePct": 33.33,
+          "avgHoldDays": 31.33,
+          "exposurePct": 20.72
+        }
+      ]
+    },
+    {
+      "name": "entry:rsi<=75|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "rsi<=75"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 68.19,
+        "medianTotalReturnPct": 43.15,
+        "avgCagrPct": 11.85,
+        "avgMaxDrawdownPct": 18.8,
+        "avgTrades": 12,
+        "avgWinRatePct": 48.76,
+        "avgHoldDays": 41.36,
+        "avgExposurePct": 27.17
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 188.02,
+          "cagrPct": 11.25,
+          "maxDrawdownPct": 19.77,
+          "trades": 27,
+          "winRatePct": 40.74,
+          "avgHoldDays": 36.56,
+          "exposurePct": 26.15
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.75,
+          "cagrPct": 1.86,
+          "maxDrawdownPct": 21.48,
+          "trades": 13,
+          "winRatePct": 23.08,
+          "avgHoldDays": 25.62,
+          "exposurePct": 22.14
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 39.83,
+          "cagrPct": 15.62,
+          "maxDrawdownPct": 17.4,
+          "trades": 5,
+          "winRatePct": 80,
+          "avgHoldDays": 66.6,
+          "exposurePct": 38.49
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 62.19,
+          "cagrPct": 20.18,
+          "maxDrawdownPct": 13.15,
+          "trades": 6,
+          "winRatePct": 66.67,
+          "avgHoldDays": 46.67,
+          "exposurePct": 28.36
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 43.15,
+          "cagrPct": 10.36,
+          "maxDrawdownPct": 22.19,
+          "trades": 9,
+          "winRatePct": 33.33,
+          "avgHoldDays": 31.33,
+          "exposurePct": 20.72
+        }
+      ]
+    },
+    {
+      "name": "entry:close>=sma20+sma60>=sma250|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "close>=sma20",
+        "sma60>=sma250"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 65.94,
+        "medianTotalReturnPct": 43.02,
+        "avgCagrPct": 12.67,
+        "avgMaxDrawdownPct": 16.43,
+        "avgTrades": 8.2,
+        "avgWinRatePct": 60.43,
+        "avgHoldDays": 58.08,
+        "avgExposurePct": 24.74
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 156.79,
+          "cagrPct": 9.97,
+          "maxDrawdownPct": 14.72,
+          "trades": 20,
+          "winRatePct": 45,
+          "avgHoldDays": 40.9,
+          "exposurePct": 21.91
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 19.65,
+          "cagrPct": 4.53,
+          "maxDrawdownPct": 16.29,
+          "trades": 7,
+          "winRatePct": 28.57,
+          "avgHoldDays": 37.43,
+          "exposurePct": 17.14
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 43.02,
+          "cagrPct": 16.76,
+          "maxDrawdownPct": 15.28,
+          "trades": 3,
+          "winRatePct": 100,
+          "avgHoldDays": 105.67,
+          "exposurePct": 37.46
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 69.74,
+          "cagrPct": 22.28,
+          "maxDrawdownPct": 12.22,
+          "trades": 4,
+          "winRatePct": 100,
+          "avgHoldDays": 69.25,
+          "exposurePct": 27.9
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 40.51,
+          "cagrPct": 9.8,
+          "maxDrawdownPct": 23.63,
+          "trades": 7,
+          "winRatePct": 28.57,
+          "avgHoldDays": 37.14,
+          "exposurePct": 19.3
+        }
+      ]
+    },
+    {
+      "name": "entry:close>=sma20+sma60>=sma250+rsi<=75|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "close>=sma20",
+        "sma60>=sma250",
+        "rsi<=75"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 65.94,
+        "medianTotalReturnPct": 43.02,
+        "avgCagrPct": 12.67,
+        "avgMaxDrawdownPct": 16.43,
+        "avgTrades": 8.2,
+        "avgWinRatePct": 60.43,
+        "avgHoldDays": 58.08,
+        "avgExposurePct": 24.74
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 156.79,
+          "cagrPct": 9.97,
+          "maxDrawdownPct": 14.72,
+          "trades": 20,
+          "winRatePct": 45,
+          "avgHoldDays": 40.9,
+          "exposurePct": 21.91
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 19.65,
+          "cagrPct": 4.53,
+          "maxDrawdownPct": 16.29,
+          "trades": 7,
+          "winRatePct": 28.57,
+          "avgHoldDays": 37.43,
+          "exposurePct": 17.14
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 43.02,
+          "cagrPct": 16.76,
+          "maxDrawdownPct": 15.28,
+          "trades": 3,
+          "winRatePct": 100,
+          "avgHoldDays": 105.67,
+          "exposurePct": 37.46
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 69.74,
+          "cagrPct": 22.28,
+          "maxDrawdownPct": 12.22,
+          "trades": 4,
+          "winRatePct": 100,
+          "avgHoldDays": 69.25,
+          "exposurePct": 27.9
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 40.51,
+          "cagrPct": 9.8,
+          "maxDrawdownPct": 23.63,
+          "trades": 7,
+          "winRatePct": 28.57,
+          "avgHoldDays": 37.14,
+          "exposurePct": 19.3
+        }
+      ]
+    },
+    {
+      "name": "entry:close>=sma20|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "close>=sma20"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 65.44,
+        "medianTotalReturnPct": 43.02,
+        "avgCagrPct": 12.56,
+        "avgMaxDrawdownPct": 17.13,
+        "avgTrades": 8.4,
+        "avgWinRatePct": 59.71,
+        "avgHoldDays": 58.79,
+        "avgExposurePct": 25.64
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 156.79,
+          "cagrPct": 9.97,
+          "maxDrawdownPct": 14.72,
+          "trades": 20,
+          "winRatePct": 45,
+          "avgHoldDays": 40.9,
+          "exposurePct": 21.91
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 17.14,
+          "cagrPct": 3.98,
+          "maxDrawdownPct": 19.79,
+          "trades": 8,
+          "winRatePct": 25,
+          "avgHoldDays": 41,
+          "exposurePct": 21.65
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 43.02,
+          "cagrPct": 16.76,
+          "maxDrawdownPct": 15.28,
+          "trades": 3,
+          "winRatePct": 100,
+          "avgHoldDays": 105.67,
+          "exposurePct": 37.46
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 69.74,
+          "cagrPct": 22.28,
+          "maxDrawdownPct": 12.22,
+          "trades": 4,
+          "winRatePct": 100,
+          "avgHoldDays": 69.25,
+          "exposurePct": 27.9
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 40.51,
+          "cagrPct": 9.8,
+          "maxDrawdownPct": 23.63,
+          "trades": 7,
+          "winRatePct": 28.57,
+          "avgHoldDays": 37.14,
+          "exposurePct": 19.3
+        }
+      ]
+    },
+    {
+      "name": "entry:close>=sma20+rsi<=75|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "close>=sma20",
+        "rsi<=75"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 65.44,
+        "medianTotalReturnPct": 43.02,
+        "avgCagrPct": 12.56,
+        "avgMaxDrawdownPct": 17.13,
+        "avgTrades": 8.4,
+        "avgWinRatePct": 59.71,
+        "avgHoldDays": 58.79,
+        "avgExposurePct": 25.64
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 156.79,
+          "cagrPct": 9.97,
+          "maxDrawdownPct": 14.72,
+          "trades": 20,
+          "winRatePct": 45,
+          "avgHoldDays": 40.9,
+          "exposurePct": 21.91
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 17.14,
+          "cagrPct": 3.98,
+          "maxDrawdownPct": 19.79,
+          "trades": 8,
+          "winRatePct": 25,
+          "avgHoldDays": 41,
+          "exposurePct": 21.65
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 43.02,
+          "cagrPct": 16.76,
+          "maxDrawdownPct": 15.28,
+          "trades": 3,
+          "winRatePct": 100,
+          "avgHoldDays": 105.67,
+          "exposurePct": 37.46
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 69.74,
+          "cagrPct": 22.28,
+          "maxDrawdownPct": 12.22,
+          "trades": 4,
+          "winRatePct": 100,
+          "avgHoldDays": 69.25,
+          "exposurePct": 27.9
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 40.51,
+          "cagrPct": 9.8,
+          "maxDrawdownPct": 23.63,
+          "trades": 7,
+          "winRatePct": 28.57,
+          "avgHoldDays": 37.14,
+          "exposurePct": 19.3
+        }
+      ]
+    },
+    {
+      "name": "entry:sma60>=sma250",
+      "exitMode": "base",
+      "entryFlags": [
+        "sma60>=sma250"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 61.18,
+        "medianTotalReturnPct": 43.15,
+        "avgCagrPct": 9.91,
+        "avgMaxDrawdownPct": 20.14,
+        "avgTrades": 15.6,
+        "avgWinRatePct": 33.05,
+        "avgHoldDays": 25.24,
+        "avgExposurePct": 24.54
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 180.88,
+          "cagrPct": 10.97,
+          "maxDrawdownPct": 19.77,
+          "trades": 31,
+          "winRatePct": 35.48,
+          "avgHoldDays": 31.58,
+          "exposurePct": 25.91
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 10.22,
+          "cagrPct": 2.43,
+          "maxDrawdownPct": 21.48,
+          "trades": 14,
+          "winRatePct": 21.43,
+          "avgHoldDays": 16.71,
+          "exposurePct": 15.48
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 24.87,
+          "cagrPct": 10.1,
+          "maxDrawdownPct": 23.07,
+          "trades": 12,
+          "winRatePct": 41.67,
+          "avgHoldDays": 24.58,
+          "exposurePct": 34.02
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 46.79,
+          "cagrPct": 15.71,
+          "maxDrawdownPct": 14.17,
+          "trades": 12,
+          "winRatePct": 33.33,
+          "avgHoldDays": 22,
+          "exposurePct": 26.55
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 43.15,
+          "cagrPct": 10.36,
+          "maxDrawdownPct": 22.19,
+          "trades": 9,
+          "winRatePct": 33.33,
+          "avgHoldDays": 31.33,
+          "exposurePct": 20.72
+        }
+      ]
+    },
+    {
+      "name": "entry:sma60>=sma250+rsi<=75",
+      "exitMode": "base",
+      "entryFlags": [
+        "sma60>=sma250",
+        "rsi<=75"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 61.18,
+        "medianTotalReturnPct": 43.15,
+        "avgCagrPct": 9.91,
+        "avgMaxDrawdownPct": 20.14,
+        "avgTrades": 15.6,
+        "avgWinRatePct": 33.05,
+        "avgHoldDays": 25.24,
+        "avgExposurePct": 24.54
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 180.88,
+          "cagrPct": 10.97,
+          "maxDrawdownPct": 19.77,
+          "trades": 31,
+          "winRatePct": 35.48,
+          "avgHoldDays": 31.58,
+          "exposurePct": 25.91
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 10.22,
+          "cagrPct": 2.43,
+          "maxDrawdownPct": 21.48,
+          "trades": 14,
+          "winRatePct": 21.43,
+          "avgHoldDays": 16.71,
+          "exposurePct": 15.48
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 24.87,
+          "cagrPct": 10.1,
+          "maxDrawdownPct": 23.07,
+          "trades": 12,
+          "winRatePct": 41.67,
+          "avgHoldDays": 24.58,
+          "exposurePct": 34.02
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 46.79,
+          "cagrPct": 15.71,
+          "maxDrawdownPct": 14.17,
+          "trades": 12,
+          "winRatePct": 33.33,
+          "avgHoldDays": 22,
+          "exposurePct": 26.55
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 43.15,
+          "cagrPct": 10.36,
+          "maxDrawdownPct": 22.19,
+          "trades": 9,
+          "winRatePct": 33.33,
+          "avgHoldDays": 31.33,
+          "exposurePct": 20.72
+        }
+      ]
+    },
+    {
+      "name": "baseline",
+      "exitMode": "base",
+      "entryFlags": [],
+      "aggregate": {
+        "avgTotalReturnPct": 60.72,
+        "medianTotalReturnPct": 43.15,
+        "avgCagrPct": 9.81,
+        "avgMaxDrawdownPct": 20.14,
+        "avgTrades": 15.8,
+        "avgWinRatePct": 32.76,
+        "avgHoldDays": 25.9,
+        "avgExposurePct": 25.44
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 180.88,
+          "cagrPct": 10.97,
+          "maxDrawdownPct": 19.77,
+          "trades": 31,
+          "winRatePct": 35.48,
+          "avgHoldDays": 31.58,
+          "exposurePct": 25.91
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.9,
+          "cagrPct": 1.9,
+          "maxDrawdownPct": 21.48,
+          "trades": 15,
+          "winRatePct": 20,
+          "avgHoldDays": 20,
+          "exposurePct": 19.98
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 24.87,
+          "cagrPct": 10.1,
+          "maxDrawdownPct": 23.07,
+          "trades": 12,
+          "winRatePct": 41.67,
+          "avgHoldDays": 24.58,
+          "exposurePct": 34.02
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 46.79,
+          "cagrPct": 15.71,
+          "maxDrawdownPct": 14.17,
+          "trades": 12,
+          "winRatePct": 33.33,
+          "avgHoldDays": 22,
+          "exposurePct": 26.55
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 43.15,
+          "cagrPct": 10.36,
+          "maxDrawdownPct": 22.19,
+          "trades": 9,
+          "winRatePct": 33.33,
+          "avgHoldDays": 31.33,
+          "exposurePct": 20.72
+        }
+      ]
+    },
+    {
+      "name": "entry:rsi<=75",
+      "exitMode": "base",
+      "entryFlags": [
+        "rsi<=75"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 60.72,
+        "medianTotalReturnPct": 43.15,
+        "avgCagrPct": 9.81,
+        "avgMaxDrawdownPct": 20.14,
+        "avgTrades": 15.8,
+        "avgWinRatePct": 32.76,
+        "avgHoldDays": 25.9,
+        "avgExposurePct": 25.44
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 180.88,
+          "cagrPct": 10.97,
+          "maxDrawdownPct": 19.77,
+          "trades": 31,
+          "winRatePct": 35.48,
+          "avgHoldDays": 31.58,
+          "exposurePct": 25.91
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.9,
+          "cagrPct": 1.9,
+          "maxDrawdownPct": 21.48,
+          "trades": 15,
+          "winRatePct": 20,
+          "avgHoldDays": 20,
+          "exposurePct": 19.98
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 24.87,
+          "cagrPct": 10.1,
+          "maxDrawdownPct": 23.07,
+          "trades": 12,
+          "winRatePct": 41.67,
+          "avgHoldDays": 24.58,
+          "exposurePct": 34.02
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 46.79,
+          "cagrPct": 15.71,
+          "maxDrawdownPct": 14.17,
+          "trades": 12,
+          "winRatePct": 33.33,
+          "avgHoldDays": 22,
+          "exposurePct": 26.55
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 43.15,
+          "cagrPct": 10.36,
+          "maxDrawdownPct": 22.19,
+          "trades": 9,
+          "winRatePct": 33.33,
+          "avgHoldDays": 31.33,
+          "exposurePct": 20.72
+        }
+      ]
+    },
+    {
+      "name": "entry:close>=sma20+sma60>=sma250",
+      "exitMode": "base",
+      "entryFlags": [
+        "close>=sma20",
+        "sma60>=sma250"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 43.13,
+        "medianTotalReturnPct": 22.87,
+        "avgCagrPct": 6.1,
+        "avgMaxDrawdownPct": 17.64,
+        "avgTrades": 11.4,
+        "avgWinRatePct": 29.05,
+        "avgHoldDays": 25.71,
+        "avgExposurePct": 17.95
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 150.43,
+          "cagrPct": 9.69,
+          "maxDrawdownPct": 15.73,
+          "trades": 24,
+          "winRatePct": 37.5,
+          "avgHoldDays": 33.75,
+          "exposurePct": 21.67
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -9.11,
+          "cagrPct": -2.33,
+          "maxDrawdownPct": 16.29,
+          "trades": 8,
+          "winRatePct": 12.5,
+          "avgHoldDays": 18.75,
+          "exposurePct": 9.99
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 22.87,
+          "cagrPct": 9.33,
+          "maxDrawdownPct": 19.64,
+          "trades": 9,
+          "winRatePct": 33.33,
+          "avgHoldDays": 23.22,
+          "exposurePct": 24.74
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 10.93,
+          "cagrPct": 4.02,
+          "maxDrawdownPct": 12.92,
+          "trades": 9,
+          "winRatePct": 33.33,
+          "avgHoldDays": 15.67,
+          "exposurePct": 14.03
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 40.51,
+          "cagrPct": 9.8,
+          "maxDrawdownPct": 23.63,
+          "trades": 7,
+          "winRatePct": 28.57,
+          "avgHoldDays": 37.14,
+          "exposurePct": 19.3
+        }
+      ]
+    },
+    {
+      "name": "entry:close>=sma20+sma60>=sma250+rsi<=75",
+      "exitMode": "base",
+      "entryFlags": [
+        "close>=sma20",
+        "sma60>=sma250",
+        "rsi<=75"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 43.13,
+        "medianTotalReturnPct": 22.87,
+        "avgCagrPct": 6.1,
+        "avgMaxDrawdownPct": 17.64,
+        "avgTrades": 11.4,
+        "avgWinRatePct": 29.05,
+        "avgHoldDays": 25.71,
+        "avgExposurePct": 17.95
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 150.43,
+          "cagrPct": 9.69,
+          "maxDrawdownPct": 15.73,
+          "trades": 24,
+          "winRatePct": 37.5,
+          "avgHoldDays": 33.75,
+          "exposurePct": 21.67
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -9.11,
+          "cagrPct": -2.33,
+          "maxDrawdownPct": 16.29,
+          "trades": 8,
+          "winRatePct": 12.5,
+          "avgHoldDays": 18.75,
+          "exposurePct": 9.99
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 22.87,
+          "cagrPct": 9.33,
+          "maxDrawdownPct": 19.64,
+          "trades": 9,
+          "winRatePct": 33.33,
+          "avgHoldDays": 23.22,
+          "exposurePct": 24.74
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 10.93,
+          "cagrPct": 4.02,
+          "maxDrawdownPct": 12.92,
+          "trades": 9,
+          "winRatePct": 33.33,
+          "avgHoldDays": 15.67,
+          "exposurePct": 14.03
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 40.51,
+          "cagrPct": 9.8,
+          "maxDrawdownPct": 23.63,
+          "trades": 7,
+          "winRatePct": 28.57,
+          "avgHoldDays": 37.14,
+          "exposurePct": 19.3
+        }
+      ]
+    },
+    {
+      "name": "entry:sma60>=sma250+rsi>=55|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "sma60>=sma250",
+        "rsi>=55"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 42.74,
+        "medianTotalReturnPct": 33.37,
+        "avgCagrPct": 9.2,
+        "avgMaxDrawdownPct": 17.3,
+        "avgTrades": 5.6,
+        "avgWinRatePct": 61.67,
+        "avgHoldDays": 62.45,
+        "avgExposurePct": 19.8
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 94.3,
+          "cagrPct": 6.92,
+          "maxDrawdownPct": 13.43,
+          "trades": 12,
+          "winRatePct": 50,
+          "avgHoldDays": 47.42,
+          "exposurePct": 15.27
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 21.08,
+          "cagrPct": 4.84,
+          "maxDrawdownPct": 16.29,
+          "trades": 6,
+          "winRatePct": 33.33,
+          "avgHoldDays": 42.83,
+          "exposurePct": 16.85
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 33.37,
+          "cagrPct": 13.28,
+          "maxDrawdownPct": 15.28,
+          "trades": 2,
+          "winRatePct": 100,
+          "avgHoldDays": 125.5,
+          "exposurePct": 30.58
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 69.74,
+          "cagrPct": 22.28,
+          "maxDrawdownPct": 12.22,
+          "trades": 4,
+          "winRatePct": 100,
+          "avgHoldDays": 69.25,
+          "exposurePct": 27.9
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -4.8,
+          "cagrPct": -1.34,
+          "maxDrawdownPct": 29.28,
+          "trades": 4,
+          "winRatePct": 25,
+          "avgHoldDays": 27.25,
+          "exposurePct": 8.4
+        }
+      ]
+    },
+    {
+      "name": "entry:close>=sma20+sma60>=sma250+rsi>=55|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "close>=sma20",
+        "sma60>=sma250",
+        "rsi>=55"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 42.74,
+        "medianTotalReturnPct": 33.37,
+        "avgCagrPct": 9.2,
+        "avgMaxDrawdownPct": 17.3,
+        "avgTrades": 5.6,
+        "avgWinRatePct": 61.67,
+        "avgHoldDays": 62.45,
+        "avgExposurePct": 19.8
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 94.3,
+          "cagrPct": 6.92,
+          "maxDrawdownPct": 13.43,
+          "trades": 12,
+          "winRatePct": 50,
+          "avgHoldDays": 47.42,
+          "exposurePct": 15.27
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 21.08,
+          "cagrPct": 4.84,
+          "maxDrawdownPct": 16.29,
+          "trades": 6,
+          "winRatePct": 33.33,
+          "avgHoldDays": 42.83,
+          "exposurePct": 16.85
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 33.37,
+          "cagrPct": 13.28,
+          "maxDrawdownPct": 15.28,
+          "trades": 2,
+          "winRatePct": 100,
+          "avgHoldDays": 125.5,
+          "exposurePct": 30.58
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 69.74,
+          "cagrPct": 22.28,
+          "maxDrawdownPct": 12.22,
+          "trades": 4,
+          "winRatePct": 100,
+          "avgHoldDays": 69.25,
+          "exposurePct": 27.9
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -4.8,
+          "cagrPct": -1.34,
+          "maxDrawdownPct": 29.28,
+          "trades": 4,
+          "winRatePct": 25,
+          "avgHoldDays": 27.25,
+          "exposurePct": 8.4
+        }
+      ]
+    },
+    {
+      "name": "entry:sma60>=sma250+rsi>=55+rsi<=75|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "sma60>=sma250",
+        "rsi>=55",
+        "rsi<=75"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 42.74,
+        "medianTotalReturnPct": 33.37,
+        "avgCagrPct": 9.2,
+        "avgMaxDrawdownPct": 17.3,
+        "avgTrades": 5.6,
+        "avgWinRatePct": 61.67,
+        "avgHoldDays": 62.45,
+        "avgExposurePct": 19.8
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 94.3,
+          "cagrPct": 6.92,
+          "maxDrawdownPct": 13.43,
+          "trades": 12,
+          "winRatePct": 50,
+          "avgHoldDays": 47.42,
+          "exposurePct": 15.27
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 21.08,
+          "cagrPct": 4.84,
+          "maxDrawdownPct": 16.29,
+          "trades": 6,
+          "winRatePct": 33.33,
+          "avgHoldDays": 42.83,
+          "exposurePct": 16.85
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 33.37,
+          "cagrPct": 13.28,
+          "maxDrawdownPct": 15.28,
+          "trades": 2,
+          "winRatePct": 100,
+          "avgHoldDays": 125.5,
+          "exposurePct": 30.58
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 69.74,
+          "cagrPct": 22.28,
+          "maxDrawdownPct": 12.22,
+          "trades": 4,
+          "winRatePct": 100,
+          "avgHoldDays": 69.25,
+          "exposurePct": 27.9
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -4.8,
+          "cagrPct": -1.34,
+          "maxDrawdownPct": 29.28,
+          "trades": 4,
+          "winRatePct": 25,
+          "avgHoldDays": 27.25,
+          "exposurePct": 8.4
+        }
+      ]
+    },
+    {
+      "name": "entry:close>=sma20+sma60>=sma250+rsi>=55+rsi<=75|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "close>=sma20",
+        "sma60>=sma250",
+        "rsi>=55",
+        "rsi<=75"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 42.74,
+        "medianTotalReturnPct": 33.37,
+        "avgCagrPct": 9.2,
+        "avgMaxDrawdownPct": 17.3,
+        "avgTrades": 5.6,
+        "avgWinRatePct": 61.67,
+        "avgHoldDays": 62.45,
+        "avgExposurePct": 19.8
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 94.3,
+          "cagrPct": 6.92,
+          "maxDrawdownPct": 13.43,
+          "trades": 12,
+          "winRatePct": 50,
+          "avgHoldDays": 47.42,
+          "exposurePct": 15.27
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 21.08,
+          "cagrPct": 4.84,
+          "maxDrawdownPct": 16.29,
+          "trades": 6,
+          "winRatePct": 33.33,
+          "avgHoldDays": 42.83,
+          "exposurePct": 16.85
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 33.37,
+          "cagrPct": 13.28,
+          "maxDrawdownPct": 15.28,
+          "trades": 2,
+          "winRatePct": 100,
+          "avgHoldDays": 125.5,
+          "exposurePct": 30.58
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 69.74,
+          "cagrPct": 22.28,
+          "maxDrawdownPct": 12.22,
+          "trades": 4,
+          "winRatePct": 100,
+          "avgHoldDays": 69.25,
+          "exposurePct": 27.9
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -4.8,
+          "cagrPct": -1.34,
+          "maxDrawdownPct": 29.28,
+          "trades": 4,
+          "winRatePct": 25,
+          "avgHoldDays": 27.25,
+          "exposurePct": 8.4
+        }
+      ]
+    },
+    {
+      "name": "entry:close>=sma20",
+      "exitMode": "base",
+      "entryFlags": [
+        "close>=sma20"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 42.74,
+        "medianTotalReturnPct": 22.87,
+        "avgCagrPct": 6,
+        "avgMaxDrawdownPct": 18.3,
+        "avgTrades": 11.6,
+        "avgWinRatePct": 28.77,
+        "avgHoldDays": 26.76,
+        "avgExposurePct": 18.85
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 150.43,
+          "cagrPct": 9.69,
+          "maxDrawdownPct": 15.73,
+          "trades": 24,
+          "winRatePct": 37.5,
+          "avgHoldDays": 33.75,
+          "exposurePct": 21.67
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -11.02,
+          "cagrPct": -2.84,
+          "maxDrawdownPct": 19.6,
+          "trades": 9,
+          "winRatePct": 11.11,
+          "avgHoldDays": 24,
+          "exposurePct": 14.5
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 22.87,
+          "cagrPct": 9.33,
+          "maxDrawdownPct": 19.64,
+          "trades": 9,
+          "winRatePct": 33.33,
+          "avgHoldDays": 23.22,
+          "exposurePct": 24.74
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 10.93,
+          "cagrPct": 4.02,
+          "maxDrawdownPct": 12.92,
+          "trades": 9,
+          "winRatePct": 33.33,
+          "avgHoldDays": 15.67,
+          "exposurePct": 14.03
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 40.51,
+          "cagrPct": 9.8,
+          "maxDrawdownPct": 23.63,
+          "trades": 7,
+          "winRatePct": 28.57,
+          "avgHoldDays": 37.14,
+          "exposurePct": 19.3
+        }
+      ]
+    },
+    {
+      "name": "entry:close>=sma20+rsi<=75",
+      "exitMode": "base",
+      "entryFlags": [
+        "close>=sma20",
+        "rsi<=75"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 42.74,
+        "medianTotalReturnPct": 22.87,
+        "avgCagrPct": 6,
+        "avgMaxDrawdownPct": 18.3,
+        "avgTrades": 11.6,
+        "avgWinRatePct": 28.77,
+        "avgHoldDays": 26.76,
+        "avgExposurePct": 18.85
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 150.43,
+          "cagrPct": 9.69,
+          "maxDrawdownPct": 15.73,
+          "trades": 24,
+          "winRatePct": 37.5,
+          "avgHoldDays": 33.75,
+          "exposurePct": 21.67
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -11.02,
+          "cagrPct": -2.84,
+          "maxDrawdownPct": 19.6,
+          "trades": 9,
+          "winRatePct": 11.11,
+          "avgHoldDays": 24,
+          "exposurePct": 14.5
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 22.87,
+          "cagrPct": 9.33,
+          "maxDrawdownPct": 19.64,
+          "trades": 9,
+          "winRatePct": 33.33,
+          "avgHoldDays": 23.22,
+          "exposurePct": 24.74
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 10.93,
+          "cagrPct": 4.02,
+          "maxDrawdownPct": 12.92,
+          "trades": 9,
+          "winRatePct": 33.33,
+          "avgHoldDays": 15.67,
+          "exposurePct": 14.03
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 40.51,
+          "cagrPct": 9.8,
+          "maxDrawdownPct": 23.63,
+          "trades": 7,
+          "winRatePct": 28.57,
+          "avgHoldDays": 37.14,
+          "exposurePct": 19.3
+        }
+      ]
+    },
+    {
+      "name": "entry:rsi>=55|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "rsi>=55"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 42.23,
+        "medianTotalReturnPct": 33.37,
+        "avgCagrPct": 9.09,
+        "avgMaxDrawdownPct": 18,
+        "avgTrades": 5.8,
+        "avgWinRatePct": 60.71,
+        "avgHoldDays": 63.11,
+        "avgExposurePct": 20.7
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 94.3,
+          "cagrPct": 6.92,
+          "maxDrawdownPct": 13.43,
+          "trades": 12,
+          "winRatePct": 50,
+          "avgHoldDays": 47.42,
+          "exposurePct": 15.27
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 18.54,
+          "cagrPct": 4.29,
+          "maxDrawdownPct": 19.79,
+          "trades": 7,
+          "winRatePct": 28.57,
+          "avgHoldDays": 46.14,
+          "exposurePct": 21.35
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 33.37,
+          "cagrPct": 13.28,
+          "maxDrawdownPct": 15.28,
+          "trades": 2,
+          "winRatePct": 100,
+          "avgHoldDays": 125.5,
+          "exposurePct": 30.58
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 69.74,
+          "cagrPct": 22.28,
+          "maxDrawdownPct": 12.22,
+          "trades": 4,
+          "winRatePct": 100,
+          "avgHoldDays": 69.25,
+          "exposurePct": 27.9
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -4.8,
+          "cagrPct": -1.34,
+          "maxDrawdownPct": 29.28,
+          "trades": 4,
+          "winRatePct": 25,
+          "avgHoldDays": 27.25,
+          "exposurePct": 8.4
+        }
+      ]
+    }
+  ],
+  "topByFewTrades": [
+    {
+      "name": "entry:sma20>=sma60+macdHist>0+recentVol5|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "sma20>=sma60",
+        "macdHist>0",
+        "recentVol5"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 8.25,
+        "medianTotalReturnPct": 0,
+        "avgCagrPct": 2.81,
+        "avgMaxDrawdownPct": 5.21,
+        "avgTrades": 0.6,
+        "avgWinRatePct": 40,
+        "avgHoldDays": 44.2,
+        "avgExposurePct": 3.76
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -2.64,
+          "cagrPct": -0.27,
+          "maxDrawdownPct": 2.64,
+          "trades": 1,
+          "winRatePct": 0,
+          "avgHoldDays": 1,
+          "exposurePct": 0.04
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.23,
+          "cagrPct": 1.74,
+          "maxDrawdownPct": 11.18,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 94,
+          "exposurePct": 6.07
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 36.66,
+          "cagrPct": 12.6,
+          "maxDrawdownPct": 12.22,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 126,
+          "exposurePct": 12.67
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        }
+      ]
+    },
+    {
+      "name": "entry:close>=sma20+sma20>=sma60+macdHist>0+recentVol5|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "close>=sma20",
+        "sma20>=sma60",
+        "macdHist>0",
+        "recentVol5"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 8.25,
+        "medianTotalReturnPct": 0,
+        "avgCagrPct": 2.81,
+        "avgMaxDrawdownPct": 5.21,
+        "avgTrades": 0.6,
+        "avgWinRatePct": 40,
+        "avgHoldDays": 44.2,
+        "avgExposurePct": 3.76
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -2.64,
+          "cagrPct": -0.27,
+          "maxDrawdownPct": 2.64,
+          "trades": 1,
+          "winRatePct": 0,
+          "avgHoldDays": 1,
+          "exposurePct": 0.04
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.23,
+          "cagrPct": 1.74,
+          "maxDrawdownPct": 11.18,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 94,
+          "exposurePct": 6.07
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 36.66,
+          "cagrPct": 12.6,
+          "maxDrawdownPct": 12.22,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 126,
+          "exposurePct": 12.67
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        }
+      ]
+    },
+    {
+      "name": "entry:sma20>=sma60+sma60>=sma250+macdHist>0+recentVol5|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "sma20>=sma60",
+        "sma60>=sma250",
+        "macdHist>0",
+        "recentVol5"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 8.25,
+        "medianTotalReturnPct": 0,
+        "avgCagrPct": 2.81,
+        "avgMaxDrawdownPct": 5.21,
+        "avgTrades": 0.6,
+        "avgWinRatePct": 40,
+        "avgHoldDays": 44.2,
+        "avgExposurePct": 3.76
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -2.64,
+          "cagrPct": -0.27,
+          "maxDrawdownPct": 2.64,
+          "trades": 1,
+          "winRatePct": 0,
+          "avgHoldDays": 1,
+          "exposurePct": 0.04
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.23,
+          "cagrPct": 1.74,
+          "maxDrawdownPct": 11.18,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 94,
+          "exposurePct": 6.07
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 36.66,
+          "cagrPct": 12.6,
+          "maxDrawdownPct": 12.22,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 126,
+          "exposurePct": 12.67
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        }
+      ]
+    },
+    {
+      "name": "entry:close>=sma20+sma20>=sma60+sma60>=sma250+macdHist>0+recentVol5|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "close>=sma20",
+        "sma20>=sma60",
+        "sma60>=sma250",
+        "macdHist>0",
+        "recentVol5"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 8.25,
+        "medianTotalReturnPct": 0,
+        "avgCagrPct": 2.81,
+        "avgMaxDrawdownPct": 5.21,
+        "avgTrades": 0.6,
+        "avgWinRatePct": 40,
+        "avgHoldDays": 44.2,
+        "avgExposurePct": 3.76
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -2.64,
+          "cagrPct": -0.27,
+          "maxDrawdownPct": 2.64,
+          "trades": 1,
+          "winRatePct": 0,
+          "avgHoldDays": 1,
+          "exposurePct": 0.04
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.23,
+          "cagrPct": 1.74,
+          "maxDrawdownPct": 11.18,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 94,
+          "exposurePct": 6.07
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 36.66,
+          "cagrPct": 12.6,
+          "maxDrawdownPct": 12.22,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 126,
+          "exposurePct": 12.67
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        }
+      ]
+    },
+    {
+      "name": "entry:sma20>=sma60+macdDiff>dea+recentVol5|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "sma20>=sma60",
+        "macdDiff>dea",
+        "recentVol5"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 8.25,
+        "medianTotalReturnPct": 0,
+        "avgCagrPct": 2.81,
+        "avgMaxDrawdownPct": 5.21,
+        "avgTrades": 0.6,
+        "avgWinRatePct": 40,
+        "avgHoldDays": 44.2,
+        "avgExposurePct": 3.76
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -2.64,
+          "cagrPct": -0.27,
+          "maxDrawdownPct": 2.64,
+          "trades": 1,
+          "winRatePct": 0,
+          "avgHoldDays": 1,
+          "exposurePct": 0.04
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.23,
+          "cagrPct": 1.74,
+          "maxDrawdownPct": 11.18,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 94,
+          "exposurePct": 6.07
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 36.66,
+          "cagrPct": 12.6,
+          "maxDrawdownPct": 12.22,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 126,
+          "exposurePct": 12.67
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        }
+      ]
+    },
+    {
+      "name": "entry:close>=sma20+sma20>=sma60+macdDiff>dea+recentVol5|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "close>=sma20",
+        "sma20>=sma60",
+        "macdDiff>dea",
+        "recentVol5"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 8.25,
+        "medianTotalReturnPct": 0,
+        "avgCagrPct": 2.81,
+        "avgMaxDrawdownPct": 5.21,
+        "avgTrades": 0.6,
+        "avgWinRatePct": 40,
+        "avgHoldDays": 44.2,
+        "avgExposurePct": 3.76
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -2.64,
+          "cagrPct": -0.27,
+          "maxDrawdownPct": 2.64,
+          "trades": 1,
+          "winRatePct": 0,
+          "avgHoldDays": 1,
+          "exposurePct": 0.04
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.23,
+          "cagrPct": 1.74,
+          "maxDrawdownPct": 11.18,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 94,
+          "exposurePct": 6.07
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 36.66,
+          "cagrPct": 12.6,
+          "maxDrawdownPct": 12.22,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 126,
+          "exposurePct": 12.67
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        }
+      ]
+    },
+    {
+      "name": "entry:sma20>=sma60+sma60>=sma250+macdDiff>dea+recentVol5|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "sma20>=sma60",
+        "sma60>=sma250",
+        "macdDiff>dea",
+        "recentVol5"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 8.25,
+        "medianTotalReturnPct": 0,
+        "avgCagrPct": 2.81,
+        "avgMaxDrawdownPct": 5.21,
+        "avgTrades": 0.6,
+        "avgWinRatePct": 40,
+        "avgHoldDays": 44.2,
+        "avgExposurePct": 3.76
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -2.64,
+          "cagrPct": -0.27,
+          "maxDrawdownPct": 2.64,
+          "trades": 1,
+          "winRatePct": 0,
+          "avgHoldDays": 1,
+          "exposurePct": 0.04
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.23,
+          "cagrPct": 1.74,
+          "maxDrawdownPct": 11.18,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 94,
+          "exposurePct": 6.07
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 36.66,
+          "cagrPct": 12.6,
+          "maxDrawdownPct": 12.22,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 126,
+          "exposurePct": 12.67
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        }
+      ]
+    },
+    {
+      "name": "entry:close>=sma20+sma20>=sma60+sma60>=sma250+macdDiff>dea+recentVol5|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "close>=sma20",
+        "sma20>=sma60",
+        "sma60>=sma250",
+        "macdDiff>dea",
+        "recentVol5"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 8.25,
+        "medianTotalReturnPct": 0,
+        "avgCagrPct": 2.81,
+        "avgMaxDrawdownPct": 5.21,
+        "avgTrades": 0.6,
+        "avgWinRatePct": 40,
+        "avgHoldDays": 44.2,
+        "avgExposurePct": 3.76
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -2.64,
+          "cagrPct": -0.27,
+          "maxDrawdownPct": 2.64,
+          "trades": 1,
+          "winRatePct": 0,
+          "avgHoldDays": 1,
+          "exposurePct": 0.04
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.23,
+          "cagrPct": 1.74,
+          "maxDrawdownPct": 11.18,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 94,
+          "exposurePct": 6.07
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 36.66,
+          "cagrPct": 12.6,
+          "maxDrawdownPct": 12.22,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 126,
+          "exposurePct": 12.67
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        }
+      ]
+    },
+    {
+      "name": "entry:sma20>=sma60+macdHist>0+macdDiff>dea+recentVol5|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "sma20>=sma60",
+        "macdHist>0",
+        "macdDiff>dea",
+        "recentVol5"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 8.25,
+        "medianTotalReturnPct": 0,
+        "avgCagrPct": 2.81,
+        "avgMaxDrawdownPct": 5.21,
+        "avgTrades": 0.6,
+        "avgWinRatePct": 40,
+        "avgHoldDays": 44.2,
+        "avgExposurePct": 3.76
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -2.64,
+          "cagrPct": -0.27,
+          "maxDrawdownPct": 2.64,
+          "trades": 1,
+          "winRatePct": 0,
+          "avgHoldDays": 1,
+          "exposurePct": 0.04
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.23,
+          "cagrPct": 1.74,
+          "maxDrawdownPct": 11.18,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 94,
+          "exposurePct": 6.07
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 36.66,
+          "cagrPct": 12.6,
+          "maxDrawdownPct": 12.22,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 126,
+          "exposurePct": 12.67
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        }
+      ]
+    },
+    {
+      "name": "entry:close>=sma20+sma20>=sma60+macdHist>0+macdDiff>dea+recentVol5|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "close>=sma20",
+        "sma20>=sma60",
+        "macdHist>0",
+        "macdDiff>dea",
+        "recentVol5"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 8.25,
+        "medianTotalReturnPct": 0,
+        "avgCagrPct": 2.81,
+        "avgMaxDrawdownPct": 5.21,
+        "avgTrades": 0.6,
+        "avgWinRatePct": 40,
+        "avgHoldDays": 44.2,
+        "avgExposurePct": 3.76
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -2.64,
+          "cagrPct": -0.27,
+          "maxDrawdownPct": 2.64,
+          "trades": 1,
+          "winRatePct": 0,
+          "avgHoldDays": 1,
+          "exposurePct": 0.04
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.23,
+          "cagrPct": 1.74,
+          "maxDrawdownPct": 11.18,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 94,
+          "exposurePct": 6.07
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 36.66,
+          "cagrPct": 12.6,
+          "maxDrawdownPct": 12.22,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 126,
+          "exposurePct": 12.67
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        }
+      ]
+    },
+    {
+      "name": "entry:sma20>=sma60+sma60>=sma250+macdHist>0+macdDiff>dea+recentVol5|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "sma20>=sma60",
+        "sma60>=sma250",
+        "macdHist>0",
+        "macdDiff>dea",
+        "recentVol5"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 8.25,
+        "medianTotalReturnPct": 0,
+        "avgCagrPct": 2.81,
+        "avgMaxDrawdownPct": 5.21,
+        "avgTrades": 0.6,
+        "avgWinRatePct": 40,
+        "avgHoldDays": 44.2,
+        "avgExposurePct": 3.76
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -2.64,
+          "cagrPct": -0.27,
+          "maxDrawdownPct": 2.64,
+          "trades": 1,
+          "winRatePct": 0,
+          "avgHoldDays": 1,
+          "exposurePct": 0.04
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.23,
+          "cagrPct": 1.74,
+          "maxDrawdownPct": 11.18,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 94,
+          "exposurePct": 6.07
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 36.66,
+          "cagrPct": 12.6,
+          "maxDrawdownPct": 12.22,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 126,
+          "exposurePct": 12.67
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        }
+      ]
+    },
+    {
+      "name": "entry:close>=sma20+sma20>=sma60+sma60>=sma250+macdHist>0+macdDiff>dea+recentVol5|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "close>=sma20",
+        "sma20>=sma60",
+        "sma60>=sma250",
+        "macdHist>0",
+        "macdDiff>dea",
+        "recentVol5"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 8.25,
+        "medianTotalReturnPct": 0,
+        "avgCagrPct": 2.81,
+        "avgMaxDrawdownPct": 5.21,
+        "avgTrades": 0.6,
+        "avgWinRatePct": 40,
+        "avgHoldDays": 44.2,
+        "avgExposurePct": 3.76
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -2.64,
+          "cagrPct": -0.27,
+          "maxDrawdownPct": 2.64,
+          "trades": 1,
+          "winRatePct": 0,
+          "avgHoldDays": 1,
+          "exposurePct": 0.04
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.23,
+          "cagrPct": 1.74,
+          "maxDrawdownPct": 11.18,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 94,
+          "exposurePct": 6.07
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 36.66,
+          "cagrPct": 12.6,
+          "maxDrawdownPct": 12.22,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 126,
+          "exposurePct": 12.67
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        }
+      ]
+    },
+    {
+      "name": "entry:sma20>=sma60+macdHist>0+rsi>=55+recentVol5|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "sma20>=sma60",
+        "macdHist>0",
+        "rsi>=55",
+        "recentVol5"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 8.25,
+        "medianTotalReturnPct": 0,
+        "avgCagrPct": 2.81,
+        "avgMaxDrawdownPct": 5.21,
+        "avgTrades": 0.6,
+        "avgWinRatePct": 40,
+        "avgHoldDays": 44.2,
+        "avgExposurePct": 3.76
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -2.64,
+          "cagrPct": -0.27,
+          "maxDrawdownPct": 2.64,
+          "trades": 1,
+          "winRatePct": 0,
+          "avgHoldDays": 1,
+          "exposurePct": 0.04
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.23,
+          "cagrPct": 1.74,
+          "maxDrawdownPct": 11.18,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 94,
+          "exposurePct": 6.07
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 36.66,
+          "cagrPct": 12.6,
+          "maxDrawdownPct": 12.22,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 126,
+          "exposurePct": 12.67
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        }
+      ]
+    },
+    {
+      "name": "entry:close>=sma20+sma20>=sma60+macdHist>0+rsi>=55+recentVol5|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "close>=sma20",
+        "sma20>=sma60",
+        "macdHist>0",
+        "rsi>=55",
+        "recentVol5"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 8.25,
+        "medianTotalReturnPct": 0,
+        "avgCagrPct": 2.81,
+        "avgMaxDrawdownPct": 5.21,
+        "avgTrades": 0.6,
+        "avgWinRatePct": 40,
+        "avgHoldDays": 44.2,
+        "avgExposurePct": 3.76
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -2.64,
+          "cagrPct": -0.27,
+          "maxDrawdownPct": 2.64,
+          "trades": 1,
+          "winRatePct": 0,
+          "avgHoldDays": 1,
+          "exposurePct": 0.04
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.23,
+          "cagrPct": 1.74,
+          "maxDrawdownPct": 11.18,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 94,
+          "exposurePct": 6.07
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 36.66,
+          "cagrPct": 12.6,
+          "maxDrawdownPct": 12.22,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 126,
+          "exposurePct": 12.67
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        }
+      ]
+    },
+    {
+      "name": "entry:sma20>=sma60+sma60>=sma250+macdHist>0+rsi>=55+recentVol5|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "sma20>=sma60",
+        "sma60>=sma250",
+        "macdHist>0",
+        "rsi>=55",
+        "recentVol5"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 8.25,
+        "medianTotalReturnPct": 0,
+        "avgCagrPct": 2.81,
+        "avgMaxDrawdownPct": 5.21,
+        "avgTrades": 0.6,
+        "avgWinRatePct": 40,
+        "avgHoldDays": 44.2,
+        "avgExposurePct": 3.76
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -2.64,
+          "cagrPct": -0.27,
+          "maxDrawdownPct": 2.64,
+          "trades": 1,
+          "winRatePct": 0,
+          "avgHoldDays": 1,
+          "exposurePct": 0.04
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.23,
+          "cagrPct": 1.74,
+          "maxDrawdownPct": 11.18,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 94,
+          "exposurePct": 6.07
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 36.66,
+          "cagrPct": 12.6,
+          "maxDrawdownPct": 12.22,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 126,
+          "exposurePct": 12.67
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        }
+      ]
+    },
+    {
+      "name": "entry:close>=sma20+sma20>=sma60+sma60>=sma250+macdHist>0+rsi>=55+recentVol5|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "close>=sma20",
+        "sma20>=sma60",
+        "sma60>=sma250",
+        "macdHist>0",
+        "rsi>=55",
+        "recentVol5"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 8.25,
+        "medianTotalReturnPct": 0,
+        "avgCagrPct": 2.81,
+        "avgMaxDrawdownPct": 5.21,
+        "avgTrades": 0.6,
+        "avgWinRatePct": 40,
+        "avgHoldDays": 44.2,
+        "avgExposurePct": 3.76
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -2.64,
+          "cagrPct": -0.27,
+          "maxDrawdownPct": 2.64,
+          "trades": 1,
+          "winRatePct": 0,
+          "avgHoldDays": 1,
+          "exposurePct": 0.04
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.23,
+          "cagrPct": 1.74,
+          "maxDrawdownPct": 11.18,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 94,
+          "exposurePct": 6.07
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 36.66,
+          "cagrPct": 12.6,
+          "maxDrawdownPct": 12.22,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 126,
+          "exposurePct": 12.67
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        }
+      ]
+    },
+    {
+      "name": "entry:sma20>=sma60+macdDiff>dea+rsi>=55+recentVol5|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "sma20>=sma60",
+        "macdDiff>dea",
+        "rsi>=55",
+        "recentVol5"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 8.25,
+        "medianTotalReturnPct": 0,
+        "avgCagrPct": 2.81,
+        "avgMaxDrawdownPct": 5.21,
+        "avgTrades": 0.6,
+        "avgWinRatePct": 40,
+        "avgHoldDays": 44.2,
+        "avgExposurePct": 3.76
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -2.64,
+          "cagrPct": -0.27,
+          "maxDrawdownPct": 2.64,
+          "trades": 1,
+          "winRatePct": 0,
+          "avgHoldDays": 1,
+          "exposurePct": 0.04
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.23,
+          "cagrPct": 1.74,
+          "maxDrawdownPct": 11.18,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 94,
+          "exposurePct": 6.07
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 36.66,
+          "cagrPct": 12.6,
+          "maxDrawdownPct": 12.22,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 126,
+          "exposurePct": 12.67
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        }
+      ]
+    },
+    {
+      "name": "entry:close>=sma20+sma20>=sma60+macdDiff>dea+rsi>=55+recentVol5|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "close>=sma20",
+        "sma20>=sma60",
+        "macdDiff>dea",
+        "rsi>=55",
+        "recentVol5"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 8.25,
+        "medianTotalReturnPct": 0,
+        "avgCagrPct": 2.81,
+        "avgMaxDrawdownPct": 5.21,
+        "avgTrades": 0.6,
+        "avgWinRatePct": 40,
+        "avgHoldDays": 44.2,
+        "avgExposurePct": 3.76
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -2.64,
+          "cagrPct": -0.27,
+          "maxDrawdownPct": 2.64,
+          "trades": 1,
+          "winRatePct": 0,
+          "avgHoldDays": 1,
+          "exposurePct": 0.04
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.23,
+          "cagrPct": 1.74,
+          "maxDrawdownPct": 11.18,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 94,
+          "exposurePct": 6.07
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 36.66,
+          "cagrPct": 12.6,
+          "maxDrawdownPct": 12.22,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 126,
+          "exposurePct": 12.67
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        }
+      ]
+    },
+    {
+      "name": "entry:sma20>=sma60+sma60>=sma250+macdDiff>dea+rsi>=55+recentVol5|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "sma20>=sma60",
+        "sma60>=sma250",
+        "macdDiff>dea",
+        "rsi>=55",
+        "recentVol5"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 8.25,
+        "medianTotalReturnPct": 0,
+        "avgCagrPct": 2.81,
+        "avgMaxDrawdownPct": 5.21,
+        "avgTrades": 0.6,
+        "avgWinRatePct": 40,
+        "avgHoldDays": 44.2,
+        "avgExposurePct": 3.76
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -2.64,
+          "cagrPct": -0.27,
+          "maxDrawdownPct": 2.64,
+          "trades": 1,
+          "winRatePct": 0,
+          "avgHoldDays": 1,
+          "exposurePct": 0.04
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.23,
+          "cagrPct": 1.74,
+          "maxDrawdownPct": 11.18,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 94,
+          "exposurePct": 6.07
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 36.66,
+          "cagrPct": 12.6,
+          "maxDrawdownPct": 12.22,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 126,
+          "exposurePct": 12.67
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        }
+      ]
+    },
+    {
+      "name": "entry:close>=sma20+sma20>=sma60+sma60>=sma250+macdDiff>dea+rsi>=55+recentVol5|exit:confirm",
+      "exitMode": "confirm",
+      "entryFlags": [
+        "close>=sma20",
+        "sma20>=sma60",
+        "sma60>=sma250",
+        "macdDiff>dea",
+        "rsi>=55",
+        "recentVol5"
+      ],
+      "aggregate": {
+        "avgTotalReturnPct": 8.25,
+        "medianTotalReturnPct": 0,
+        "avgCagrPct": 2.81,
+        "avgMaxDrawdownPct": 5.21,
+        "avgTrades": 0.6,
+        "avgWinRatePct": 40,
+        "avgHoldDays": 44.2,
+        "avgExposurePct": 3.76
+      },
+      "byTicker": [
+        {
+          "ticker": "159915.SZ",
+          "bars": 2501,
+          "startDate": "2016-01-04",
+          "endDate": "2026-04-23",
+          "totalReturnPct": -2.64,
+          "cagrPct": -0.27,
+          "maxDrawdownPct": 2.64,
+          "trades": 1,
+          "winRatePct": 0,
+          "avgHoldDays": 1,
+          "exposurePct": 0.04
+        },
+        {
+          "ticker": "513020.SH",
+          "bars": 1021,
+          "startDate": "2022-02-08",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 7.23,
+          "cagrPct": 1.74,
+          "maxDrawdownPct": 11.18,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 94,
+          "exposurePct": 6.07
+        },
+        {
+          "ticker": "513750.SH",
+          "bars": 582,
+          "startDate": "2023-11-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        },
+        {
+          "ticker": "159516.SZ",
+          "bars": 663,
+          "startDate": "2023-07-27",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 36.66,
+          "cagrPct": 12.6,
+          "maxDrawdownPct": 12.22,
+          "trades": 1,
+          "winRatePct": 100,
+          "avgHoldDays": 126,
+          "exposurePct": 12.67
+        },
+        {
+          "ticker": "513120.SH",
+          "bars": 917,
+          "startDate": "2022-07-12",
+          "endDate": "2026-04-23",
+          "totalReturnPct": 0,
+          "cagrPct": 0,
+          "maxDrawdownPct": 0,
+          "trades": 0,
+          "winRatePct": 0,
+          "avgHoldDays": 0,
+          "exposurePct": 0
+        }
+      ]
+    }
+  ]
+}
