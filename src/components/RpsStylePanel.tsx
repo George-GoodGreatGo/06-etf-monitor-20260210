@@ -673,121 +673,125 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
 
   const customQuerySection = (
     <div className="space-y-4">
-      <form
-        className="mx-auto w-full max-w-[920px]"
-        onSubmit={(e) => {
-          e.preventDefault()
-          const nextTicker = normalizeCustomQueryTicker(customTickerInput)
-          setSubmittedCustomTicker(nextTicker)
-          setCustomQuerySubmitSeq((value) => value + 1)
-        }}
-      >
-        <div
-          className={cn(
-            'group flex min-h-[64px] w-full items-center gap-3 rounded-full border border-[rgba(148,163,184,0.18)] bg-[rgba(15,23,42,0.96)] px-4 py-2.5 shadow-[0_14px_34px_rgba(2,6,23,0.26)] transition',
-            'hover:border-[rgba(125,211,252,0.34)] hover:bg-[rgba(15,23,42,0.985)] hover:shadow-[0_18px_40px_rgba(8,47,73,0.24)]',
-            'focus-within:border-[rgba(125,211,252,0.48)] focus-within:bg-[rgba(15,23,42,1)] focus-within:shadow-[0_0_0_1px_rgba(125,211,252,0.16),0_20px_44px_rgba(8,47,73,0.32)]',
-            customQueryLoading &&
-              'border-[rgba(125,211,252,0.38)] bg-[rgba(15,23,42,0.99)] shadow-[0_0_0_1px_rgba(125,211,252,0.12),0_18px_42px_rgba(8,47,73,0.30)]',
-          )}
+      <div className="mx-auto w-full max-w-[920px] space-y-3">
+        <form
+          className="w-full"
+          onSubmit={(e) => {
+            e.preventDefault()
+            const nextTicker = normalizeCustomQueryTicker(customTickerInput)
+            setSubmittedCustomTicker(nextTicker)
+            setCustomQuerySubmitSeq((value) => value + 1)
+          }}
         >
-          <span
+          <div
             className={cn(
-              'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/8 text-[#A8BAD8] transition',
-              'group-hover:bg-[rgba(125,211,252,0.10)] group-hover:text-[#D6E8FF]',
-              'group-focus-within:bg-[rgba(125,211,252,0.14)] group-focus-within:text-[#EFF6FF]',
-              customQueryLoading && 'bg-[rgba(125,211,252,0.14)] text-[#E0F2FE]',
+              'group flex min-h-[64px] w-full items-center gap-3 rounded-full border border-[rgba(148,163,184,0.18)] bg-[rgba(15,23,42,0.96)] px-4 py-2.5 shadow-[0_14px_34px_rgba(2,6,23,0.26)] transition',
+              'hover:border-[rgba(125,211,252,0.34)] hover:bg-[rgba(15,23,42,0.985)] hover:shadow-[0_18px_40px_rgba(8,47,73,0.24)]',
+              'focus-within:border-[rgba(125,211,252,0.48)] focus-within:bg-[rgba(15,23,42,1)] focus-within:shadow-[0_0_0_1px_rgba(125,211,252,0.16),0_20px_44px_rgba(8,47,73,0.32)]',
+              customQueryLoading &&
+                'border-[rgba(125,211,252,0.38)] bg-[rgba(15,23,42,0.99)] shadow-[0_0_0_1px_rgba(125,211,252,0.12),0_18px_42px_rgba(8,47,73,0.30)]',
             )}
           >
-            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="h-4 w-4">
-              <path d="M8.75 3.75a5 5 0 1 0 0 10a5 5 0 0 0 0-10Z" stroke="currentColor" strokeWidth="1.8" />
-              <path d="m12.5 12.5 3.75 3.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
-          </span>
-          <input
-            value={customTickerInput}
-            onChange={(e) => setCustomTickerInput(e.target.value)}
-            placeholder="输入 ETF 代码，如 159915、159915.SZ、510300.SH"
-            className={cn(
-              'h-11 flex-1 bg-transparent font-mono text-base text-[#F8FAFC] outline-none transition placeholder:text-[#8CA3C7] sm:text-lg',
-              'group-hover:placeholder:text-[#AFC4E4] group-focus-within:placeholder:text-[#C7D8F0]',
-              customQueryLoading && 'placeholder:text-[#BED3EE]',
-            )}
-          />
-          <button
-            type="submit"
-            disabled={customQueryLoading}
-            className={cn(
-              'inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold tracking-[0.02em] text-[#F8FBFF] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(125,211,252,0.34)] sm:min-w-[108px] sm:px-6',
-              'bg-[linear-gradient(135deg,rgba(125,211,252,0.24),rgba(203,184,255,0.24))] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_24px_rgba(59,130,246,0.12)]',
-              'hover:bg-[linear-gradient(135deg,rgba(125,211,252,0.34),rgba(203,184,255,0.34))] hover:text-white hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_14px_28px_rgba(59,130,246,0.18)]',
-              customQueryLoading
-                ? 'cursor-wait bg-[linear-gradient(135deg,rgba(125,211,252,0.38),rgba(203,184,255,0.42))] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_16px_30px_rgba(59,130,246,0.20)] disabled:text-white'
-                : 'disabled:cursor-not-allowed disabled:opacity-60',
-            )}
-          >
-            {customQueryLoading ? (
-              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/35 border-t-white" aria-hidden="true" />
-            ) : null}
-            {customQueryLoading ? '查询中...' : '查询'}
-          </button>
-        </div>
-      </form>
-
-      <div className="mx-auto w-full max-w-[920px]">
-        <div className="rounded-xl border border-[rgba(71,85,105,0.28)] bg-[linear-gradient(180deg,rgba(9,19,36,0.90),rgba(9,18,32,0.72))] px-3.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
-              <div className="text-[12px] font-semibold tracking-[0.08em] text-[#D7E2F3]">最近搜索</div>
-              <div className="h-1 w-1 rounded-full bg-[#3B82F6]/70" />
-            </div>
-            <div className="text-[11px] leading-4 text-[#6B7A93]">仅展示当前用户最近成功返回的 ETF，最多 10 条</div>
+            <span
+              className={cn(
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/8 text-[#A8BAD8] transition',
+                'group-hover:bg-[rgba(125,211,252,0.10)] group-hover:text-[#D6E8FF]',
+                'group-focus-within:bg-[rgba(125,211,252,0.14)] group-focus-within:text-[#EFF6FF]',
+                customQueryLoading && 'bg-[rgba(125,211,252,0.14)] text-[#E0F2FE]',
+              )}
+            >
+              <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="h-4 w-4">
+                <path d="M8.75 3.75a5 5 0 1 0 0 10a5 5 0 0 0 0-10Z" stroke="currentColor" strokeWidth="1.8" />
+                <path d="m12.5 12.5 3.75 3.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            </span>
+            <input
+              value={customTickerInput}
+              onChange={(e) => setCustomTickerInput(e.target.value)}
+              placeholder="输入 ETF 代码，如 159915、159915.SZ、510300.SH"
+              className={cn(
+                'h-11 flex-1 bg-transparent font-mono text-base text-[#F8FAFC] outline-none transition placeholder:text-[#8CA3C7] sm:text-lg',
+                'group-hover:placeholder:text-[#AFC4E4] group-focus-within:placeholder:text-[#C7D8F0]',
+                customQueryLoading && 'placeholder:text-[#BED3EE]',
+              )}
+            />
+            <button
+              type="submit"
+              disabled={customQueryLoading}
+              className={cn(
+                'inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold tracking-[0.02em] text-[#F8FBFF] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(125,211,252,0.34)] sm:min-w-[108px] sm:px-6',
+                'bg-[linear-gradient(135deg,rgba(125,211,252,0.24),rgba(203,184,255,0.24))] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_24px_rgba(59,130,246,0.12)]',
+                'hover:bg-[linear-gradient(135deg,rgba(125,211,252,0.34),rgba(203,184,255,0.34))] hover:text-white hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_14px_28px_rgba(59,130,246,0.18)]',
+                customQueryLoading
+                  ? 'cursor-wait bg-[linear-gradient(135deg,rgba(125,211,252,0.38),rgba(203,184,255,0.42))] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_16px_30px_rgba(59,130,246,0.20)] disabled:text-white'
+                  : 'disabled:cursor-not-allowed disabled:opacity-60',
+              )}
+            >
+              {customQueryLoading ? (
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/35 border-t-white" aria-hidden="true" />
+              ) : null}
+              {customQueryLoading ? '查询中...' : '查询'}
+            </button>
           </div>
-          {recentSearchesLoading ? (
-            <div className="mt-2 text-xs text-[#8EA0B8]">正在加载最近搜索...</div>
-          ) : recentSearches.length ? (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {recentSearches.map((item) => {
-                const displayLabel = formatEtfDisplayLabel({
-                  ticker: item.ticker,
-                  code: item.code,
-                  name: item.name,
-                  fallback: item.code,
-                })
-                const isActive = item.ticker === (customQuerySummary?.ticker ?? customQueryData?.ticker)
-                return (
-                  <button
-                    key={`${item.ticker}-${item.updatedAt}`}
-                    type="button"
-                    onClick={() => {
-                      setCustomTickerInput(item.code)
-                      setSubmittedCustomTicker(item.code)
-                      setCustomQuerySubmitSeq((value) => value + 1)
-                    }}
-                    className={cn(
-                      'inline-flex min-h-[34px] items-center rounded-full border px-2.5 py-1.5 text-left transition',
-                      isActive
-                        ? 'border-[rgba(96,165,250,0.26)] bg-[rgba(37,99,235,0.14)] text-[#E0F2FE] shadow-[inset_0_0_0_1px_rgba(125,211,252,0.08)]'
-                        : 'border-[rgba(71,85,105,0.26)] bg-[rgba(15,23,42,0.82)] text-[#C5D0E3] hover:border-[rgba(96,165,250,0.24)] hover:bg-[rgba(20,33,57,0.92)] hover:text-[#E2E8F0]',
-                    )}
-                    title={displayLabel}
-                  >
-                    <span
-                      className={cn(
-                        'rounded-full px-1.5 py-0.5 font-mono text-[11px]',
-                        isActive ? 'bg-[rgba(148,197,255,0.14)] text-[#BFDBFE]' : 'bg-white/[0.04] text-[#9FB7D9]',
-                      )}
-                    >
-                      {item.code}
-                    </span>
-                    <span className="ml-1.5 text-[12px] font-medium">{item.name || item.code}</span>
-                  </button>
-                )
-              })}
+        </form>
+
+        <div className="w-full">
+          <div className="rounded-xl border border-[rgba(71,85,105,0.28)] bg-[linear-gradient(180deg,rgba(9,19,36,0.90),rgba(9,18,32,0.72))] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:px-4.5">
+            <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex min-w-0 items-center gap-2">
+                <div className="text-[12px] font-semibold tracking-[0.08em] text-[#D7E2F3]">最近搜索</div>
+                <div className="h-1 w-1 rounded-full bg-[#3B82F6]/70" />
+              </div>
+              <div className="text-left text-[11px] leading-4 text-[#6B7A93] sm:max-w-[360px] sm:text-right">
+                仅展示当前用户最近成功返回的 ETF，最多 10 条
+              </div>
             </div>
-          ) : (
-            <div className="mt-2 text-xs text-[#8EA0B8]">暂无最近搜索，成功查询后会显示在这里。</div>
-          )}
+            {recentSearchesLoading ? (
+              <div className="mt-3 text-xs text-[#8EA0B8]">正在加载最近搜索...</div>
+            ) : recentSearches.length ? (
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                {recentSearches.map((item) => {
+                  const displayLabel = formatEtfDisplayLabel({
+                    ticker: item.ticker,
+                    code: item.code,
+                    name: item.name,
+                    fallback: item.code,
+                  })
+                  const isActive = item.ticker === (customQuerySummary?.ticker ?? customQueryData?.ticker)
+                  return (
+                    <button
+                      key={`${item.ticker}-${item.updatedAt}`}
+                      type="button"
+                      onClick={() => {
+                        setCustomTickerInput(item.code)
+                        setSubmittedCustomTicker(item.code)
+                        setCustomQuerySubmitSeq((value) => value + 1)
+                      }}
+                      className={cn(
+                        'inline-flex min-h-[36px] w-full min-w-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-left transition',
+                        isActive
+                          ? 'border-[rgba(96,165,250,0.26)] bg-[rgba(37,99,235,0.14)] text-[#E0F2FE] shadow-[inset_0_0_0_1px_rgba(125,211,252,0.08)]'
+                          : 'border-[rgba(71,85,105,0.26)] bg-[rgba(15,23,42,0.82)] text-[#C5D0E3] hover:border-[rgba(96,165,250,0.24)] hover:bg-[rgba(20,33,57,0.92)] hover:text-[#E2E8F0]',
+                      )}
+                      title={displayLabel}
+                    >
+                      <span
+                        className={cn(
+                          'shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[11px]',
+                          isActive ? 'bg-[rgba(148,197,255,0.14)] text-[#BFDBFE]' : 'bg-white/[0.04] text-[#9FB7D9]',
+                        )}
+                      >
+                        {item.code}
+                      </span>
+                      <span className="min-w-0 truncate text-[12px] font-medium">{item.name || item.code}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="mt-3 text-xs text-[#8EA0B8]">暂无最近搜索，成功查询后会显示在这里。</div>
+            )}
+          </div>
         </div>
       </div>
 
