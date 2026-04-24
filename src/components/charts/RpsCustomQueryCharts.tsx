@@ -278,6 +278,10 @@ function getNumericDatumValue(point: ChartDatum): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
+function isFiniteNumber(value: number | null | undefined): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
 function resolvePriceTone(score: number | null | undefined): PriceTone {
   if (typeof score !== 'number' || !Number.isFinite(score)) return 'neutral'
   if (score < 0) return 'negative'
@@ -317,6 +321,45 @@ function buildPriceRuns(points: PreparedPoint[]): PriceRun[] {
   }
   pushRun(runStart, points.length - 1, runTone)
   return runs
+}
+
+function buildTradeSignalMarkers(points: PreparedPoint[]): SeriesMarker<Time>[] {
+  if (points.length < 2) return []
+  const markers: SeriesMarker<Time>[] = []
+  for (let i = 1; i < points.length; i += 1) {
+    const prevPoint = points[i - 1]
+    const point = points[i]
+    const prevTone = resolvePriceTone(prevPoint.scorePct)
+    const tone = resolvePriceTone(point.scorePct)
+    const aboveSma250 = isFiniteNumber(point.sma250) && point.targetCloseQfq > point.sma250
+
+    if (prevTone === 'negative' && tone === 'neutral' && aboveSma250) {
+      markers.push({
+        id: `${point.date}-buy`,
+        time: point.time,
+        position: 'atPriceBottom',
+        price: point.targetCloseQfq,
+        shape: 'arrowUp',
+        color: '#F87171',
+        text: '买',
+        size: 1.6,
+      })
+    }
+
+    if (prevTone === 'neutral' && tone === 'negative') {
+      markers.push({
+        id: `${point.date}-sell`,
+        time: point.time,
+        position: 'atPriceTop',
+        price: point.targetCloseQfq,
+        shape: 'arrowDown',
+        color: '#34D399',
+        text: '卖',
+        size: 1.6,
+      })
+    }
+  }
+  return markers
 }
 
 function buildRelativeData(
@@ -535,6 +578,7 @@ function usePriceChart(
     [prepared],
   )
   const priceRuns = useMemo(() => buildPriceRuns(prepared), [prepared])
+  const tradeSignalMarkers = useMemo<SeriesMarker<Time>[]>(() => buildTradeSignalMarkers(prepared), [prepared])
   const turnoverMarkers = useMemo<SeriesMarker<Time>[]>(
     () =>
       prepared
@@ -550,6 +594,7 @@ function usePriceChart(
         })),
     [prepared],
   )
+  const priceMarkers = useMemo<SeriesMarker<Time>[]>(() => [...tradeSignalMarkers, ...turnoverMarkers], [tradeSignalMarkers, turnoverMarkers])
 
   useEffect(() => {
     const host = hostRef.current
@@ -641,14 +686,14 @@ function usePriceChart(
       coloredSeriesRefs.current.push(series)
     }
 
-    if (markersRef.current) markersRef.current.setMarkers(turnoverMarkers)
-    else markersRef.current = createSeriesMarkers(alignSeries, turnoverMarkers, { zOrder: 'aboveSeries' })
+    if (markersRef.current) markersRef.current.setMarkers(priceMarkers)
+    else markersRef.current = createSeriesMarkers(alignSeries, priceMarkers, { zOrder: 'aboveSeries' })
 
     if (!didFitRef.current && priceData.length > 0) {
       chart.timeScale().fitContent()
       didFitRef.current = true
     }
-  }, [opts?.showPriceLine, opts?.showSma20, opts?.showSma60, opts?.showSma250, priceData, priceRuns, sma20Data, sma60Data, sma250Data, turnoverMarkers])
+  }, [opts?.showPriceLine, opts?.showSma20, opts?.showSma60, opts?.showSma250, priceData, priceMarkers, priceRuns, sma20Data, sma60Data, sma250Data])
 
   useEffect(() => {
     didFitRef.current = false
@@ -1325,7 +1370,7 @@ export default function RpsCustomQueryCharts({
           <div>
             <div className="text-[15px] font-semibold tracking-tight text-white">{titleLabel || `${displayTickerLabel}关键图表指标`}</div>
             <div className="mt-0.5 text-xs leading-relaxed text-[#94A3B8]">
-              主图支持价格线、`SMA20`、`SMA60`、`SMA250` 开关，并保留按 Score 四档分段着色与 `1.50x` 放量淡紫点；副图可按需显示 `MACD(8,21,5)`、相对 {benchmarkName} 的 RPS Score、RPS 起点归一和 `RSI(14)`。
+              主图支持价格线、`SMA20`、`SMA60`、`SMA250` 开关，并保留按 Score 四档分段着色、`1.50x` 放量淡紫点，以及“绿转黄且价格高于 `SMA250`”的红色向上买入箭头与“黄转绿”的绿色向下卖出箭头；副图可按需显示 `MACD(8,21,5)`、相对 {benchmarkName} 的 RPS Score、RPS 起点归一和 `RSI(14)`。
             </div>
             <div className="mt-1 text-[11px] text-[#64748B]">
               {subtitleLabel || `当前序列：${displayTickerLabel} | 基准：${benchmarkName}`}
@@ -1496,7 +1541,7 @@ export default function RpsCustomQueryCharts({
               {showPriceLine ? ' + 价格线' : ''}
               {showSma20 ? ' + SMA20' : ''}
               {showSma60 ? ' + SMA60' : ''}
-              {showSma250 ? ' + SMA250' : ''} | 绿=Score&lt;0 黄=0~10 橙=10~20 红=&gt;20 柔紫点=成交额&gt;=1.50x
+              {showSma250 ? ' + SMA250' : ''} | 绿=Score&lt;0 黄=0~10 橙=10~20 红=&gt;20 红箭头=绿转黄且价&gt;SMA250 绿箭头=黄转绿 柔紫点=成交额&gt;=1.50x
             </div>
             <div ref={priceHostRef} className="h-[300px] w-full" />
           </div>

@@ -439,7 +439,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
         if (latestCustomQuerySubmitSeqRef.current !== submitSeq) return
         if (res.success !== true && res.message === '请求已取消') return
         if (res.success !== true) {
-          setCustomQueryError(res.message || '获取RPS自定义查询失败')
+          setCustomQueryError(res.message || '获取RPS动量分析失败')
           setCustomQueryLoading(false)
           return
         }
@@ -595,7 +595,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
     </section>
   )
 
-  const customQueryIntro = <div className="text-xl font-semibold tracking-tight text-white">ETF自定义查询（RPS）</div>
+  const customQueryIntro = <div className="text-xl font-semibold tracking-tight text-white">动量分析</div>
 
   const turnoverSection = (
     <>
@@ -958,6 +958,24 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
               </div>
             </div>
           </div>
+
+          <section className="rounded-md border border-[rgba(248,250,252,0.08)] bg-[rgba(11,18,32,0.82)] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-[13px] font-semibold text-[#F8FAFC]">主图信号图例</div>
+              <div className="text-[11px] text-[#64748B]">与价格分段着色、放量标记同时展示</div>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2 text-[12px] leading-5 text-[#CBD5E1]">
+              <span className="rounded-full border border-[rgba(248,113,113,0.28)] bg-[rgba(127,29,29,0.18)] px-2 py-0.5 text-[#FCA5A5]">
+                红色向上箭头：绿转黄且价格高于 SMA250
+              </span>
+              <span className="rounded-full border border-[rgba(52,211,153,0.24)] bg-[rgba(6,78,59,0.18)] px-2 py-0.5 text-[#6EE7B7]">
+                绿色向下箭头：黄转绿
+              </span>
+              <span className="rounded-full border border-[rgba(203,184,255,0.24)] bg-[rgba(91,33,182,0.14)] px-2 py-0.5 text-[#DDD6FE]">
+                淡紫圆点：成交额 &gt;= 前20日均值 1.50x
+              </span>
+            </div>
+          </section>
 
           <RpsCustomQueryCharts
             ticker={customQuerySummary?.ticker ?? customQueryData.ticker}

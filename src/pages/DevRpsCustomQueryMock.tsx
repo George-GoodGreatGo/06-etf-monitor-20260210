@@ -188,9 +188,9 @@ export default function DevRpsCustomQueryMock() {
         <section className="overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <div className="text-xl font-semibold tracking-tight text-white">RPS 自定义查询 Mock 验收页</div>
+              <div className="text-xl font-semibold tracking-tight text-white">RPS 动量分析 Mock 验收页</div>
               <div className="mt-2 space-y-1 text-[13px] leading-relaxed text-[#94A3B8]">
-                <p>该页面仅用于本地开发环境回归验收，绕开登录态模拟“Top200 列表到 RPS分析，再到自定义查询自动带参”的链路。</p>
+                <p>该页面仅用于本地开发环境回归验收，绕开登录态模拟“Top200 列表到 RPS分析，再到动量分析自动带参”的链路。</p>
                 <p>点击下方 mock 列表中 `RPS分析` 列的 `查看` 按钮，会新开当前 mock 页，并通过 `ticker` 参数自动切换到对应样本。</p>
               </div>
             </div>
@@ -239,7 +239,7 @@ export default function DevRpsCustomQueryMock() {
           <div className="border-b border-white/10 px-4 py-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <div className="text-lg font-semibold tracking-tight text-white">Mock 自定义查询结果</div>
+                <div className="text-lg font-semibold tracking-tight text-white">Mock 动量分析结果</div>
                 <div className="mt-1 text-sm leading-relaxed text-[#94A3B8]">{active.note}</div>
               </div>
               <div className="flex flex-wrap items-center gap-2">

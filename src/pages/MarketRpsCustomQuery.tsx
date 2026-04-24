@@ -8,7 +8,7 @@ export default function MarketRpsCustomQuery() {
       <PageBreadcrumb
         items={[
           { label: '市场风格RPS', to: '/market/rps' },
-          { label: '自定义查询' },
+          { label: '动量分析' },
         ]}
       />
       <RpsStylePanel page="custom-query" />

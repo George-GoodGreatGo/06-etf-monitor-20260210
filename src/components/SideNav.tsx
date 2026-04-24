@@ -223,7 +223,7 @@ export default function SideNav({
               <div className="ml-5 mr-1 space-y-1 border-l border-white/[0.07] pl-3">
                 {[
                   { key: 'market-rps:overview', label: '总览', to: '/market/rps', active: isRpsOverview },
-                  { key: 'market-rps:custom-query', label: '自定义查询', to: '/market/rps/custom-query', active: isRpsCustomQuery },
+                  { key: 'market-rps:custom-query', label: '动量分析', to: '/market/rps/custom-query', active: isRpsCustomQuery },
                 ].map((item) => (
                   <button
                     key={item.key}
