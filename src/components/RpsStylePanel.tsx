@@ -673,7 +673,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
 
   const customQuerySection = (
     <div className="space-y-4">
-      <div className="mx-auto w-full max-w-[920px] space-y-3">
+      <div className="w-full space-y-3">
         <form
           className="w-full"
           onSubmit={(e) => {
@@ -737,19 +737,19 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
 
         <div className="w-full">
           <div className="rounded-xl border border-[rgba(71,85,105,0.28)] bg-[linear-gradient(180deg,rgba(9,19,36,0.90),rgba(9,18,32,0.72))] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:px-4.5">
-            <div className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex flex-col items-start gap-1.5">
               <div className="flex min-w-0 items-center gap-2">
                 <div className="text-[12px] font-semibold tracking-[0.08em] text-[#D7E2F3]">最近搜索</div>
                 <div className="h-1 w-1 rounded-full bg-[#3B82F6]/70" />
               </div>
-              <div className="text-left text-[11px] leading-4 text-[#6B7A93] sm:max-w-[360px] sm:text-right">
+              <div className="text-left text-[11px] leading-4 text-[#6B7A93]">
                 仅展示当前用户最近成功返回的 ETF，最多 10 条
               </div>
             </div>
             {recentSearchesLoading ? (
               <div className="mt-3 text-xs text-[#8EA0B8]">正在加载最近搜索...</div>
             ) : recentSearches.length ? (
-              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="mt-3 flex flex-wrap gap-2">
                 {recentSearches.map((item) => {
                   const displayLabel = formatEtfDisplayLabel({
                     ticker: item.ticker,
@@ -768,7 +768,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                         setCustomQuerySubmitSeq((value) => value + 1)
                       }}
                       className={cn(
-                        'inline-flex min-h-[36px] w-full min-w-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-left transition',
+                        'inline-flex min-h-[36px] max-w-full min-w-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-left transition',
                         isActive
                           ? 'border-[rgba(96,165,250,0.26)] bg-[rgba(37,99,235,0.14)] text-[#E0F2FE] shadow-[inset_0_0_0_1px_rgba(125,211,252,0.08)]'
                           : 'border-[rgba(71,85,105,0.26)] bg-[rgba(15,23,42,0.82)] text-[#C5D0E3] hover:border-[rgba(96,165,250,0.24)] hover:bg-[rgba(20,33,57,0.92)] hover:text-[#E2E8F0]',
@@ -783,7 +783,9 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                       >
                         {item.code}
                       </span>
-                      <span className="min-w-0 truncate text-[12px] font-medium">{item.name || item.code}</span>
+                      <span className="max-w-[140px] truncate text-[12px] font-medium sm:max-w-[180px]">
+                        {item.name || item.code}
+                      </span>
                     </button>
                   )
                 })}
