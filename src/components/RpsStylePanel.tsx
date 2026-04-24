@@ -509,6 +509,60 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
     const ticker = customQuerySummary?.benchmarkTicker ?? customQueryData?.benchmarkTicker ?? RPS_BENCHMARK_CODE
     return `${name}（${ticker}）`
   }, [customQueryData?.benchmarkName, customQueryData?.benchmarkTicker, customQuerySummary?.benchmarkName, customQuerySummary?.benchmarkTicker])
+  const recentSearchesExpanded = !recentSearchesCollapsed
+  const recentSearchesRegionId = 'rps-custom-query-recent-searches'
+  const recentSearchesContent = recentSearchesLoading ? (
+    <div className="text-xs text-[#8EA0B8]">
+      正在加载最近搜索...
+    </div>
+  ) : recentSearches.length ? (
+    <div className="flex flex-wrap gap-1.5">
+      {recentSearches.map((item) => {
+        const displayLabel = formatEtfDisplayLabel({
+          ticker: item.ticker,
+          code: item.code,
+          name: item.name,
+          fallback: item.code,
+        })
+        const isActive = item.ticker === (customQuerySummary?.ticker ?? customQueryData?.ticker)
+        return (
+          <button
+            key={`${item.ticker}-${item.updatedAt}`}
+            type="button"
+            onClick={() => {
+              setCustomTickerInput(item.code)
+              setSubmittedCustomTicker(item.code)
+              setCustomQuerySubmitSeq((value) => value + 1)
+            }}
+            className={cn(
+              'inline-flex min-h-[32px] max-w-full min-w-0 items-center gap-1.5 rounded-full border px-2 py-1 text-left transition duration-300 ease-out',
+              'motion-safe:hover:-translate-y-[1px] motion-safe:hover:scale-[1.01]',
+              isActive
+                ? 'border-[rgba(96,165,250,0.24)] bg-[rgba(37,99,235,0.12)] text-[#EAF4FF] shadow-[inset_0_0_0_1px_rgba(125,211,252,0.06),0_8px_18px_rgba(37,99,235,0.08)]'
+                : 'border-[rgba(71,85,105,0.22)] bg-[rgba(15,23,42,0.68)] text-[#CBD5E1] hover:border-[rgba(96,165,250,0.22)] hover:bg-[rgba(19,31,52,0.82)] hover:text-[#E2E8F0]',
+            )}
+            title={displayLabel}
+          >
+            <span
+              className={cn(
+                'shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[10px] leading-4 transition-colors duration-300 ease-out',
+                isActive ? 'bg-[rgba(148,197,255,0.12)] text-[#BFDBFE]' : 'bg-white/[0.035] text-[#A9BDD9]',
+              )}
+            >
+              {item.code}
+            </span>
+            <span className="max-w-[148px] truncate text-[12px] font-medium leading-4.5 text-inherit sm:max-w-[190px]">
+              {item.name || item.code}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  ) : (
+    <div className="text-xs text-[#8EA0B8]">
+      暂无最近搜索，成功查询后会显示在这里。
+    </div>
+  )
 
   const overviewIntro = (
     <section className="overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
@@ -750,17 +804,37 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
               </div>
               <button
                 type="button"
-                aria-expanded={!recentSearchesCollapsed}
-                aria-controls="rps-custom-query-recent-searches"
+                aria-expanded={recentSearchesExpanded}
+                aria-controls={recentSearchesRegionId}
                 onClick={() => setRecentSearchesCollapsed((value) => !value)}
-                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[rgba(148,163,184,0.18)] bg-[rgba(15,23,42,0.56)] px-2.5 py-1 text-[11px] font-medium text-[#B7C5DA] transition hover:border-[rgba(125,211,252,0.24)] hover:bg-[rgba(21,32,53,0.76)] hover:text-[#E2E8F0]"
+                className={cn(
+                  'group inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(125,211,252,0.22)] motion-safe:hover:-translate-y-[1px] motion-safe:active:scale-[0.98]',
+                  recentSearchesExpanded
+                    ? 'border-[rgba(125,211,252,0.26)] bg-[rgba(23,37,65,0.82)] text-[#E2E8F0] shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_10px_20px_rgba(8,47,73,0.14)]'
+                    : 'border-[rgba(148,163,184,0.18)] bg-[rgba(15,23,42,0.56)] text-[#B7C5DA] hover:border-[rgba(125,211,252,0.24)] hover:bg-[rgba(21,32,53,0.76)] hover:text-[#E2E8F0]',
+                )}
               >
-                <span>{recentSearchesCollapsed ? '展开' : '收起'}</span>
+                <span
+                  className={cn(
+                    'h-1.5 w-1.5 shrink-0 rounded-full transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                    recentSearchesExpanded
+                      ? 'bg-[#7DD3FC] shadow-[0_0_0_4px_rgba(125,211,252,0.12)]'
+                      : 'bg-[#94A3B8]/70 group-hover:bg-[#BFDBFE]',
+                  )}
+                  aria-hidden="true"
+                />
+                <span className="transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:translate-x-[1px]">
+                  {recentSearchesCollapsed ? '展开' : '收起'}
+                </span>
                 <svg
                   viewBox="0 0 20 20"
                   fill="none"
                   aria-hidden="true"
-                  className={cn('h-3.5 w-3.5 transition-transform', recentSearchesCollapsed ? 'rotate-180' : 'rotate-0')}
+                  className={cn(
+                    'h-3.5 w-3.5 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                    recentSearchesExpanded ? 'rotate-0 scale-100 text-[#E2E8F0]' : '-rotate-90 scale-[0.92] text-[#B7C5DA]',
+                  )}
                 >
                   <path
                     d="m5.25 7.75 4.75 4.75 4.75-4.75"
@@ -772,59 +846,27 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                 </svg>
               </button>
             </div>
-            {!recentSearchesCollapsed ? (
-              recentSearchesLoading ? (
-                <div id="rps-custom-query-recent-searches" className="mt-2.5 text-xs text-[#8EA0B8]">
-                  正在加载最近搜索...
+            <div
+              id={recentSearchesRegionId}
+              aria-hidden={!recentSearchesExpanded}
+              className={cn(
+                'grid overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                recentSearchesExpanded ? 'mt-2.5 grid-rows-[1fr] opacity-100' : 'mt-0 grid-rows-[0fr] opacity-0',
+              )}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div
+                  className={cn(
+                    'origin-top transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                    recentSearchesExpanded
+                      ? 'translate-y-0 scale-y-100 blur-0'
+                      : '-translate-y-1 scale-y-[0.98] blur-[2px] pointer-events-none',
+                  )}
+                >
+                  {recentSearchesContent}
                 </div>
-              ) : recentSearches.length ? (
-                <div id="rps-custom-query-recent-searches" className="mt-2.5 flex flex-wrap gap-1.5">
-                  {recentSearches.map((item) => {
-                    const displayLabel = formatEtfDisplayLabel({
-                      ticker: item.ticker,
-                      code: item.code,
-                      name: item.name,
-                      fallback: item.code,
-                    })
-                    const isActive = item.ticker === (customQuerySummary?.ticker ?? customQueryData?.ticker)
-                    return (
-                      <button
-                        key={`${item.ticker}-${item.updatedAt}`}
-                        type="button"
-                        onClick={() => {
-                          setCustomTickerInput(item.code)
-                          setSubmittedCustomTicker(item.code)
-                          setCustomQuerySubmitSeq((value) => value + 1)
-                        }}
-                        className={cn(
-                          'inline-flex min-h-[32px] max-w-full min-w-0 items-center gap-1.5 rounded-full border px-2 py-1 text-left transition',
-                          isActive
-                            ? 'border-[rgba(96,165,250,0.24)] bg-[rgba(37,99,235,0.12)] text-[#EAF4FF] shadow-[inset_0_0_0_1px_rgba(125,211,252,0.06)]'
-                            : 'border-[rgba(71,85,105,0.22)] bg-[rgba(15,23,42,0.68)] text-[#CBD5E1] hover:border-[rgba(96,165,250,0.22)] hover:bg-[rgba(19,31,52,0.82)] hover:text-[#E2E8F0]',
-                        )}
-                        title={displayLabel}
-                      >
-                        <span
-                          className={cn(
-                            'shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[10px] leading-4',
-                            isActive ? 'bg-[rgba(148,197,255,0.12)] text-[#BFDBFE]' : 'bg-white/[0.035] text-[#A9BDD9]',
-                          )}
-                        >
-                          {item.code}
-                        </span>
-                        <span className="max-w-[148px] truncate text-[12px] font-medium leading-4.5 text-inherit sm:max-w-[190px]">
-                          {item.name || item.code}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div id="rps-custom-query-recent-searches" className="mt-2.5 text-xs text-[#8EA0B8]">
-                  暂无最近搜索，成功查询后会显示在这里。
-                </div>
-              )
-            ) : null}
+              </div>
+            </div>
           </div>
         </div>
       </div>
