@@ -322,6 +322,7 @@ export default function DevRpsCustomQueryMock() {
           tickerName={active.name}
           benchmarkName={active.benchmarkName}
           series={active.series}
+          signalMode="default"
         />
       </div>
     </main>
