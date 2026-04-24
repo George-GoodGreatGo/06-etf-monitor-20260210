@@ -24,7 +24,6 @@ import {
 } from '@/utils/marketApi'
 import type { Top100Meta } from '@/utils/etfApi'
 import { formatCompactNumber, formatPct, formatYmd } from '@/utils/format'
-import { type MomentumSignalMode, resolveMomentumSignalModeLabel } from '@/utils/rpsCustomQuerySignals'
 
 const DEFAULT_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH', '512050.SH', '560010.SH']
 const DEFAULT_CUSTOM_QUERY_TICKER = '159915'
@@ -227,7 +226,6 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   const [customQueryError, setCustomQueryError] = useState<string | null>(null)
   const [customQueryMeta, setCustomQueryMeta] = useState<Top100Meta | null>(null)
   const [customQueryData, setCustomQueryData] = useState<RpsCustomQueryData | null>(null)
-  const [customQuerySignalMode, setCustomQuerySignalMode] = useState<MomentumSignalMode>('default')
   const [recentSearchesLoading, setRecentSearchesLoading] = useState(isCustomQueryPage)
   const [recentSearches, setRecentSearches] = useState<RpsCustomRecentSearchItem[]>([])
   const [recentSearchesCollapsed, setRecentSearchesCollapsed] = useState(false)
@@ -513,10 +511,6 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   }, [customQueryData?.benchmarkName, customQueryData?.benchmarkTicker, customQuerySummary?.benchmarkName, customQuerySummary?.benchmarkTicker])
   const recentSearchesExpanded = !recentSearchesCollapsed
   const recentSearchesRegionId = 'rps-custom-query-recent-searches'
-  const customQuerySignalModeLabel = useMemo(
-    () => resolveMomentumSignalModeLabel(customQuerySignalMode),
-    [customQuerySignalMode],
-  )
   const recentSearchesContent = recentSearchesLoading ? (
     <div className="text-xs text-[#8EA0B8]">
       正在加载最近搜索...
@@ -601,51 +595,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
     </section>
   )
 
-  const customQueryIntro = (
-    <section className="overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="max-w-4xl">
-          <div className="text-xl font-semibold tracking-tight text-white">动量分析</div>
-          <div className="mt-2 space-y-1 text-[13px] leading-relaxed text-[#94A3B8]">
-            <p><span className="font-medium text-[#CBD5E1]">默认模式</span>：沿用已验证建议策略，要求 `Score` 由绿转黄、收盘价站上 `SMA250`、`MACD` 维持多头且 `RSI(14)` 位于 `50~75`。</p>
-            <p><span className="font-medium text-[#CBD5E1]">保守模式</span>：在默认模式基础上，再要求 `收盘价&gt;=SMA20` 且 `SMA20&gt;=SMA60`，用于减少震荡区的过早介入。</p>
-            <p><span className="font-medium text-[#CBD5E1]">共同约束</span>：两种模式都遵守“买入只能发生在 `SMA250` 上方”；卖出继续使用 `跌破SMA250` 或 `连续转弱确认` 的同一套风控口径。</p>
-          </div>
-        </div>
-        <div className="min-w-[300px] rounded-lg border border-[#1E293B] bg-[#0B1220] px-3 py-3 text-xs">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-[#94A3B8]">当前箭头模式</div>
-            <div className="rounded-full border border-[rgba(125,211,252,0.24)] bg-[rgba(8,47,73,0.28)] px-2 py-0.5 font-semibold text-[#BAE6FD]">
-              {customQuerySignalModeLabel}
-            </div>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {([
-              { key: 'default', label: '默认' },
-              { key: 'conservative', label: '保守' },
-            ] as const).map((option) => (
-              <button
-                key={option.key}
-                type="button"
-                onClick={() => setCustomQuerySignalMode(option.key)}
-                className={cn(
-                  'rounded-md border px-3 py-1.5 text-xs font-medium transition',
-                  customQuerySignalMode === option.key
-                    ? 'border-[rgba(125,211,252,0.28)] bg-[rgba(23,37,65,0.82)] text-[#E2E8F0]'
-                    : 'border-[rgba(148,163,184,0.18)] bg-[rgba(15,23,42,0.56)] text-[#B7C5DA] hover:border-[rgba(125,211,252,0.24)] hover:bg-[rgba(21,32,53,0.76)] hover:text-[#E2E8F0]',
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-          <div className="mt-2 leading-relaxed text-[#64748B]">
-            切换后主图箭头、hover 判定和图例文案同步按当前模式重算。
-          </div>
-        </div>
-      </div>
-    </section>
-  )
+  const customQueryIntro = <div className="text-xl font-semibold tracking-tight text-white">动量分析</div>
 
   const turnoverSection = (
     <>
@@ -1012,17 +962,14 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
           <section className="rounded-md border border-[rgba(248,250,252,0.08)] bg-[rgba(11,18,32,0.82)] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-[13px] font-semibold text-[#F8FAFC]">主图信号图例</div>
-              <div className="text-[11px] text-[#64748B]">与价格分段着色、放量标记同时展示，当前按{customQuerySignalModeLabel}计算</div>
+              <div className="text-[11px] text-[#64748B]">与价格分段着色、放量标记同时展示</div>
             </div>
             <div className="mt-2 flex flex-wrap gap-2 text-[12px] leading-5 text-[#CBD5E1]">
               <span className="rounded-full border border-[rgba(248,113,113,0.28)] bg-[rgba(127,29,29,0.18)] px-2 py-0.5 text-[#FCA5A5]">
-                默认买入：绿转黄 + 收盘价&gt;=SMA250 + MACD 多头 + RSI(14)∈[50,75]
+                红色向上箭头：绿转黄且价格高于 SMA250
               </span>
               <span className="rounded-full border border-[rgba(52,211,153,0.24)] bg-[rgba(6,78,59,0.18)] px-2 py-0.5 text-[#6EE7B7]">
-                保守买入：默认条件 + 收盘价&gt;=SMA20 + SMA20&gt;=SMA60
-              </span>
-              <span className="rounded-full border border-[rgba(74,222,128,0.24)] bg-[rgba(6,95,70,0.16)] px-2 py-0.5 text-[#86EFAC]">
-                卖出/风控：跌破 SMA250，或 Score 连续 2 日为绿且 RSI(14)&lt;=45 且 DIFF&lt;DEA
+                绿色向下箭头：黄转绿
               </span>
               <span className="rounded-full border border-[rgba(203,184,255,0.24)] bg-[rgba(91,33,182,0.14)] px-2 py-0.5 text-[#DDD6FE]">
                 淡紫圆点：成交额 &gt;= 前20日均值 1.50x
@@ -1036,7 +983,6 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
             benchmarkName={customQuerySummary?.benchmarkName ?? customQueryData.benchmarkName}
             series={customQueryData.series}
             turnoverSeries={customQueryData.turnoverSeries}
-            signalMode={customQuerySignalMode}
             titleLabel={`${customQueryDisplayLabel}关键图表指标`}
             subtitleLabel={`当前序列：${customQueryDisplayLabel} | 基准：${customQueryBenchmarkLabel}`}
             resetKey={`${submittedCustomTicker}:${customQuerySubmitSeq}`}
