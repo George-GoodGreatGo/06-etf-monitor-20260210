@@ -362,6 +362,42 @@ function buildTradeSignalMarkers(points: PreparedPoint[]): SeriesMarker<Time>[] 
   return markers
 }
 
+function compareSeriesMarkers(a: SeriesMarker<Time>, b: SeriesMarker<Time>): number {
+  const timeDiff = Number(a.time) - Number(b.time)
+  if (timeDiff !== 0) return timeDiff
+  const shapePriority = (marker: SeriesMarker<Time>) => (marker.shape === 'circle' ? 1 : 0)
+  const priorityDiff = shapePriority(a) - shapePriority(b)
+  if (priorityDiff !== 0) return priorityDiff
+  return String(a.id ?? '').localeCompare(String(b.id ?? ''))
+}
+
+function sortSeriesMarkers(markers: SeriesMarker<Time>[]): SeriesMarker<Time>[] {
+  return [...markers].sort(compareSeriesMarkers)
+}
+
+function buildVisibleMarkerWindow(
+  points: PreparedPoint[],
+  range: LogicalRange | null | undefined,
+): { fromTime: UTCTimestamp; toTime: UTCTimestamp } | null {
+  if (!points.length || !hasValidLogicalRange(range)) return null
+  const maxIndex = points.length - 1
+  const fromIndex = Math.max(0, Math.min(maxIndex, Math.floor(Number(range.from)) - 1))
+  const toIndex = Math.max(0, Math.min(maxIndex, Math.ceil(Number(range.to)) + 1))
+  if (fromIndex > toIndex) return null
+  return {
+    fromTime: points[fromIndex].time,
+    toTime: points[toIndex].time,
+  }
+}
+
+function filterMarkersByWindow(
+  markers: SeriesMarker<Time>[],
+  window: { fromTime: UTCTimestamp; toTime: UTCTimestamp } | null,
+): SeriesMarker<Time>[] {
+  if (!window) return markers
+  return markers.filter((marker) => Number(marker.time) >= window.fromTime && Number(marker.time) <= window.toTime)
+}
+
 function buildRelativeData(
   points: PreparedPoint[],
   range: LogicalRange | null | undefined,
@@ -538,6 +574,7 @@ function usePriceChart(
     showSma20?: boolean
     showSma60?: boolean
     showSma250?: boolean
+    visibleRange?: LogicalRange | null
   },
 ) {
   const chartRef = useRef<IChartApi | null>(null)
@@ -594,7 +631,18 @@ function usePriceChart(
         })),
     [prepared],
   )
-  const priceMarkers = useMemo<SeriesMarker<Time>[]>(() => [...tradeSignalMarkers, ...turnoverMarkers], [tradeSignalMarkers, turnoverMarkers])
+  const priceMarkers = useMemo<SeriesMarker<Time>[]>(
+    () => sortSeriesMarkers([...tradeSignalMarkers, ...turnoverMarkers]),
+    [tradeSignalMarkers, turnoverMarkers],
+  )
+  const visibleMarkerWindow = useMemo(
+    () => buildVisibleMarkerWindow(prepared, opts?.visibleRange),
+    [opts?.visibleRange, prepared],
+  )
+  const visiblePriceMarkers = useMemo<SeriesMarker<Time>[]>(
+    () => filterMarkersByWindow(priceMarkers, visibleMarkerWindow),
+    [priceMarkers, visibleMarkerWindow],
+  )
 
   useEffect(() => {
     const host = hostRef.current
@@ -686,14 +734,19 @@ function usePriceChart(
       coloredSeriesRefs.current.push(series)
     }
 
-    if (markersRef.current) markersRef.current.setMarkers(priceMarkers)
-    else markersRef.current = createSeriesMarkers(alignSeries, priceMarkers, { zOrder: 'aboveSeries' })
-
     if (!didFitRef.current && priceData.length > 0) {
       chart.timeScale().fitContent()
       didFitRef.current = true
     }
-  }, [opts?.showPriceLine, opts?.showSma20, opts?.showSma60, opts?.showSma250, priceData, priceMarkers, priceRuns, sma20Data, sma60Data, sma250Data])
+  }, [opts?.showPriceLine, opts?.showSma20, opts?.showSma60, opts?.showSma250, priceData, priceRuns, sma20Data, sma60Data, sma250Data])
+
+  useEffect(() => {
+    const alignSeries = alignSeriesRef.current
+    if (!alignSeries) return
+    // The markers plugin uses binary-search visibility clipping, so inputs must stay time-sorted.
+    if (markersRef.current) markersRef.current.setMarkers(visiblePriceMarkers)
+    else markersRef.current = createSeriesMarkers(alignSeries, visiblePriceMarkers, { zOrder: 'aboveSeries' })
+  }, [visiblePriceMarkers])
 
   useEffect(() => {
     didFitRef.current = false
@@ -876,6 +929,7 @@ export default function RpsCustomQueryCharts({
   const [showScorePane, setShowScorePane] = useState(true)
   const [showRelativePane, setShowRelativePane] = useState(true)
   const [showRsiPane, setShowRsiPane] = useState(true)
+  const [markerVisibleRange, setMarkerVisibleRange] = useState<LogicalRange | null>(null)
 
   const prepared = useMemo<PreparedPoint[]>(() => {
     const turnoverMap = new Map<string, number | null>()
@@ -1032,6 +1086,7 @@ export default function RpsCustomQueryCharts({
     showSma20,
     showSma60,
     showSma250,
+    visibleRange: markerVisibleRange,
   })
   const macdChart = useMacdChart(macdHostRef, {
     diffData: macdDiffData,
@@ -1134,6 +1189,7 @@ export default function RpsCustomQueryCharts({
         if (!nextRange) return
         syncingRangeRef.current = true
         visibleRangeRef.current = nextRange
+        setMarkerVisibleRange(nextRange)
         setRelativeData(buildRelativeData(prepared, nextRange))
         try {
           if (!rangesClose(range, nextRange)) safeSetVisibleLogicalRange(chart, nextRange)
@@ -1287,6 +1343,7 @@ export default function RpsCustomQueryCharts({
     syncingRangeRef.current = true
     try {
       visibleRangeRef.current = nextRange
+      setMarkerVisibleRange(nextRange)
       safeSetVisibleLogicalRange(priceChart.chartRef.current, nextRange)
       safeSetVisibleLogicalRange(macdChart.chartRef.current, nextRange)
       safeSetVisibleLogicalRange(scoreChart.chartRef.current, nextRange)
@@ -1303,6 +1360,7 @@ export default function RpsCustomQueryCharts({
     const initialRange = defaultLogicalRange
     if (!initialRange) return
     visibleRangeRef.current = initialRange
+    setMarkerVisibleRange(initialRange)
     setRelativeData(buildRelativeData(prepared, initialRange))
     syncingRangeRef.current = true
     try {
@@ -1360,6 +1418,7 @@ export default function RpsCustomQueryCharts({
   useEffect(() => {
     setHoverTime(null)
     visibleRangeRef.current = null
+    setMarkerVisibleRange(null)
     prevPaneVisibleRef.current = { showMacdPane: true, showScorePane: true, showRelativePane: true, showRsiPane: true }
   }, [effectiveResetKey, prepared])
 

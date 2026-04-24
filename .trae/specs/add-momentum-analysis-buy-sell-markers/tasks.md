@@ -23,3 +23,22 @@
 - Task 2 depends on Task 1
 - Task 3 depends on Task 2
 - Task 4 depends on Task 2 and Task 3
+
+- [x] Task 5: 复现并定位缩放后买卖点标识消失问题
+  - [x] SubTask 5.1: 在本地开发页复现“日期放大到一定程度后 marker 消失”的现象，并记录触发条件
+  - [x] SubTask 5.2: 排查主图 marker 生成、可见范围同步和图表库插件行为，确认直接根因
+  - [x] SubTask 5.3: 明确修复策略，保证不引入新的主图联动回退
+
+- [x] Task 6: 修复主图 marker 在窄窗口下的消失问题
+  - [x] SubTask 6.1: 调整主图 marker 渲染逻辑，避免视窗外 marker 影响当前可视窗口
+  - [x] SubTask 6.2: 保证买卖箭头和放量圆点在缩放、平移时都按当前可视范围稳定显示
+  - [x] SubTask 6.3: 保持原有买入/卖出条件、位置和图例文案不变
+
+- [x] Task 7: 回归验证缩放场景与原有交互
+  - [x] SubTask 7.1: 运行直接相关检查，如前端 `lint`、`typecheck` 或等价验证
+  - [x] SubTask 7.2: 验证主图放大到较窄窗口后，可视区间内 marker 不会整批消失
+  - [x] SubTask 7.3: 验证左右平移窗口时，新进入视窗的 marker 能出现、离开视窗的 marker 不影响当前显示
+  - [x] SubTask 7.4: 验证修复后主图 hover、缩放、十字光标与副图联动仍保持正常
+
+- Task 6 depends on Task 5
+- Task 7 depends on Task 6
