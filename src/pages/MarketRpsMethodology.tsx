@@ -1,39 +1,43 @@
 import PageBreadcrumb from '@/components/PageBreadcrumb'
 import PageContentContainer from '@/components/PageContentContainer'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
-  CONFIRM_TRAIL12_BACKTEST_AGGREGATE,
-  CONFIRM_TRAIL12_BACKTEST_ROWS,
-  CONFIRM_TRAIL12_BACKTEST_SOURCE,
-  CONFIRM_TRAIL12_METHOD_SECTIONS,
-  CONFIRM_TRAIL12_SUMMARY_LINES,
-  type ConfirmTrail12MethodSection,
-} from '@/utils/confirmTrail12Methodology'
+  MOMENTUM_STRATEGIES,
+  buildMomentumAnalysisPath,
+  buildMomentumMethodPath,
+  getMomentumStrategy,
+  type MomentumMethodSection,
+} from '@/utils/momentumStrategies'
 
 function fmtNumber(value: number, digits = 2, suffix = ''): string {
   return `${value.toFixed(digits)}${suffix}`
 }
 
-function pickSections(titles: readonly string[]): ConfirmTrail12MethodSection[] {
+function pickSections(sections: readonly MomentumMethodSection[], titles: readonly string[]): MomentumMethodSection[] {
   return titles
-    .map((title) => CONFIRM_TRAIL12_METHOD_SECTIONS.find((section) => section.title === title))
-    .filter((section): section is ConfirmTrail12MethodSection => Boolean(section))
+    .map((title) => sections.find((section) => section.title === title))
+    .filter((section): section is MomentumMethodSection => Boolean(section))
 }
 
-const overviewSections = pickSections(['策略定位', '指标定义'])
-const ruleSections = pickSections(['买入规则', '卖出规则', '增强风控', '边界条件'])
-const appendixSections = pickSections(['实现口径'])
-
-const researchHighlights = [
-  { label: '样本平均总收益', value: fmtNumber(CONFIRM_TRAIL12_BACKTEST_AGGREGATE.avgTotalReturnPct, 2, '%') },
-  { label: '样本平均 CAGR', value: fmtNumber(CONFIRM_TRAIL12_BACKTEST_AGGREGATE.avgCagrPct, 2, '%') },
-  { label: '样本平均最大回撤', value: fmtNumber(CONFIRM_TRAIL12_BACKTEST_AGGREGATE.avgMaxDrawdownPct, 2, '%') },
-  { label: '样本平均交易次数', value: fmtNumber(CONFIRM_TRAIL12_BACKTEST_AGGREGATE.avgTrades, 1) },
-  { label: '样本平均胜率', value: fmtNumber(CONFIRM_TRAIL12_BACKTEST_AGGREGATE.avgWinRatePct, 2, '%') },
-  { label: '样本平均持有天数', value: fmtNumber(CONFIRM_TRAIL12_BACKTEST_AGGREGATE.avgHoldDays, 2) },
-  { label: '样本平均持仓暴露', value: fmtNumber(CONFIRM_TRAIL12_BACKTEST_AGGREGATE.avgExposurePct, 2, '%') },
-]
-
 export default function MarketRpsMethodology() {
+  const [searchParams] = useSearchParams()
+  const strategy = getMomentumStrategy(searchParams.get('strategy'))
+  const overviewSections = pickSections(strategy.sections, ['策略定位', '指标定义'])
+  const ruleSections = pickSections(strategy.sections, ['买入规则', '卖出规则', '增强风控', '边界条件'])
+  const appendixSections = pickSections(strategy.sections, ['实现口径'])
+  const researchHighlights = strategy.backtestAggregate
+    ? [
+        { label: '样本平均总收益', value: fmtNumber(strategy.backtestAggregate.avgTotalReturnPct, 2, '%') },
+        { label: '样本平均 CAGR', value: fmtNumber(strategy.backtestAggregate.avgCagrPct, 2, '%') },
+        { label: '样本平均最大回撤', value: fmtNumber(strategy.backtestAggregate.avgMaxDrawdownPct, 2, '%') },
+        { label: '样本平均交易次数', value: fmtNumber(strategy.backtestAggregate.avgTrades, 1) },
+        { label: '样本平均胜率', value: fmtNumber(strategy.backtestAggregate.avgWinRatePct, 2, '%') },
+        { label: '样本平均持有天数', value: fmtNumber(strategy.backtestAggregate.avgHoldDays, 2) },
+        { label: '样本平均持仓暴露', value: fmtNumber(strategy.backtestAggregate.avgExposurePct, 2, '%') },
+      ]
+    : []
+  const hasBacktestRows = Array.isArray(strategy.backtestRows) && strategy.backtestRows.length > 0
+
   return (
     <PageContentContainer className="space-y-5">
       <PageBreadcrumb
@@ -45,17 +49,45 @@ export default function MarketRpsMethodology() {
 
       <section className="overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] shadow-lg">
         <div className="border-b border-white/10 px-5 py-5">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#93C5FD]">Methodology / PRD Draft</div>
-          <div className="mt-2 text-2xl font-semibold tracking-tight text-white">confirmTrail12 分析方法</div>
-          <div className="mt-3 max-w-[920px] space-y-2 text-sm leading-6 text-[#A9B6CC]">
-            <p>
-              本页用于归档 `confirmTrail12` 的正式产品口径，统一回答默认买点怎么触发、确认卖点如何判定、12%
-              trailing stop 为什么存在，以及研究样本回测结果如何。
-            </p>
-            <p>
-              页面结构按“总述、规则正文、研究结果”收敛，目标是让产品、研发和研究复用时都能直接把这里当作 PRD
-              或方法说明的基础版本。
-            </p>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#93C5FD]">Methodology / PRD Draft</div>
+              <div className="mt-2 text-2xl font-semibold tracking-tight text-white">{strategy.methodTitle}</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {MOMENTUM_STRATEGIES.map((item) => {
+                  const isActive = item.id === strategy.id
+                  return (
+                    <Link
+                      key={item.id}
+                      to={buildMomentumMethodPath(item.id)}
+                      className={
+                        isActive
+                          ? 'inline-flex items-center gap-2 rounded-full border border-[rgba(125,211,252,0.42)] bg-[rgba(14,116,144,0.18)] px-3 py-1 text-[12px] font-semibold text-[#E0F2FE]'
+                          : 'inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#0B1220] px-3 py-1 text-[12px] font-semibold text-[#A9B6CC] transition hover:border-white/20 hover:text-white'
+                      }
+                    >
+                      <span>{item.label}</span>
+                      <span className="text-[10px] font-medium text-[#7DD3FC]">{item.roleLabel}</span>
+                    </Link>
+                  )
+                })}
+              </div>
+              <div className="mt-3 max-w-[920px] space-y-2 text-sm leading-6 text-[#A9B6CC]">
+                {strategy.methodLeadParagraphs.map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
+              </div>
+            </div>
+            <div className="flex min-w-[260px] flex-col gap-2 rounded-lg border border-[rgba(125,211,252,0.20)] bg-[rgba(8,47,73,0.14)] px-3 py-3 text-xs text-[#CBD5E1]">
+              <div className="font-semibold uppercase tracking-[0.16em] text-[#93C5FD]">联动入口</div>
+              <div className="leading-5 text-[#A9B6CC]">当前方法页与动量分析策略联动，可直接返回对应策略的主图信号视图。</div>
+              <Link
+                to={buildMomentumAnalysisPath({ strategyId: strategy.id })}
+                className="inline-flex w-fit items-center rounded-full border border-[rgba(125,211,252,0.28)] bg-[rgba(15,23,42,0.86)] px-3 py-1.5 text-[12px] font-semibold text-[#E0F2FE] transition hover:border-[rgba(125,211,252,0.45)] hover:text-white"
+              >
+                打开 {strategy.label} 动量分析
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -64,22 +96,28 @@ export default function MarketRpsMethodology() {
             <div>
               <div className="text-sm font-semibold text-white">核心结论</div>
               <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-[#CBD5E1]">
-                {CONFIRM_TRAIL12_SUMMARY_LINES.map((line) => (
+                {strategy.summaryLines.map((line) => (
                   <li key={line}>{line}</li>
                 ))}
               </ul>
             </div>
 
             <div className="border-t border-white/10 pt-4 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
-              <div className="text-sm font-semibold text-white">研究摘要</div>
-              <dl className="mt-3 grid gap-x-4 gap-y-3 sm:grid-cols-2">
-                {researchHighlights.map((item) => (
-                  <div key={item.label} className="border-b border-white/5 pb-2">
-                    <dt className="text-xs uppercase tracking-[0.12em] text-[#64748B]">{item.label}</dt>
-                    <dd className="mt-1 font-mono text-sm text-[#E6EDF7]">{item.value}</dd>
-                  </div>
-                ))}
-              </dl>
+              <div className="text-sm font-semibold text-white">{researchHighlights.length ? '研究摘要' : '归档状态'}</div>
+              {researchHighlights.length ? (
+                <dl className="mt-3 grid gap-x-4 gap-y-3 sm:grid-cols-2">
+                  {researchHighlights.map((item) => (
+                    <div key={item.label} className="border-b border-white/5 pb-2">
+                      <dt className="text-xs uppercase tracking-[0.12em] text-[#64748B]">{item.label}</dt>
+                      <dd className="mt-1 font-mono text-sm text-[#E6EDF7]">{item.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <div className="mt-3 rounded-lg border border-white/10 bg-[#0B1220] px-3 py-3 text-sm leading-6 text-[#A9B6CC]">
+                  当前策略已接入统一方法页架构，但暂未沉淀独立样本回测表，后续可以在同一注册表下继续补充。
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -137,14 +175,14 @@ export default function MarketRpsMethodology() {
           <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div className="text-lg font-semibold tracking-tight text-white">2. 数据口径与样本回测</div>
-              <div className="mt-1 text-sm leading-6 text-[#94A3B8]">
-                {CONFIRM_TRAIL12_BACKTEST_SOURCE}
+              <div className="mt-1 text-sm leading-6 text-[#94A3B8]">{strategy.backtestSource}</div>
+            </div>
+            {strategy.backtestAggregate ? (
+              <div className="text-xs text-[#64748B]">
+                平均胜率 {fmtNumber(strategy.backtestAggregate.avgWinRatePct, 2, '%')} | 平均持有天数{' '}
+                {fmtNumber(strategy.backtestAggregate.avgHoldDays, 2)}
               </div>
-            </div>
-            <div className="text-xs text-[#64748B]">
-              平均胜率 {fmtNumber(CONFIRM_TRAIL12_BACKTEST_AGGREGATE.avgWinRatePct, 2, '%')} | 平均持有天数{' '}
-              {fmtNumber(CONFIRM_TRAIL12_BACKTEST_AGGREGATE.avgHoldDays, 2)}
-            </div>
+            ) : null}
           </div>
         </div>
 
@@ -161,41 +199,47 @@ export default function MarketRpsMethodology() {
             </div>
           ))}
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-white/5 text-[#A9B6CC]">
-                <tr>
-                  <th className="px-3 py-2 text-left">ETF</th>
-                  <th className="px-3 py-2 text-left">样本区间</th>
-                  <th className="px-3 py-2 text-right">总收益</th>
-                  <th className="px-3 py-2 text-right">CAGR</th>
-                  <th className="px-3 py-2 text-right">最大回撤</th>
-                  <th className="px-3 py-2 text-right">交易次数</th>
-                  <th className="px-3 py-2 text-right">胜率</th>
-                  <th className="px-3 py-2 text-right">平均持有天数</th>
-                  <th className="px-3 py-2 text-right">持仓暴露</th>
-                </tr>
-              </thead>
-              <tbody>
-                {CONFIRM_TRAIL12_BACKTEST_ROWS.map((row) => (
-                  <tr key={row.ticker} className="border-t border-white/5">
-                    <td className="px-3 py-2 text-[#E6EDF7]">
-                      <div className="font-medium">{row.name}</div>
-                      <div className="font-mono text-xs text-[#94A3B8]">{row.ticker}</div>
-                    </td>
-                    <td className="px-3 py-2 font-mono text-xs text-[#CBD5E1]">{row.sampleRange}</td>
-                    <td className="px-3 py-2 text-right font-mono text-[#FCA5A5]">{fmtNumber(row.totalReturnPct, 2, '%')}</td>
-                    <td className="px-3 py-2 text-right font-mono text-[#F8FAFC]">{fmtNumber(row.cagrPct, 2, '%')}</td>
-                    <td className="px-3 py-2 text-right font-mono text-[#6EE7B7]">{fmtNumber(row.maxDrawdownPct, 2, '%')}</td>
-                    <td className="px-3 py-2 text-right font-mono text-[#F8FAFC]">{row.trades}</td>
-                    <td className="px-3 py-2 text-right font-mono text-[#F8FAFC]">{fmtNumber(row.winRatePct, 2, '%')}</td>
-                    <td className="px-3 py-2 text-right font-mono text-[#F8FAFC]">{fmtNumber(row.avgHoldDays, 2)}</td>
-                    <td className="px-3 py-2 text-right font-mono text-[#CBD5E1]">{fmtNumber(row.exposurePct, 2, '%')}</td>
+          {hasBacktestRows ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-white/5 text-[#A9B6CC]">
+                  <tr>
+                    <th className="px-3 py-2 text-left">ETF</th>
+                    <th className="px-3 py-2 text-left">样本区间</th>
+                    <th className="px-3 py-2 text-right">总收益</th>
+                    <th className="px-3 py-2 text-right">CAGR</th>
+                    <th className="px-3 py-2 text-right">最大回撤</th>
+                    <th className="px-3 py-2 text-right">交易次数</th>
+                    <th className="px-3 py-2 text-right">胜率</th>
+                    <th className="px-3 py-2 text-right">平均持有天数</th>
+                    <th className="px-3 py-2 text-right">持仓暴露</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {strategy.backtestRows?.map((row) => (
+                    <tr key={row.ticker} className="border-t border-white/5">
+                      <td className="px-3 py-2 text-[#E6EDF7]">
+                        <div className="font-medium">{row.name}</div>
+                        <div className="font-mono text-xs text-[#94A3B8]">{row.ticker}</div>
+                      </td>
+                      <td className="px-3 py-2 font-mono text-xs text-[#CBD5E1]">{row.sampleRange}</td>
+                      <td className="px-3 py-2 text-right font-mono text-[#FCA5A5]">{fmtNumber(row.totalReturnPct, 2, '%')}</td>
+                      <td className="px-3 py-2 text-right font-mono text-[#F8FAFC]">{fmtNumber(row.cagrPct, 2, '%')}</td>
+                      <td className="px-3 py-2 text-right font-mono text-[#6EE7B7]">{fmtNumber(row.maxDrawdownPct, 2, '%')}</td>
+                      <td className="px-3 py-2 text-right font-mono text-[#F8FAFC]">{row.trades}</td>
+                      <td className="px-3 py-2 text-right font-mono text-[#F8FAFC]">{fmtNumber(row.winRatePct, 2, '%')}</td>
+                      <td className="px-3 py-2 text-right font-mono text-[#F8FAFC]">{fmtNumber(row.avgHoldDays, 2)}</td>
+                      <td className="px-3 py-2 text-right font-mono text-[#CBD5E1]">{fmtNumber(row.exposurePct, 2, '%')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-white/10 bg-[#0B1220] px-4 py-4 text-sm leading-6 text-[#A9B6CC]">
+              当前策略暂无正式样本回测表，页面保留了统一的数据口径位置，后续补充研究结果时无需再新增独立页面结构。
+            </div>
+          )}
         </div>
       </section>
     </PageContentContainer>

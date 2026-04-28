@@ -24,7 +24,13 @@ import {
 } from '@/utils/marketApi'
 import type { Top100Meta } from '@/utils/etfApi'
 import { formatCompactNumber, formatPct, formatYmd } from '@/utils/format'
-import { CONFIRM_TRAIL12_METHOD_PATH, CONFIRM_TRAIL12_SUMMARY_LINES } from '@/utils/confirmTrail12Methodology'
+import {
+  MOMENTUM_STRATEGIES,
+  buildMomentumMethodPath,
+  getMomentumStrategy,
+  type MomentumSignalLegendTone,
+  type MomentumStrategyId,
+} from '@/utils/momentumStrategies'
 
 const DEFAULT_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH', '512050.SH', '560010.SH']
 const DEFAULT_CUSTOM_QUERY_TICKER = '159915'
@@ -141,6 +147,19 @@ function fmtTradingDaysAgo(v: number | null | undefined): string {
   return `${v}个交易日前`
 }
 
+function signalLegendToneCls(tone: MomentumSignalLegendTone): string {
+  if (tone === 'buy') {
+    return 'rounded-full border border-[rgba(248,113,113,0.28)] bg-[rgba(127,29,29,0.18)] px-2 py-0.5 text-[#FCA5A5]'
+  }
+  if (tone === 'sell') {
+    return 'rounded-full border border-[rgba(52,211,153,0.24)] bg-[rgba(6,78,59,0.18)] px-2 py-0.5 text-[#6EE7B7]'
+  }
+  if (tone === 'risk') {
+    return 'rounded-full border border-[rgba(251,191,36,0.24)] bg-[rgba(120,53,15,0.18)] px-2 py-0.5 text-[#FCD34D]'
+  }
+  return 'rounded-full border border-[rgba(203,184,255,0.24)] bg-[rgba(91,33,182,0.14)] px-2 py-0.5 text-[#DDD6FE]'
+}
+
 function normalizeCustomQueryTicker(value: string | null | undefined): string {
   const normalized = String(value || '').trim().toUpperCase()
   return normalized || DEFAULT_CUSTOM_QUERY_TICKER
@@ -197,7 +216,7 @@ function resolveScoreState(score: number | null | undefined): { label: string; t
 export default function RpsStylePanel({ page }: { page: RpsPage }) {
   const isOverviewPage = page === 'overview'
   const isCustomQueryPage = page === 'custom-query'
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const initialCustomTickerRef = useRef<string>(normalizeCustomQueryTicker(searchParams.get('ticker')))
   const initialCustomTicker = initialCustomTickerRef.current
 
@@ -238,6 +257,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   )
   const controlsDisabled = loading
   const anchorStyle = useMemo(() => ({ scrollMarginTop: '104px' }), [])
+  const selectedStrategy = useMemo(() => getMomentumStrategy(searchParams.get('strategy')), [searchParams])
   const customQuerySummary = customQueryData?.summary ?? null
   const customQueryLatest = customQuerySummary?.latest ?? customQueryData?.latest ?? null
   const customQueryLatestTurnoverSummary =
@@ -512,6 +532,11 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   }, [customQueryData?.benchmarkName, customQueryData?.benchmarkTicker, customQuerySummary?.benchmarkName, customQuerySummary?.benchmarkTicker])
   const recentSearchesExpanded = !recentSearchesCollapsed
   const recentSearchesRegionId = 'rps-custom-query-recent-searches'
+  const updateSelectedStrategy = (strategyId: MomentumStrategyId) => {
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.set('strategy', strategyId)
+    setSearchParams(nextParams, { replace: true })
+  }
   const recentSearchesContent = recentSearchesLoading ? (
     <div className="text-xs text-[#8EA0B8]">
       正在加载最近搜索...
@@ -598,24 +623,97 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
 
   const customQueryIntro = (
     <section className="overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] p-4 shadow-lg">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="max-w-[920px]">
-          <div className="text-xl font-semibold tracking-tight text-white">动量分析</div>
-          <div className="mt-2 space-y-2 text-[13px] leading-relaxed text-[#94A3B8]">
-            {CONFIRM_TRAIL12_SUMMARY_LINES.map((line) => (
-              <p key={line}>{line}</p>
-            ))}
+      <div className="space-y-4">
+        <div className="rounded-lg border border-[rgba(125,211,252,0.16)] bg-[rgba(8,47,73,0.12)] p-3">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+            <div className="max-w-[860px]">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#93C5FD]">策略选择</div>
+              <div className="mt-1 text-sm font-semibold text-[#E6EDF7]">切换主图买卖点口径</div>
+              <div className="mt-1 text-[13px] leading-relaxed text-[#94A3B8]">
+                主图买卖点、图例说明和“分析方法”页会随所选策略同步切换。默认建议先看
+                <span className="px-1 text-[#E0F2FE]">Baseline策略</span>
+                ，再和对照策略比较过滤前后的差异。
+              </div>
+            </div>
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-[rgba(125,211,252,0.28)] bg-[rgba(15,23,42,0.86)] px-3 py-1 text-[12px] text-[#CBD5E1]">
+              <span className="font-medium text-[#94A3B8]">当前策略</span>
+              <span className="font-semibold text-white">{selectedStrategy.label}</span>
+              <span className="rounded-full border border-[rgba(125,211,252,0.18)] bg-[rgba(125,211,252,0.10)] px-2 py-0.5 text-[10px] font-semibold text-[#93C5FD]">
+                {selectedStrategy.roleLabel}
+              </span>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-3 xl:grid-cols-2">
+            {MOMENTUM_STRATEGIES.map((strategy) => {
+              const isActive = strategy.id === selectedStrategy.id
+              const isDefault = strategy.roleLabel === '默认策略'
+              return (
+                <button
+                  key={strategy.id}
+                  type="button"
+                  onClick={() => updateSelectedStrategy(strategy.id)}
+                  aria-pressed={isActive}
+                  className={cn(
+                    'rounded-lg border px-3 py-3 text-left transition',
+                    isActive
+                      ? 'border-[rgba(125,211,252,0.42)] bg-[rgba(14,116,144,0.18)] shadow-[inset_0_0_0_1px_rgba(125,211,252,0.10)]'
+                      : 'border-white/10 bg-[#0B1220] hover:border-white/20 hover:bg-white/[0.04]',
+                  )}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className={cn('text-sm font-semibold', isActive ? 'text-white' : 'text-[#E6EDF7]')}>{strategy.label}</div>
+                    <span
+                      className={cn(
+                        'rounded-full border px-2 py-0.5 text-[10px] font-semibold',
+                        isDefault
+                          ? 'border-[rgba(125,211,252,0.24)] bg-[rgba(125,211,252,0.10)] text-[#93C5FD]'
+                          : 'border-white/10 bg-white/[0.04] text-[#94A3B8]',
+                      )}
+                    >
+                      {strategy.roleLabel}
+                    </span>
+                    {isActive ? (
+                      <span className="rounded-full border border-[rgba(52,211,153,0.20)] bg-[rgba(52,211,153,0.10)] px-2 py-0.5 text-[10px] font-semibold text-[#6EE7B7]">
+                        当前启用
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className={cn('mt-2 text-[12px] font-medium', isActive ? 'text-[#D6EEFF]' : 'text-[#CBD5E1]')}>
+                    {strategy.shortLabel}
+                  </div>
+                  <div className="mt-1 text-[12px] leading-5 text-[#94A3B8]">{strategy.selectorDescription}</div>
+                </button>
+              )
+            })}
           </div>
         </div>
-        <div className="flex min-w-[280px] flex-col gap-2 rounded-lg border border-[rgba(125,211,252,0.20)] bg-[rgba(8,47,73,0.14)] px-3 py-3 text-xs text-[#CBD5E1]">
-          <div className="font-semibold uppercase tracking-[0.16em] text-[#93C5FD]">方法入口</div>
-          <div className="leading-5 text-[#A9B6CC]">查看完整规则、边界说明与样本 ETF 回测结果。</div>
-          <Link
-            to={CONFIRM_TRAIL12_METHOD_PATH}
-            className="inline-flex w-fit items-center rounded-full border border-[rgba(125,211,252,0.28)] bg-[rgba(15,23,42,0.86)] px-3 py-1.5 text-[12px] font-semibold text-[#E0F2FE] transition hover:border-[rgba(125,211,252,0.45)] hover:text-white"
-          >
-            打开分析方法页
-          </Link>
+
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-[920px]">
+            <div className="text-xl font-semibold tracking-tight text-white">动量分析</div>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#94A3B8]">
+              <span className="rounded-full border border-[rgba(125,211,252,0.22)] bg-[rgba(8,47,73,0.18)] px-2 py-0.5 text-[#BFDBFE]">
+                当前策略：{selectedStrategy.label}
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5">{selectedStrategy.shortLabel}</span>
+              <span>{selectedStrategy.roleLabel === '默认策略' ? '默认推荐口径' : '对照观察口径'}</span>
+            </div>
+            <div className="mt-2 space-y-2 text-[13px] leading-relaxed text-[#94A3B8]">
+              {selectedStrategy.summaryLines.map((line) => (
+                <p key={line}>{line}</p>
+              ))}
+            </div>
+          </div>
+          <div className="flex min-w-[280px] flex-col gap-2 rounded-lg border border-[rgba(125,211,252,0.20)] bg-[rgba(8,47,73,0.14)] px-3 py-3 text-xs text-[#CBD5E1]">
+            <div className="font-semibold uppercase tracking-[0.16em] text-[#93C5FD]">方法入口</div>
+            <div className="leading-5 text-[#A9B6CC]">{selectedStrategy.methodCtaDescription}</div>
+            <Link
+              to={buildMomentumMethodPath(selectedStrategy.id)}
+              className="inline-flex w-fit items-center rounded-full border border-[rgba(125,211,252,0.28)] bg-[rgba(15,23,42,0.86)] px-3 py-1.5 text-[12px] font-semibold text-[#E0F2FE] transition hover:border-[rgba(125,211,252,0.45)] hover:text-white"
+            >
+              查看 {selectedStrategy.label} 分析方法
+            </Link>
+          </div>
         </div>
       </div>
     </section>
@@ -986,21 +1084,16 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
           <section className="rounded-md border border-[rgba(248,250,252,0.08)] bg-[rgba(11,18,32,0.82)] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-[13px] font-semibold text-[#F8FAFC]">主图信号图例</div>
-              <div className="text-[11px] text-[#64748B]">默认策略：confirmTrail12，与价格分段着色、放量标记同时展示</div>
+              <div className="text-[11px] text-[#64748B]">
+                {selectedStrategy.roleLabel}：{selectedStrategy.label}，与价格分段着色、放量标记同时展示
+              </div>
             </div>
             <div className="mt-2 flex flex-wrap gap-2 text-[12px] leading-5 text-[#CBD5E1]">
-              <span className="rounded-full border border-[rgba(248,113,113,0.28)] bg-[rgba(127,29,29,0.18)] px-2 py-0.5 text-[#FCA5A5]">
-                红色向上箭头：绿转黄且收盘价不低于 SMA250
-              </span>
-              <span className="rounded-full border border-[rgba(52,211,153,0.24)] bg-[rgba(6,78,59,0.18)] px-2 py-0.5 text-[#6EE7B7]">
-                绿色向下箭头：黄转绿，且 close&lt;SMA20 / MACD Hist&lt;0 / RSI&lt;50 任一成立
-              </span>
-              <span className="rounded-full border border-[rgba(251,191,36,0.24)] bg-[rgba(120,53,15,0.18)] px-2 py-0.5 text-[#FCD34D]">
-                金色向下箭头：持仓后相对高点回撤达到 12%
-              </span>
-              <span className="rounded-full border border-[rgba(203,184,255,0.24)] bg-[rgba(91,33,182,0.14)] px-2 py-0.5 text-[#DDD6FE]">
-                淡紫圆点：成交额 &gt;= 前20日均值 1.50x
-              </span>
+              {selectedStrategy.signalLegend.map((item) => (
+                <span key={item.key} className={signalLegendToneCls(item.tone)}>
+                  {item.text}
+                </span>
+              ))}
             </div>
           </section>
 
@@ -1010,6 +1103,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
             benchmarkName={customQuerySummary?.benchmarkName ?? customQueryData.benchmarkName}
             series={customQueryData.series}
             turnoverSeries={customQueryData.turnoverSeries}
+            signalPreset={selectedStrategy.signalPreset}
             titleLabel={`${customQueryDisplayLabel}关键图表指标`}
             subtitleLabel={`当前序列：${customQueryDisplayLabel} | 基准：${customQueryBenchmarkLabel}`}
             resetKey={`${submittedCustomTicker}:${customQuerySubmitSeq}`}

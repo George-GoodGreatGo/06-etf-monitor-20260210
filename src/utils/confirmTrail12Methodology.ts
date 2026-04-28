@@ -20,7 +20,7 @@ export type ConfirmTrail12BacktestRow = {
 }
 
 export const CONFIRM_TRAIL12_SUMMARY_LINES = [
-  '默认主图箭头已切换到 confirmTrail12：买点要求绿转黄且收盘价不低于 SMA250。',
+  '默认主图箭头已切换到 Baseline策略：买点要求绿转黄且收盘价不低于 SMA250。',
   '确认卖点要求黄转绿后，同时满足 close<SMA20、MACD Hist<0、RSI<50 中任一条件。',
   '持仓后若收盘价相对本轮最高收盘价回撤达到 12%，则额外触发增强风控卖点。',
 ] as const
@@ -28,7 +28,7 @@ export const CONFIRM_TRAIL12_SUMMARY_LINES = [
 export const CONFIRM_TRAIL12_METHOD_SECTIONS: ConfirmTrail12MethodSection[] = [
   {
     title: '策略定位',
-    description: 'confirmTrail12 用于把 RPS 风格切换信号落到单只 ETF 的顺势交易节奏上，核心目标是减少黄绿来回切换带来的噪声，同时保留趋势拐点的可读性。',
+    description: 'Baseline策略用于把 RPS 风格切换信号落到单只 ETF 的顺势交易节奏上，核心目标是减少黄绿来回切换带来的噪声，同时保留趋势拐点的可读性。',
     bullets: [
       '买点只在价格重新回到中长期趋势之上时触发，避免弱势反抽误判。',
       '卖点拆成“确认卖出”和“12%增强风控卖出”两类，既保留趋势转弱确认，也保留持仓利润保护。',
@@ -85,14 +85,14 @@ export const CONFIRM_TRAIL12_METHOD_SECTIONS: ConfirmTrail12MethodSection[] = [
     description: '本页方法说明与页面样本表格优先复用现有研究输出，方便后续直接沉淀到 PRD 或帮助文档。',
     bullets: [
       '样本回测数据来自仓库中的 debug 研究归档 `debug/momentum_backtest_a_share_output.json`。',
-      '表格选取该文件中 `entry:none|exit:confirmTrail12` 的样本 ETF 结果，保留收益、回撤、交易次数、胜率和平均持有天数等核心字段。',
+      '表格选取该文件中 Baseline策略 对应的样本 ETF 结果，保留收益、回撤、交易次数、胜率和平均持有天数等核心字段。',
       '产品页简介只保留决策所需的最小规则，完整边界与样本结果统一放在本页归档。',
     ],
   },
 ] as const
 
 export const CONFIRM_TRAIL12_BACKTEST_SOURCE =
-  '研究样本来自 debug/momentum_backtest_a_share_output.json 中 entry:none|exit:confirmTrail12 组合。'
+  '研究样本来自 debug/momentum_backtest_a_share_output.json 中 Baseline策略 对应组合。'
 
 export const CONFIRM_TRAIL12_BACKTEST_AGGREGATE = {
   avgTotalReturnPct: 90.45,

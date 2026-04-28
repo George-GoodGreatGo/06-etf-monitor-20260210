@@ -20,6 +20,7 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts'
 import type { RpsStyleSeriesPoint, RpsTurnoverHistoryPoint } from '@/utils/marketApi'
+import type { MomentumStrategySignalPreset } from '@/utils/momentumStrategies'
 import { hasValidLogicalRange, normalizeTime, safeClearCrosshair, safeSetCrosshair, safeSetVisibleLogicalRange } from '@/components/charts/chartSyncGuards'
 import { cn } from '@/lib/utils'
 
@@ -29,6 +30,7 @@ type Props = {
   benchmarkName: string
   series: RpsStyleSeriesPoint[]
   turnoverSeries?: RpsTurnoverHistoryPoint[]
+  signalPreset?: MomentumStrategySignalPreset
   titleLabel?: string
   subtitleLabel?: string
   resetKey?: string
@@ -56,7 +58,7 @@ type ChartDatum = LineData<Time> | { time: Time }
 type BackgroundBand = { top: number; bottom: number; color: string }
 type PriceTone = 'negative' | 'neutral' | 'positive' | 'strong'
 type PriceRun = { tone: PriceTone; data: LineData<Time>[] }
-type SignalMarkerKind = 'buy' | 'confirm-sell' | 'risk-sell'
+type SignalMarkerKind = 'buy' | 'sell' | 'confirm-sell' | 'risk-sell'
 type SignalMarkerDetail = {
   id: string
   kind: SignalMarkerKind
@@ -112,6 +114,7 @@ const SIGNAL_MARKER_SELECTED_SIZE_DELTA = 0.35
 const EMPTY_TURNOVER_SERIES: RpsTurnoverHistoryPoint[] = []
 const SELECTED_SIGNAL_MARKER_COLOR: Record<SignalMarkerKind, string> = {
   buy: '#FCA5A5',
+  sell: '#86EFAC',
   'confirm-sell': '#86EFAC',
   'risk-sell': '#FDE68A',
 }
@@ -360,7 +363,7 @@ function buildConfirmSellReasons(point: PreparedPoint): string[] {
   return reasons
 }
 
-function buildTradeSignalMarkerDetails(points: PreparedPoint[]): SignalMarkerDetail[] {
+function buildConfirmTrail12MarkerDetails(points: PreparedPoint[]): SignalMarkerDetail[] {
   if (points.length < 2) return []
   const markers: SignalMarkerDetail[] = []
   let inPosition = false
@@ -422,6 +425,65 @@ function buildTradeSignalMarkerDetails(points: PreparedPoint[]): SignalMarkerDet
   }
 
   return markers
+}
+
+function buildBaseColorFlipMarkerDetails(points: PreparedPoint[]): SignalMarkerDetail[] {
+  if (points.length < 2) return []
+  const markers: SignalMarkerDetail[] = []
+  let inPosition = false
+  for (let i = 1; i < points.length; i += 1) {
+    const prevPoint = points[i - 1]
+    const point = points[i]
+    const prevTone = resolvePriceTone(prevPoint.scorePct)
+    const tone = resolvePriceTone(point.scorePct)
+
+    if (!inPosition && prevTone === 'negative' && tone === 'neutral') {
+      markers.push({
+        id: `${point.date}-buy`,
+        kind: 'buy',
+        time: point.time,
+        date: point.date,
+        price: point.targetCloseQfq,
+        position: 'atPriceBottom',
+        shape: 'arrowUp',
+        color: '#F87171',
+        text: '买',
+        size: 1.6,
+        title: '买点说明',
+        description: '价格线由绿转黄，触发基础颜色切换策略的买点。',
+        reasonLines: ['价格线由绿转黄'],
+      })
+      inPosition = true
+      continue
+    }
+
+    if (!inPosition) continue
+
+    if (prevTone === 'neutral' && tone === 'negative') {
+      markers.push({
+        id: `${point.date}-sell`,
+        kind: 'sell',
+        time: point.time,
+        date: point.date,
+        price: point.targetCloseQfq,
+        position: 'atPriceTop',
+        shape: 'arrowDown',
+        color: '#34D399',
+        text: '卖',
+        size: 1.6,
+        title: '卖点说明',
+        description: '价格线由黄转绿，触发基础颜色切换策略的卖点。',
+        reasonLines: ['价格线由黄转绿'],
+      })
+      inPosition = false
+    }
+  }
+  return markers
+}
+
+function buildTradeSignalMarkerDetails(points: PreparedPoint[], signalPreset: MomentumStrategySignalPreset): SignalMarkerDetail[] {
+  if (signalPreset === 'baseColorFlip') return buildBaseColorFlipMarkerDetails(points)
+  return buildConfirmTrail12MarkerDetails(points)
 }
 
 function toSeriesMarker(detail: SignalMarkerDetail, selected = false): SeriesMarker<Time> {
@@ -1011,6 +1073,7 @@ export default function RpsCustomQueryCharts({
   benchmarkName,
   series,
   turnoverSeries = EMPTY_TURNOVER_SERIES,
+  signalPreset = 'confirmTrail12',
   titleLabel,
   subtitleLabel,
   resetKey,
@@ -1187,7 +1250,10 @@ export default function RpsCustomQueryCharts({
     }
     return map
   }, [macdHistData])
-  const signalMarkerDetails = useMemo<SignalMarkerDetail[]>(() => buildTradeSignalMarkerDetails(prepared), [prepared])
+  const signalMarkerDetails = useMemo<SignalMarkerDetail[]>(
+    () => buildTradeSignalMarkerDetails(prepared, signalPreset),
+    [prepared, signalPreset],
+  )
   const signalMarkerDetailsByTime = useMemo(() => {
     const map = new Map<UTCTimestamp, SignalMarkerDetail[]>()
     for (const marker of signalMarkerDetails) {
