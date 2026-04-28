@@ -623,28 +623,9 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
 
   const customQueryIntro = (
     <section className="overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] px-4 py-3 shadow-lg">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0 max-w-[980px]">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="text-xl font-semibold tracking-tight text-white">动量分析</div>
-            <span className="rounded-full border border-[rgba(125,211,252,0.22)] bg-[rgba(8,47,73,0.18)] px-2 py-0.5 text-[11px] font-semibold text-[#BFDBFE]">
-              当前策略：{selectedStrategy.label}
-            </span>
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] text-[#CBD5E1]">
-              {selectedStrategy.roleLabel === '默认策略' ? '默认推荐口径' : '对照观察口径'}
-            </span>
-          </div>
-          <div className="mt-2 text-[13px] leading-relaxed text-[#94A3B8]">
-            {selectedStrategy.summaryLines[0] ??
-              '主图买卖点、图例说明和分析方法页会随所选策略同步切换，默认建议先看 Baseline策略。'}
-          </div>
-        </div>
-        <Link
-          to={buildMomentumMethodPath(selectedStrategy.id)}
-          className="inline-flex w-fit shrink-0 items-center rounded-full border border-[rgba(125,211,252,0.28)] bg-[rgba(15,23,42,0.86)] px-3 py-1.5 text-[12px] font-semibold text-[#E0F2FE] transition hover:border-[rgba(125,211,252,0.45)] hover:text-white"
-        >
-          查看 {selectedStrategy.label} 分析方法
-        </Link>
+      <div className="text-xl font-semibold tracking-tight text-white">动量分析</div>
+      <div className="mt-1 text-[13px] leading-relaxed text-[#94A3B8]">
+        输入特定的场内ETF，查询场内基金的分析结果。
       </div>
     </section>
   )
@@ -1011,68 +992,84 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
             </div>
           </div>
 
-          <section className="rounded-md border border-[rgba(248,250,252,0.08)] bg-[rgba(11,18,32,0.82)] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="text-[13px] font-semibold text-[#F8FAFC]">关键图表指标</div>
-                    <span className="rounded-full border border-[rgba(125,211,252,0.22)] bg-[rgba(8,47,73,0.18)] px-2 py-0.5 text-[10px] font-semibold text-[#BFDBFE]">
-                      {selectedStrategy.label}
-                    </span>
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-[#94A3B8]">
-                      {selectedStrategy.roleLabel}
-                    </span>
-                  </div>
-                  <div className="mt-1 text-[11px] leading-relaxed text-[#64748B]">
-                    切换策略后，主图买卖点和下方图例会同步更新；默认先看 Baseline策略，再与对照策略比较差异。
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {MOMENTUM_STRATEGIES.map((strategy) => {
-                    const isActive = strategy.id === selectedStrategy.id
-                    const isDefault = strategy.roleLabel === '默认策略'
-                    return (
-                      <button
-                        key={strategy.id}
-                        type="button"
-                        onClick={() => updateSelectedStrategy(strategy.id)}
-                        aria-pressed={isActive}
-                        className={cn(
-                          'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium transition',
-                          isActive
-                            ? 'border-[rgba(125,211,252,0.42)] bg-[rgba(14,116,144,0.18)] text-[#E0F2FE]'
-                            : 'border-white/10 bg-[#0B1220] text-[#A9B6CC] hover:border-white/20 hover:text-white',
-                        )}
-                        title={strategy.selectorDescription}
-                      >
-                        <span>{strategy.label}</span>
-                        {isDefault ? (
-                          <span className="rounded-full border border-[rgba(125,211,252,0.18)] bg-[rgba(125,211,252,0.10)] px-1.5 py-0.5 text-[9px] font-semibold text-[#93C5FD]">
-                            默认
-                          </span>
-                        ) : null}
-                        {isActive ? (
-                          <span className="rounded-full border border-[rgba(52,211,153,0.20)] bg-[rgba(52,211,153,0.10)] px-1.5 py-0.5 text-[9px] font-semibold text-[#6EE7B7]">
-                            已选
-                          </span>
-                        ) : null}
-                      </button>
-                    )
-                  })}
+          <section className="rounded-md border border-[rgba(248,250,252,0.08)] bg-[rgba(11,18,32,0.82)] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <div className="text-[13px] font-semibold text-[#F8FAFC]">关键图表指标</div>
+                <div className="text-[11px] leading-relaxed text-[#64748B]">
+                  先选择主图买卖点口径，再结合下方图例理解当前策略如何在图上标记买卖点。
                 </div>
               </div>
-              <div className="flex flex-col gap-2 xl:flex-row xl:items-start xl:justify-between">
-                <div className="min-w-0 text-[11px] leading-relaxed text-[#94A3B8]">
-                  <span className="font-medium text-[#CBD5E1]">当前口径：</span>
-                  {selectedStrategy.shortLabel}。{selectedStrategy.selectorDescription}
+              <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7DD3FC]">策略选项</div>
+                  <div className="mt-2 flex flex-wrap justify-start gap-2">
+                    {MOMENTUM_STRATEGIES.map((strategy) => {
+                      const isActive = strategy.id === selectedStrategy.id
+                      const isDefault = strategy.roleLabel === '默认策略'
+                      return (
+                        <button
+                          key={strategy.id}
+                          type="button"
+                          onClick={() => updateSelectedStrategy(strategy.id)}
+                          aria-pressed={isActive}
+                          className={cn(
+                            'group flex min-w-[168px] items-start justify-between gap-2 rounded-xl border px-3 py-2 text-left transition',
+                            isActive
+                              ? 'border-[rgba(125,211,252,0.42)] bg-[linear-gradient(135deg,rgba(8,47,73,0.42),rgba(14,116,144,0.20))] shadow-[inset_0_0_0_1px_rgba(125,211,252,0.14)]'
+                              : 'border-[rgba(148,163,184,0.16)] bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(11,18,32,0.92))] hover:border-[rgba(125,211,252,0.24)] hover:bg-[linear-gradient(180deg,rgba(18,28,46,0.98),rgba(12,20,35,0.95))]',
+                          )}
+                          title={strategy.selectorDescription}
+                        >
+                          <div className="min-w-0">
+                            <div className={cn('text-[12px] font-semibold', isActive ? 'text-white' : 'text-[#E6EDF7]')}>
+                              {strategy.label}
+                            </div>
+                            <div className={cn('mt-1 text-[10px] leading-4', isActive ? 'text-[#CFE8FF]' : 'text-[#94A3B8]')}>
+                              {strategy.shortLabel}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end gap-1">
+                            {isDefault ? (
+                              <span className="rounded-full border border-[rgba(125,211,252,0.18)] bg-[rgba(125,211,252,0.10)] px-1.5 py-0.5 text-[9px] font-semibold text-[#93C5FD]">
+                                默认
+                              </span>
+                            ) : null}
+                            {isActive ? (
+                              <span className="rounded-full border border-[rgba(52,211,153,0.20)] bg-[rgba(52,211,153,0.10)] px-1.5 py-0.5 text-[9px] font-semibold text-[#6EE7B7]">
+                                当前
+                              </span>
+                            ) : null}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
-                <Link
-                  to={buildMomentumMethodPath(selectedStrategy.id)}
-                  className="inline-flex w-fit shrink-0 items-center rounded-full border border-[rgba(125,211,252,0.22)] bg-[rgba(15,23,42,0.7)] px-2.5 py-1 text-[11px] font-semibold text-[#CFE8FF] transition hover:border-[rgba(125,211,252,0.38)] hover:text-white"
-                >
-                  查看分析方法
-                </Link>
+                <div className="min-w-0 xl:max-w-[360px]">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7DD3FC]">当前策略说明</div>
+                  <div className="mt-2 rounded-lg border border-[rgba(125,211,252,0.14)] bg-[rgba(8,47,73,0.10)] px-3 py-2.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[12px] font-semibold text-[#F8FAFC]">{selectedStrategy.label}</span>
+                      <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-[#CBD5E1]">
+                        {selectedStrategy.roleLabel}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-[11px] leading-relaxed text-[#94A3B8]">
+                      {selectedStrategy.selectorDescription}
+                    </div>
+                    <div className="mt-2 text-[11px] leading-relaxed text-[#A9B6CC]">
+                      <span className="font-medium text-[#CBD5E1]">当前口径：</span>
+                      {selectedStrategy.shortLabel}
+                    </div>
+                    <Link
+                      to={buildMomentumMethodPath(selectedStrategy.id)}
+                      className="mt-2 inline-flex items-center text-[11px] font-semibold text-[#93C5FD] transition hover:text-white"
+                    >
+                      查看 {selectedStrategy.label} 的分析方法
+                    </Link>
+                  </div>
+                </div>
               </div>
               <div className="flex flex-wrap gap-2 text-[11px] leading-5 text-[#CBD5E1]">
                 {selectedStrategy.signalLegend.map((item) => (
