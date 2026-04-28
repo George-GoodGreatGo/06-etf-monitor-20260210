@@ -1003,7 +1003,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
               <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7DD3FC]">策略选项</div>
-                  <div className="mt-2 flex flex-wrap justify-start gap-2">
+                  <div className="mt-2 inline-flex max-w-full flex-wrap justify-start gap-1.5 rounded-2xl border border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.82)] p-1">
                     {MOMENTUM_STRATEGIES.map((strategy) => {
                       const isActive = strategy.id === selectedStrategy.id
                       const isDefault = strategy.roleLabel === '默认策略'
@@ -1014,18 +1014,18 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                           onClick={() => updateSelectedStrategy(strategy.id)}
                           aria-pressed={isActive}
                           className={cn(
-                            'group flex min-w-[168px] items-start justify-between gap-2 rounded-xl border px-3 py-2 text-left transition',
+                            'group flex min-w-[164px] items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left transition',
                             isActive
-                              ? 'border-[rgba(125,211,252,0.42)] bg-[linear-gradient(135deg,rgba(8,47,73,0.42),rgba(14,116,144,0.20))] shadow-[inset_0_0_0_1px_rgba(125,211,252,0.14)]'
-                              : 'border-[rgba(148,163,184,0.16)] bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(11,18,32,0.92))] hover:border-[rgba(125,211,252,0.24)] hover:bg-[linear-gradient(180deg,rgba(18,28,46,0.98),rgba(12,20,35,0.95))]',
+                              ? 'border-[rgba(125,211,252,0.42)] bg-[linear-gradient(135deg,rgba(8,47,73,0.46),rgba(14,116,144,0.24))] shadow-[inset_0_0_0_1px_rgba(125,211,252,0.14),0_4px_14px_rgba(8,47,73,0.18)]'
+                              : 'border-transparent bg-[rgba(15,23,42,0.26)] hover:border-[rgba(125,211,252,0.18)] hover:bg-[rgba(21,32,53,0.72)]',
                           )}
                           title={strategy.selectorDescription}
                         >
                           <div className="min-w-0">
-                            <div className={cn('text-[12px] font-semibold', isActive ? 'text-white' : 'text-[#E6EDF7]')}>
+                            <div className={cn('text-[12px] font-semibold leading-4', isActive ? 'text-white' : 'text-[#E6EDF7]')}>
                               {strategy.label}
                             </div>
-                            <div className={cn('mt-1 text-[10px] leading-4', isActive ? 'text-[#CFE8FF]' : 'text-[#94A3B8]')}>
+                            <div className={cn('mt-0.5 text-[10px] leading-4', isActive ? 'text-[#CFE8FF]' : 'text-[#94A3B8]')}>
                               {strategy.shortLabel}
                             </div>
                           </div>
@@ -1046,28 +1046,23 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                     })}
                   </div>
                 </div>
-                <div className="min-w-0 xl:max-w-[360px]">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7DD3FC]">当前策略说明</div>
-                  <div className="mt-2 rounded-lg border border-[rgba(125,211,252,0.14)] bg-[rgba(8,47,73,0.10)] px-3 py-2.5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[12px] font-semibold text-[#F8FAFC]">{selectedStrategy.label}</span>
-                      <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-[#CBD5E1]">
+                <div className="min-w-0 xl:max-w-[420px]">
+                  <div className="rounded-lg border border-[rgba(125,211,252,0.14)] bg-[rgba(8,47,73,0.10)] px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] leading-relaxed">
+                      <span className="font-semibold text-[#F8FAFC]">{selectedStrategy.label}</span>
+                      <span className="rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-[#CBD5E1]">
                         {selectedStrategy.roleLabel}
                       </span>
+                      <span className="text-[#94A3B8]">
+                        {selectedStrategy.shortLabel}，{selectedStrategy.selectorDescription}
+                      </span>
+                      <Link
+                        to={buildMomentumMethodPath(selectedStrategy.id)}
+                        className="font-semibold text-[#93C5FD] transition hover:text-white"
+                      >
+                        查看分析方法
+                      </Link>
                     </div>
-                    <div className="mt-1 text-[11px] leading-relaxed text-[#94A3B8]">
-                      {selectedStrategy.selectorDescription}
-                    </div>
-                    <div className="mt-2 text-[11px] leading-relaxed text-[#A9B6CC]">
-                      <span className="font-medium text-[#CBD5E1]">当前口径：</span>
-                      {selectedStrategy.shortLabel}
-                    </div>
-                    <Link
-                      to={buildMomentumMethodPath(selectedStrategy.id)}
-                      className="mt-2 inline-flex items-center text-[11px] font-semibold text-[#93C5FD] transition hover:text-white"
-                    >
-                      查看 {selectedStrategy.label} 的分析方法
-                    </Link>
                   </div>
                 </div>
               </div>
