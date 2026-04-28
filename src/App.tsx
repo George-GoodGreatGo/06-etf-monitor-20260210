@@ -14,6 +14,7 @@ const MarketRpsCustomQuery = lazy(() => import('@/pages/MarketRpsCustomQuery'))
 const MarketRpsMethodology = lazy(() => import('@/pages/MarketRpsMethodology'))
 const DevRpsCustomQueryLive = lazy(() => import('@/pages/DevRpsCustomQueryLive'))
 const DevRpsCustomQueryMock = lazy(() => import('@/pages/DevRpsCustomQueryMock'))
+const DevTop200MomentumSignalsMock = lazy(() => import('@/pages/DevTop200MomentumSignalsMock'))
 
 function RouteLoadingFallback() {
   return (
@@ -42,6 +43,9 @@ export default function App() {
           ) : null}
           {import.meta.env.DEV ? (
             <Route path="/dev/rps-custom-query-live" element={withRouteSuspense(<DevRpsCustomQueryLive />)} />
+          ) : null}
+          {import.meta.env.DEV ? (
+            <Route path="/dev/top200-momentum-signals-mock" element={withRouteSuspense(<DevTop200MomentumSignalsMock />)} />
           ) : null}
           <Route
             element={

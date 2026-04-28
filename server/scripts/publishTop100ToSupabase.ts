@@ -1,4 +1,7 @@
 import { readFile } from 'node:fs/promises'
+import { getRpsCustomQuery } from '../lib/rpsStyle.js'
+import { MOMENTUM_STRATEGIES } from '../../src/utils/momentumStrategies.ts'
+import { buildMomentumSignalsByStrategy, type MomentumSignalsByStrategy } from '../../src/utils/momentumSignalSnapshot.ts'
 
 type CacheFile = {
   cachedAt: string
@@ -6,10 +9,61 @@ type CacheFile = {
   rows: unknown
 }
 
+type TopRowLike = {
+  code: string
+  latestTradingDate?: string | null
+  momentumSignals?: MomentumSignalsByStrategy
+  [key: string]: unknown
+}
+
 function mustEnv(name: string): string {
   const v = String(process.env[name] || '').trim()
   if (!v) throw new Error(`missing env: ${name}`)
   return v
+}
+
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const size = Math.max(1, Math.floor(concurrency))
+  const results: R[] = new Array(items.length)
+  let cursor = 0
+  async function runOne() {
+    while (true) {
+      const index = cursor
+      cursor += 1
+      if (index >= items.length) return
+      results[index] = await worker(items[index], index)
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(size, items.length) }, () => runOne()))
+  return results
+}
+
+async function hydrateMomentumSignals(rows: unknown[], referenceDate: string): Promise<unknown[]> {
+  const candidates = rows.filter((row): row is TopRowLike => {
+    if (!row || typeof row !== 'object') return false
+    const code = (row as { code?: unknown }).code
+    return typeof code === 'string' && code.trim().length > 0
+  })
+  const strategies = MOMENTUM_STRATEGIES.map((strategy) => ({
+    id: strategy.id,
+    signalPreset: strategy.signalPreset,
+  }))
+  return await mapWithConcurrency(candidates, 6, async (row) => {
+    if (row.momentumSignals && typeof row.momentumSignals === 'object') return row
+    const out = await getRpsCustomQuery({ ticker: row.code })
+    return {
+      ...row,
+      momentumSignals: buildMomentumSignalsByStrategy({
+        series: out.data.series,
+        strategies,
+        referenceDate: row.latestTradingDate ?? referenceDate,
+      }),
+    }
+  })
 }
 
 async function main() {
@@ -22,6 +76,7 @@ async function main() {
   if (!j.cachedAt || !j.dataDate || !Array.isArray(j.rows) || j.rows.length === 0) {
     throw new Error('bad cache content')
   }
+  const rowsWithSignals = await hydrateMomentumSignals(j.rows, j.dataDate)
 
   const payload = {
     id: 1,
@@ -32,8 +87,9 @@ async function main() {
     notes: [
       'Top100 先取新浪 ETF 全市场列表（排除 LOF/货币/债券等），再基于 Sina 历史日线计算最新完整交易日的成交额并降序取前 N。',
       '成交额与 Z 值基于 Sina 历史日线（天然为完整交易日）；宽基指数 ETF（如沪深300ETF）包含在内。',
+      'momentum_signals=Top200 列表已写入多策略交易信号快照（当前至少含 Baseline策略 与基础颜色切换）',
     ],
-    rows: j.rows,
+    rows: rowsWithSignals,
     updated_at: new Date().toISOString(),
   }
 

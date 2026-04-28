@@ -23,11 +23,33 @@ import { formatYmd, parseIsoToLocal } from '@/utils/format'
 import { fetchLowVolSummary, fetchValueTimingSummary } from '@/utils/marketApi'
 import { calcLowVolSuggestion, type LowVolSuggestionTone } from '@/utils/lowVolSignal'
 import { calcValueTimingSuggestion, type ValueTimingSuggestionTone } from '@/utils/valueTimingSignal'
+import {
+  DEFAULT_MOMENTUM_STRATEGY_ID,
+  MOMENTUM_STRATEGIES,
+  resolveMomentumStrategyId,
+  type MomentumStrategyId,
+} from '@/utils/momentumStrategies'
+import {
+  TOP200_FRESHNESS_FILTER_OPTIONS,
+  TOP200_Z_FILTER_OPTIONS,
+  buildSignalFilterOptions,
+  matchesFreshnessFilter,
+  matchesSignalFilter,
+  matchesZFilter,
+  type Top200FreshnessFilterValue,
+  type Top200SignalFilterValue,
+  type Top200ZFilterValue,
+} from '@/utils/top200SignalFilters'
 
 const defaultSort: { key: Top100SortKey; dir: SortDir } = {
   key: 'turnover',
   dir: 'desc',
 }
+
+const TOP200_STRATEGY_OPTIONS = MOMENTUM_STRATEGIES.map((strategy) => ({
+  value: strategy.id,
+  label: `交易策略: ${strategy.label}`,
+}))
 
 type HomeTab = 'list' | 'insight' | 'liquidity' | 'lowvol' | 'value'
 
@@ -185,6 +207,12 @@ export default function Home() {
   const [sortDir, setSortDir] = useState<SortDir>(
     (searchParams.get('dir') as SortDir) ?? defaultSort.dir,
   )
+  const [selectedStrategyId, setSelectedStrategyId] = useState<MomentumStrategyId>(() =>
+    resolveMomentumStrategyId(searchParams.get('strategy') ?? DEFAULT_MOMENTUM_STRATEGY_ID),
+  )
+  const [selectedSignalFilter, setSelectedSignalFilter] = useState<Top200SignalFilterValue>('all')
+  const [selectedFreshnessFilter, setSelectedFreshnessFilter] = useState<Top200FreshnessFilterValue>('all')
+  const [selectedZFilter, setSelectedZFilter] = useState<Top200ZFilterValue>('all')
 
   const [loading, setLoading] = useState(true)
   const [loadingMode, setLoadingMode] = useState<'fetch' | 'refetch' | 'cold'>('fetch')
@@ -403,9 +431,10 @@ export default function Home() {
     next.set('tab', tab)
     next.set('sort', sortKey)
     next.set('dir', sortDir)
+    next.set('strategy', selectedStrategyId)
     setSearchParams(next, { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [keyword, sortKey, sortDir])
+  }, [keyword, sortKey, sortDir, selectedStrategyId])
 
   const runFetch = async (
     seq: number,
@@ -625,7 +654,48 @@ export default function Home() {
     setKeyword('')
     setSortKey(defaultSort.key)
     setSortDir(defaultSort.dir)
+    setSelectedStrategyId(DEFAULT_MOMENTUM_STRATEGY_ID)
+    setSelectedSignalFilter('all')
+    setSelectedFreshnessFilter('all')
+    setSelectedZFilter('all')
   }
+
+  const activeMomentumStrategy =
+    MOMENTUM_STRATEGIES.find((strategy) => strategy.id === selectedStrategyId) ??
+    MOMENTUM_STRATEGIES.find((strategy) => strategy.id === DEFAULT_MOMENTUM_STRATEGY_ID) ??
+    MOMENTUM_STRATEGIES[0]
+
+  const signalFilterOptions = useMemo(
+    () => buildSignalFilterOptions(rows, selectedStrategyId),
+    [rows, selectedStrategyId],
+  )
+
+  useEffect(() => {
+    if (selectedSignalFilter === 'all') return
+    const allowed = new Set(signalFilterOptions.map((option) => option.value))
+    if (!allowed.has(selectedSignalFilter)) setSelectedSignalFilter('all')
+  }, [selectedSignalFilter, signalFilterOptions])
+
+  const filteredRows = useMemo(() => {
+    const q = debouncedKeyword.trim().toLowerCase()
+    return rows.filter((row) => {
+      const keywordMatched =
+        !q || row.code.toLowerCase().includes(q) || row.name.toLowerCase().includes(q)
+      return (
+        keywordMatched &&
+        matchesSignalFilter(row, selectedStrategyId, selectedSignalFilter) &&
+        matchesFreshnessFilter(row, selectedStrategyId, selectedFreshnessFilter) &&
+        matchesZFilter(row, selectedZFilter)
+      )
+    })
+  }, [
+    debouncedKeyword,
+    rows,
+    selectedStrategyId,
+    selectedSignalFilter,
+    selectedFreshnessFilter,
+    selectedZFilter,
+  ])
 
   const onRefetch = () => {
     if (isVercelBackend) {
@@ -804,7 +874,34 @@ export default function Home() {
 
           {tab === 'list' ? (
             <div className="mt-4">
-              <Top100FilterBar keyword={keyword} onChangeKeyword={setKeyword} onReset={onReset} />
+              <Top100FilterBar
+                keyword={keyword}
+                onChangeKeyword={setKeyword}
+                strategyOptions={TOP200_STRATEGY_OPTIONS}
+                selectedStrategy={selectedStrategyId}
+                onChangeStrategy={(value) => {
+                  setSelectedStrategyId(resolveMomentumStrategyId(value))
+                  setSelectedSignalFilter('all')
+                  setSelectedFreshnessFilter('all')
+                }}
+                signalOptions={signalFilterOptions}
+                selectedSignal={selectedSignalFilter}
+                onChangeSignal={(value) => setSelectedSignalFilter(value)}
+                freshnessOptions={TOP200_FRESHNESS_FILTER_OPTIONS}
+                selectedFreshness={selectedFreshnessFilter}
+                onChangeFreshness={(value) => setSelectedFreshnessFilter(value as Top200FreshnessFilterValue)}
+                zOptions={TOP200_Z_FILTER_OPTIONS}
+                selectedZ={selectedZFilter}
+                onChangeZ={(value) => setSelectedZFilter(value as Top200ZFilterValue)}
+                onReset={onReset}
+              />
+              <div className="mt-3 flex flex-col gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-3 text-xs text-[#94A3B8] lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <span className="text-[#E2E8F0]">{activeMomentumStrategy?.label ?? '交易策略'}</span>
+                  <span>{activeMomentumStrategy?.selectorDescription ?? '当前策略用于列表交易信号展示与筛选。'}</span>
+                </div>
+                <div className="font-mono text-[#CBD5E1]">{`结果 ${filteredRows.length} / ${rows.length}`}</div>
+              </div>
             </div>
           ) : null}
         </>
@@ -1083,13 +1180,13 @@ export default function Home() {
       ) : (
         <div className={cn(showTop200Header ? 'mt-4' : '')}>
           <Top100Table
-            rows={rows}
+            rows={filteredRows}
             loading={loading}
             error={error}
-            keyword={debouncedKeyword}
             sortKey={sortKey}
             sortDir={sortDir}
             onToggleSort={onToggleSort}
+            strategyId={selectedStrategyId}
           />
         </div>
       )}

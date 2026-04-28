@@ -1,5 +1,6 @@
 import { apiUrl } from '@/utils/apiBase'
 import { adminAuthHeaders } from '@/utils/adminAccess'
+import type { MomentumSignalsByStrategy } from '@/utils/momentumSignalSnapshot'
 
 export type DataStatus = 'complete' | 'incomplete' | 'api_error'
 
@@ -13,6 +14,7 @@ export type EtfTopRow = {
   turnoverChangePct7dAvg: number | null
   z90: number | null
   dataStatus: DataStatus
+  momentumSignals?: MomentumSignalsByStrategy
 }
 
 export type Top100Meta = {
@@ -260,4 +262,3 @@ export async function fetchEtfWeeklyChart(
 
   return json as ApiOk<EtfWeeklyChart> | ApiErr
 }
-

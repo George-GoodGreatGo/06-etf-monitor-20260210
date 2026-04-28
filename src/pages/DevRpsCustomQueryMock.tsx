@@ -6,6 +6,7 @@ import RpsCustomQueryCharts from '@/components/charts/RpsCustomQueryCharts'
 import { cn } from '@/lib/utils'
 import type { EtfTopRow, Top100SortKey } from '@/utils/etfApi'
 import type { RpsStyleSeriesPoint } from '@/utils/marketApi'
+import { DEFAULT_MOMENTUM_STRATEGY_ID } from '@/utils/momentumStrategies'
 
 type MockPreset = {
   ticker: string
@@ -226,10 +227,10 @@ export default function DevRpsCustomQueryMock() {
               rows={rows}
               loading={false}
               error={null}
-              keyword=""
               sortKey={sortKey}
               sortDir={sortDir}
               onToggleSort={onToggleSort}
+              strategyId={DEFAULT_MOMENTUM_STRATEGY_ID}
               buildRpsAnalysisHref={(row) => `/dev/rps-custom-query-mock?ticker=${encodeURIComponent(row.code)}`}
             />
           </div>

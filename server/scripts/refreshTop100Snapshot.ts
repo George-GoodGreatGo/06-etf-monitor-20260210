@@ -2,6 +2,9 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import path from 'node:path'
 import { ensureTop100Insight } from '../lib/top100Insight.js'
+import { getRpsCustomQuery } from '../lib/rpsStyle.js'
+import { MOMENTUM_STRATEGIES } from '../../src/utils/momentumStrategies.ts'
+import { buildMomentumSignalsByStrategy, type MomentumSignalsByStrategy } from '../../src/utils/momentumSignalSnapshot.ts'
 
 const execFileAsync = promisify(execFile)
 
@@ -23,6 +26,13 @@ type AkshareErr = {
 }
 
 type AkshareResp<T> = AkshareOk<T> | AkshareErr
+
+type TopRowLike = {
+  code: string
+  latestTradingDate?: string | null
+  momentumSignals?: MomentumSignalsByStrategy
+  [key: string]: unknown
+}
 
 function mustEnv(name: string): string {
   const v = String(process.env[name] || '').trim()
@@ -67,6 +77,51 @@ async function computeTop100(limit: number): Promise<AkshareOk<unknown[]>> {
   return ok as AkshareOk<unknown[]>
 }
 
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const size = Math.max(1, Math.floor(concurrency))
+  const results: R[] = new Array(items.length)
+  let cursor = 0
+  async function runOne() {
+    while (true) {
+      const index = cursor
+      cursor += 1
+      if (index >= items.length) return
+      results[index] = await worker(items[index], index)
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(size, items.length) }, () => runOne()))
+  return results
+}
+
+async function hydrateMomentumSignals(rows: unknown[]): Promise<unknown[]> {
+  const candidates = rows.filter((row): row is TopRowLike => {
+    if (!row || typeof row !== 'object') return false
+    const code = (row as { code?: unknown }).code
+    return typeof code === 'string' && code.trim().length > 0
+  })
+  const strategies = MOMENTUM_STRATEGIES.map((strategy) => ({
+    id: strategy.id,
+    signalPreset: strategy.signalPreset,
+  }))
+  const hydrated = await mapWithConcurrency(candidates, 6, async (row) => {
+    const code = String(row.code || '').trim()
+    const out = await getRpsCustomQuery({ ticker: code })
+    return {
+      ...row,
+      momentumSignals: buildMomentumSignalsByStrategy({
+        series: out.data.series,
+        strategies,
+        referenceDate: row.latestTradingDate ?? out.meta.dataDate ?? null,
+      }),
+    }
+  })
+  return hydrated
+}
+
 async function upsertToSupabase(ok: AkshareOk<unknown[]>) {
   const supabaseUrl = mustEnv('SUPABASE_URL').replace(/\/+$/, '')
   const serviceKey = mustEnv('SUPABASE_SERVICE_ROLE_KEY')
@@ -104,12 +159,29 @@ async function upsertToSupabase(ok: AkshareOk<unknown[]>) {
 async function main() {
   const limit = Number.parseInt(String(process.env.TOP100_LIMIT || '200'), 10) || 200
   const ok = await computeTop100(Math.max(1, Math.min(200, limit)))
-  const written = await upsertToSupabase(ok)
-  await ensureTop100Insight(ok.meta.dataDate, ok.meta.fetchedAt, ok.meta.source || 'akshare:sina', ok.data).catch((e) => {
+  const rowsWithSignals = await hydrateMomentumSignals(ok.data)
+  const enriched: AkshareOk<unknown[]> = {
+    ...ok,
+    meta: {
+      ...ok.meta,
+      notes: [
+        ...(ok.meta.notes || []),
+        'momentum_signals=Top200 列表已写入多策略交易信号快照（当前至少含 Baseline策略 与基础颜色切换）',
+      ],
+    },
+    data: rowsWithSignals,
+  }
+  const written = await upsertToSupabase(enriched)
+  await ensureTop100Insight(
+    enriched.meta.dataDate,
+    enriched.meta.fetchedAt,
+    enriched.meta.source || 'akshare:sina',
+    enriched.data,
+  ).catch((e) => {
     process.stderr.write(`ensureTop100Insight failed: ${e instanceof Error ? e.message : String(e)}`)
     return null
   })
-  process.stdout.write(JSON.stringify({ success: true, meta: ok.meta, written }, null, 2))
+  process.stdout.write(JSON.stringify({ success: true, meta: enriched.meta, written }, null, 2))
 }
 
 main().catch((e) => {

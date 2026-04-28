@@ -992,21 +992,18 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
             </div>
           </div>
 
-          <section className="rounded-md border border-[rgba(248,250,252,0.08)] bg-[rgba(11,18,32,0.82)] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-            <div className="flex flex-col gap-2.5">
-              <div className="flex flex-col gap-1">
+          <section className="rounded-md border border-[rgba(248,250,252,0.08)] bg-[rgba(11,18,32,0.82)] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-[13px] font-semibold text-[#F8FAFC]">关键图表指标</div>
-                <div className="text-[11px] leading-relaxed text-[#64748B]">
-                  先选策略，再结合下方图例理解主图买卖点；当前为 {selectedStrategy.label}，
-                  <Link
-                    to={buildMomentumMethodPath(selectedStrategy.id)}
-                    className="ml-1 font-semibold text-[#93C5FD] transition hover:text-white"
-                  >
-                    查看分析方法
-                  </Link>
-                </div>
+                <Link
+                  to={buildMomentumMethodPath(selectedStrategy.id)}
+                  className="text-[11px] font-semibold text-[#93C5FD] transition hover:text-white"
+                >
+                  查看分析方法
+                </Link>
               </div>
-              <div className="inline-flex max-w-full flex-wrap justify-start gap-1.5 rounded-2xl border border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.82)] p-1">
+              <div className="inline-flex max-w-full flex-wrap justify-start gap-1 rounded-2xl border border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.82)] p-1">
                 {MOMENTUM_STRATEGIES.map((strategy) => {
                   const isActive = strategy.id === selectedStrategy.id
                   const isDefault = strategy.roleLabel === '默认策略'
@@ -1017,33 +1014,24 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                       onClick={() => updateSelectedStrategy(strategy.id)}
                       aria-pressed={isActive}
                       className={cn(
-                        'group flex min-w-[164px] items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left transition',
+                        'group inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-left text-[11px] font-semibold transition',
                         isActive
-                          ? 'border-[rgba(125,211,252,0.42)] bg-[linear-gradient(135deg,rgba(8,47,73,0.46),rgba(14,116,144,0.24))] shadow-[inset_0_0_0_1px_rgba(125,211,252,0.14),0_4px_14px_rgba(8,47,73,0.18)]'
-                          : 'border-transparent bg-[rgba(15,23,42,0.26)] hover:border-[rgba(125,211,252,0.18)] hover:bg-[rgba(21,32,53,0.72)]',
+                          ? 'border-[rgba(125,211,252,0.42)] bg-[linear-gradient(135deg,rgba(8,47,73,0.46),rgba(14,116,144,0.24))] text-white shadow-[inset_0_0_0_1px_rgba(125,211,252,0.14),0_4px_14px_rgba(8,47,73,0.18)]'
+                          : 'border-transparent bg-[rgba(15,23,42,0.26)] text-[#CBD5E1] hover:border-[rgba(125,211,252,0.18)] hover:bg-[rgba(21,32,53,0.72)] hover:text-white',
                       )}
                       title={strategy.selectorDescription}
                     >
-                      <div className="min-w-0">
-                        <div className={cn('text-[12px] font-semibold leading-4', isActive ? 'text-white' : 'text-[#E6EDF7]')}>
-                          {strategy.label}
-                        </div>
-                        <div className={cn('mt-0.5 text-[10px] leading-4', isActive ? 'text-[#CFE8FF]' : 'text-[#94A3B8]')}>
-                          {strategy.shortLabel}
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 flex-col items-end gap-1">
-                        {isDefault ? (
-                          <span className="rounded-full border border-[rgba(125,211,252,0.18)] bg-[rgba(125,211,252,0.10)] px-1.5 py-0.5 text-[9px] font-semibold text-[#93C5FD]">
-                            默认
-                          </span>
-                        ) : null}
-                        {isActive ? (
-                          <span className="rounded-full border border-[rgba(52,211,153,0.20)] bg-[rgba(52,211,153,0.10)] px-1.5 py-0.5 text-[9px] font-semibold text-[#6EE7B7]">
-                            当前
-                          </span>
-                        ) : null}
-                      </div>
+                      <span>{strategy.label}</span>
+                      {isDefault ? (
+                        <span className="rounded-full border border-[rgba(125,211,252,0.18)] bg-[rgba(125,211,252,0.10)] px-1.5 py-0.5 text-[9px] font-semibold text-[#93C5FD]">
+                          默认
+                        </span>
+                      ) : null}
+                      {isActive ? (
+                        <span className="rounded-full border border-[rgba(52,211,153,0.20)] bg-[rgba(52,211,153,0.10)] px-1.5 py-0.5 text-[9px] font-semibold text-[#6EE7B7]">
+                          当前
+                        </span>
+                      ) : null}
                     </button>
                   )
                 })}

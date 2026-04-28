@@ -47,46 +47,55 @@ export default function MarketRpsMethodology() {
         ]}
       />
 
+      <section className="rounded-lg border border-[#1E293B] bg-[#0F172A] px-5 py-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#93C5FD]">Strategy Selector</div>
+            <div className="mt-1 text-base font-semibold text-white">策略选择</div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {MOMENTUM_STRATEGIES.map((item) => {
+              const isActive = item.id === strategy.id
+              return (
+                <Link
+                  key={item.id}
+                  to={buildMomentumMethodPath(item.id)}
+                  className={
+                    isActive
+                      ? 'inline-flex items-center gap-2 rounded-full border border-[rgba(125,211,252,0.42)] bg-[rgba(14,116,144,0.18)] px-3 py-1 text-[12px] font-semibold text-[#E0F2FE]'
+                      : 'inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#0B1220] px-3 py-1 text-[12px] font-semibold text-[#A9B6CC] transition hover:border-white/20 hover:text-white'
+                  }
+                  title={item.selectorDescription}
+                >
+                  <span>{item.label}</span>
+                  <span className="text-[10px] font-medium text-[#7DD3FC]">{item.roleLabel}</span>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+        <p className="mt-3 text-sm leading-6 text-[#A9B6CC]">{strategy.selectorDescription}</p>
+      </section>
+
       <section className="overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] shadow-lg">
         <div className="border-b border-white/10 px-5 py-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#93C5FD]">Methodology / PRD Draft</div>
-              <div className="mt-2 text-2xl font-semibold tracking-tight text-white">{strategy.methodTitle}</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {MOMENTUM_STRATEGIES.map((item) => {
-                  const isActive = item.id === strategy.id
-                  return (
-                    <Link
-                      key={item.id}
-                      to={buildMomentumMethodPath(item.id)}
-                      className={
-                        isActive
-                          ? 'inline-flex items-center gap-2 rounded-full border border-[rgba(125,211,252,0.42)] bg-[rgba(14,116,144,0.18)] px-3 py-1 text-[12px] font-semibold text-[#E0F2FE]'
-                          : 'inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#0B1220] px-3 py-1 text-[12px] font-semibold text-[#A9B6CC] transition hover:border-white/20 hover:text-white'
-                      }
-                    >
-                      <span>{item.label}</span>
-                      <span className="text-[10px] font-medium text-[#7DD3FC]">{item.roleLabel}</span>
-                    </Link>
-                  )
-                })}
-              </div>
-              <div className="mt-3 max-w-[920px] space-y-2 text-sm leading-6 text-[#A9B6CC]">
-                {strategy.methodLeadParagraphs.map((paragraph) => (
-                  <p key={paragraph}>{paragraph}</p>
-                ))}
-              </div>
-            </div>
-            <div className="flex min-w-[260px] flex-col gap-2 rounded-lg border border-[rgba(125,211,252,0.20)] bg-[rgba(8,47,73,0.14)] px-3 py-3 text-xs text-[#CBD5E1]">
-              <div className="font-semibold uppercase tracking-[0.16em] text-[#93C5FD]">联动入口</div>
-              <div className="leading-5 text-[#A9B6CC]">当前方法页与动量分析策略联动，可直接返回对应策略的主图信号视图。</div>
-              <Link
-                to={buildMomentumAnalysisPath({ strategyId: strategy.id })}
-                className="inline-flex w-fit items-center rounded-full border border-[rgba(125,211,252,0.28)] bg-[rgba(15,23,42,0.86)] px-3 py-1.5 text-[12px] font-semibold text-[#E0F2FE] transition hover:border-[rgba(125,211,252,0.45)] hover:text-white"
-              >
-                打开 {strategy.label} 动量分析
-              </Link>
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#93C5FD]">Methodology / PRD Draft</div>
+            <div className="mt-2 text-2xl font-semibold tracking-tight text-white">{strategy.methodTitle}</div>
+            <div className="mt-3 max-w-[920px] space-y-2 text-sm leading-6 text-[#A9B6CC]">
+              {strategy.methodLeadParagraphs.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+              <p>
+                当前方法页与主图信号视图保持同一策略联动；如需直接回到对应分析页，可前往{' '}
+                <Link
+                  to={buildMomentumAnalysisPath({ strategyId: strategy.id })}
+                  className="font-medium text-[#93C5FD] underline decoration-[rgba(147,197,253,0.45)] underline-offset-4 transition hover:text-white hover:decoration-current"
+                >
+                  {strategy.label} 动量分析
+                </Link>
+                。
+              </p>
             </div>
           </div>
         </div>

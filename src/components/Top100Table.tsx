@@ -4,7 +4,9 @@ import SortableTh, { type SortDir } from '@/components/SortableTh'
 import ZBadge from '@/components/ZBadge'
 import { cn } from '@/lib/utils'
 import { type EtfTopRow, type Top100SortKey } from '@/utils/etfApi'
+import type { MomentumStrategyId } from '@/utils/momentumStrategies'
 import { formatCompactNumber, formatPct, formatYmd } from '@/utils/format'
+import { getRowMomentumSignal } from '@/utils/top200SignalFilters'
 
 function sortRows(rows: EtfTopRow[], key: Top100SortKey, dir: SortDir) {
   const sign = dir === 'asc' ? 1 : -1
@@ -30,36 +32,59 @@ export default function Top100Table({
   rows,
   loading,
   error,
-  keyword,
   sortKey,
   sortDir,
   onToggleSort,
+  strategyId,
   buildRpsAnalysisHref,
 }: {
   rows: EtfTopRow[]
   loading: boolean
   error: string | null
-  keyword: string
   sortKey: Top100SortKey
   sortDir: SortDir
   onToggleSort: (key: Top100SortKey) => void
+  strategyId: MomentumStrategyId
   buildRpsAnalysisHref?: (row: EtfTopRow) => string
 }) {
-  const q = keyword.trim().toLowerCase()
   const actionButtonClassName =
     'inline-flex items-center justify-center gap-2 rounded-[6px] border border-[#334155] bg-[#1E293B] px-3 py-1.5 text-xs font-medium text-[#E2E8F0] transition hover:border-[#475569] hover:bg-[#334155] hover:text-white'
-  const filtered = q
-    ? rows.filter(
-        (r) =>
-          r.code.toLowerCase().includes(q) || r.name.toLowerCase().includes(q),
-      )
-    : rows
-  const data = sortRows(filtered, sortKey, sortDir)
+  const data = sortRows(rows, sortKey, sortDir)
+
+  function renderSignalCell(row: EtfTopRow) {
+    const signal = getRowMomentumSignal(row, strategyId)
+    if (!signal?.signalLabel) return <span className="text-[#64748B]">—</span>
+    const toneClassName =
+      signal.signalKey === 'buy'
+        ? 'border-[rgba(248,113,113,0.28)] bg-[rgba(127,29,29,0.22)] text-[#FCA5A5]'
+        : signal.signalKey === 'risk_sell'
+          ? 'border-[rgba(251,191,36,0.26)] bg-[rgba(120,53,15,0.24)] text-[#FCD34D]'
+          : 'border-[rgba(16,185,129,0.28)] bg-[rgba(6,78,59,0.22)] text-[#86EFAC]'
+    return (
+      <span className={cn('inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium leading-none', toneClassName)}>
+        {signal.signalLabel}
+      </span>
+    )
+  }
+
+  function renderFreshnessCell(row: EtfTopRow) {
+    const signal = getRowMomentumSignal(row, strategyId)
+    if (!signal?.freshnessLabel) return <span className="text-[#64748B]">—</span>
+    const toneClassName =
+      signal.freshnessBucket === 'today'
+        ? 'text-[#F8FAFC]'
+        : signal.freshnessBucket === 'within_3d'
+          ? 'text-[#E2E8F0]'
+          : signal.freshnessBucket === 'within_5d'
+            ? 'text-[#CBD5E1]'
+            : 'text-[#94A3B8]'
+    return <span className={cn('text-xs font-medium', toneClassName)}>{signal.freshnessLabel}</span>
+  }
 
   return (
     <section className="mt-4 overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] shadow-lg">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] text-left text-sm">
+        <table className="w-full min-w-[1160px] text-left text-sm">
           <thead className="border-b border-[#1E293B] bg-[#0B1120] text-xs font-medium text-[#94A3B8]">
             <tr>
               <th className="px-4 py-3">#</th>
@@ -119,6 +144,8 @@ export default function Top100Table({
               >
                 90日Z
               </SortableTh>
+              <th className="px-4 py-3">交易信号</th>
+              <th className="px-4 py-3">信号新鲜度</th>
               <th className="px-4 py-3 text-right">RPS分析</th>
               <th className="px-4 py-3 text-right">异动详情</th>
             </tr>
@@ -128,7 +155,7 @@ export default function Top100Table({
               Array.from({ length: 8 }).map((_, idx) => (
                 <tr key={idx} className="animate-pulse">
                   <td className="px-4 py-3 text-[#94A3B8]">{idx + 1}</td>
-                  <td className="px-4 py-3" colSpan={7}>
+                  <td className="px-4 py-3" colSpan={9}>
                     <div className="h-4 w-full rounded bg-[#1E293B]" />
                   </td>
                   <td className="px-4 py-3" />
@@ -137,13 +164,13 @@ export default function Top100Table({
               ))
             ) : data.length === 0 ? (
               <tr>
-                <td className="px-4 py-10" colSpan={10}>
+                <td className="px-4 py-10" colSpan={12}>
                   <div className="flex flex-col items-center gap-2 text-center">
                     <div className="text-sm font-medium text-[#E2E8F0]">暂无可展示数据</div>
                     <div className="text-xs text-[#94A3B8]">
                       {error
                         ? '请先修复数据源/API，再刷新页面'
-                        : '尝试调整关键字筛选条件'}
+                        : '尝试调整当前筛选条件'}
                     </div>
                     <div className="mt-2">
                       <Link
@@ -221,6 +248,8 @@ export default function Top100Table({
                         <ZBadge z={r.z90} status={r.dataStatus} />
                       </div>
                     </td>
+                    <td className="px-4 py-3">{renderSignalCell(r)}</td>
+                    <td className="px-4 py-3">{renderFreshnessCell(r)}</td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end">
                         <a
