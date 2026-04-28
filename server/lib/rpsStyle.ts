@@ -183,6 +183,26 @@ export type RpsCustomQueryResult = {
   }
 }
 
+export type RpsSignalSeriesResult = {
+  meta: {
+    fetchedAt: string
+    dataDate: string | null
+    source: string
+    notes: string[]
+    isFallback: boolean
+  }
+  data: {
+    inputTicker: string
+    ticker: string
+    code: string
+    name: string
+    benchmarkTicker: string
+    benchmarkName: string
+    latest: RpsCustomQueryLatest | null
+    series: RpsComputedPoint[]
+  }
+}
+
 export type RpsStyleSeriesResult = {
   meta: {
     fetchedAt: string
@@ -1338,6 +1358,60 @@ export async function getRpsCustomQuery(args: {
         latestTurnoverSummary,
         series,
         turnoverSeries,
+      },
+    }
+  })
+}
+
+export async function getRpsSignalSeries(args: {
+  ticker: string
+  startDate?: string
+  endDate?: string
+}): Promise<RpsSignalSeriesResult> {
+  const profile = await resolveRpsCustomTickerProfile(args.ticker)
+  const inputTicker = String(args.ticker || '').trim().toUpperCase()
+  const startDate = normalizeYmd10(args.startDate) || '2016-01-01'
+  const endDate = normalizeYmd10(args.endDate) || new Date().toISOString().slice(0, 10)
+  const cacheKey = `rps:signal-series:${profile.ticker}:${startDate}:${endDate}`
+  return await readCacheRemember(cacheKey, async () => {
+    const seriesOut = await computeRpsSeriesForTicker({ ticker: profile.ticker, startDate, endDate })
+    const series = seriesOut.series
+    const latest = series.length
+      ? {
+          date: series[series.length - 1].date,
+          targetCloseQfq: series[series.length - 1].targetCloseQfq,
+          benchmarkCloseQfq: series[series.length - 1].benchmarkCloseQfq,
+          rpsRaw: series[series.length - 1].rpsRaw,
+          rpsMa50: series[series.length - 1].rpsMa50,
+          scorePct: series[series.length - 1].scorePct,
+        }
+      : null
+    const dataDate = latest?.date ?? null
+    return {
+      meta: {
+        fetchedAt: new Date().toISOString(),
+        dataDate,
+        source: 'rps:signal-series',
+        notes: [
+          ...getRpsStyleComputationNotes(),
+          `input_ticker=${inputTicker}`,
+          `normalized_ticker=${profile.ticker}`,
+          `name_source=${profile.nameSource}`,
+          `target_source=${seriesOut.targetSource}`,
+          `benchmark_source=${seriesOut.benchmarkSource}`,
+          'signal_series_mode=price_and_score_only',
+        ],
+        isFallback: false,
+      },
+      data: {
+        inputTicker,
+        ticker: profile.ticker,
+        code: profile.code,
+        name: profile.name,
+        benchmarkTicker: seriesOut.benchmarkTicker,
+        benchmarkName: seriesOut.benchmarkName,
+        latest,
+        series,
       },
     }
   })

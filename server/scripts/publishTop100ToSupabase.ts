@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import { getRpsCustomQuery } from '../lib/rpsStyle.js'
+import { getRpsSignalSeries } from '../lib/rpsStyle.js'
 import { MOMENTUM_STRATEGIES } from '../../src/utils/momentumStrategies.ts'
 import { buildMomentumSignalsByStrategy, type MomentumSignalsByStrategy } from '../../src/utils/momentumSignalSnapshot.ts'
 
@@ -54,7 +54,7 @@ async function hydrateMomentumSignals(rows: unknown[], referenceDate: string): P
   }))
   return await mapWithConcurrency(candidates, 6, async (row) => {
     if (row.momentumSignals && typeof row.momentumSignals === 'object') return row
-    const out = await getRpsCustomQuery({ ticker: row.code })
+    const out = await getRpsSignalSeries({ ticker: row.code })
     return {
       ...row,
       momentumSignals: buildMomentumSignalsByStrategy({

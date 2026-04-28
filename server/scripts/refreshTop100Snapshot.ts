@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import path from 'node:path'
 import { ensureTop100Insight } from '../lib/top100Insight.js'
-import { getRpsCustomQuery } from '../lib/rpsStyle.js'
+import { getRpsSignalSeries } from '../lib/rpsStyle.js'
 import { MOMENTUM_STRATEGIES } from '../../src/utils/momentumStrategies.ts'
 import { buildMomentumSignalsByStrategy, type MomentumSignalsByStrategy } from '../../src/utils/momentumSignalSnapshot.ts'
 
@@ -109,7 +109,7 @@ async function hydrateMomentumSignals(rows: unknown[]): Promise<unknown[]> {
   }))
   const hydrated = await mapWithConcurrency(candidates, 6, async (row) => {
     const code = String(row.code || '').trim()
-    const out = await getRpsCustomQuery({ ticker: code })
+    const out = await getRpsSignalSeries({ ticker: code })
     return {
       ...row,
       momentumSignals: buildMomentumSignalsByStrategy({
