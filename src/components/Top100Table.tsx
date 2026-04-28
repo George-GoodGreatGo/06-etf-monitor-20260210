@@ -48,7 +48,7 @@ export default function Top100Table({
   buildRpsAnalysisHref?: (row: EtfTopRow) => string
 }) {
   const actionButtonClassName =
-    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[6px] border border-[#334155] bg-[#1E293B] px-3 py-1.5 text-xs font-medium text-[#E2E8F0] transition hover:border-[#475569] hover:bg-[#334155] hover:text-white'
+    'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[6px] border border-[#334155] bg-[#1E293B] px-2 py-1.5 text-[11px] font-medium text-[#E2E8F0] transition hover:border-[#475569] hover:bg-[#334155] hover:text-white'
   const data = sortRows(rows, sortKey, sortDir)
 
   function renderSignalCell(row: EtfTopRow) {
@@ -61,7 +61,7 @@ export default function Top100Table({
           ? 'border-[rgba(251,191,36,0.35)] bg-[rgba(120,53,15,0.35)] text-[#FDE68A]'
           : 'border-[rgba(16,185,129,0.35)] bg-[rgba(6,78,59,0.35)] text-[#BBF7D0]'
     return (
-      <span className={cn('inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium leading-none', toneClassName)}>
+      <span className={cn('inline-flex items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium leading-none', toneClassName)}>
         {signal.signalLabel}
       </span>
     )
@@ -84,15 +84,15 @@ export default function Top100Table({
   return (
     <section className="mt-4 overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] shadow-lg">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1160px] text-left text-sm">
+        <table className="w-full min-w-[920px] text-left text-sm">
           <thead className="whitespace-nowrap border-b border-[#1E293B] bg-[#0B1120] text-xs font-medium text-[#94A3B8]">
             <tr>
-              <th className="px-4 py-3">#</th>
+              <th className="px-2.5 py-2">#</th>
               <SortableTh
                 active={sortKey === 'code'}
                 dir={sortDir}
                 onClick={() => onToggleSort('code')}
-                className="min-w-[110px]"
+                className="min-w-[80px]"
               >
                 代码
               </SortableTh>
@@ -100,7 +100,7 @@ export default function Top100Table({
                 active={sortKey === 'name'}
                 dir={sortDir}
                 onClick={() => onToggleSort('name')}
-                className="min-w-[220px]"
+                className="min-w-[140px]"
               >
                 名称
               </SortableTh>
@@ -149,22 +149,22 @@ export default function Top100Table({
               >
                 90日Z
               </SortableTh>
-              <th className="px-4 py-3">交易信号</th>
-              <th className="px-4 py-3">信号新鲜度</th>
-              <th className="px-4 py-3 text-right">RPS分析</th>
-              <th className="px-4 py-3 text-right">异动详情</th>
+              <th className="px-2.5 py-2">交易信号</th>
+              <th className="px-2.5 py-2">新鲜度</th>
+              <th className="px-2.5 py-2 text-right">RPS分析</th>
+              <th className="px-2.5 py-2 text-right">异动详情</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#1E293B]">
             {loading ? (
               Array.from({ length: 8 }).map((_, idx) => (
                 <tr key={idx} className="animate-pulse">
-                  <td className="px-4 py-3 text-[#94A3B8]">{idx + 1}</td>
-                  <td className="px-4 py-3" colSpan={9}>
+                  <td className="px-2.5 py-2 text-[#94A3B8]">{idx + 1}</td>
+                  <td className="px-2.5 py-2" colSpan={9}>
                     <div className="h-4 w-full rounded bg-[#1E293B]" />
                   </td>
-                  <td className="px-4 py-3" />
-                  <td className="px-4 py-3" />
+                  <td className="px-2.5 py-2" />
+                  <td className="px-2.5 py-2" />
                 </tr>
               ))
             ) : data.length === 0 ? (
@@ -200,21 +200,21 @@ export default function Top100Table({
                       muted && 'opacity-70',
                     )}
                   >
-                    <td className="px-4 py-3 text-xs text-[#64748B]">{idx + 1}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-[#CBD5E1]">{r.code}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-2.5 py-2 text-xs text-[#64748B]">{idx + 1}</td>
+                    <td className="px-2.5 py-2 font-mono text-xs text-[#CBD5E1]">{r.code}</td>
+                    <td className="px-2.5 py-2">
                       <div className="font-medium text-[#F1F5F9]">{r.name}</div>
-                      <div className="mt-0.5 text-xs text-[#64748B]">
+                      <div className="mt-0.5 text-[11px] text-[#64748B]">
                         {formatYmd(r.latestTradingDate)}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-xs text-[#94A3B8]">
+                    <td className="px-2.5 py-2 text-right font-mono text-xs text-[#94A3B8]">
                       {r.volume == null ? '—' : formatCompactNumber(r.volume)}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-xs font-semibold text-[#F8FAFC]">
+                    <td className="px-2.5 py-2 text-right font-mono text-xs font-semibold text-[#F8FAFC]">
                       {r.turnover == null ? '—' : formatCompactNumber(r.turnover)}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-xs">
+                    <td className="px-2.5 py-2 text-right font-mono text-xs">
                       {r.turnoverChangePct1d == null ? (
                         <span className="text-[#94A3B8]">—</span>
                       ) : (
@@ -231,7 +231,7 @@ export default function Top100Table({
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-xs">
+                    <td className="px-2.5 py-2 text-right font-mono text-xs">
                       {r.turnoverChangePct7dAvg == null ? (
                         <span className="text-[#94A3B8]">—</span>
                       ) : (
@@ -248,14 +248,14 @@ export default function Top100Table({
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-2.5 py-2 text-right">
                       <div className="flex justify-end">
                         <ZBadge z={r.z90} status={r.dataStatus} />
                       </div>
                     </td>
-                    <td className="px-4 py-3">{renderSignalCell(r)}</td>
-                    <td className="px-4 py-3">{renderFreshnessCell(r)}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-2.5 py-2">{renderSignalCell(r)}</td>
+                    <td className="px-2.5 py-2">{renderFreshnessCell(r)}</td>
+                    <td className="px-2.5 py-2">
                       <div className="flex justify-end">
                         <a
                           href={buildRpsAnalysisHref ? buildRpsAnalysisHref(r) : `/market/rps/custom-query?ticker=${encodeURIComponent(r.code)}`}
@@ -268,7 +268,7 @@ export default function Top100Table({
                         </a>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2.5 py-2">
                       <div className="flex justify-end">
                         <a
                           href={`/etf/${encodeURIComponent(r.code)}`}

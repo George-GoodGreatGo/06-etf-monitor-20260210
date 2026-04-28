@@ -32,7 +32,7 @@ export default function SortableTh({
     <th
       title={title}
       className={cn(
-        'select-none px-4 py-3',
+        'select-none px-2.5 py-2',
         align === 'right' && 'text-right',
         className,
       )}

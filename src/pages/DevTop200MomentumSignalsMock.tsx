@@ -23,7 +23,7 @@ import {
 
 const STRATEGY_OPTIONS = MOMENTUM_STRATEGIES.map((strategy) => ({
   value: strategy.id,
-  label: `交易策略: ${strategy.label}`,
+  label: strategy.shortLabel,
 }))
 
 const MOCK_ROWS: EtfTopRow[] = [
