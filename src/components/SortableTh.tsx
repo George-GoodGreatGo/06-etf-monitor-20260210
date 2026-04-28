@@ -10,6 +10,7 @@ export default function SortableTh({
   onClick,
   align,
   className,
+  title,
 }: {
   children: React.ReactNode
   active: boolean
@@ -17,6 +18,7 @@ export default function SortableTh({
   onClick: () => void
   align?: 'left' | 'right'
   className?: string
+  title?: string
 }) {
   const icon = !active ? (
     <ChevronsUpDown className="h-[14px] w-[14px]" />
@@ -28,6 +30,7 @@ export default function SortableTh({
 
   return (
     <th
+      title={title}
       className={cn(
         'select-none px-4 py-3',
         align === 'right' && 'text-right',

@@ -56,10 +56,10 @@ export default function Top100Table({
     if (!signal?.signalLabel) return <span className="text-[#64748B]">—</span>
     const toneClassName =
       signal.signalKey === 'buy'
-        ? 'border-[rgba(248,113,113,0.28)] bg-[rgba(127,29,29,0.22)] text-[#FCA5A5]'
+        ? 'border-[rgba(248,113,113,0.35)] bg-[rgba(127,29,29,0.35)] text-[#FECACA]'
         : signal.signalKey === 'risk_sell'
-          ? 'border-[rgba(251,191,36,0.26)] bg-[rgba(120,53,15,0.24)] text-[#FCD34D]'
-          : 'border-[rgba(16,185,129,0.28)] bg-[rgba(6,78,59,0.22)] text-[#86EFAC]'
+          ? 'border-[rgba(251,191,36,0.35)] bg-[rgba(120,53,15,0.35)] text-[#FDE68A]'
+          : 'border-[rgba(16,185,129,0.35)] bg-[rgba(6,78,59,0.35)] text-[#BBF7D0]'
     return (
       <span className={cn('inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium leading-none', toneClassName)}>
         {signal.signalLabel}
@@ -109,38 +109,43 @@ export default function Top100Table({
                 dir={sortDir}
                 onClick={() => onToggleSort('volume')}
                 align="right"
+                title="今日成交量（份）"
               >
-                今日成交量(份)
+                成交量
               </SortableTh>
               <SortableTh
                 active={sortKey === 'turnover'}
                 dir={sortDir}
                 onClick={() => onToggleSort('turnover')}
                 align="right"
+                title="今日成交额（元）"
               >
-                今日成交额(元)
+                成交额
               </SortableTh>
               <SortableTh
                 active={sortKey === 'turnoverChangePct1d'}
                 dir={sortDir}
                 onClick={() => onToggleSort('turnoverChangePct1d')}
                 align="right"
+                title="成交额较昨日变化百分比"
               >
-                成交额较昨%
+                较昨±
               </SortableTh>
               <SortableTh
                 active={sortKey === 'turnoverChangePct7dAvg'}
                 dir={sortDir}
                 onClick={() => onToggleSort('turnoverChangePct7dAvg')}
                 align="right"
+                title="成交额较7日平均变化百分比"
               >
-                成交额较7日均%
+                较7日均±
               </SortableTh>
               <SortableTh
                 active={sortKey === 'z90'}
                 dir={sortDir}
                 onClick={() => onToggleSort('z90')}
                 align="right"
+                title="90日滚动Z值，衡量成交量偏离均值的程度"
               >
                 90日Z
               </SortableTh>
@@ -191,7 +196,7 @@ export default function Top100Table({
                   <tr
                     key={r.code}
                     className={cn(
-                      'transition hover:bg-[#1E293B]',
+                      'transition-colors duration-150 hover:bg-[rgba(255,87,34,0.06)] even:bg-[rgba(255,255,255,0.02)]',
                       muted && 'opacity-70',
                     )}
                   >
@@ -284,7 +289,7 @@ export default function Top100Table({
         </table>
       </div>
       <div className="flex items-center justify-between border-t border-[#1E293B] bg-[#0B1120] px-4 py-3 text-xs text-[#64748B]">
-        <div>{`正在显示 ${data.length} 条数据（滚动查看更多）`}</div>
+        <div>{`共 ${data.length} 条记录`}</div>
         <div>到底了</div>
       </div>
     </section>
