@@ -169,9 +169,9 @@ export default function DevTop200MomentumSignalsMock() {
   const [sortKey, setSortKey] = useState<Top100SortKey>('turnover')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [selectedStrategyId, setSelectedStrategyId] = useState<MomentumStrategyId>(DEFAULT_MOMENTUM_STRATEGY_ID)
-  const [selectedSignalFilter, setSelectedSignalFilter] = useState<Top200SignalFilterValue>('all')
-  const [selectedFreshnessFilter, setSelectedFreshnessFilter] = useState<Top200FreshnessFilterValue>('all')
-  const [selectedZFilter, setSelectedZFilter] = useState<Top200ZFilterValue>('all')
+  const [selectedSignalFilter, setSelectedSignalFilter] = useState<Top200SignalFilterValue>([])
+  const [selectedFreshnessFilter, setSelectedFreshnessFilter] = useState<Top200FreshnessFilterValue>([])
+  const [selectedZFilter, setSelectedZFilter] = useState<Top200ZFilterValue>([])
 
   const signalOptions = useMemo(
     () => buildSignalFilterOptions(MOCK_ROWS, selectedStrategyId),
@@ -182,9 +182,10 @@ export default function DevTop200MomentumSignalsMock() {
     MOMENTUM_STRATEGIES[0]
 
   useEffect(() => {
-    if (selectedSignalFilter === 'all') return
+    if (selectedSignalFilter.length === 0) return
     const allowed = new Set(signalOptions.map((option) => option.value))
-    if (!allowed.has(selectedSignalFilter)) setSelectedSignalFilter('all')
+    const filtered = selectedSignalFilter.filter((v) => allowed.has(v))
+    if (filtered.length !== selectedSignalFilter.length) setSelectedSignalFilter(filtered)
   }, [selectedSignalFilter, signalOptions])
 
   const filteredRows = useMemo(() => {
@@ -214,9 +215,9 @@ export default function DevTop200MomentumSignalsMock() {
     setSortKey('turnover')
     setSortDir('desc')
     setSelectedStrategyId(DEFAULT_MOMENTUM_STRATEGY_ID)
-    setSelectedSignalFilter('all')
-    setSelectedFreshnessFilter('all')
-    setSelectedZFilter('all')
+    setSelectedSignalFilter([])
+    setSelectedFreshnessFilter([])
+    setSelectedZFilter([])
   }
 
   return (
@@ -253,18 +254,18 @@ export default function DevTop200MomentumSignalsMock() {
             selectedStrategy={selectedStrategyId}
             onChangeStrategy={(value) => {
               setSelectedStrategyId(resolveMomentumStrategyId(value))
-              setSelectedSignalFilter('all')
-              setSelectedFreshnessFilter('all')
+              setSelectedSignalFilter([])
+              setSelectedFreshnessFilter([])
             }}
             signalOptions={signalOptions}
             selectedSignal={selectedSignalFilter}
             onChangeSignal={setSelectedSignalFilter}
             freshnessOptions={TOP200_FRESHNESS_FILTER_OPTIONS}
             selectedFreshness={selectedFreshnessFilter}
-            onChangeFreshness={(value) => setSelectedFreshnessFilter(value as Top200FreshnessFilterValue)}
+            onChangeFreshness={(value) => setSelectedFreshnessFilter(value)}
             zOptions={TOP200_Z_FILTER_OPTIONS}
             selectedZ={selectedZFilter}
-            onChangeZ={(value) => setSelectedZFilter(value as Top200ZFilterValue)}
+            onChangeZ={(value) => setSelectedZFilter(value)}
             onReset={onReset}
           />
           <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-3 text-xs text-[#94A3B8]">

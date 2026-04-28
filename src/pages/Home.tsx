@@ -210,9 +210,9 @@ export default function Home() {
   const [selectedStrategyId, setSelectedStrategyId] = useState<MomentumStrategyId>(() =>
     resolveMomentumStrategyId(searchParams.get('strategy') ?? DEFAULT_MOMENTUM_STRATEGY_ID),
   )
-  const [selectedSignalFilter, setSelectedSignalFilter] = useState<Top200SignalFilterValue>('all')
-  const [selectedFreshnessFilter, setSelectedFreshnessFilter] = useState<Top200FreshnessFilterValue>('all')
-  const [selectedZFilter, setSelectedZFilter] = useState<Top200ZFilterValue>('all')
+  const [selectedSignalFilter, setSelectedSignalFilter] = useState<Top200SignalFilterValue>([])
+  const [selectedFreshnessFilter, setSelectedFreshnessFilter] = useState<Top200FreshnessFilterValue>([])
+  const [selectedZFilter, setSelectedZFilter] = useState<Top200ZFilterValue>([])
 
   const [loading, setLoading] = useState(true)
   const [loadingMode, setLoadingMode] = useState<'fetch' | 'refetch' | 'cold'>('fetch')
@@ -655,9 +655,9 @@ export default function Home() {
     setSortKey(defaultSort.key)
     setSortDir(defaultSort.dir)
     setSelectedStrategyId(DEFAULT_MOMENTUM_STRATEGY_ID)
-    setSelectedSignalFilter('all')
-    setSelectedFreshnessFilter('all')
-    setSelectedZFilter('all')
+    setSelectedSignalFilter([])
+    setSelectedFreshnessFilter([])
+    setSelectedZFilter([])
   }
 
   const activeMomentumStrategy =
@@ -671,9 +671,10 @@ export default function Home() {
   )
 
   useEffect(() => {
-    if (selectedSignalFilter === 'all') return
+    if (selectedSignalFilter.length === 0) return
     const allowed = new Set(signalFilterOptions.map((option) => option.value))
-    if (!allowed.has(selectedSignalFilter)) setSelectedSignalFilter('all')
+    const filtered = selectedSignalFilter.filter((v) => allowed.has(v))
+    if (filtered.length !== selectedSignalFilter.length) setSelectedSignalFilter(filtered)
   }, [selectedSignalFilter, signalFilterOptions])
 
   const filteredRows = useMemo(() => {
@@ -881,18 +882,18 @@ export default function Home() {
                 selectedStrategy={selectedStrategyId}
                 onChangeStrategy={(value) => {
                   setSelectedStrategyId(resolveMomentumStrategyId(value))
-                  setSelectedSignalFilter('all')
-                  setSelectedFreshnessFilter('all')
+                  setSelectedSignalFilter([])
+                  setSelectedFreshnessFilter([])
                 }}
                 signalOptions={signalFilterOptions}
                 selectedSignal={selectedSignalFilter}
                 onChangeSignal={(value) => setSelectedSignalFilter(value)}
                 freshnessOptions={TOP200_FRESHNESS_FILTER_OPTIONS}
                 selectedFreshness={selectedFreshnessFilter}
-                onChangeFreshness={(value) => setSelectedFreshnessFilter(value as Top200FreshnessFilterValue)}
+                onChangeFreshness={(value) => setSelectedFreshnessFilter(value)}
                 zOptions={TOP200_Z_FILTER_OPTIONS}
                 selectedZ={selectedZFilter}
-                onChangeZ={(value) => setSelectedZFilter(value as Top200ZFilterValue)}
+                onChangeZ={(value) => setSelectedZFilter(value)}
                 onReset={onReset}
               />
               <div className="mt-3 flex flex-col gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-3 text-xs text-[#94A3B8] lg:flex-row lg:items-center lg:justify-between">

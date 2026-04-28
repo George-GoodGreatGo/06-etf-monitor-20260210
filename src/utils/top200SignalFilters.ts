@@ -7,9 +7,9 @@ export type FilterOption = {
   label: string
 }
 
-export type Top200SignalFilterValue = string
-export type Top200FreshnessFilterValue = 'all' | 'none' | MomentumSignalFreshnessBucket
-export type Top200ZFilterValue = 'all' | 'z_ge_258' | 'z_196_258' | 'z_165_196' | 'z_lt_165_or_missing'
+export type Top200SignalFilterValue = readonly string[]
+export type Top200FreshnessFilterValue = readonly string[]
+export type Top200ZFilterValue = readonly string[]
 
 const SIGNAL_LABEL_ORDER: Record<string, number> = {
   buy: 1,
@@ -18,7 +18,6 @@ const SIGNAL_LABEL_ORDER: Record<string, number> = {
 }
 
 export const TOP200_FRESHNESS_FILTER_OPTIONS: readonly FilterOption[] = [
-  { value: 'all', label: '全部新鲜度' },
   { value: 'today', label: '当天' },
   { value: 'within_3d', label: '3日内' },
   { value: 'within_5d', label: '5日内' },
@@ -27,7 +26,6 @@ export const TOP200_FRESHNESS_FILTER_OPTIONS: readonly FilterOption[] = [
 ]
 
 export const TOP200_Z_FILTER_OPTIONS: readonly FilterOption[] = [
-  { value: 'all', label: '全部Z值' },
   { value: 'z_ge_258', label: '|Z|>=2.58' },
   { value: 'z_196_258', label: '1.96<=|Z|<2.58' },
   { value: 'z_165_196', label: '1.65<=|Z|<1.96' },
@@ -53,7 +51,7 @@ export function buildSignalFilterOptions(rows: EtfTopRow[], strategyId: Momentum
       signalLabel: snapshot.signalLabel,
     })
   }
-  const options: FilterOption[] = [{ value: 'all', label: '全部信号' }]
+  const options: FilterOption[] = []
   const sorted = [...unique.values()].sort((a, b) => {
     const ao = SIGNAL_LABEL_ORDER[a.signalKey] ?? 999
     const bo = SIGNAL_LABEL_ORDER[b.signalKey] ?? 999
@@ -67,25 +65,36 @@ export function buildSignalFilterOptions(rows: EtfTopRow[], strategyId: Momentum
   return options
 }
 
-export function matchesSignalFilter(row: EtfTopRow, strategyId: MomentumStrategyId, value: Top200SignalFilterValue): boolean {
-  if (value === 'all') return true
+export function matchesSignalFilter(row: EtfTopRow, strategyId: MomentumStrategyId, values: Top200SignalFilterValue): boolean {
+  if (values.length === 0) return true
   const snapshot = getRowMomentumSignal(row, strategyId)
-  if (value === 'none') return !snapshot?.signalKey
-  return snapshot?.signalKey === value
+  if (values.includes('none')) {
+    if (!snapshot?.signalKey) return true
+    if (values.length === 1) return false
+    return values.includes(snapshot.signalKey)
+  }
+  return snapshot?.signalKey != null && values.includes(snapshot.signalKey)
 }
 
-export function matchesFreshnessFilter(row: EtfTopRow, strategyId: MomentumStrategyId, value: Top200FreshnessFilterValue): boolean {
-  if (value === 'all') return true
+export function matchesFreshnessFilter(row: EtfTopRow, strategyId: MomentumStrategyId, values: Top200FreshnessFilterValue): boolean {
+  if (values.length === 0) return true
   const snapshot = getRowMomentumSignal(row, strategyId)
-  if (value === 'none') return !snapshot?.freshnessBucket
-  return snapshot?.freshnessBucket === value
+  if (values.includes('none')) {
+    if (!snapshot?.freshnessBucket) return true
+    if (values.length === 1) return false
+    return values.includes(snapshot.freshnessBucket)
+  }
+  return snapshot?.freshnessBucket != null && values.includes(snapshot.freshnessBucket)
 }
 
-export function matchesZFilter(row: EtfTopRow, value: Top200ZFilterValue): boolean {
-  if (value === 'all') return true
+export function matchesZFilter(row: EtfTopRow, values: Top200ZFilterValue): boolean {
+  if (values.length === 0) return true
   const absZ = typeof row.z90 === 'number' && Number.isFinite(row.z90) ? Math.abs(row.z90) : null
-  if (value === 'z_ge_258') return absZ != null && absZ >= 2.58
-  if (value === 'z_196_258') return absZ != null && absZ >= 1.96 && absZ < 2.58
-  if (value === 'z_165_196') return absZ != null && absZ >= 1.65 && absZ < 1.96
-  return absZ == null || absZ < 1.65
+  for (const v of values) {
+    if (v === 'z_ge_258' && absZ != null && absZ >= 2.58) return true
+    if (v === 'z_196_258' && absZ != null && absZ >= 1.96 && absZ < 2.58) return true
+    if (v === 'z_165_196' && absZ != null && absZ >= 1.65 && absZ < 1.96) return true
+    if (v === 'z_lt_165_or_missing' && (absZ == null || absZ < 1.65)) return true
+  }
+  return false
 }

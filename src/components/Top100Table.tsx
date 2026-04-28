@@ -48,7 +48,7 @@ export default function Top100Table({
   buildRpsAnalysisHref?: (row: EtfTopRow) => string
 }) {
   const actionButtonClassName =
-    'inline-flex items-center justify-center gap-2 rounded-[6px] border border-[#334155] bg-[#1E293B] px-3 py-1.5 text-xs font-medium text-[#E2E8F0] transition hover:border-[#475569] hover:bg-[#334155] hover:text-white'
+    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[6px] border border-[#334155] bg-[#1E293B] px-3 py-1.5 text-xs font-medium text-[#E2E8F0] transition hover:border-[#475569] hover:bg-[#334155] hover:text-white'
   const data = sortRows(rows, sortKey, sortDir)
 
   function renderSignalCell(row: EtfTopRow) {
@@ -85,7 +85,7 @@ export default function Top100Table({
     <section className="mt-4 overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] shadow-lg">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1160px] text-left text-sm">
-          <thead className="border-b border-[#1E293B] bg-[#0B1120] text-xs font-medium text-[#94A3B8]">
+          <thead className="whitespace-nowrap border-b border-[#1E293B] bg-[#0B1120] text-xs font-medium text-[#94A3B8]">
             <tr>
               <th className="px-4 py-3">#</th>
               <SortableTh
@@ -196,7 +196,7 @@ export default function Top100Table({
                   <tr
                     key={r.code}
                     className={cn(
-                      'transition-colors duration-150 hover:bg-[rgba(255,87,34,0.06)] even:bg-[rgba(255,255,255,0.02)]',
+                      'transition-colors duration-150 hover:bg-[rgba(255,87,34,0.06)]',
                       muted && 'opacity-70',
                     )}
                   >
