@@ -993,78 +993,67 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
           </div>
 
           <section className="rounded-md border border-[rgba(248,250,252,0.08)] bg-[rgba(11,18,32,0.82)] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2.5">
               <div className="flex flex-col gap-1">
                 <div className="text-[13px] font-semibold text-[#F8FAFC]">关键图表指标</div>
                 <div className="text-[11px] leading-relaxed text-[#64748B]">
-                  先选择主图买卖点口径，再结合下方图例理解当前策略如何在图上标记买卖点。
+                  先选策略，再结合下方图例理解主图买卖点；当前为 {selectedStrategy.label}，
+                  <Link
+                    to={buildMomentumMethodPath(selectedStrategy.id)}
+                    className="ml-1 font-semibold text-[#93C5FD] transition hover:text-white"
+                  >
+                    查看分析方法
+                  </Link>
                 </div>
               </div>
-              <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7DD3FC]">策略选项</div>
-                  <div className="mt-2 inline-flex max-w-full flex-wrap justify-start gap-1.5 rounded-2xl border border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.82)] p-1">
-                    {MOMENTUM_STRATEGIES.map((strategy) => {
-                      const isActive = strategy.id === selectedStrategy.id
-                      const isDefault = strategy.roleLabel === '默认策略'
-                      return (
-                        <button
-                          key={strategy.id}
-                          type="button"
-                          onClick={() => updateSelectedStrategy(strategy.id)}
-                          aria-pressed={isActive}
-                          className={cn(
-                            'group flex min-w-[164px] items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left transition',
-                            isActive
-                              ? 'border-[rgba(125,211,252,0.42)] bg-[linear-gradient(135deg,rgba(8,47,73,0.46),rgba(14,116,144,0.24))] shadow-[inset_0_0_0_1px_rgba(125,211,252,0.14),0_4px_14px_rgba(8,47,73,0.18)]'
-                              : 'border-transparent bg-[rgba(15,23,42,0.26)] hover:border-[rgba(125,211,252,0.18)] hover:bg-[rgba(21,32,53,0.72)]',
-                          )}
-                          title={strategy.selectorDescription}
-                        >
-                          <div className="min-w-0">
-                            <div className={cn('text-[12px] font-semibold leading-4', isActive ? 'text-white' : 'text-[#E6EDF7]')}>
-                              {strategy.label}
-                            </div>
-                            <div className={cn('mt-0.5 text-[10px] leading-4', isActive ? 'text-[#CFE8FF]' : 'text-[#94A3B8]')}>
-                              {strategy.shortLabel}
-                            </div>
-                          </div>
-                          <div className="flex shrink-0 flex-col items-end gap-1">
-                            {isDefault ? (
-                              <span className="rounded-full border border-[rgba(125,211,252,0.18)] bg-[rgba(125,211,252,0.10)] px-1.5 py-0.5 text-[9px] font-semibold text-[#93C5FD]">
-                                默认
-                              </span>
-                            ) : null}
-                            {isActive ? (
-                              <span className="rounded-full border border-[rgba(52,211,153,0.20)] bg-[rgba(52,211,153,0.10)] px-1.5 py-0.5 text-[9px] font-semibold text-[#6EE7B7]">
-                                当前
-                              </span>
-                            ) : null}
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-                <div className="min-w-0 xl:max-w-[420px]">
-                  <div className="rounded-lg border border-[rgba(125,211,252,0.14)] bg-[rgba(8,47,73,0.10)] px-3 py-2">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] leading-relaxed">
-                      <span className="font-semibold text-[#F8FAFC]">{selectedStrategy.label}</span>
-                      <span className="rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-[#CBD5E1]">
-                        {selectedStrategy.roleLabel}
-                      </span>
-                      <span className="text-[#94A3B8]">
-                        {selectedStrategy.shortLabel}，{selectedStrategy.selectorDescription}
-                      </span>
-                      <Link
-                        to={buildMomentumMethodPath(selectedStrategy.id)}
-                        className="font-semibold text-[#93C5FD] transition hover:text-white"
-                      >
-                        查看分析方法
-                      </Link>
-                    </div>
-                  </div>
-                </div>
+              <div className="inline-flex max-w-full flex-wrap justify-start gap-1.5 rounded-2xl border border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.82)] p-1">
+                {MOMENTUM_STRATEGIES.map((strategy) => {
+                  const isActive = strategy.id === selectedStrategy.id
+                  const isDefault = strategy.roleLabel === '默认策略'
+                  return (
+                    <button
+                      key={strategy.id}
+                      type="button"
+                      onClick={() => updateSelectedStrategy(strategy.id)}
+                      aria-pressed={isActive}
+                      className={cn(
+                        'group flex min-w-[164px] items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left transition',
+                        isActive
+                          ? 'border-[rgba(125,211,252,0.42)] bg-[linear-gradient(135deg,rgba(8,47,73,0.46),rgba(14,116,144,0.24))] shadow-[inset_0_0_0_1px_rgba(125,211,252,0.14),0_4px_14px_rgba(8,47,73,0.18)]'
+                          : 'border-transparent bg-[rgba(15,23,42,0.26)] hover:border-[rgba(125,211,252,0.18)] hover:bg-[rgba(21,32,53,0.72)]',
+                      )}
+                      title={strategy.selectorDescription}
+                    >
+                      <div className="min-w-0">
+                        <div className={cn('text-[12px] font-semibold leading-4', isActive ? 'text-white' : 'text-[#E6EDF7]')}>
+                          {strategy.label}
+                        </div>
+                        <div className={cn('mt-0.5 text-[10px] leading-4', isActive ? 'text-[#CFE8FF]' : 'text-[#94A3B8]')}>
+                          {strategy.shortLabel}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        {isDefault ? (
+                          <span className="rounded-full border border-[rgba(125,211,252,0.18)] bg-[rgba(125,211,252,0.10)] px-1.5 py-0.5 text-[9px] font-semibold text-[#93C5FD]">
+                            默认
+                          </span>
+                        ) : null}
+                        {isActive ? (
+                          <span className="rounded-full border border-[rgba(52,211,153,0.20)] bg-[rgba(52,211,153,0.10)] px-1.5 py-0.5 text-[9px] font-semibold text-[#6EE7B7]">
+                            当前
+                          </span>
+                        ) : null}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="text-[11px] leading-relaxed text-[#94A3B8]">
+                <span className="font-medium text-[#CBD5E1]">{selectedStrategy.label}</span>
+                <span className="mx-1 text-[#64748B]">·</span>
+                {selectedStrategy.shortLabel}
+                <span className="mx-1 text-[#64748B]">·</span>
+                {selectedStrategy.selectorDescription}
               </div>
               <div className="flex flex-wrap gap-2 text-[11px] leading-5 text-[#CBD5E1]">
                 {selectedStrategy.signalLegend.map((item) => (
