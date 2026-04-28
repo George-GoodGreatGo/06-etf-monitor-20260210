@@ -34,6 +34,37 @@ type TopRowLike = {
   [key: string]: unknown
 }
 
+function buildSignalDebugTickerSet(): Set<string> {
+  const raw = String(process.env.TOP100_SIGNAL_DEBUG_TICKERS || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+  return new Set(raw)
+}
+
+function writeSignalDebugLog(args: {
+  code: string
+  referenceDate: string | null
+  series: Array<{ date: string; targetCloseQfq: number; scorePct: number | null }>
+  momentumSignals: MomentumSignalsByStrategy
+}) {
+  const debugTickers = buildSignalDebugTickerSet()
+  if (!debugTickers.size || !debugTickers.has(args.code)) return
+  process.stdout.write(
+    `${JSON.stringify(
+      {
+        type: 'top100_signal_debug',
+        code: args.code,
+        referenceDate: args.referenceDate,
+        tail: args.series.slice(-12),
+        momentumSignals: args.momentumSignals,
+      },
+      null,
+      2,
+    )}\n`,
+  )
+}
+
 function mustEnv(name: string): string {
   const v = String(process.env[name] || '').trim()
   if (!v) throw new Error(`missing env: ${name}`)
@@ -109,14 +140,25 @@ async function hydrateMomentumSignals(rows: unknown[]): Promise<unknown[]> {
   }))
   const hydrated = await mapWithConcurrency(candidates, 6, async (row) => {
     const code = String(row.code || '').trim()
-    const out = await getRpsSignalSeries({ ticker: code })
+    const referenceDate =
+      typeof row.latestTradingDate === 'string' && row.latestTradingDate.trim()
+        ? row.latestTradingDate.trim()
+        : null
+    const out = await getRpsSignalSeries({ ticker: code, endDate: referenceDate ?? undefined })
+    const momentumSignals = buildMomentumSignalsByStrategy({
+      series: out.data.series,
+      strategies,
+      referenceDate,
+    })
+    writeSignalDebugLog({
+      code,
+      referenceDate,
+      series: out.data.series,
+      momentumSignals,
+    })
     return {
       ...row,
-      momentumSignals: buildMomentumSignalsByStrategy({
-        series: out.data.series,
-        strategies,
-        referenceDate: row.latestTradingDate ?? out.meta.dataDate ?? null,
-      }),
+      momentumSignals,
     }
   })
   return hydrated

@@ -61,7 +61,7 @@ assert.equal(fallbackProfile.nameSource, 'fallback_code')
 
 assert.equal(
   buildRpsCustomQueryCacheKey('513310.SH', '2016-01-01', '2026-04-22'),
-  'rps:custom:v5:513310.SH:2016-01-01:2026-04-22',
+  'rps:custom:v6:513310.SH:2016-01-01:2026-04-22',
 )
 
 const turnoverHistory = Array.from({ length: 91 }, (_, index) => ({

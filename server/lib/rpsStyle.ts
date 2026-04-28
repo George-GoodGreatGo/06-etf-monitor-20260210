@@ -1,5 +1,5 @@
 import { fetchEastmoneyDailyKline, fetchEastmoneyDailyKlineWithAmount } from './eastmoneyKline.js'
-import { fetchLowVolIndexCloseSeries } from './lowVol.js'
+import { getLowVolIndexSnapshotSeries } from './lowVol.js'
 import { runAkshare } from './akshare.js'
 import { readRpsStyleMeta, readRpsStylePointsRange, type RpsStylePointRow } from './supabaseRest.js'
 
@@ -7,7 +7,8 @@ type CacheEntry<T> = { expiresAt: number; value: T }
 const readCache = new Map<string, CacheEntry<unknown>>()
 const readInflight = new Map<string, Promise<unknown>>()
 const READ_CACHE_TTL_MS = 5 * 60_000
-const RPS_CUSTOM_QUERY_CACHE_VERSION = 'v5'
+const RPS_CUSTOM_QUERY_CACHE_VERSION = 'v6'
+const RPS_SIGNAL_SERIES_CACHE_VERSION = 'v2'
 const RPS_ETF_NAME_HTTP_CACHE_VERSION = 'v1'
 const RPS_ETF_NAME_HTTP_SUCCESS_TTL_MS = 6 * 60 * 60_000
 const RPS_ETF_NAME_HTTP_FAILURE_TTL_MS = 30_000
@@ -452,17 +453,19 @@ async function fetchQfqDailyWithFallback(args: {
 async function fetchBenchmarkDailySeries(args: {
   startDate: string
   endDate: string
-}): Promise<{ source: 'csindex:index' | 'cnindex:index'; series: Array<{ date: string; close: number }> }> {
-  const beg = ymd8(args.startDate)
-  const end = ymd8(args.endDate)
-  if (!beg || !end) return { source: 'csindex:index', series: [] }
-  const rows = await fetchLowVolIndexCloseSeries({
+}): Promise<{
+  source: 'supabase:lowvol_index_point'
+  sourceType: 'supabase-table'
+  notes: string[]
+  dataDate: string | null
+  series: Array<{ date: string; close: number }>
+}> {
+  const out = await getLowVolIndexSnapshotSeries({
     code: RPS_BENCHMARK_TICKER,
-    kind: 'pri',
-    startDate8: beg,
-    endDate8: end,
+    startDate: args.startDate,
+    endDate: args.endDate,
   })
-  const series = rows
+  const series = out.data.series
     .map((row) => {
       const date = normalizeYmd10(row.date)
       const close = typeof row.close === 'number' && Number.isFinite(row.close) ? row.close : null
@@ -473,7 +476,51 @@ async function fetchBenchmarkDailySeries(args: {
   if (!series.length) {
     throw new Error(`benchmark index series empty: ${RPS_BENCHMARK_TICKER}`)
   }
-  return { source: 'csindex:index', series }
+  return {
+    source: 'supabase:lowvol_index_point',
+    sourceType: 'supabase-table',
+    notes: out.meta.notes,
+    dataDate: out.meta.dataDate,
+    series,
+  }
+}
+
+function buildSignalDebugTickerSet(): Set<string> {
+  const raw = String(process.env.RPS_SIGNAL_DEBUG_TICKERS || process.env.TOP100_SIGNAL_DEBUG_TICKERS || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+  return new Set(raw)
+}
+
+function writeRpsSignalDebugLog(args: {
+  ticker: string
+  context: 'custom_query' | 'signal_series'
+  referenceDate: string | null
+  targetSource: string
+  benchmarkSource: string
+  series: Array<{ date: string; targetCloseQfq: number; benchmarkCloseQfq: number; scorePct: number | null }>
+}) {
+  const debugTickers = buildSignalDebugTickerSet()
+  const ticker = String(args.ticker || '').trim().toUpperCase()
+  const code = tickerToCode(ticker)
+  if (!debugTickers.size || (!debugTickers.has(ticker) && !debugTickers.has(code))) return
+  process.stdout.write(
+    `${JSON.stringify(
+      {
+        type: 'rps_signal_debug',
+        context: args.context,
+        ticker,
+        code,
+        referenceDate: args.referenceDate,
+        targetSource: args.targetSource,
+        benchmarkSource: args.benchmarkSource,
+        tail: args.series.slice(-12),
+      },
+      null,
+      2,
+    )}\n`,
+  )
 }
 
 function getTickerProfileOrThrow(tickerRaw: string): RpsTickerProfile {
@@ -852,6 +899,8 @@ async function computeRpsSeriesForTicker(args: {
   benchmarkTicker: string
   benchmarkName: string
   benchmarkSource: string
+  benchmarkNotes: string[]
+  benchmarkDataDate: string | null
   targetSource: DataSourceName
   series: RpsComputedPoint[]
 }> {
@@ -875,6 +924,8 @@ async function computeRpsSeriesForTicker(args: {
     benchmarkTicker: RPS_BENCHMARK_TICKER,
     benchmarkName: RPS_BENCHMARK_NAME,
     benchmarkSource: benchmark.source,
+    benchmarkNotes: benchmark.notes,
+    benchmarkDataDate: benchmark.dataDate,
     targetSource: target.source,
     series,
   }
@@ -1327,6 +1378,14 @@ export async function getRpsCustomQuery(args: {
       latest,
       latestTurnoverSummary,
     }
+    writeRpsSignalDebugLog({
+      ticker: profile.ticker,
+      context: 'custom_query',
+      referenceDate: dataDate,
+      targetSource: seriesOut.targetSource,
+      benchmarkSource: seriesOut.benchmarkSource,
+      series,
+    })
     return {
       meta: {
         fetchedAt: new Date().toISOString(),
@@ -1339,10 +1398,12 @@ export async function getRpsCustomQuery(args: {
           `name_source=${profile.nameSource}`,
           `target_source=${seriesOut.targetSource}`,
           `benchmark_source=${seriesOut.benchmarkSource}`,
+          ...(seriesOut.benchmarkDataDate ? [`benchmark_data_date=${seriesOut.benchmarkDataDate}`] : []),
           `turnover_source=${turnoverOut.source}`,
           `custom_turnover_window=${RPS_CUSTOM_QUERY_TURNOVER_DISPLAY_DAYS} trading_days`,
           'custom_query_latest_metrics=latest_complete_trading_day_only',
           ...(effectiveDataDate ? [`effective_data_date=${effectiveDataDate}`] : []),
+          ...seriesOut.benchmarkNotes,
         ],
         isFallback: false,
       },
@@ -1372,10 +1433,13 @@ export async function getRpsSignalSeries(args: {
   const inputTicker = String(args.ticker || '').trim().toUpperCase()
   const startDate = normalizeYmd10(args.startDate) || '2016-01-01'
   const endDate = normalizeYmd10(args.endDate) || new Date().toISOString().slice(0, 10)
-  const cacheKey = `rps:signal-series:${profile.ticker}:${startDate}:${endDate}`
+  const cacheKey = `rps:signal-series:${RPS_SIGNAL_SERIES_CACHE_VERSION}:${profile.ticker}:${startDate}:${endDate}`
   return await readCacheRemember(cacheKey, async () => {
     const seriesOut = await computeRpsSeriesForTicker({ ticker: profile.ticker, startDate, endDate })
-    const series = seriesOut.series
+    const effectiveDataDate = resolveLatestCompleteTradingDate(
+      seriesOut.series.map((point) => point.date),
+    )
+    const series = clipSeriesToInclusiveEndDate(seriesOut.series, effectiveDataDate)
     const latest = series.length
       ? {
           date: series[series.length - 1].date,
@@ -1386,7 +1450,15 @@ export async function getRpsSignalSeries(args: {
           scorePct: series[series.length - 1].scorePct,
         }
       : null
-    const dataDate = latest?.date ?? null
+    const dataDate = effectiveDataDate ?? latest?.date ?? null
+    writeRpsSignalDebugLog({
+      ticker: profile.ticker,
+      context: 'signal_series',
+      referenceDate: dataDate,
+      targetSource: seriesOut.targetSource,
+      benchmarkSource: seriesOut.benchmarkSource,
+      series,
+    })
     return {
       meta: {
         fetchedAt: new Date().toISOString(),
@@ -1399,6 +1471,9 @@ export async function getRpsSignalSeries(args: {
           `name_source=${profile.nameSource}`,
           `target_source=${seriesOut.targetSource}`,
           `benchmark_source=${seriesOut.benchmarkSource}`,
+          ...(seriesOut.benchmarkDataDate ? [`benchmark_data_date=${seriesOut.benchmarkDataDate}`] : []),
+          ...(dataDate ? [`effective_data_date=${dataDate}`] : []),
+          ...seriesOut.benchmarkNotes,
           'signal_series_mode=price_and_score_only',
         ],
         isFallback: false,
