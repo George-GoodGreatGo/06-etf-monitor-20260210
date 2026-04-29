@@ -22,7 +22,7 @@ function TagGroup({
 
   return (
     <div className="flex items-start gap-2">
-      <span className="w-10 shrink-0 pt-1 text-sm font-medium text-[#94A3B8]">{label}</span>
+      <span className="w-10 shrink-0 pt-1 whitespace-nowrap text-sm font-medium text-[#94A3B8]">{label}</span>
       <div className="flex flex-wrap items-center gap-2">
         {options.map((opt) => {
           const active = selected.includes(opt.value)
@@ -60,7 +60,7 @@ function StrategyTagGroup({
 }) {
   return (
     <div className="flex items-start gap-2">
-      <span className="w-10 shrink-0 pt-1 text-sm font-medium text-[#94A3B8]">{label}</span>
+      <span className="w-10 shrink-0 pt-1 whitespace-nowrap text-sm font-medium text-[#94A3B8]">{label}</span>
       <div className="flex flex-wrap items-center gap-2">
         {options.map((opt) => {
           const active = selected === opt.value

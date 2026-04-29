@@ -23,7 +23,7 @@ import {
 
 const STRATEGY_OPTIONS = MOMENTUM_STRATEGIES.map((strategy) => ({
   value: strategy.id,
-  label: strategy.shortLabel,
+  label: strategy.label,
 }))
 
 const MOCK_ROWS: EtfTopRow[] = [

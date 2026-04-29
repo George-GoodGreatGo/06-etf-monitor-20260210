@@ -48,7 +48,7 @@ const defaultSort: { key: Top100SortKey; dir: SortDir } = {
 
 const TOP200_STRATEGY_OPTIONS = MOMENTUM_STRATEGIES.map((strategy) => ({
   value: strategy.id,
-  label: strategy.shortLabel,
+  label: strategy.label,
 }))
 
 type HomeTab = 'list' | 'insight' | 'liquidity' | 'lowvol' | 'value'
