@@ -21,26 +21,28 @@ function TagGroup({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="mr-1 text-xs font-medium text-[#94A3B8]">{label}</span>
-      {options.map((opt) => {
-        const active = selected.includes(opt.value)
-        return (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => toggle(opt.value)}
-            className={cn(
-              'rounded-full border px-2.5 py-1 text-[11px] font-medium leading-none transition',
-              active
-                ? 'border-[#FF5722] bg-[rgba(255,87,34,0.15)] text-white'
-                : 'border-white/10 bg-white/5 text-[#94A3B8] hover:border-white/20 hover:text-[#E2E8F0]',
-            )}
-          >
-            {opt.label}
-          </button>
-        )
-      })}
+    <div className="flex items-start gap-2">
+      <span className="w-10 shrink-0 pt-1 text-sm font-medium text-[#94A3B8]">{label}</span>
+      <div className="flex flex-wrap items-center gap-2">
+        {options.map((opt) => {
+          const active = selected.includes(opt.value)
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => toggle(opt.value)}
+              className={cn(
+                'rounded-full border px-3 py-1.5 text-xs font-medium leading-none transition',
+                active
+                  ? 'border-[#FF5722] bg-[rgba(255,87,34,0.15)] text-white'
+                  : 'border-white/10 bg-white/5 text-[#94A3B8] hover:border-white/20 hover:text-[#E2E8F0]',
+              )}
+            >
+              {opt.label}
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -57,28 +59,30 @@ function StrategyTagGroup({
   label: string
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="mr-1 text-xs font-medium text-[#94A3B8]">{label}</span>
-      {options.map((opt) => {
-        const active = selected === opt.value
-        return (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => {
-              if (!active) onChange(opt.value)
-            }}
-            className={cn(
-              'rounded-full border px-2.5 py-1 text-[11px] font-medium leading-none transition',
-              active
-                ? 'border-[#FF5722] bg-[rgba(255,87,34,0.15)] text-white'
-                : 'border-white/10 bg-white/5 text-[#94A3B8] hover:border-white/20 hover:text-[#E2E8F0]',
-            )}
-          >
-            {opt.label}
-          </button>
-        )
-      })}
+    <div className="flex items-start gap-2">
+      <span className="w-10 shrink-0 pt-1 text-sm font-medium text-[#94A3B8]">{label}</span>
+      <div className="flex flex-wrap items-center gap-2">
+        {options.map((opt) => {
+          const active = selected === opt.value
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => {
+                if (!active) onChange(opt.value)
+              }}
+              className={cn(
+                'rounded-full border px-3 py-1.5 text-xs font-medium leading-none transition',
+                active
+                  ? 'border-[#FF5722] bg-[rgba(255,87,34,0.15)] text-white'
+                  : 'border-white/10 bg-white/5 text-[#94A3B8] hover:border-white/20 hover:text-[#E2E8F0]',
+              )}
+            >
+              {opt.label}
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -122,42 +126,40 @@ export default function Top100FilterBar({
     (selectedZ && selectedZ.length > 0)
 
   return (
-    <div className="flex w-full flex-col gap-2 xl:flex-row xl:items-start xl:justify-between">
-      <div className="flex w-full flex-col gap-2">
-        <div className="flex flex-col gap-2">
-          {strategyOptions && selectedStrategy != null && onChangeStrategy ? (
-            <StrategyTagGroup
-              options={strategyOptions}
-              selected={selectedStrategy}
-              onChange={onChangeStrategy}
-              label="策略"
-            />
-          ) : null}
-          {signalOptions && selectedSignal != null && onChangeSignal ? (
-            <TagGroup
-              options={signalOptions}
-              selected={selectedSignal}
-              onChange={onChangeSignal}
-              label="信号"
-            />
-          ) : null}
-          {freshnessOptions && selectedFreshness != null && onChangeFreshness ? (
-            <TagGroup
-              options={freshnessOptions}
-              selected={selectedFreshness}
-              onChange={onChangeFreshness}
-              label="新鲜度"
-            />
-          ) : null}
-          {zOptions && selectedZ != null && onChangeZ ? (
-            <TagGroup
-              options={zOptions}
-              selected={selectedZ}
-              onChange={onChangeZ}
-              label="Z值"
-            />
-          ) : null}
-        </div>
+    <div className="flex w-full flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+      <div className="flex w-full flex-col gap-2.5">
+        {strategyOptions && selectedStrategy != null && onChangeStrategy ? (
+          <StrategyTagGroup
+            options={strategyOptions}
+            selected={selectedStrategy}
+            onChange={onChangeStrategy}
+            label="策略"
+          />
+        ) : null}
+        {signalOptions && selectedSignal != null && onChangeSignal ? (
+          <TagGroup
+            options={signalOptions}
+            selected={selectedSignal}
+            onChange={onChangeSignal}
+            label="信号"
+          />
+        ) : null}
+        {freshnessOptions && selectedFreshness != null && onChangeFreshness ? (
+          <TagGroup
+            options={freshnessOptions}
+            selected={selectedFreshness}
+            onChange={onChangeFreshness}
+            label="新鲜度"
+          />
+        ) : null}
+        {zOptions && selectedZ != null && onChangeZ ? (
+          <TagGroup
+            options={zOptions}
+            selected={selectedZ}
+            onChange={onChangeZ}
+            label="Z值"
+          />
+        ) : null}
       </div>
 
       <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 xl:w-auto">
@@ -179,7 +181,7 @@ export default function Top100FilterBar({
           type="button"
           onClick={onReset}
           className={cn(
-            'inline-flex h-10 items-center justify-center gap-2 rounded-[6px] border px-4 text-sm font-medium transition',
+            'inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[6px] border px-4 text-sm font-medium transition',
             hasAnyFilter
               ? 'border-[#FF5722] bg-[#FF5722] text-white hover:brightness-110'
               : 'border-[#1E293B] bg-[#0F172A] text-[#FF5722] hover:border-[#334155] hover:bg-[#1E293B]',
