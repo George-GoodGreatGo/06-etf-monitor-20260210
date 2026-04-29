@@ -2,9 +2,9 @@ name: Refresh Top100 Snapshot
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 14 * * 1-5'
-    - cron: '59 15 * * 1-5'
+  workflow_run:
+    workflows: ["Refresh LowVol Snapshots"]
+    types: [completed]
 
 permissions:
   contents: read
@@ -15,6 +15,7 @@ concurrency:
 
 jobs:
   refresh:
+    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:

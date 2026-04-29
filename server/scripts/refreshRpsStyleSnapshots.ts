@@ -134,6 +134,20 @@ async function main() {
   const benchmarkMeta = getRpsStyleBenchmarkMeta()
   process.stdout.write(`[rps] start runId=${runId} prevVisible=${prevVisible || 'null'} tickers=${tickers.length}\n`)
 
+  const { getLowVolIndexSnapshotSeries } = await import('../lib/lowVol.js')
+  const benchmarkCheck = await getLowVolIndexSnapshotSeries({
+    code: 'H30269',
+    startDate: endDate10,
+    endDate: endDate10,
+  })
+  const benchmarkLatest = benchmarkCheck.data.series.map((s) => s.date).sort().pop()
+  if (benchmarkLatest && benchmarkLatest < endDate10) {
+    process.stdout.write(
+      `[rps] skip: H30269基准数据滞后（H30269=${benchmarkLatest} < target=${endDate10}），跳过本次运行\n`,
+    )
+    process.exit(0)
+  }
+
   try {
     const dataset = await computeRpsStyleDataset({
       startDate: ymd8ToYmd10(startDate8),

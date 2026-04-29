@@ -1,16 +1,14 @@
 name: Refresh RPS Style Snapshots
 
 on:
-  schedule:
-    # GitHub cron uses UTC.
-    # Beijing weekdays 19:30–23:59 = UTC weekdays 11:30–15:59.
-    # Run every 30 minutes in the window.
-    - cron: "30 11-15 * * 1-5"
-    - cron: "0 12-15 * * 1-5"
   workflow_dispatch: {}
+  workflow_run:
+    workflows: ["Refresh LowVol Snapshots"]
+    types: [completed]
 
 jobs:
   refresh:
+    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -39,18 +37,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r server/python/requirements.txt
 
-      - name: Refresh (scheduled)
-        if: github.event_name == 'schedule'
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          AKSHARE_RETRIES: "5"
-          AKSHARE_RETRY_SLEEP_SEC: "1.0"
-        run: |
-          npx tsx server/scripts/refreshRpsStyleSnapshots.ts
-
-      - name: Refresh (manual)
-        if: github.event_name == 'workflow_dispatch'
+      - name: Refresh
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

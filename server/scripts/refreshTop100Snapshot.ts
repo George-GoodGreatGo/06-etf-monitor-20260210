@@ -201,6 +201,28 @@ async function upsertToSupabase(ok: AkshareOk<unknown[]>) {
 async function main() {
   const limit = Number.parseInt(String(process.env.TOP100_LIMIT || '200'), 10) || 200
   const ok = await computeTop100(Math.max(1, Math.min(200, limit)))
+
+  const maxLatestTradingDate = (ok.data as TopRowLike[])
+    .map((r) => (typeof r.latestTradingDate === 'string' ? r.latestTradingDate.trim() : ''))
+    .filter(Boolean)
+    .sort()
+    .pop()
+  if (maxLatestTradingDate) {
+    const { getLowVolIndexSnapshotSeries } = await import('../lib/lowVol.js')
+    const benchmarkCheck = await getLowVolIndexSnapshotSeries({
+      code: 'H30269',
+      startDate: maxLatestTradingDate,
+      endDate: maxLatestTradingDate,
+    })
+    const benchmarkLatest = benchmarkCheck.data.series.map((s) => s.date).sort().pop()
+    if (benchmarkLatest && benchmarkLatest < maxLatestTradingDate) {
+      process.stdout.write(
+        `[top100] skip: H30269基准数据滞后（H30269=${benchmarkLatest} < ETF=${maxLatestTradingDate}），跳过本次运行\n`,
+      )
+      process.exit(0)
+    }
+  }
+
   const rowsWithSignals = await hydrateMomentumSignals(ok.data)
   const enriched: AkshareOk<unknown[]> = {
     ...ok,

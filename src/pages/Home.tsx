@@ -8,7 +8,7 @@ import Top100InsightPanel from '@/components/Top100InsightPanel'
 import MarketLiquidityPanel from '@/components/MarketLiquidityPanel'
 import LowVolOpportunityPanel from '@/components/LowVolOpportunityPanel'
 import ValueTimingPanel from '../components/ValueTimingPanel'
-import { Loader2, ChevronUp, ChevronDown } from 'lucide-react'
+import { ChevronUp, ChevronDown } from 'lucide-react'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { cn } from '@/lib/utils'
 import {
@@ -219,16 +219,11 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null)
   const [meta, setMeta] = useState<Top100Meta | null>(null)
   const [rows, setRows] = useState<EtfTopRow[]>([])
-  const [adminNotice, setAdminNotice] = useState<{ tone: 'info' | 'warn'; message: string } | null>(null)
-  const [adminRefreshing, setAdminRefreshing] = useState(false)
-
   const metaRef = useRef<Top100Meta | null>(null)
 
   const [progressToken, setProgressToken] = useState<string | null>(null)
   const [backendProgressText, setBackendProgressText] = useState<string | null>(null)
   const [treatAsRefetch, setTreatAsRefetch] = useState(false)
-
-  const activeRefetchTokenKey = 'etf_monitor_active_refetch_token'
 
   const refetchEtaMs = 180_000
   const refetchEtaSeconds = Math.round(refetchEtaMs / 1000)
@@ -237,8 +232,6 @@ export default function Home() {
 
   const reqSeqRef = useRef(0)
   const mountedRef = useRef(true)
-
-  const [isVercelBackend, setIsVercelBackend] = useState<boolean | null>(null)
 
   useEffect(() => {
     mountedRef.current = true
@@ -251,20 +244,6 @@ export default function Home() {
     metaRef.current = meta
   }, [meta])
 
-  useEffect(() => {
-    const run = async () => {
-      try {
-        const res = await fetch(apiUrl('/api/health'), { credentials: 'include', headers: { ...adminAuthHeaders() } })
-        const j = (await res.json()) as unknown
-        if (typeof j !== 'object' || j === null) return
-        const v = (j as Record<string, unknown>).isVercel
-        if (typeof v === 'boolean') setIsVercelBackend(v)
-      } catch {
-        return
-      }
-    }
-    void run()
-  }, [])
 
   useEffect(() => {
     if (rawTab === 'rps') {
@@ -507,12 +486,6 @@ export default function Home() {
       setLoading(false)
       setProgressToken(null)
       setBackendProgressText(null)
-      if (mode === 'refetch' && opts?.refreshToken) {
-        const active = window.localStorage.getItem(activeRefetchTokenKey)
-        if (active && active === opts.refreshToken) {
-          window.localStorage.removeItem(activeRefetchTokenKey)
-        }
-      }
     } catch {
       window.clearTimeout(timeoutId)
       if (!mountedRef.current || seq !== reqSeqRef.current) return
@@ -522,12 +495,6 @@ export default function Home() {
       setLoading(false)
       setProgressToken(null)
       setBackendProgressText(null)
-      if (mode === 'refetch' && opts?.refreshToken) {
-        const active = window.localStorage.getItem(activeRefetchTokenKey)
-        if (active && active === opts.refreshToken) {
-          window.localStorage.removeItem(activeRefetchTokenKey)
-        }
-      }
     }
   }
 
@@ -619,17 +586,6 @@ export default function Home() {
   useEffect(() => {
     const seq = ++reqSeqRef.current
 
-    const activeRefetchToken = window.localStorage.getItem(activeRefetchTokenKey)
-    if (activeRefetchToken && /^\d+$/.test(activeRefetchToken)) {
-      const startedAt = Number(activeRefetchToken)
-      const maxAgeMs = 20 * 60_000
-      if (Number.isFinite(startedAt) && Date.now() - startedAt < maxAgeMs) {
-        void runFetch(seq, { mode: 'refetch', refreshToken: activeRefetchToken })
-        return
-      }
-      window.localStorage.removeItem(activeRefetchTokenKey)
-    }
-
     void runFetch(seq, { mode: 'fetch' })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -698,105 +654,9 @@ export default function Home() {
     selectedZFilter,
   ])
 
-  const onRefetch = () => {
-    if (isVercelBackend) {
-      if (adminRefreshing) return
-      const startedAt = Date.now()
-
-      setAdminRefreshing(true)
-      setAdminNotice({ tone: 'info', message: '已触发后台刷新任务（GitHub Actions），等待写入 Supabase 快照…' })
-      setError(null)
-
-      const prevFetchedAt = metaRef.current?.fetchedAt || null
-
-      const hardTimeoutMs = 20 * 60_000
-      const pollIntervalMs = 8_000
-
-      void (async () => {
-        try {
-          const res = await fetch(apiUrl('/api/admin/refresh'), {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-              'Content-Type': 'application/json',
-              ...adminAuthHeaders(),
-            },
-            body: JSON.stringify({ at: startedAt }),
-          })
-          const j = (await res.json().catch(() => null)) as unknown
-          if (!res.ok) {
-            const msg =
-              j && typeof j === 'object' && (j as Record<string, unknown>).message
-                ? String((j as Record<string, unknown>).message)
-                : `触发刷新失败（HTTP ${res.status}）`
-            throw new Error(msg)
-          }
-
-          const started = Date.now()
-          let attempts = 0
-          while (mountedRef.current) {
-            const elapsed = Date.now() - started
-            if (elapsed > hardTimeoutMs) {
-              setAdminNotice({
-                tone: 'warn',
-                message: '刷新已触发，但快照写入可能仍在排队；你可以稍后再点一次“重新获取”，或等待页面下次拉取。',
-              })
-              break
-            }
-
-            attempts += 1
-            setAdminNotice({ tone: 'info', message: `刷新任务运行中…（已等待 ${Math.ceil(elapsed / 1000)}s）` })
-
-            const ac = new AbortController()
-            const timeoutId = window.setTimeout(() => ac.abort(), 60_000)
-            try {
-              const out = await fetchEtfTop100(
-                {
-                  limit: 200,
-                },
-                ac.signal,
-              )
-              if (out.success === true) {
-                setMeta(out.meta)
-                setRows(out.data)
-                const nextFetchedAt = out.meta?.fetchedAt || null
-                const updated =
-                  (prevFetchedAt && nextFetchedAt && nextFetchedAt !== prevFetchedAt) ||
-                  (!prevFetchedAt && nextFetchedAt)
-                if (updated) {
-                  setAdminNotice(null)
-                  break
-                }
-              }
-            } catch {
-              void 0
-            } finally {
-              window.clearTimeout(timeoutId)
-            }
-
-            await new Promise((r) => window.setTimeout(r, pollIntervalMs))
-            if (attempts > 9999) break
-          }
-        } catch (e) {
-          if (!mountedRef.current) return
-          setError(e instanceof Error ? e.message : String(e))
-        } finally {
-          if (mountedRef.current) setAdminRefreshing(false)
-        }
-      })()
-
-      return
-    }
-
-    const seq = ++reqSeqRef.current
-    const startedAt = Date.now()
-    window.localStorage.setItem(activeRefetchTokenKey, String(startedAt))
-    void runFetch(seq, { refreshToken: String(startedAt), mode: 'refetch' })
-  }
-
   const lowVolActiveOpt = LOWVOL_INDEX_OPTIONS.find((x) => x.code === lowVolIndexCode) ?? null
   const showTop200Header = tab === 'list' || tab === 'insight'
-  const top200Refetching = adminRefreshing || (loading && (loadingMode === 'refetch' || treatAsRefetch))
+  const top200Refetching = (loading && (loadingMode === 'refetch' || treatAsRefetch))
   const top200RightMeta = meta
     ? {
         fetchedAt: meta.cachedAt || meta.fetchedAt,
@@ -839,22 +699,12 @@ export default function Home() {
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={onRefetch}
-                disabled={top200Refetching}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-[6px] bg-[#FF5722] px-4 text-xs font-semibold text-white shadow-[0px_4px_6px_-4px_rgba(0,0,0,0.35),0px_10px_15px_-3px_rgba(0,0,0,0.35)] transition hover:brightness-110 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {top200Refetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <img src="/figma/list/refetch_icon.svg" alt="" className="h-4 w-4 select-none" aria-hidden="true" />}
-                重新获取
-              </button>
-            </div>
+                          </div>
           </div>
 
           <DataStatusBanner
             loading={loading}
             error={error}
-            notice={adminNotice}
             meta={meta}
             incompleteCount={incompleteCount}
             loadingMode={
