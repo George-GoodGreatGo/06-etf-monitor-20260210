@@ -1,0 +1,7 @@
+- [x] sortRows 调用已被 useMemo 包裹，依赖项为 [rows, sortKey, sortDir]
+- [x] Top100Table 已用 React.memo 包裹
+- [x] 排序功能仍正常工作（点击表头切换排序键/方向）
+- [x] 筛选功能仍正常工作（关键词搜索、策略切换、信号/新鲜度/Z值筛选）
+- [x] 表格数据正确显示（200条记录，所有12列）
+- [x] 无 TypeScript 编译错误
+- [x] 无 ESLint 警告

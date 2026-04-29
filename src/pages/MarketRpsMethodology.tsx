@@ -47,35 +47,38 @@ export default function MarketRpsMethodology() {
         ]}
       />
 
-      <section className="rounded-lg border border-[#1E293B] bg-[#0F172A] px-5 py-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#93C5FD]">Strategy Selector</div>
-            <div className="mt-1 text-base font-semibold text-white">策略选择</div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {MOMENTUM_STRATEGIES.map((item) => {
-              const isActive = item.id === strategy.id
-              return (
-                <Link
-                  key={item.id}
-                  to={buildMomentumMethodPath(item.id)}
+      <nav className="border-b border-white/10">
+        <div className="flex items-center gap-1">
+          {MOMENTUM_STRATEGIES.map((item) => {
+            const isActive = item.id === strategy.id
+            const isDefault = item.roleLabel === '默认策略'
+            return (
+              <Link
+                key={item.id}
+                to={buildMomentumMethodPath(item.id)}
+                className={
+                  isActive
+                    ? 'inline-flex items-center gap-1.5 border-b-2 border-[#7DD3FC] px-4 py-2.5 text-sm font-medium text-white transition-all duration-200 ease-in-out'
+                    : 'inline-flex items-center gap-1.5 border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-[#94A3B8] transition-all duration-200 ease-in-out hover:border-white/20 hover:text-white'
+                }
+                title={item.selectorDescription}
+              >
+                <span>{item.label}</span>
+                <span
                   className={
-                    isActive
-                      ? 'inline-flex items-center gap-2 rounded-full border border-[rgba(125,211,252,0.42)] bg-[rgba(14,116,144,0.18)] px-3 py-1 text-[12px] font-semibold text-[#E0F2FE]'
-                      : 'inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#0B1220] px-3 py-1 text-[12px] font-semibold text-[#A9B6CC] transition hover:border-white/20 hover:text-white'
+                    isDefault
+                      ? 'rounded px-1.5 py-0.5 text-[10px] font-semibold bg-[rgba(125,211,252,0.12)] text-[#7DD3FC]'
+                      : 'rounded px-1.5 py-0.5 text-[10px] font-semibold bg-[rgba(148,163,184,0.10)] text-[#94A3B8]'
                   }
-                  title={item.selectorDescription}
                 >
-                  <span>{item.label}</span>
-                  <span className="text-[10px] font-medium text-[#7DD3FC]">{item.roleLabel}</span>
-                </Link>
-              )
-            })}
-          </div>
+                  {item.roleLabel}
+                </span>
+              </Link>
+            )
+          })}
         </div>
-        <p className="mt-3 text-sm leading-6 text-[#A9B6CC]">{strategy.selectorDescription}</p>
-      </section>
+        <p className="mt-2 pb-3 text-xs leading-5 text-[#64748B]">{strategy.selectorDescription}</p>
+      </nav>
 
       <section className="overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] shadow-lg">
         <div className="border-b border-white/10 px-5 py-5">

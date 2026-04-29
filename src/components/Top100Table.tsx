@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react'
 import { ArrowUpDown, ExternalLink } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import SortableTh, { type SortDir } from '@/components/SortableTh'
@@ -28,7 +29,7 @@ function sortRows(rows: EtfTopRow[], key: Top100SortKey, dir: SortDir) {
   })
 }
 
-export default function Top100Table({
+export default memo(function Top100Table({
   rows,
   loading,
   error,
@@ -49,7 +50,7 @@ export default function Top100Table({
 }) {
   const actionButtonClassName =
     'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[6px] border border-[#334155] bg-[#1E293B] px-2 py-1.5 text-[11px] font-medium text-[#E2E8F0] transition hover:border-[#475569] hover:bg-[#334155] hover:text-white'
-  const data = sortRows(rows, sortKey, sortDir)
+  const data = useMemo(() => sortRows(rows, sortKey, sortDir), [rows, sortKey, sortDir])
 
   function renderSignalCell(row: EtfTopRow) {
     const signal = getRowMomentumSignal(row, strategyId)
@@ -294,4 +295,4 @@ export default function Top100Table({
       </div>
     </section>
   )
-}
+})
