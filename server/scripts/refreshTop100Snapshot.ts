@@ -209,15 +209,22 @@ async function main() {
     .pop()
   if (maxLatestTradingDate) {
     const { getLowVolIndexSnapshotSeries } = await import('../lib/lowVol.js')
-    const benchmarkCheck = await getLowVolIndexSnapshotSeries({
-      code: 'H30269',
-      startDate: maxLatestTradingDate,
-      endDate: maxLatestTradingDate,
-    })
-    const benchmarkLatest = benchmarkCheck.data.series.map((s) => s.date).sort().pop()
-    if (benchmarkLatest && benchmarkLatest < maxLatestTradingDate) {
+    try {
+      const benchmarkCheck = await getLowVolIndexSnapshotSeries({
+        code: 'H30269',
+        startDate: maxLatestTradingDate,
+        endDate: maxLatestTradingDate,
+      })
+      const benchmarkLatest = benchmarkCheck.data.series.map((s) => s.date).sort().pop()
+      if (benchmarkLatest && benchmarkLatest < maxLatestTradingDate) {
+        process.stdout.write(
+          `[top100] skip: H30269基准数据滞后（H30269=${benchmarkLatest} < ETF=${maxLatestTradingDate}），跳过本次运行\n`,
+        )
+        process.exit(0)
+      }
+    } catch {
       process.stdout.write(
-        `[top100] skip: H30269基准数据滞后（H30269=${benchmarkLatest} < ETF=${maxLatestTradingDate}），跳过本次运行\n`,
+        `[top100] skip: H30269基准数据不可用（无${maxLatestTradingDate}数据），跳过本次运行\n`,
       )
       process.exit(0)
     }

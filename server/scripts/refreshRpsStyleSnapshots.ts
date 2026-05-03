@@ -135,15 +135,22 @@ async function main() {
   process.stdout.write(`[rps] start runId=${runId} prevVisible=${prevVisible || 'null'} tickers=${tickers.length}\n`)
 
   const { getLowVolIndexSnapshotSeries } = await import('../lib/lowVol.js')
-  const benchmarkCheck = await getLowVolIndexSnapshotSeries({
-    code: 'H30269',
-    startDate: endDate10,
-    endDate: endDate10,
-  })
-  const benchmarkLatest = benchmarkCheck.data.series.map((s) => s.date).sort().pop()
-  if (benchmarkLatest && benchmarkLatest < endDate10) {
+  try {
+    const benchmarkCheck = await getLowVolIndexSnapshotSeries({
+      code: 'H30269',
+      startDate: endDate10,
+      endDate: endDate10,
+    })
+    const benchmarkLatest = benchmarkCheck.data.series.map((s) => s.date).sort().pop()
+    if (benchmarkLatest && benchmarkLatest < endDate10) {
+      process.stdout.write(
+        `[rps] skip: H30269基准数据滞后（H30269=${benchmarkLatest} < target=${endDate10}），跳过本次运行\n`,
+      )
+      process.exit(0)
+    }
+  } catch {
     process.stdout.write(
-      `[rps] skip: H30269基准数据滞后（H30269=${benchmarkLatest} < target=${endDate10}），跳过本次运行\n`,
+      `[rps] skip: H30269基准数据不可用（无${endDate10}数据），跳过本次运行\n`,
     )
     process.exit(0)
   }
