@@ -383,6 +383,7 @@ async function readSupabasePaged<T extends object>(args: {
       headers: {
         apikey: args.readKey,
         Authorization: `Bearer ${args.readKey}`,
+        'Cache-Control': 'no-cache',
       },
     })
     if (!res.ok) return out
@@ -715,6 +716,7 @@ export async function readLowVolMeta(): Promise<LowVolMetaRow | null> {
     headers: {
       apikey: readKey,
       Authorization: `Bearer ${readKey}`,
+      'Cache-Control': 'no-cache',
     },
   })
   if (!res.ok) return null
@@ -1311,6 +1313,7 @@ export async function readRpsStyleMeta(): Promise<RpsStyleMetaRow | null> {
     headers: {
       apikey: readKey,
       Authorization: `Bearer ${readKey}`,
+      'Cache-Control': 'no-cache',
     },
   })
   if (!res.ok) return null

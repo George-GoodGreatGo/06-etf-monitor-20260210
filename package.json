@@ -15,8 +15,7 @@
     "publish:supabase:top100": "tsx server/scripts/publishTop100ToSupabase.ts",
     "refresh:supabase:top100": "tsx server/scripts/refreshTop100Snapshot.ts",
     "refresh:supabase:market-board": "tsx server/scripts/refreshMarketBoardPoints.ts --mode incremental",
-    "backfill:supabase:market-board": "tsx server/scripts/refreshMarketBoardPoints.ts --mode backfill",
-    "debug:518800": "tsx server/scripts/debug518800.ts"
+    "backfill:supabase:market-board": "tsx server/scripts/refreshMarketBoardPoints.ts --mode backfill"
   },
   "dependencies": {
     "clsx": "^2.1.1",
