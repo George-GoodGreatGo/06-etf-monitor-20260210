@@ -50,6 +50,11 @@ assertContainsAll(publishRpsSql, [
 
 const recentSearchSql = await readMigration('supabase/migrations/0015_rps_custom_recent_search.sql')
 assertContainsAll(recentSearchSql, [
+  'drop policy if exists "deny direct access to rps recent search" on public.rps_custom_recent_search;',
+  'create policy "deny direct access to rps recent search"',
+  'to anon, authenticated',
+  'using (false)',
+  'with check (false);',
   'security definer',
   'set search_path = public',
   'revoke execute on function public.upsert_rps_custom_recent_search(text, text, text, text, integer) from public, anon, authenticated;',
@@ -61,6 +66,11 @@ assertContainsAll(hardeningSql, [
   'create or replace function public.set_updated_at()',
   'returns trigger',
   'set search_path = public',
+  'drop policy if exists "deny direct access to rps recent search" on public.rps_custom_recent_search;',
+  'create policy "deny direct access to rps recent search"',
+  'to anon, authenticated',
+  'using (false)',
+  'with check (false);',
   'revoke execute on function public.publish_market_board_run(text, text, jsonb, date, text, jsonb) from public, anon, authenticated;',
   'grant execute on function public.publish_market_board_run(text, text, jsonb, date, text, jsonb) to service_role;',
   'revoke execute on function public.publish_lowvol_run(text, text, jsonb, date, text, jsonb) from public, anon, authenticated;',

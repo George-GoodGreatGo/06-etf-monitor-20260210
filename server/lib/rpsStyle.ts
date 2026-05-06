@@ -548,6 +548,7 @@ type RpsCustomTickerNameSource = 'preset' | 'eastmoney_http' | 'fallback_code'
 type EastmoneySuggestRow = {
   Code?: string
   Name?: string
+  SecurityTypeName?: string
 }
 
 function normalizeEtfNameCandidate(nameRaw: unknown, code: string): string | null {
@@ -580,6 +581,8 @@ function pickEtfNameFromEastmoneySuggestPayload(payload: unknown, code: string):
       : []
   for (const row of rows) {
     if (String(row?.Code || '').trim() !== code) continue
+    const securityType = (row?.SecurityTypeName || '').trim()
+    if (securityType && securityType !== '基金') continue
     const name = normalizeEtfNameCandidate(row?.Name, code)
     if (name) return name
   }

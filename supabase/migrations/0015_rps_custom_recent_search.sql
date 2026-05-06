@@ -12,6 +12,14 @@ create index if not exists rps_custom_recent_search_user_updated_idx
 
 alter table public.rps_custom_recent_search enable row level security;
 
+drop policy if exists "deny direct access to rps recent search" on public.rps_custom_recent_search;
+create policy "deny direct access to rps recent search"
+  on public.rps_custom_recent_search
+  for all
+  to anon, authenticated
+  using (false)
+  with check (false);
+
 create or replace function public.upsert_rps_custom_recent_search(
   p_user_key text,
   p_ticker text,

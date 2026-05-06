@@ -9,6 +9,14 @@ begin
 end;
 $$;
 
+drop policy if exists "deny direct access to rps recent search" on public.rps_custom_recent_search;
+create policy "deny direct access to rps recent search"
+  on public.rps_custom_recent_search
+  for all
+  to anon, authenticated
+  using (false)
+  with check (false);
+
 revoke execute on function public.publish_market_board_run(text, text, jsonb, date, text, jsonb) from public, anon, authenticated;
 grant execute on function public.publish_market_board_run(text, text, jsonb, date, text, jsonb) to service_role;
 
