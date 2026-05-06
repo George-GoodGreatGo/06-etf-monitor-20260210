@@ -68,6 +68,15 @@ begin
 end
 $$;
 
+alter table public.value_timing_meta enable row level security;
+
+drop policy if exists "public read default value timing meta" on public.value_timing_meta;
+create policy "public read default value timing meta"
+  on public.value_timing_meta
+  for select
+  to anon
+  using (id = 'default');
+
 insert into public.value_timing_index_point (
   run_id,
   code,

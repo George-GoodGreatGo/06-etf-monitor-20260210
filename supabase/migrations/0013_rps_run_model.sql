@@ -65,6 +65,15 @@ begin
 end
 $$;
 
+alter table public.rps_style_meta enable row level security;
+
+drop policy if exists "public read default rps style meta" on public.rps_style_meta;
+create policy "public read default rps style meta"
+  on public.rps_style_meta
+  for select
+  to anon
+  using (id = 'default');
+
 alter table public.rps_style_point enable row level security;
 
 drop policy if exists "public read current or history rps runs" on public.rps_style_point;

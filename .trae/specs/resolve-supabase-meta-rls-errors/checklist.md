@@ -1,0 +1,9 @@
+- [ ] `public.value_timing_meta` 已启用 RLS，Security Advisor 不再报 `RLS Disabled in Public`
+- [ ] `public.rps_style_meta` 已启用 RLS，Security Advisor 不再报 `RLS Disabled in Public`
+- [x] 两张 `*_meta` 表仅允许读取 `id='default'` 的默认元数据行
+- [x] 匿名角色未获得 `insert/update/delete` 权限
+- [x] `publish_value_timing_run()` 发布链路在修复后仍可更新元数据
+- [x] `publish_rps_run()` 发布链路在修复后仍可更新元数据
+- [x] `readValueTimingMeta()` 修复后仍能读取默认元数据，不返回空结果或 401/403
+- [x] `readRpsStyleMeta()` 修复后仍能读取默认元数据，不返回空结果或 401/403
+- [x] 最终交付包含根因说明、推荐修复方案，以及更严格替代方案的取舍说明
