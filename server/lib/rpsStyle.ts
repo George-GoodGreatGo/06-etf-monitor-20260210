@@ -611,6 +611,26 @@ async function fetchEtfNameByEastmoneySuggest(
   return pickEtfNameFromEastmoneySuggestPayload(payload, code)
 }
 
+async function fetchEtfNameByEastmoneyPush2(
+  code: string,
+  opts?: { fetchImpl?: typeof fetch },
+): Promise<string | null> {
+  const fetchImpl = opts?.fetchImpl ?? fetch
+  const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=1.${code}&fields=f57,f58`
+  const res = await fetchImpl(url, {
+    method: 'GET',
+    headers: {
+      'User-Agent': 'Mozilla/5.0',
+      Accept: 'application/json,text/plain,*/*',
+      Referer: 'https://quote.eastmoney.com/',
+    },
+  })
+  if (!res.ok) return null
+  const payload = (await res.json()) as { data?: { f57?: string; f58?: string } }
+  if (String(payload?.data?.f57 || '').trim() !== code) return null
+  return normalizeEtfNameCandidate(payload?.data?.f58, code)
+}
+
 async function resolveEtfNameFromHttp(code: string): Promise<string | null> {
   const cacheKey = buildEtfNameHttpCacheKey(code)
   const cached = readCacheGet<string>(cacheKey)
@@ -619,7 +639,10 @@ async function resolveEtfNameFromHttp(code: string): Promise<string | null> {
     const cachedName = await readCacheRemember(
       cacheKey,
       async () => {
-        const resolved = normalizeEtfNameCandidate(await withRetry(() => fetchEtfNameByEastmoneySuggest(code), 1), code)
+        let resolved = normalizeEtfNameCandidate(await withRetry(() => fetchEtfNameByEastmoneySuggest(code), 1), code)
+        if (!resolved) {
+          resolved = normalizeEtfNameCandidate(await withRetry(() => fetchEtfNameByEastmoneyPush2(code), 1), code)
+        }
         return resolved ?? ETF_NAME_LOOKUP_EMPTY_SENTINEL
       },
       RPS_ETF_NAME_HTTP_SUCCESS_TTL_MS,
@@ -668,6 +691,13 @@ export async function __fetchEtfNameByEastmoneySuggestForTest(
   opts?: { fetchImpl?: typeof fetch },
 ): Promise<string | null> {
   return await fetchEtfNameByEastmoneySuggest(code, opts)
+}
+
+export async function __fetchEtfNameByEastmoneyPush2ForTest(
+  code: string,
+  opts?: { fetchImpl?: typeof fetch },
+): Promise<string | null> {
+  return await fetchEtfNameByEastmoneyPush2(code, opts)
 }
 
 export function __buildEtfNameHttpCacheKeyForTest(code: string): string {
