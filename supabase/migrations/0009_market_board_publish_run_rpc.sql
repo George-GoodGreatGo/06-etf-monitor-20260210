@@ -55,3 +55,6 @@ begin
   );
 end;
 $$;
+
+revoke execute on function public.publish_market_board_run(text, text, jsonb, date, text, jsonb) from public, anon, authenticated;
+grant execute on function public.publish_market_board_run(text, text, jsonb, date, text, jsonb) to service_role;

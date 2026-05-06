@@ -224,3 +224,6 @@ begin
   );
 end;
 $$;
+
+revoke execute on function public.publish_value_timing_run(text, text, jsonb, date, text, jsonb) from public, anon, authenticated;
+grant execute on function public.publish_value_timing_run(text, text, jsonb, date, text, jsonb) to service_role;

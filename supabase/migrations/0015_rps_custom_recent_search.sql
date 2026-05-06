@@ -80,3 +80,6 @@ begin
     );
 end;
 $$;
+
+revoke execute on function public.upsert_rps_custom_recent_search(text, text, text, text, integer) from public, anon, authenticated;
+grant execute on function public.upsert_rps_custom_recent_search(text, text, text, text, integer) to service_role;

@@ -1,6 +1,6 @@
 import type { EtfTopRow } from '@/utils/etfApi'
 import type { MomentumStrategyId } from '@/utils/momentumStrategies'
-import type { MomentumSignalFreshnessBucket, MomentumSignalSnapshot } from '@/utils/momentumSignalSnapshot'
+import type { MomentumSignalSnapshot } from '@/utils/momentumSignalSnapshot'
 
 export type FilterOption = {
   value: string
