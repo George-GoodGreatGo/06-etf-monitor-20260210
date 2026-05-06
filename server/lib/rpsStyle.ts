@@ -499,12 +499,14 @@ function writeRpsSignalDebugLog(args: {
   referenceDate: string | null
   targetSource: string
   benchmarkSource: string
-  series: Array<{ date: string; targetCloseQfq: number; benchmarkCloseQfq: number; scorePct: number | null }>
+  series: Array<{ date: string; targetCloseQfq: number; benchmarkCloseQfq: number; rpsMa50: number | null; scorePct: number | null }>
 }) {
   const debugTickers = buildSignalDebugTickerSet()
   const ticker = String(args.ticker || '').trim().toUpperCase()
   const code = tickerToCode(ticker)
   if (!debugTickers.size || (!debugTickers.has(ticker) && !debugTickers.has(code))) return
+  const tail55 = args.series.slice(-55)
+  const last = tail55.length ? tail55[tail55.length - 1] : null
   process.stdout.write(
     `${JSON.stringify(
       {
@@ -515,7 +517,10 @@ function writeRpsSignalDebugLog(args: {
         referenceDate: args.referenceDate,
         targetSource: args.targetSource,
         benchmarkSource: args.benchmarkSource,
-        tail: args.series.slice(-12),
+        tailLen: tail55.length,
+        lastMa50: last?.rpsMa50 ?? null,
+        lastScorePct: last?.scorePct ?? null,
+        tail: tail55,
       },
       null,
       2,

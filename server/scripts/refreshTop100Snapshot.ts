@@ -45,18 +45,25 @@ function buildSignalDebugTickerSet(): Set<string> {
 function writeSignalDebugLog(args: {
   code: string
   referenceDate: string | null
-  series: Array<{ date: string; targetCloseQfq: number; scorePct: number | null }>
+  series: Array<{ date: string; targetCloseQfq: number; benchmarkCloseQfq: number; rpsRaw: number; rpsMa50: number | null; scorePct: number | null }>
   momentumSignals: MomentumSignalsByStrategy
 }) {
   const debugTickers = buildSignalDebugTickerSet()
   if (!debugTickers.size || !debugTickers.has(args.code)) return
+  // Slice 55 days to cover the full MA50 window + 5 extra for safety
+  const tail55 = args.series.slice(-55)
+  // Also capture the MA50 of the last point for direct comparison
+  const last = tail55.length ? tail55[tail55.length - 1] : null
   process.stdout.write(
     `${JSON.stringify(
       {
         type: 'top100_signal_debug',
         code: args.code,
         referenceDate: args.referenceDate,
-        tail: args.series.slice(-12),
+        tailLen: tail55.length,
+        lastMa50: last?.rpsMa50 ?? null,
+        lastScorePct: last?.scorePct ?? null,
+        tail: tail55,
         momentumSignals: args.momentumSignals,
       },
       null,
@@ -229,6 +236,10 @@ async function main() {
       process.exit(0)
     }
   }
+
+  // 等待 Supabase 读副本同步：lowvol 发布后，Postgres 异步复制可能延迟，
+  // 立即读取 lowvol_index_point 可能拿到混合了旧值的数据，导致 MA50 偏移。
+  await new Promise((r) => setTimeout(r, 3000))
 
   const rowsWithSignals = await hydrateMomentumSignals(ok.data)
   const enriched: AkshareOk<unknown[]> = {
