@@ -1,0 +1,74 @@
+
+> trae-project@0.0.0 refresh:supabase:top100
+> tsx server/scripts/refreshTop100Snapshot.ts
+
+{
+  "type": "rps_signal_debug",
+  "context": "signal_series",
+  "ticker": "518800.SH",
+  "code": "518800",
+  "referenceDate": "2026-05-06",
+  "targetSource": "akshare:qfq",
+  "benchmarkSource": "supabase:lowvol_index_point",
+  "tailLen": 55,
+  "lastMa50": 0.0009022346466554055,
+  "lastScorePct": 0.991547989142938,
+  "tail": [
+    {
+      "date": "2026-02-05",
+      "ticker": "518800.SH",
+      "benchmarkTicker": "H30269",
+      "targetCloseQfq": 10.394,
+      "benchmarkCloseQfq": 11299.01,
+      "rpsRaw": 0.0009199036021739958,
+      "rpsMa50": 0.0008583164515791875,
+      "scorePct": 7.175343136147072
+    },
+    {
+      "date": "2026-02-06",
+      "ticker": "518800.SH",
+      "benchmarkTicker": "H30269",
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-08",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 127.91448858100094,
+          "turnoverChangePct7dAvg": 78.36071249959147
+        },
+        {
+          "z90": -0.14144883034756783,
+          "code": "520920",
+          "name": "恒生科技ETF天弘",
+          "volume": 344742300,
+          "turnover": 257016944,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-05-06",
+              "signalLabel": "买",
+              "freshnessLabel": "当天",
+              "freshnessBucket": "today"
+            },
+            "confirmTrail12": {
+              "signalKey": null,
+              "signalDate": null,
+              "signalLabel": null,
+              "freshnessLabel": null,
+              "freshnessBucket": null
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 58.36799879899657,
+          "turnoverChangePct7dAvg": 37.18101228676392
+        }
+      ],
+      "updated_at": "2026-05-07T03:11:46.885+00:00"
+    }
+  ]
+}

@@ -145,7 +145,7 @@ async function hydrateMomentumSignals(rows: unknown[]): Promise<unknown[]> {
     id: strategy.id,
     signalPreset: strategy.signalPreset,
   }))
-  const hydrated = await mapWithConcurrency(candidates, 6, async (row) => {
+  const hydrated = await mapWithConcurrency(candidates, 3, async (row) => {
     const code = String(row.code || '').trim()
     const referenceDate =
       typeof row.latestTradingDate === 'string' && row.latestTradingDate.trim()
@@ -236,10 +236,6 @@ async function main() {
       process.exit(0)
     }
   }
-
-  // 等待 Supabase 读副本同步：lowvol 发布后，Postgres 异步复制可能延迟，
-  // 立即读取 lowvol_index_point 可能拿到混合了旧值的数据，导致 MA50 偏移。
-  await new Promise((r) => setTimeout(r, 3000))
 
   const rowsWithSignals = await hydrateMomentumSignals(ok.data)
   const enriched: AkshareOk<unknown[]> = {

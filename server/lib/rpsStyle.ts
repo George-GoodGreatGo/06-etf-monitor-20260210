@@ -430,6 +430,7 @@ async function fetchQfqDailyWithFallback(args: {
   startDate: string
   endDate: string
   extraRetries?: number
+  noAkShareFallback?: boolean
 }): Promise<{ source: DataSourceName; series: Array<{ date: string; close: number }> }> {
   const extra = Math.max(0, Number(args.extraRetries || 0))
   let eastErr = ''
@@ -439,6 +440,9 @@ async function fetchQfqDailyWithFallback(args: {
     throw new Error('eastmoney empty')
   } catch (e) {
     eastErr = e instanceof Error ? e.message : String(e)
+  }
+  if (args.noAkShareFallback) {
+    throw new Error(`qfq eastmoney failed (akshare fallback disabled): ${args.ticker}; ${eastErr}`)
   }
   try {
     const ak = await withRetry(() => fetchQfqDailyByAkshare(args), 2 + extra)
@@ -933,6 +937,7 @@ async function computeRpsSeriesForTicker(args: {
   startDate: string
   endDate: string
   extraRetries?: number
+  noAkShareFallback?: boolean
 }): Promise<{
   benchmarkTicker: string
   benchmarkName: string
@@ -949,6 +954,7 @@ async function computeRpsSeriesForTicker(args: {
       startDate: args.startDate,
       endDate: args.endDate,
       extraRetries: args.extraRetries,
+      noAkShareFallback: args.noAkShareFallback,
     }),
   ])
   const series = buildRpsComputedSeries({
@@ -1473,7 +1479,7 @@ export async function getRpsSignalSeries(args: {
   const endDate = normalizeYmd10(args.endDate) || new Date().toISOString().slice(0, 10)
   const cacheKey = `rps:signal-series:${RPS_SIGNAL_SERIES_CACHE_VERSION}:${profile.ticker}:${startDate}:${endDate}`
   return await readCacheRemember(cacheKey, async () => {
-    const seriesOut = await computeRpsSeriesForTicker({ ticker: profile.ticker, startDate, endDate })
+    const seriesOut = await computeRpsSeriesForTicker({ ticker: profile.ticker, startDate, endDate, noAkShareFallback: true, extraRetries: 2 })
     const effectiveDataDate = resolveLatestCompleteTradingDate(
       seriesOut.series.map((point) => point.date),
     )
