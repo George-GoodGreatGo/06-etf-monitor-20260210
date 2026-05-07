@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import DataStatusBanner from '@/components/DataStatusBanner'
 import FloatingSectionNav, { type FloatingNavSection } from '@/components/FloatingSectionNav'
-import ZBadge from '@/components/ZBadge'
 import RpsCustomQueryCharts from '@/components/charts/RpsCustomQueryCharts'
 import RpsStyleChart from '@/components/charts/RpsStyleChart'
 import { cn } from '@/lib/utils'
@@ -134,6 +133,11 @@ function fmtMultiple(v: number | null | undefined): string {
   return `${v.toFixed(2)}x`
 }
 
+function fmtTurnoverYi(v: number | null | undefined): string {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return '—'
+  return `${(v / 1e8).toFixed(2)}亿元`
+}
+
 function pctToneCls(v: number | null | undefined): string {
   if (typeof v !== 'number' || !Number.isFinite(v)) return 'text-[#F8FAFC]'
   if (v > 0) return 'text-[#EF4444]'
@@ -194,15 +198,15 @@ function resolveScoreState(score: number | null | undefined): { label: string; t
   if (score > 0) {
     return {
       label: '强于MA50',
-      toneCls: 'border-[rgba(16,185,129,0.25)] bg-[rgba(16,185,129,0.12)] text-[#34D399]',
-      valueCls: 'text-[#34D399]',
+      toneCls: 'border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.12)] text-[#F87171]',
+      valueCls: 'text-[#EF4444]',
     }
   }
   if (score < 0) {
     return {
       label: '弱于MA50',
-      toneCls: 'border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.12)] text-[#F87171]',
-      valueCls: 'text-[#F87171]',
+      toneCls: 'border-[rgba(16,185,129,0.25)] bg-[rgba(16,185,129,0.12)] text-[#34D399]',
+      valueCls: 'text-[#10B981]',
     }
   }
   return {
@@ -213,26 +217,27 @@ function resolveScoreState(score: number | null | undefined): { label: string; t
 }
 
 function computeRsi(prices: number[], period: number = 14): number | null {
-  if (prices.length < period + 1) return null
+  const window = Math.max(1, Math.floor(period))
+  if (prices.length <= window) return null
   let gains = 0
   let losses = 0
-  for (let i = 1; i <= period; i++) {
-    const idx = prices.length - period - 1 + i
-    const prev = prices[idx - 1]
-    const diff = prices[idx] - prev
-    if (diff >= 0) gains += diff
-    else losses += Math.abs(diff)
+  for (let i = 1; i <= window; i += 1) {
+    const change = prices[i] - prices[i - 1]
+    if (change >= 0) gains += change
+    else losses += Math.abs(change)
   }
-  let avgGain = gains / period
-  let avgLoss = losses / period
-  for (let i = prices.length - period; i < prices.length; i++) {
-    const diff = prices[i] - prices[i - 1]
-    const gain = diff >= 0 ? diff : 0
-    const loss = diff < 0 ? Math.abs(diff) : 0
-    avgGain = (avgGain * (period - 1) + gain) / period
-    avgLoss = (avgLoss * (period - 1) + loss) / period
+  let avgGain = gains / window
+  let avgLoss = losses / window
+  if (avgGain === 0 && avgLoss === 0) return 50
+  for (let i = window + 1; i < prices.length; i += 1) {
+    const change = prices[i] - prices[i - 1]
+    const gain = change > 0 ? change : 0
+    const loss = change < 0 ? Math.abs(change) : 0
+    avgGain = (avgGain * (window - 1) + gain) / window
+    avgLoss = (avgLoss * (window - 1) + loss) / window
   }
   if (avgLoss === 0) return 100
+  if (avgGain === 0) return 0
   const rs = avgGain / avgLoss
   return 100 - (100 / (1 + rs))
 }
@@ -946,7 +951,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
 
       {customQueryLatest ? (
         <>
-          <div className="overflow-hidden rounded-lg bg-[#0F172A] p-5 shadow-md">
+          <div className="overflow-hidden rounded-lg bg-[#0F172A] p-4 shadow-md">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <span className="text-sm font-semibold text-[#F8FAFC]">{customQueryDisplayLabel}</span>
@@ -958,80 +963,73 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                 统一截止日：{customQueryLatest?.date ? formatYmd(customQueryLatest.date) : '—'}
               </div>
             </div>
-            <div className="mt-4 border-t border-white/5 pt-4">
-              <div className="flex flex-wrap items-start gap-x-3 gap-y-3">
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-[#93C5FD]">Score</div>
-                  <div className={cn('mt-1 text-2xl font-bold', customQueryScoreState.valueCls)}>
-                    {fmt(customQueryLatest?.scorePct, 2)}%
+            <div className="mt-3 border-t border-white/5 pt-3">
+              <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+                <div className="border-r border-white/10 last:border-r-0 pr-3 last:pr-0">
+                  <div className="text-[11px] text-[#94A3B8]">Score</div>
+                  <div className="mt-0.5 flex items-center gap-1.5">
+                    <span className={cn('text-xl font-bold', customQueryScoreState.valueCls)}>
+                      {fmt(customQueryLatest?.scorePct, 2)}%
+                    </span>
+                    <span className={cn('inline-block rounded-full border px-1.5 py-0.5 text-[10px] font-semibold', customQueryScoreState.toneCls)}>
+                      {customQueryScoreState.label}
+                    </span>
                   </div>
-                  <span className={cn('mt-1 inline-block rounded-full border px-2 py-0.5 text-[11px] font-semibold', customQueryScoreState.toneCls)}>
-                    {customQueryScoreState.label}
-                  </span>
                 </div>
-                <div className="hidden h-auto w-px self-stretch bg-white/10 sm:block" />
-                <div>
+                <div className="border-r border-white/10 last:border-r-0 pr-3 last:pr-0">
                   <div className="text-[11px] text-[#94A3B8]">成交额</div>
-                  <div className="mt-1 font-mono text-lg font-semibold text-[#F8FAFC]">{fmtTurnover(customQueryLatestTurnoverSummary?.turnover)}</div>
+                  <div className="mt-0.5 font-mono text-base font-semibold text-[#F8FAFC]">{fmtTurnoverYi(customQueryLatestTurnoverSummary?.turnover)}</div>
                 </div>
-                <div className="hidden h-auto w-px self-stretch bg-white/10 sm:block" />
-                <div>
+                <div className="border-r border-white/10 last:border-r-0 pr-3 last:pr-0">
                   <div className="text-[11px] text-[#94A3B8]">放量倍数</div>
-                  <div className="mt-1 font-mono text-lg font-semibold text-[#F8FAFC]">{fmtMultiple(customQueryLatestTurnoverSummary?.turnoverMultipleOfPrev20Avg)}</div>
+                  <div className="mt-0.5 font-mono text-base font-semibold text-[#F8FAFC]">{fmtMultiple(customQueryLatestTurnoverSummary?.turnoverMultipleOfPrev20Avg)}</div>
                 </div>
-                <div className="hidden h-auto w-px self-stretch bg-white/10 sm:block" />
-                <div>
-                  <div className="text-[11px] text-[#94A3B8]">较昨变化</div>
-                  <div className={cn('mt-1 font-mono text-lg font-semibold', pctToneCls(customQueryLatestTurnoverSummary?.turnoverChangePct1d))}>
+                <div className="border-r border-white/10 last:border-r-0 pr-3 last:pr-0">
+                  <div className="text-[11px] text-[#94A3B8]">成交额较昨变化</div>
+                  <div className={cn('mt-0.5 font-mono text-base font-semibold', pctToneCls(customQueryLatestTurnoverSummary?.turnoverChangePct1d))}>
                     {typeof customQueryLatestTurnoverSummary?.turnoverChangePct1d === 'number'
                       ? formatPct(customQueryLatestTurnoverSummary.turnoverChangePct1d)
                       : '—'}
                   </div>
                 </div>
-                <div className="hidden h-auto w-px self-stretch bg-white/10 sm:block" />
-                <div>
-                  <div className="text-[11px] text-[#94A3B8]">较前7日均变化</div>
-                  <div className={cn('mt-1 font-mono text-lg font-semibold', pctToneCls(customQueryLatestTurnoverSummary?.turnoverChangePct7dAvg))}>
+                <div className="border-r border-white/10 last:border-r-0 pr-3 last:pr-0">
+                  <div className="text-[11px] text-[#94A3B8]">成交额较前7日变化</div>
+                  <div className={cn('mt-0.5 font-mono text-base font-semibold', pctToneCls(customQueryLatestTurnoverSummary?.turnoverChangePct7dAvg))}>
                     {typeof customQueryLatestTurnoverSummary?.turnoverChangePct7dAvg === 'number'
                       ? formatPct(customQueryLatestTurnoverSummary.turnoverChangePct7dAvg)
                       : '—'}
                   </div>
                 </div>
-                <div className="hidden h-auto w-px self-stretch bg-white/10 sm:block" />
-                <div>
-                  <div className="text-[11px] text-[#94A3B8]">90日Z值</div>
-                  <div className="mt-1">
-                    <ZBadge z={customQueryLatestTurnoverSummary?.z90 ?? null} status={customQueryLatestTurnoverSummary?.dataStatus ?? 'incomplete'} />
+                <div className="last:border-r-0 last:pr-0">
+                  <div className="text-[11px] text-[#94A3B8]">成交额Z值（90日）</div>
+                  <div className={cn('mt-0.5 font-mono text-base font-semibold', pctToneCls(customQueryLatestTurnoverSummary?.z90 ?? null))}>
+                    {typeof customQueryLatestTurnoverSummary?.z90 === 'number'
+                      ? fmt(customQueryLatestTurnoverSummary.z90, 2)
+                      : '—'}
                   </div>
                 </div>
               </div>
             </div>
-            <div className="mt-4 rounded-md bg-[rgba(11,18,32,0.5)] px-3 py-2.5">
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-                <div>
-                  <span className="text-[#64748B]">前复权价格</span>
-                  <span className="ml-1.5 font-mono font-semibold text-[#F8FAFC]">{fmt(customQueryLatest?.targetCloseQfq, 3)}</span>
-                </div>
-                <div className="hidden h-4 w-px bg-white/10 sm:block" />
-                <div>
-                  <span className="text-[#64748B]">RPS</span>
-                  <span className="ml-1.5 font-mono font-semibold text-[#F8FAFC]">{fmt(customQueryLatest?.rpsRaw, 6)}</span>
-                </div>
-                <div className="hidden h-4 w-px bg-white/10 sm:block" />
-                <div>
-                  <span className="text-[#64748B]">MA50</span>
-                  <span className="ml-1.5 font-mono font-semibold text-[#F8FAFC]">{fmt(customQueryLatest?.rpsMa50, 6)}</span>
-                </div>
-                <div className="hidden h-4 w-px bg-white/10 sm:block" />
-                <div>
-                  <span className="text-[#64748B]">RSI</span>
-                  <span className="ml-1.5 font-mono font-semibold text-[#F8FAFC]">
-                    {customQueryLatestRsi !== null ? customQueryLatestRsi.toFixed(1) : '—'}
-                  </span>
-                </div>
-              </div>
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] leading-relaxed text-[#64748B]">
+              <span>
+                前复权价格 <span className="font-mono font-medium text-[#94A3B8]">{fmt(customQueryLatest?.targetCloseQfq, 3)}</span>
+              </span>
+              <span className="select-none text-white/15">·</span>
+              <span>
+                RPS <span className="font-mono font-medium text-[#94A3B8]">{fmt(customQueryLatest?.rpsRaw, 6)}</span>
+              </span>
+              <span className="select-none text-white/15">·</span>
+              <span>
+                MA50 <span className="font-mono font-medium text-[#94A3B8]">{fmt(customQueryLatest?.rpsMa50, 6)}</span>
+              </span>
+              <span className="select-none text-white/15">·</span>
+              <span>
+                RSI <span className="font-mono font-medium text-[#94A3B8]">
+                  {customQueryLatestRsi !== null ? customQueryLatestRsi.toFixed(1) : '—'}
+                </span>
+              </span>
             </div>
-            <div className="mt-3 text-[11px] text-[#64748B]">
+            <div className="mt-2 text-[11px] text-[#64748B]">
               输入值：{customQuerySummary?.inputTicker ?? customQueryData?.inputTicker ?? submittedCustomTicker}
             </div>
           </div>
