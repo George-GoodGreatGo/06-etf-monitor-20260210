@@ -145,7 +145,8 @@ async function hydrateMomentumSignals(rows: unknown[]): Promise<unknown[]> {
     id: strategy.id,
     signalPreset: strategy.signalPreset,
   }))
-  const hydrated = await mapWithConcurrency(candidates, 3, async (row) => {
+  const hydrated = await mapWithConcurrency(candidates, 2, async (row) => {
+    await new Promise((r) => setTimeout(r, 200))
     const code = String(row.code || '').trim()
     const referenceDate =
       typeof row.latestTradingDate === 'string' && row.latestTradingDate.trim()

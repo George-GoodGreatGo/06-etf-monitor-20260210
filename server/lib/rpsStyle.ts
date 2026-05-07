@@ -1479,7 +1479,7 @@ export async function getRpsSignalSeries(args: {
   const endDate = normalizeYmd10(args.endDate) || new Date().toISOString().slice(0, 10)
   const cacheKey = `rps:signal-series:${RPS_SIGNAL_SERIES_CACHE_VERSION}:${profile.ticker}:${startDate}:${endDate}`
   return await readCacheRemember(cacheKey, async () => {
-    const seriesOut = await computeRpsSeriesForTicker({ ticker: profile.ticker, startDate, endDate, noAkShareFallback: true, extraRetries: 2 })
+    const seriesOut = await computeRpsSeriesForTicker({ ticker: profile.ticker, startDate, endDate, extraRetries: 5 })
     const effectiveDataDate = resolveLatestCompleteTradingDate(
       seriesOut.series.map((point) => point.date),
     )
