@@ -1,0 +1,131 @@
+
+{
+  "success": true,
+  "meta": {
+    "fetchedAt": "2026-05-06T18:19:35Z",
+    "dataDate": "2026-05-06",
+    "source": "akshare:sina",
+    "notes": [
+      "Top100 先取新浪 ETF 全市场列表（排除 LOF/货币/债券等），再基于 Sina 历史日线计算最新完整交易日的成交额并降序取前 N。",
+      "成交额与 Z 值基于 Sina 历史日线（天然为完整交易日）；宽基指数 ETF（如沪深300ETF）包含在内。",
+      "momentum_signals=Top200 列表已写入多策略交易信号快照（当前至少含 Baseline策略 与基础颜色切换）"
+    ]
+  },
+  "written": [
+    {
+      "id": 1,
+      "fetched_at": "2026-05-06T18:19:35+00:00",
+      "data_date": "2026-05-06",
+      "cached_at": "2026-05-06T18:19:35+00:00",
+      "source": "akshare:sina",
+      "notes": [
+        "Top100 先取新浪 ETF 全市场列表（排除 LOF/货币/债券等），再基于 Sina 历史日线计算最新完整交易日的成交额并降序取前 N。",
+        "成交额与 Z 值基于 Sina 历史日线（天然为完整交易日）；宽基指数 ETF（如沪深300ETF）包含在内。",
+        "momentum_signals=Top200 列表已写入多策略交易信号快照（当前至少含 Baseline策略 与基础颜色切换）"
+      ],
+      "rows": [
+        {
+          "z90": 0.39245863906730394,
+          "code": "510300",
+          "name": "沪深300ETF华泰柏瑞",
+          "volume": 1867782757,
+          "turnover": 9131466569,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-13",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-02-09",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 14.634669488916497,
+          "turnoverChangePct7dAvg": 78.50942984358676
+        },
+        {
+          "z90": 0.7588058644797853,
+          "code": "510500",
+          "name": "中证500ETF南方",
+          "volume": 1025448160,
+          "turnover": 8872773628,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-16",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-16",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 35.53169986406082,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-10",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-08",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 127.91448858100094,
+          "turnoverChangePct7dAvg": 78.36071249959147
+        },
+        {
+          "z90": -0.14144883034756783,
+          "code": "520920",
+          "name": "恒生科技ETF天弘",
+          "volume": 344742300,
+          "turnover": 257016944,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-05-06",
+              "signalLabel": "买",
+              "freshnessLabel": "当天",
+              "freshnessBucket": "today"
+            },
+            "confirmTrail12": {
+              "signalKey": null,
+              "signalDate": null,
+              "signalLabel": null,
+              "freshnessLabel": null,
+              "freshnessBucket": null
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 58.36799879899657,
+          "turnoverChangePct7dAvg": 37.18101228676392
+        }
+      ],
+      "updated_at": "2026-05-06T18:26:35.034+00:00"
+    }
+  ]
+}
