@@ -657,12 +657,12 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   )
 
   const customQueryIntro = (
-    <section className="overflow-hidden rounded-lg bg-[#0F172A] px-4 py-3 shadow-md">
+    <div className="pb-1">
       <div className="text-xl font-semibold tracking-tight text-white">动量分析</div>
       <div className="mt-1 text-[13px] leading-relaxed text-[#94A3B8]">
         输入特定的场内ETF，查询场内基金的分析结果。
       </div>
-    </section>
+    </div>
   )
 
   const turnoverSection = (
@@ -796,8 +796,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
 
   const customQuerySection = (
     <div className="space-y-4">
-      <div className="w-full space-y-3">
-        <form
+      <form
           className="w-full"
           onSubmit={(e) => {
             e.preventDefault()
@@ -808,11 +807,11 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
         >
           <div
             className={cn(
-              'group flex min-h-[64px] w-full items-center gap-3 rounded-full border border-[rgba(148,163,184,0.18)] bg-[rgba(15,23,42,0.96)] px-4 py-2.5 shadow-[0_14px_34px_rgba(2,6,23,0.26)] transition',
-              'hover:border-[rgba(125,211,252,0.34)] hover:bg-[rgba(15,23,42,0.985)] hover:shadow-[0_18px_40px_rgba(8,47,73,0.24)]',
-              'focus-within:border-[rgba(125,211,252,0.48)] focus-within:bg-[rgba(15,23,42,1)] focus-within:shadow-[0_0_0_1px_rgba(125,211,252,0.16),0_20px_44px_rgba(8,47,73,0.32)]',
+              'group flex min-h-[56px] w-full items-center gap-3 rounded-full border border-white/[0.07] bg-white/[0.03] px-4 py-2 transition',
+              'hover:border-white/[0.12] hover:bg-white/[0.05]',
+              'focus-within:border-[rgba(125,211,252,0.28)] focus-within:bg-white/[0.05]',
               customQueryLoading &&
-                'border-[rgba(125,211,252,0.38)] bg-[rgba(15,23,42,0.99)] shadow-[0_0_0_1px_rgba(125,211,252,0.12),0_18px_42px_rgba(8,47,73,0.30)]',
+                'border-[rgba(125,211,252,0.28)] bg-white/[0.06]',
             )}
           >
             <span
@@ -842,11 +841,10 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
               type="submit"
               disabled={customQueryLoading}
               className={cn(
-                'inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold tracking-[0.02em] text-[#F8FBFF] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(125,211,252,0.34)] sm:min-w-[108px] sm:px-6',
-                'bg-[linear-gradient(135deg,rgba(125,211,252,0.24),rgba(203,184,255,0.24))] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_24px_rgba(59,130,246,0.12)]',
-                'hover:bg-[linear-gradient(135deg,rgba(125,211,252,0.34),rgba(203,184,255,0.34))] hover:text-white hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_14px_28px_rgba(59,130,246,0.18)]',
+                'inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold tracking-[0.02em] text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(125,211,252,0.34)]',
+                'bg-[rgba(125,211,252,0.18)] hover:bg-[rgba(125,211,252,0.28)]',
                 customQueryLoading
-                  ? 'cursor-wait bg-[linear-gradient(135deg,rgba(125,211,252,0.38),rgba(203,184,255,0.42))] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_16px_30px_rgba(59,130,246,0.20)] disabled:text-white'
+                  ? 'cursor-wait bg-[rgba(125,211,252,0.28)] disabled:text-white'
                   : 'disabled:cursor-not-allowed disabled:opacity-60',
               )}
             >
@@ -858,8 +856,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
           </div>
         </form>
 
-        <div className="w-full">
-          <div className="rounded-xl border border-[rgba(71,85,105,0.22)] bg-[linear-gradient(180deg,rgba(9,19,36,0.84),rgba(9,18,32,0.66))] px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:px-4.5">
+        <div className="mt-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-left">
@@ -936,8 +933,6 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
       <DataStatusBanner
         loading={customQueryLoading}
@@ -1028,9 +1023,6 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                   {customQueryLatestRsi !== null ? customQueryLatestRsi.toFixed(1) : '—'}
                 </span>
               </span>
-            </div>
-            <div className="mt-2 text-[11px] text-[#64748B]">
-              输入值：{customQuerySummary?.inputTicker ?? customQueryData?.inputTicker ?? submittedCustomTicker}
             </div>
           </div>
 
