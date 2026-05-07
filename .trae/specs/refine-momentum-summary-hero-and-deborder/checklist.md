@@ -1,0 +1,21 @@
+# Checklist
+
+- [x] Mock 页面 `mock/momentum-analysis.html` 可独立在浏览器打开，不依赖后端 API
+- [x] Mock 页面展示 Hero 摘要容器：Score 使用 `text-2xl` 字号 + 颜色语义（绿/红/灰）
+- [x] Mock 页面展示 Hero 摘要容器：RPS + MA50 中等字号，与 Score 同行展示
+- [x] Mock 页面展示 Hero 摘要容器：交易额系列内联辅助行使用 `text-xs`
+- [x] Mock 页面标题行展示标的名+代码+基准分母+截止日
+- [x] Mock 页面旧版对比区展示 10 张等权卡片 + 硬边框，用半透明遮罩标注「旧版风格」
+- [x] Mock 页面所有区块无硬边框，使用 `shadow-md` 或背景色差区分
+- [x] 线上 `customQuerySection` Hero 容器正确替换原 10 张卡片 JSX
+- [x] Hero 容器中 `customQueryScoreState`、`customQueryDisplayLabel`、`customQueryBenchmarkLabel` 等变量正常引用
+- [x] `customQueryLatest` 为 null 时不渲染 Hero 容器
+- [x] `customQueryIntro` 标题横幅不再使用 `border border-[#1E293B]`
+- [x] 「关键图表指标」section 不再使用 `border border-[rgba(248,250,252,0.08)]`
+- [x] 「最近250个交易日成交额追踪」section 不再使用外层 `border border-[#1E293B]`
+- [x] 成交额追踪内层表格行分割线保留不变
+- [x] `npm run lint` 零新增告警
+- [x] `npm run typecheck` 零新增类型错误
+- [x] 搜索提交、策略切换、数据加载状态、错误状态均未受影响
+- [x] `refine-market-rps-custom-query-visual-polish` 和 `optimize-market-rps-custom-query-summary-layout` 已完成变更未被覆盖
+- [x] 旧版 10 张卡片 JSX 代码完全移除（不保留注释代码）

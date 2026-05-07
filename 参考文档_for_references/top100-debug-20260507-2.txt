@@ -1,0 +1,1145 @@
+Run npm run refresh:supabase:top100
+  npm run refresh:supabase:top100
+  shell: /usr/bin/bash -e {0}
+  env:
+    pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+    PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+    Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+    Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+    Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+    LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+    SUPABASE_URL: ***
+    SUPABASE_ANON_KEY: ***
+    SUPABASE_SERVICE_ROLE_KEY: ***
+    COZE_STREAM_RUN_URL: ***
+    COZE_BEARER_TOKEN: ***
+    COZE_PROJECT_ID: ***
+    COZE_SESSION_ID: 
+    TOP100_LIMIT: 200
+> trae-project@0.0.0 refresh:supabase:top100
+> tsx server/scripts/refreshTop100Snapshot.ts
+{
+  "success": true,
+  "meta": {
+    "fetchedAt": "2026-05-07T05:40:38Z",
+    "dataDate": "2026-05-06",
+    "source": "akshare:sina",
+    "notes": [
+      "Top100 先取新浪 ETF 全市场列表（排除 LOF/货币/债券等），再基于 Sina 历史日线计算最新完整交易日的成交额并降序取前 N。",
+      "成交额与 Z 值基于 Sina 历史日线（天然为完整交易日）；宽基指数 ETF（如沪深300ETF）包含在内。",
+      "momentum_signals=Top200 列表已写入多策略交易信号快照（当前至少含 Baseline策略 与基础颜色切换）"
+    ]
+  },
+  "written": [
+    {
+      "id": 1,
+      "fetched_at": "2026-05-07T05:40:38+00:00",
+      "data_date": "2026-05-06",
+      "cached_at": "2026-05-07T05:40:38+00:00",
+      "source": "akshare:sina",
+      "notes": [
+        "Top100 先取新浪 ETF 全市场列表（排除 LOF/货币/债券等），再基于 Sina 历史日线计算最新完整交易日的成交额并降序取前 N。",
+        "成交额与 Z 值基于 Sina 历史日线（天然为完整交易日）；宽基指数 ETF（如沪深300ETF）包含在内。",
+        "momentum_signals=Top200 列表已写入多策略交易信号快照（当前至少含 Baseline策略 与基础颜色切换）"
+      ],
+      "rows": [
+        {
+          "z90": 0.39245863906730394,
+          "code": "510300",
+          "name": "沪深300ETF华泰柏瑞",
+          "volume": 1867782757,
+          "turnover": 9131466569,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-13",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-02-09",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 14.634669488916497,
+          "turnoverChangePct7dAvg": 78.50942984358676
+        },
+        {
+          "z90": 0.7588058644797853,
+          "code": "510500",
+          "name": "中证500ETF南方",
+          "volume": 1025448160,
+          "turnover": 8872773628,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-16",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-16",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 35.53169986406082,
+          "turnoverChangePct7dAvg": 58.275426388869356
+        },
+        {
+          "z90": 2.8876797168520723,
+          "code": "588000",
+          "name": "科创50ETF华夏",
+          "volume": 4337690073,
+          "turnover": 7667042667,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-14",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-14",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": -8.739758754338933,
+          "turnoverChangePct7dAvg": 60.9821697571467
+        },
+        {
+          "z90": 1.5890633353760792,
+          "code": "159915",
+          "name": "创业板ETF易方达",
+          "volume": 1963948718,
+          "turnover": 7445851678,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-08",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-08",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 100.690479997961,
+          "turnoverChangePct7dAvg": 54.33749957061571
+        },
+        {
+          "z90": -0.008286117094293551,
+          "code": "513090",
+          "name": "香港证券ETF易方达",
+          "volume": 3642077446,
+          "turnover": 6827293934,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-29",
+              "signalLabel": "买",
+              "freshnessLabel": "3日内",
+              "freshnessBucket": "within_3d"
+            },
+            "confirmTrail12": {
+              "signalKey": "sell",
+              "signalDate": "2026-02-05",
+              "signalLabel": "卖",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 11.158749395575484,
+          "turnoverChangePct7dAvg": 29.504630343980786
+        },
+        {
+          "z90": 0.645033191008759,
+          "code": "510050",
+          "name": "上证50ETF华夏",
+          "volume": 1873728353,
+          "turnover": 5816897296,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-29",
+              "signalLabel": "买",
+              "freshnessLabel": "3日内",
+              "freshnessBucket": "within_3d"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-29",
+              "signalLabel": "买",
+              "freshnessLabel": "3日内",
+              "freshnessBucket": "within_3d"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 8.726283800566481,
+          "turnoverChangePct7dAvg": 57.20689947822866
+        },
+        {
+          "z90": 0.6611534234115752,
+          "code": "513180",
+          "name": "恒生科技ETF华夏",
+          "volume": 8634561281,
+          "turnover": 5500510936,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-05-06",
+              "signalLabel": "买",
+              "freshnessLabel": "当天",
+              "freshnessBucket": "today"
+            },
+            "confirmTrail12": {
+              "signalKey": "sell",
+              "signalDate": "2026-02-02",
+              "signalLabel": "卖",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 56.35821333081068,
+          "turnoverChangePct7dAvg": 58.86890498019728
+        },
+        {
+          "z90": -1.253280012905262,
+          "code": "563360",
+          "name": "A500ETF华泰柏瑞",
+          "volume": 3946426351,
+          "turnover": 5412391103,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-13",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-13",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": -14.483130126468192,
+          "turnoverChangePct7dAvg": -9.998948507873118
+        },
+        {
+          "z90": 2.737923266789335,
+          "code": "588200",
+          "name": "科创芯片ETF嘉实",
+          "volume": 1595068619,
+          "turnover": 5273270696,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-10",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-10",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 11.404632057740738,
+          "turnoverChangePct7dAvg": 42.57729422119647
+        },
+        {
+          "z90": 0.01407112084568232,
+          "code": "513130",
+          "name": "恒生科技ETF华泰柏瑞",
+          "volume": 8051528163,
+          "turnover": 5038196988,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-05-06",
+              "signalLabel": "买",
+              "freshnessLabel": "当天",
+              "freshnessBucket": "today"
+            },
+            "confirmTrail12": {
+              "signalKey": "sell",
+              "signalDate": "2026-02-02",
+              "signalLabel": "卖",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 42.45124831073046,
+          "turnoverChangePct7dAvg": 38.77665172657301
+        },
+        {
+          "z90": -1.5829180273145587,
+          "code": "159352",
+          "name": "A500ETF南方",
+          "volume": 3720946413,
+          "turnoverChangePct1d": 107.80639340214586,
+          "turnoverChangePct7dAvg": 112.57880653322871
+        },
+        {
+          "z90": 15.95948320023538,
+          "code": "159509",
+          "name": "纳指科技ETF景顺",
+          "volume": 1580024046,
+          "turnover": 4013140609,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-10",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-08",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 360.348029224099,
+          "turnoverChangePct7dAvg": 420.578211825175
+        },
+        {
+          "z90": -0.8241767018888739,
+          "code": "159700",
+          "name": "科创债ETF南方",
+          "volume": 39702200,
+          "turnover": 4001544463,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-30",
+              "signalLabel": "买",
+              "freshnessLabel": "3日内",
+              "freshnessBucket": "within_3d"
+            },
+            "confirmTrail12": {
+              "signalKey": null,
+              "signalDate": null,
+              "signalLabel": null,
+              "freshnessLabel": null,
+              "freshnessBucket": null
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": -48.616533376302094,
+          "turnoverChangePct7dAvg": -22.4508617443368
+        },
+        {
+          "z90": 0.43267531399790804,
+          "code": "159919",
+          "name": "沪深300ETF嘉实",
+          "volume": 760889609,
+          "turnover": 3876512838,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-13",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-02-09",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 20.60439684834554,
+          "turnoverChangePct7dAvg": 113.55994632025399
+        },
+        {
+          "z90": -0.8195370421955757,
+          "code": "518880",
+          "name": "黄金ETF华安",
+          "volume": 392697776,
+          "turnover": 3827234550,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "sell",
+              "signalDate": "2026-03-16",
+              "signalLabel": "卖",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "risk_sell",
+          "turnover": 5023616503,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-13",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-13",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": -4.320648537060157,
+          "turnoverChangePct7dAvg": -5.163860019500632
+        },
+        {
+          "z90": -1.6257345103500778,
+          "code": "159338",
+          "name": "中证A500ETF国泰",
+          "volume": 3729349709,
+          "turnover": 4849132577,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-13",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-13",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 5.040928331065397,
+          "turnoverChangePct7dAvg": -8.291288687677035
+        },
+        {
+          "z90": 0.6706938427532688,
+          "code": "512100",
+          "name": "中证1000ETF南方",
+          "volume": 1364313617,
+          "turnover": 4683871959,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-16",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-03-10",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": -21.63350146974421,
+          "turnoverChangePct7dAvg": 16.045708710178275
+        },
+        {
+          "z90": 1.0088953759807862,
+          "code": "159845",
+          "name": "中证1000ETF华夏",
+          "volume": 1154541419,
+          "turnover": 4083625618,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-16",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-03-10",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+              "signalDate": "2026-02-02",
+              "signalLabel": "风控卖",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": -1.7288206549391116,
+          "turnoverChangePct7dAvg": 3.0544194331576735
+        },
+        {
+          "z90": -0.7364216648724042,
+          "code": "159600",
+          "name": "科创债ETF嘉实",
+          "volume": 37168410,
+          "turnover": 3747507340,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-30",
+              "signalLabel": "买",
+              "freshnessLabel": "3日内",
+              "freshnessBucket": "within_3d"
+            },
+            "confirmTrail12": {
+              "signalKey": null,
+              "signalDate": null,
+              "signalLabel": null,
+              "freshnessLabel": null,
+              "freshnessBucket": null
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 131.32215937498665,
+          "turnoverChangePct7dAvg": 16.812911402131014
+        },
+        {
+          "z90": 0.1717381189984802,
+          "code": "510310",
+          "name": "沪深300ETF易方达",
+          "volume": 786696751,
+          "turnover": 3723665116,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-13",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-02-09",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 44.994164797550475,
+          "turnoverChangePct7dAvg": 153.89013186034379
+        },
+        {
+          "z90": -0.7121770900551843,
+          "code": "513120",
+          "name": "港股创新药ETF广发",
+          "volume": 2629026807,
+          "turnover": 3207110757,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-30",
+              "signalLabel": "买",
+              "freshnessLabel": "3日内",
+              "freshnessBucket": "within_3d"
+            },
+            "confirmTrail12": {
+              "signalKey": "sell",
+              "signalDate": "2026-04-23",
+              "signalLabel": "卖",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": -30.643584090653984,
+          "turnoverChangePct7dAvg": -25.953468658485402
+        },
+        {
+          "z90": -1.733635054426752,
+          "code": "512050",
+          "name": "A500ETF华夏",
+          "volume": 2166756411,
+          "turnover": 2798365812,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-13",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-13",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": -7.006358723274298,
+          "turnoverChangePct7dAvg": -16.15788947620279
+        },
+        {
+          "z90": 0.14120523039912544,
+          "code": "510330",
+          "name": "沪深300ETF华夏",
+          "volume": 543720800,
+          "turnover": 2767722483,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-10",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-02-09",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 101.6189946601712,
+          "turnoverChangePct7dAvg": 232.72496202534305
+        },
+        {
+          "z90": 0.4828371592093065,
+          "code": "588080",
+          "name": "科创50ETF易方达",
+          "volume": 1502565938,
+          "turnover": 2575731133,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-14",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-14",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": -0.9429686976069163,
+          "turnoverChangePct7dAvg": 55.63627154389306
+        },
+        {
+          "z90": -0.23177446282111824,
+          "code": "513330",
+          "name": "恒生互联网ETF华夏",
+          "volume": 5871577394,
+          "turnover": 2501873633,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "sell",
+              "signalDate": "2026-02-02",
+              "signalLabel": "卖",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "sell",
+              "signalDate": "2026-02-02",
+              "signalLabel": "卖",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 105.39814534118874,
+          "turnoverChangePct7dAvg": 44.616309191843186
+        },
+        {
+          "z90": 0.4698408252397128,
+          "code": "512880",
+          "name": "证券ETF国泰",
+          "volume": 2248811412,
+          "turnover": 2454774563,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-05-06",
+              "signalLabel": "买",
+              "freshnessLabel": "当天",
+              "freshnessBucket": "today"
+            },
+            "confirmTrail12": {
+              "signalKey": "sell",
+              "signalDate": "2026-01-30",
+              "signalLabel": "卖",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 15.021921471173405,
+          "turnoverChangePct7dAvg": 45.02647645334608
+        },
+        {
+          "z90": 1.277268379160267,
+          "code": "515880",
+          "name": "通信ETF国泰",
+          "volume": 1776651630,
+          "turnover": 2412532119,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-03",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-01",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 20.450014304478216,
+          "turnoverChangePct7dAvg": -22.36060344216324
+        },
+        {
+          "z90": 0.07156049439015384,
+          "code": "513050",
+          "name": "中概互联网ETF易方达",
+          "volume": 1954591996,
+          "turnover": 2347905388,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "sell",
+              "signalDate": "2026-02-02",
+              "signalLabel": "卖",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "sell",
+              "signalDate": "2026-02-02",
+              "signalLabel": "卖",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 32.4048925148386,
+          "turnoverChangePct7dAvg": 28.2886869283
+        },
+        {
+          "z90": 1.3321085938845136,
+          "code": "159516",
+          "name": "半导体设备ETF国泰",
+          "volume": 2200019835,
+          "turnover": 2295582250,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-14",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-10",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 23.752247841571684,
+          "turnoverChangePct7dAvg": 24.764193001745838
+        },
+        {
+          "z90": 5.143629561868606,
+          "code": "159995",
+          "name": "芯片ETF华夏",
+          "volume": 989091366,
+          "turnover": 2201505793,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-16",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-16",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 70.73258292986702,
+          "turnoverChangePct7dAvg": 110.47235465884614
+        },
+        {
+          "z90": 0.5344090420898034,
+          "code": "159740",
+          "name": "恒生科技ETF大成",
+          "volume": 3479329034,
+          "turnover": 2187054626,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-05-06",
+              "signalLabel": "买",
+              "freshnessLabel": "当天",
+              "freshnessBucket": "today"
+            },
+            "confirmTrail12": {
+              "signalKey": "sell",
+              "signalDate": "2026-02-02",
+              "signalLabel": "卖",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 62.875898493678875,
+          "turnoverChangePct7dAvg": 54.40365298352279
+        },
+        {
+          "z90": 0.10233179974768594,
+          "code": "159570",
+          "name": "港股通创新药ETF汇添富",
+          "volume": 1379123831,
+          "turnover": 2113837390,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "sell",
+              "signalDate": "2026-04-28",
+              "signalLabel": "卖",
+              "freshnessLabel": "5日内",
+              "freshnessBucket": "within_5d"
+            },
+            "confirmTrail12": {
+              "signalKey": "sell",
+              "signalDate": "2026-04-23",
+              "signalLabel": "卖",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 26.529409682045802,
+          "turnoverChangePct7dAvg": 4.841700660649884
+        },
+        {
+          "z90": 1.8389889375636574,
+          "code": "512480",
+          "name": "半导体ETF国联安",
+          "volume": 1069516495,
+          "turnover": 2074942490,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-14",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-14",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": -10.103684397204349,
+          "turnoverChangePct7dAvg": 17.666139432113592
+        },
+        {
+          "z90": -0.20590124325345885,
+          "code": "159792",
+          "name": "港股通互联网ETF富国",
+          "volume": 2971165807,
+          "turnover": 2033178968,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "sell",
+              "signalDate": "2026-02-02",
+              "signalLabel": "卖",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "sell",
+              "signalDate": "2026-01-07",
+              "signalLabel": "卖",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 21.5538487990526,
+          "turnoverChangePct7dAvg": 21.800584455235427
+        },
+        {
+          "z90": 2.8231600904812892,
+          "code": "512500",
+          "name": "中证500ETF华夏",
+          "volume": 401229458,
+          "turnover": 1922459836,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-16",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-16",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": -21.53412948829284,
+          "turnoverChangePct7dAvg": 44.020893235780754
+        },
+        {
+          "z90": -1.1261451238669917,
+          "code": "159361",
+          "name": "A500ETF易方达",
+          "volume": 1425080256,
+          "turnover": 1886900725,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-13",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-13",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": -14.09282564786356,
+          "turnoverChangePct7dAvg": -19.211948202702168
+        },
+        {
+          "z90": 0.37978412839674136,
+          "code": "159326",
+          "name": "电网设备ETF华夏",
+          "volume": 917152940,
+              "freshnessLabel": null,
+              "freshnessBucket": null
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": -84.30389561558212,
+          "turnoverChangePct7dAvg": -84.3390023251014
+        },
+        {
+          "z90": -0.7609145945742557,
+          "code": "159937",
+          "name": "黄金ETF博时",
+          "volume": 78885200,
+          "turnover": 767287345,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "sell",
+              "signalDate": "2026-03-16",
+              "signalLabel": "卖",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "risk_sell",
+              "signalDate": "2026-02-02",
+              "signalLabel": "风控卖",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 35.40074779821174,
+          "turnoverChangePct7dAvg": 17.161420085010892
+        },
+        {
+          "z90": 2.2023320953110135,
+          "code": "515050",
+          "name": "通信ETF华夏",
+          "volume": 247021392,
+          "turnover": 755931816,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-07",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-07",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 51.5192607130192,
+          "turnoverChangePct7dAvg": 5.319816648800635
+        },
+        {
+          "z90": 3.6460582495770684,
+          "code": "159813",
+          "name": "半导体ETF鹏华",
+          "volume": 512671366,
+          "turnover": 732993592,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-17",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-04-17",
+              "signalLabel": "买",
+              "freshnessLabel": "其它",
+              "freshnessBucket": "other"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": 22.339449345057538,
+          "turnoverChangePct7dAvg": 86.04744203093748
+        },
+        {
+          "z90": -1.1314185249288629,
+          "code": "513750",
+          "name": "港股通非银ETF广发",
+          "volume": 448051137,
+          "turnover": 722430379,
+          "dataStatus": "complete",
+          "momentumSignals": {
+            "baseColorFlip": {
+              "signalKey": "buy",
+              "signalDate": "2026-05-06",
+              "signalLabel": "买",
+              "freshnessLabel": "当天",
+              "freshnessBucket": "today"
+            },
+            "confirmTrail12": {
+              "signalKey": "buy",
+              "signalDate": "2026-05-06",
+              "signalLabel": "买",
+              "freshnessLabel": "当天",
+              "freshnessBucket": "today"
+            }
+          },
+          "latestTradingDate": "2026-05-06",
+          "turnoverChangePct1d": -39.2541024375604,
+          "turnoverChangePct7dAvg": -31.839059326552455
+        },
+        {
+          "z90": 3.2824619477792165,
+          "code": "513300",
+          "name": "纳斯达克ETF华夏",
+          "volume": 291192697,
+          "turnover": 715777605,
+          "dataStatus": "complete",

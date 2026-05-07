@@ -66,7 +66,6 @@ const RPS_OVERVIEW_NAV_SECTIONS: FloatingNavSection[] = [
   { id: 'rps-trend-section', label: '动量', shortLabel: '动量' },
   { id: 'rps-turnover-section', label: '成交额', shortLabel: '成交额' },
 ] as const
-const SUMMARY_CARD_CLS = 'rounded-md border border-white/10 bg-[#0F172A] px-3 py-3 shadow-lg'
 const TURNOVER_HIGHLIGHT_ROW_CLS = 'bg-[rgba(203,184,255,0.10)]'
 const TURNOVER_HIGHLIGHT_TEXT_CLS = 'font-semibold text-[#CBB8FF]'
 const TURNOVER_HIGHLIGHT_BADGE_CLS =
@@ -213,6 +212,31 @@ function resolveScoreState(score: number | null | undefined): { label: string; t
   }
 }
 
+function computeRsi(prices: number[], period: number = 14): number | null {
+  if (prices.length < period + 1) return null
+  let gains = 0
+  let losses = 0
+  for (let i = 1; i <= period; i++) {
+    const idx = prices.length - period - 1 + i
+    const prev = prices[idx - 1]
+    const diff = prices[idx] - prev
+    if (diff >= 0) gains += diff
+    else losses += Math.abs(diff)
+  }
+  let avgGain = gains / period
+  let avgLoss = losses / period
+  for (let i = prices.length - period; i < prices.length; i++) {
+    const diff = prices[i] - prices[i - 1]
+    const gain = diff >= 0 ? diff : 0
+    const loss = diff < 0 ? Math.abs(diff) : 0
+    avgGain = (avgGain * (period - 1) + gain) / period
+    avgLoss = (avgLoss * (period - 1) + loss) / period
+  }
+  if (avgLoss === 0) return 100
+  const rs = avgGain / avgLoss
+  return 100 - (100 / (1 + rs))
+}
+
 export default function RpsStylePanel({ page }: { page: RpsPage }) {
   const isOverviewPage = page === 'overview'
   const isCustomQueryPage = page === 'custom-query'
@@ -263,6 +287,12 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   const customQueryLatestTurnoverSummary =
     customQuerySummary?.latestTurnoverSummary ?? customQueryData?.latestTurnoverSummary ?? null
   const customQueryScoreState = useMemo(() => resolveScoreState(customQueryLatest?.scorePct), [customQueryLatest?.scorePct])
+  const customQueryLatestRsi = useMemo(() => {
+    const series = customQueryData?.series
+    if (!Array.isArray(series) || series.length < 15) return null
+    const closes = series.map((p) => p.targetCloseQfq)
+    return computeRsi(closes, 14)
+  }, [customQueryData?.series])
 
   useEffect(() => {
     if (!isOverviewPage) return
@@ -622,7 +652,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   )
 
   const customQueryIntro = (
-    <section className="overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] px-4 py-3 shadow-lg">
+    <section className="overflow-hidden rounded-lg bg-[#0F172A] px-4 py-3 shadow-md">
       <div className="text-xl font-semibold tracking-tight text-white">动量分析</div>
       <div className="mt-1 text-[13px] leading-relaxed text-[#94A3B8]">
         输入特定的场内ETF，查询场内基金的分析结果。
@@ -916,83 +946,97 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
 
       {customQueryLatest ? (
         <>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#93C5FD]">查询结果摘要</div>
-            <div className="text-[11px] text-[#64748B]">新增成交额指标统一按最近完整交易日计算</div>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-            <div className={SUMMARY_CARD_CLS}>
-              <div className="text-[11px] uppercase tracking-[0.16em] text-[#93C5FD]">当前标的</div>
-              <div className="mt-1 break-all text-sm font-semibold text-[#F8FAFC]">{customQueryDisplayLabel}</div>
-              <div className="mt-2 text-[11px] leading-relaxed text-[#94A3B8]">
-                输入值：{customQuerySummary?.inputTicker ?? customQueryData?.inputTicker ?? submittedCustomTicker}
-              </div>
-            </div>
-            <div className={SUMMARY_CARD_CLS}>
-              <div className="text-[11px] text-[#94A3B8]">基准分母</div>
-              <div className="mt-1 break-all text-sm font-medium text-[#CBD5E1]">{customQueryBenchmarkLabel}</div>
-            </div>
-            <div className={SUMMARY_CARD_CLS}>
-              <div className="text-[11px] text-[#94A3B8]">统一截止日</div>
-              <div className="mt-1 font-mono text-sm font-semibold text-[#F8FAFC]">
-                {customQueryLatest?.date ? formatYmd(customQueryLatest.date) : '—'}
-              </div>
-            </div>
-            <div className={SUMMARY_CARD_CLS}>
-              <div className="text-[11px] text-[#94A3B8]">最新 RPS</div>
-              <div className="mt-1 font-mono text-sm font-semibold text-[#F8FAFC]">{fmt(customQueryLatest?.rpsRaw, 6)}</div>
-            </div>
-            <div className={SUMMARY_CARD_CLS}>
-              <div className="text-[11px] text-[#94A3B8]">最新 MA50</div>
-              <div className="mt-1 font-mono text-sm font-semibold text-[#F8FAFC]">{fmt(customQueryLatest?.rpsMa50, 6)}</div>
-            </div>
-            <div className={SUMMARY_CARD_CLS}>
-              <div className="text-[11px] text-[#94A3B8]">最新 Score</div>
-              <div className="mt-1 flex flex-wrap items-center gap-2">
-                <span className={cn('font-mono text-sm font-semibold', customQueryScoreState.valueCls)}>
-                  {fmt(customQueryLatest?.scorePct, 2)}
-                </span>
-                <span className={cn('rounded-full border px-2 py-0.5 text-[11px] font-semibold', customQueryScoreState.toneCls)}>
-                  {customQueryScoreState.label}
+          <div className="overflow-hidden rounded-lg bg-[#0F172A] p-5 shadow-md">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <span className="text-sm font-semibold text-[#F8FAFC]">{customQueryDisplayLabel}</span>
+                <span className="ml-3 text-[11px] text-[#64748B]">
+                  基准：{customQueryBenchmarkLabel}
                 </span>
               </div>
-            </div>
-            <div className={SUMMARY_CARD_CLS}>
-              <div className="text-[11px] text-[#94A3B8]">最新交易额</div>
-              <div className="mt-1 font-mono text-sm font-semibold text-[#F8FAFC]">{fmtTurnover(customQueryLatestTurnoverSummary?.turnover)}</div>
-              <div className="mt-2 text-[11px] leading-relaxed text-[#64748B]">
-                口径日期：{customQueryLatestTurnoverSummary?.date ? formatYmd(customQueryLatestTurnoverSummary.date) : '—'}
+              <div className="text-[11px] text-[#64748B]">
+                统一截止日：{customQueryLatest?.date ? formatYmd(customQueryLatest.date) : '—'}
               </div>
             </div>
-            <div className={SUMMARY_CARD_CLS}>
-              <div className="text-[11px] text-[#94A3B8]">交易额较昨变化%</div>
-              <div className={cn('mt-1 font-mono text-sm font-semibold', pctToneCls(customQueryLatestTurnoverSummary?.turnoverChangePct1d))}>
-                {typeof customQueryLatestTurnoverSummary?.turnoverChangePct1d === 'number'
-                  ? formatPct(customQueryLatestTurnoverSummary.turnoverChangePct1d)
-                  : '—'}
+            <div className="mt-4 border-t border-white/5 pt-4">
+              <div className="flex flex-wrap items-start gap-x-3 gap-y-3">
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.16em] text-[#93C5FD]">Score</div>
+                  <div className={cn('mt-1 text-2xl font-bold', customQueryScoreState.valueCls)}>
+                    {fmt(customQueryLatest?.scorePct, 2)}%
+                  </div>
+                  <span className={cn('mt-1 inline-block rounded-full border px-2 py-0.5 text-[11px] font-semibold', customQueryScoreState.toneCls)}>
+                    {customQueryScoreState.label}
+                  </span>
+                </div>
+                <div className="hidden h-auto w-px self-stretch bg-white/10 sm:block" />
+                <div>
+                  <div className="text-[11px] text-[#94A3B8]">成交额</div>
+                  <div className="mt-1 font-mono text-lg font-semibold text-[#F8FAFC]">{fmtTurnover(customQueryLatestTurnoverSummary?.turnover)}</div>
+                </div>
+                <div className="hidden h-auto w-px self-stretch bg-white/10 sm:block" />
+                <div>
+                  <div className="text-[11px] text-[#94A3B8]">放量倍数</div>
+                  <div className="mt-1 font-mono text-lg font-semibold text-[#F8FAFC]">{fmtMultiple(customQueryLatestTurnoverSummary?.turnoverMultipleOfPrev20Avg)}</div>
+                </div>
+                <div className="hidden h-auto w-px self-stretch bg-white/10 sm:block" />
+                <div>
+                  <div className="text-[11px] text-[#94A3B8]">较昨变化</div>
+                  <div className={cn('mt-1 font-mono text-lg font-semibold', pctToneCls(customQueryLatestTurnoverSummary?.turnoverChangePct1d))}>
+                    {typeof customQueryLatestTurnoverSummary?.turnoverChangePct1d === 'number'
+                      ? formatPct(customQueryLatestTurnoverSummary.turnoverChangePct1d)
+                      : '—'}
+                  </div>
+                </div>
+                <div className="hidden h-auto w-px self-stretch bg-white/10 sm:block" />
+                <div>
+                  <div className="text-[11px] text-[#94A3B8]">较前7日均变化</div>
+                  <div className={cn('mt-1 font-mono text-lg font-semibold', pctToneCls(customQueryLatestTurnoverSummary?.turnoverChangePct7dAvg))}>
+                    {typeof customQueryLatestTurnoverSummary?.turnoverChangePct7dAvg === 'number'
+                      ? formatPct(customQueryLatestTurnoverSummary.turnoverChangePct7dAvg)
+                      : '—'}
+                  </div>
+                </div>
+                <div className="hidden h-auto w-px self-stretch bg-white/10 sm:block" />
+                <div>
+                  <div className="text-[11px] text-[#94A3B8]">90日Z值</div>
+                  <div className="mt-1">
+                    <ZBadge z={customQueryLatestTurnoverSummary?.z90 ?? null} status={customQueryLatestTurnoverSummary?.dataStatus ?? 'incomplete'} />
+                  </div>
+                </div>
               </div>
             </div>
-            <div className={SUMMARY_CARD_CLS}>
-              <div className="text-[11px] text-[#94A3B8]">交易额较前7日均变化%</div>
-              <div className={cn('mt-1 font-mono text-sm font-semibold', pctToneCls(customQueryLatestTurnoverSummary?.turnoverChangePct7dAvg))}>
-                {typeof customQueryLatestTurnoverSummary?.turnoverChangePct7dAvg === 'number'
-                  ? formatPct(customQueryLatestTurnoverSummary.turnoverChangePct7dAvg)
-                  : '—'}
+            <div className="mt-4 rounded-md bg-[rgba(11,18,32,0.5)] px-3 py-2.5">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                <div>
+                  <span className="text-[#64748B]">前复权价格</span>
+                  <span className="ml-1.5 font-mono font-semibold text-[#F8FAFC]">{fmt(customQueryLatest?.targetCloseQfq, 3)}</span>
+                </div>
+                <div className="hidden h-4 w-px bg-white/10 sm:block" />
+                <div>
+                  <span className="text-[#64748B]">RPS</span>
+                  <span className="ml-1.5 font-mono font-semibold text-[#F8FAFC]">{fmt(customQueryLatest?.rpsRaw, 6)}</span>
+                </div>
+                <div className="hidden h-4 w-px bg-white/10 sm:block" />
+                <div>
+                  <span className="text-[#64748B]">MA50</span>
+                  <span className="ml-1.5 font-mono font-semibold text-[#F8FAFC]">{fmt(customQueryLatest?.rpsMa50, 6)}</span>
+                </div>
+                <div className="hidden h-4 w-px bg-white/10 sm:block" />
+                <div>
+                  <span className="text-[#64748B]">RSI</span>
+                  <span className="ml-1.5 font-mono font-semibold text-[#F8FAFC]">
+                    {customQueryLatestRsi !== null ? customQueryLatestRsi.toFixed(1) : '—'}
+                  </span>
+                </div>
               </div>
             </div>
-            <div className={SUMMARY_CARD_CLS}>
-              <div className="text-[11px] text-[#94A3B8]">90日成交额 Z值</div>
-              <div className="mt-1">
-                <ZBadge z={customQueryLatestTurnoverSummary?.z90 ?? null} status={customQueryLatestTurnoverSummary?.dataStatus ?? 'incomplete'} />
-              </div>
-              <div className="mt-2 text-[11px] leading-relaxed text-[#64748B]">
-                放量倍数：{fmtMultiple(customQueryLatestTurnoverSummary?.turnoverMultipleOfPrev20Avg)}
-              </div>
+            <div className="mt-3 text-[11px] text-[#64748B]">
+              输入值：{customQuerySummary?.inputTicker ?? customQueryData?.inputTicker ?? submittedCustomTicker}
             </div>
           </div>
 
-          <section className="rounded-md border border-[rgba(248,250,252,0.08)] bg-[rgba(11,18,32,0.82)] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+          <section className="rounded-md bg-[rgba(11,18,32,0.82)] px-3 py-2.5 shadow-sm">
             <div className="flex flex-col gap-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-[13px] font-semibold text-[#F8FAFC]">关键图表指标</div>
@@ -1065,7 +1109,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
             resetKey={`${submittedCustomTicker}:${customQuerySubmitSeq}`}
           />
 
-          <section className="overflow-hidden rounded-md border border-[#1E293B] bg-[#0F172A] shadow-lg">
+          <section className="overflow-hidden rounded-lg bg-[#0F172A] shadow-md">
             <div className="border-b border-[#1E293B] px-3 py-3">
               <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
                 <div>

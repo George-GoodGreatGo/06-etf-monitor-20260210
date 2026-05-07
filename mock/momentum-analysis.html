@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>动量分析页 Mock — Hero 摘要 + 去边框化</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { background: #0B1220; }
+  .old-section::after {
+    content: '旧版风格 — 10张等权卡片';
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(239,68,68,0.15);
+    color: #F87171;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 16px;
+    border-radius: 9999px;
+    border: 1px solid rgba(239,68,68,0.2);
+    pointer-events: none;
+    z-index: 10;
+  }
+</style>
+</head>
+<body class="min-h-screen text-[#F8FAFC] antialiased">
+
+<div class="mx-auto max-w-6xl px-4 py-6 space-y-5">
+
+  <!-- ====== NEW VERSION HEADER ====== -->
+  <div class="text-center mb-2">
+    <h1 class="text-2xl font-bold text-white">✨ 新版 — Hero 摘要 + 去边框化</h1>
+    <p class="text-xs text-[#64748B] mt-1">方案1：主指标突出 · 方案2：阴影替代硬边框</p>
+  </div>
+
+  <!-- A. Title Banner (debordered) -->
+  <section class="overflow-hidden rounded-lg bg-[#0F172A] px-4 py-3 shadow-md">
+    <div class="text-xl font-semibold tracking-tight text-white">动量分析</div>
+    <div class="mt-1 text-[13px] leading-relaxed text-[#94A3B8]">
+      输入特定的场内ETF，查询场内基金的分析结果。
+    </div>
+  </section>
+
+  <!-- B. Search Bar -->
+  <form class="w-full">
+    <div class="group flex min-h-[64px] w-full items-center gap-3 rounded-full border border-[rgba(148,163,184,0.18)] bg-[rgba(15,23,42,0.96)] px-4 py-2.5 shadow-[0_14px_34px_rgba(2,6,23,0.26)] transition hover:border-[rgba(125,211,252,0.34)] focus-within:border-[rgba(125,211,252,0.48)]">
+      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/8 text-[#A8BAD8]">
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" class="h-4 w-4">
+          <path d="M8.75 3.75a5 5 0 1 0 0 10a5 5 0 0 0 0-10Z" stroke="currentColor" stroke-width="1.8"/>
+          <path d="m12.5 12.5 3.75 3.75" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <input value="159915" class="h-11 flex-1 bg-transparent font-mono text-base text-[#F8FAFC] outline-none placeholder:text-[#8CA3C7] sm:text-lg" placeholder="输入 ETF 代码，如 159915、159915.SZ"/>
+      <button type="button" class="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold tracking-[0.02em] text-[#F8FBFF] bg-[linear-gradient(135deg,rgba(125,211,252,0.24),rgba(203,184,255,0.24))] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_24px_rgba(59,130,246,0.12)] hover:bg-[linear-gradient(135deg,rgba(125,211,252,0.34),rgba(203,184,255,0.34))]">查询</button>
+    </div>
+  </form>
+
+  <!-- Recent Searches -->
+  <div class="rounded-xl border border-[rgba(71,85,105,0.22)] bg-[linear-gradient(180deg,rgba(9,19,36,0.84),rgba(9,18,32,0.66))] px-4 py-2.5">
+    <div class="flex items-center gap-2">
+      <div class="text-[12px] font-semibold tracking-[0.08em] text-[#D7E2F3]">最近搜索</div>
+      <div class="h-1 w-1 rounded-full bg-[#3B82F6]/60"></div>
+      <div class="text-[11px] text-[#7B8BA5]">仅展示当前用户最近成功返回的 ETF，最多 10 条</div>
+    </div>
+    <div class="mt-2 flex flex-wrap gap-1.5">
+      <button class="inline-flex items-center gap-1.5 rounded-full border border-[rgba(96,165,250,0.24)] bg-[rgba(37,99,235,0.12)] text-[#EAF4FF] px-2 py-1 text-left">
+        <span class="rounded-full bg-[rgba(148,197,255,0.12)] text-[#BFDBFE] px-1.5 py-0.5 font-mono text-[10px]">159915</span>
+        <span class="text-[12px] font-medium">创业板ETF</span>
+      </button>
+      <button class="inline-flex items-center gap-1.5 rounded-full border border-[rgba(71,85,105,0.22)] bg-[rgba(15,23,42,0.68)] text-[#CBD5E1] px-2 py-1 text-left hover:border-[rgba(96,165,250,0.22)]">
+        <span class="rounded-full bg-white/[0.035] text-[#A9BDD9] px-1.5 py-0.5 font-mono text-[10px]">588000</span>
+        <span class="text-[12px] font-medium">科创50ETF</span>
+      </button>
+      <button class="inline-flex items-center gap-1.5 rounded-full border border-[rgba(71,85,105,0.22)] bg-[rgba(15,23,42,0.68)] text-[#CBD5E1] px-2 py-1 text-left hover:border-[rgba(96,165,250,0.22)]">
+        <span class="rounded-full bg-white/[0.035] text-[#A9BDD9] px-1.5 py-0.5 font-mono text-[10px]">513180</span>
+        <span class="text-[12px] font-medium">恒生科技ETF</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- C. Data Status Banner (matches real component) -->
+  <div class="relative overflow-hidden rounded border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-2">
+    <div class="absolute left-0 top-0 h-full w-[2px] bg-[#10B981]"></div>
+    <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+      <div class="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+        <div class="flex items-center gap-1.5 text-xs">
+          <svg class="h-3.5 w-3.5 text-[#10B981]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
+          <span class="font-semibold text-white">数据已就绪（仅完整交易日）</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 text-xs text-[#9CA3AF]">
+          <span>交易日：2026-05-06</span>
+          <span>快照时间：2026-05-06 15:30</span>
+          <span>数据来源：多源实时数据 <span class="font-mono text-[11px] text-[#6B7280]"> · eastmoney</span></span>
+        </div>
+      </div>
+      <div class="inline-flex items-center rounded-[6px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.04)] px-2.5 py-1.5 text-xs text-[#9CA3AF]">
+        已完成校验
+      </div>
+    </div>
+  </div>
+
+  <!-- D. HERO SUMMARY CONTAINER (v2: 主指标行 + 副指标行) -->
+  <div class="overflow-hidden rounded-lg bg-[#0F172A] p-5 shadow-md">
+    <!-- Title Row -->
+    <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <span class="text-sm font-semibold text-[#F8FAFC]">动量分析结果 — 创业板ETF（159915）</span>
+        <span class="ml-3 text-[11px] text-[#64748B]">基准：红利低波全收益指数（H30269）</span>
+      </div>
+      <div class="text-[11px] text-[#64748B]">统一截止日：2026-05-06</div>
+    </div>
+
+    <!-- Row 1: Main Indicators (6 items, single row) -->
+    <div class="mt-4 border-t border-white/5 pt-4">
+      <div class="flex flex-wrap items-start gap-x-3 gap-y-3">
+        <!-- Score (Hero) -->
+        <div>
+          <div class="text-[11px] uppercase tracking-[0.16em] text-[#93C5FD]">Score</div>
+          <div class="mt-1 text-2xl font-bold text-[#34D399]">+3.25%</div>
+          <span class="mt-1 inline-block rounded-full border border-[rgba(16,185,129,0.25)] bg-[rgba(16,185,129,0.12)] px-2 py-0.5 text-[11px] font-semibold text-[#34D399]">强于MA50</span>
+        </div>
+        <div class="hidden h-auto w-px self-stretch bg-white/10 sm:block"></div>
+        <!-- 成交额 -->
+        <div>
+          <div class="text-[11px] text-[#94A3B8]">成交额</div>
+          <div class="mt-1 font-mono text-lg font-semibold text-[#F8FAFC]">12.5亿</div>
+        </div>
+        <div class="hidden h-auto w-px self-stretch bg-white/10 sm:block"></div>
+        <!-- 放量倍数 -->
+        <div>
+          <div class="text-[11px] text-[#94A3B8]">放量倍数</div>
+          <div class="mt-1 font-mono text-lg font-semibold text-[#F8FAFC]">2.15x</div>
+        </div>
+        <div class="hidden h-auto w-px self-stretch bg-white/10 sm:block"></div>
+        <!-- 较昨变化 -->
+        <div>
+          <div class="text-[11px] text-[#94A3B8]">较昨变化</div>
+          <div class="mt-1 font-mono text-lg font-semibold text-[#EF4444]">+8.3%</div>
+        </div>
+        <div class="hidden h-auto w-px self-stretch bg-white/10 sm:block"></div>
+        <!-- 较前7日均变化 -->
+        <div>
+          <div class="text-[11px] text-[#94A3B8]">较前7日均变化</div>
+          <div class="mt-1 font-mono text-lg font-semibold text-[#EF4444]">+5.1%</div>
+        </div>
+        <div class="hidden h-auto w-px self-stretch bg-white/10 sm:block"></div>
+        <!-- 90日Z值 -->
+        <div>
+          <div class="text-[11px] text-[#94A3B8]">90日Z值</div>
+          <div class="mt-1"><span class="inline-flex items-center gap-1 rounded-md border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.04)] px-3 py-1 font-mono text-xs text-[#93C5FD]">+1.82</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Secondary Indicators -->
+    <div class="mt-4 rounded-md bg-[rgba(11,18,32,0.5)] px-3 py-2.5">
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+        <div>
+          <span class="text-[#64748B]">前复权价格</span>
+          <span class="ml-1.5 font-mono font-semibold text-[#F8FAFC]">1.085</span>
+        </div>
+        <div class="hidden h-4 w-px bg-white/10 sm:block"></div>
+        <div>
+          <span class="text-[#64748B]">RPS</span>
+          <span class="ml-1.5 font-mono font-semibold text-[#F8FAFC]">1.082450</span>
+        </div>
+        <div class="hidden h-4 w-px bg-white/10 sm:block"></div>
+        <div>
+          <span class="text-[#64748B]">MA50</span>
+          <span class="ml-1.5 font-mono font-semibold text-[#F8FAFC]">1.047660</span>
+        </div>
+        <div class="hidden h-4 w-px bg-white/10 sm:block"></div>
+        <div>
+          <span class="text-[#64748B]">RSI</span>
+          <span class="ml-1.5 font-mono font-semibold text-[#F8FAFC]">58.3</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Context Row -->
+    <div class="mt-3 text-[11px] text-[#64748B]">
+      输入值：159915 · 基准分母：红利低波全收益指数（H30269）
+    </div>
+  </div>
+
+  <!-- E. Strategy Selector (debordered) -->
+  <section class="rounded-md bg-[rgba(11,18,32,0.82)] px-3 py-2.5 shadow-sm">
+    <div class="flex flex-col gap-2">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="text-[13px] font-semibold text-[#F8FAFC]">关键图表指标</div>
+        <a href="#" class="text-[11px] font-semibold text-[#93C5FD]">查看分析方法</a>
+      </div>
+      <!-- Strategy Pills -->
+      <div class="inline-flex max-w-full flex-wrap gap-1 rounded-2xl border border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.82)] p-1">
+        <button class="inline-flex items-center gap-1.5 rounded-xl border border-[rgba(125,211,252,0.42)] bg-[linear-gradient(135deg,rgba(8,47,73,0.46),rgba(14,116,144,0.24))] text-white px-3 py-1.5 text-left text-[11px] font-semibold shadow-[inset_0_0_0_1px_rgba(125,211,252,0.14),0_4px_14px_rgba(8,47,73,0.18)]">
+          基线策略
+          <span class="rounded-full border border-[rgba(125,211,252,0.18)] bg-[rgba(125,211,252,0.1)] px-1.5 py-0.5 text-[9px] font-semibold text-[#93C5FD]">默认</span>
+          <span class="rounded-full border border-[rgba(52,211,153,0.2)] bg-[rgba(52,211,153,0.1)] px-1.5 py-0.5 text-[9px] font-semibold text-[#6EE7B7]">当前</span>
+        </button>
+        <button class="inline-flex items-center gap-1.5 rounded-xl border border-transparent bg-[rgba(15,23,42,0.26)] text-[#CBD5E1] px-3 py-1.5 text-left text-[11px] font-semibold hover:border-[rgba(125,211,252,0.18)] hover:bg-[rgba(21,32,53,0.72)] hover:text-white">增强确认</button>
+        <button class="inline-flex items-center gap-1.5 rounded-xl border border-transparent bg-[rgba(15,23,42,0.26)] text-[#CBD5E1] px-3 py-1.5 text-left text-[11px] font-semibold hover:border-[rgba(125,211,252,0.18)] hover:bg-[rgba(21,32,53,0.72)] hover:text-white">MACD辅助</button>
+        <button class="inline-flex items-center gap-1.5 rounded-xl border border-transparent bg-[rgba(15,23,42,0.26)] text-[#CBD5E1] px-3 py-1.5 text-left text-[11px] font-semibold hover:border-[rgba(125,211,252,0.18)] hover:bg-[rgba(21,32,53,0.72)] hover:text-white">RSI过滤</button>
+        <button class="inline-flex items-center gap-1.5 rounded-xl border border-transparent bg-[rgba(15,23,42,0.26)] text-[#CBD5E1] px-3 py-1.5 text-left text-[11px] font-semibold hover:border-[rgba(125,211,252,0.18)] hover:bg-[rgba(21,32,53,0.72)] hover:text-white">综合信号</button>
+      </div>
+      <div class="text-[11px] text-[#94A3B8]">
+        <span class="font-medium text-[#CBD5E1]">基线策略</span>
+        <span class="mx-1 text-[#64748B]">·</span>
+        绿转黄且收盘价>=SMA250买入；黄转绿卖出
+        <span class="mx-1 text-[#64748B]">·</span>
+        默认出场规则
+      </div>
+      <!-- Signal Legend -->
+      <div class="flex flex-wrap gap-2 text-[11px]">
+        <span class="rounded-full border border-[rgba(248,113,113,0.28)] bg-[rgba(127,29,29,0.18)] px-2 py-0.5 text-[#FCA5A5]">● 买入信号</span>
+        <span class="rounded-full border border-[rgba(52,211,153,0.24)] bg-[rgba(6,78,59,0.18)] px-2 py-0.5 text-[#6EE7B7]">● 卖出信号</span>
+        <span class="rounded-full border border-[rgba(251,191,36,0.24)] bg-[rgba(120,53,15,0.18)] px-2 py-0.5 text-[#FCD34D]">● 风险预警</span>
+        <span class="rounded-full border border-[rgba(203,184,255,0.24)] bg-[rgba(91,33,182,0.14)] px-2 py-0.5 text-[#DDD6FE]">● 中性</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- F. Chart Placeholder -->
+  <section class="overflow-hidden rounded-lg bg-[#0F172A] shadow-md">
+    <div class="border-b border-[#1E293B] px-4 py-3">
+      <h3 class="text-[15px] font-semibold text-white">创业板ETF（159915）关键图表指标</h3>
+      <p class="mt-0.5 text-xs text-[#94A3B8]">当前序列：创业板ETF（159915） | 基准：红利低波全收益指数（H30269）</p>
+    </div>
+    <div class="p-4">
+      <!-- Mock Chart -->
+      <div class="rounded-lg bg-[#0B1220] overflow-hidden" style="min-height:420px">
+        <!-- Price Pane -->
+        <div class="relative px-4 py-3 border-b border-[#162033]">
+          <div class="text-[10px] text-[#64748B] mb-2">价格走势 · 放量高亮</div>
+          <svg viewBox="0 0 800 120" class="w-full" preserveAspectRatio="none" style="height:100px">
+            <defs>
+              <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="rgba(96,165,250,0.15)"/>
+                <stop offset="100%" stop-color="rgba(96,165,250,0)"/>
+              </linearGradient>
+            </defs>
+            <path d="M0,100 L50,105 L100,95 L150,85 L200,75 L250,80 L300,65 L350,55 L400,60 L450,50 L500,45 L550,55 L600,40 L650,30 L700,35 L750,25 L800,20" fill="none" stroke="#60A5FA" stroke-width="1.5"/>
+            <path d="M0,100 L50,105 L100,95 L150,85 L200,75 L250,80 L300,65 L350,55 L400,60 L450,50 L500,45 L550,55 L600,40 L650,30 L700,35 L750,25 L800,20 L800,120 L0,120 Z" fill="url(#priceGrad)"/>
+          </svg>
+          <!-- Signal markers -->
+          <div class="flex gap-2 mt-1 text-[10px]">
+            <span class="text-[#FCA5A5]">● B</span>
+            <span class="text-[#6EE7B7]">● S</span>
+            <span class="text-[#FCD34D]">● R</span>
+          </div>
+        </div>
+        <!-- MACD Pane -->
+        <div class="px-4 py-2 border-b border-[#162033]">
+          <div class="text-[10px] text-[#64748B] mb-1">MACD (8,21,5)</div>
+          <svg viewBox="0 0 800 40" class="w-full" preserveAspectRatio="none" style="height:35px">
+            <path d="M0,20 L50,22 L100,18 L150,16 L200,10 L250,14 L300,8 L350,6 L400,4 L450,10 L500,12 L550,8 L600,5 L650,3 L700,6 L750,4 L800,2" fill="none" stroke="#60A5FA" stroke-width="1"/>
+            <path d="M0,20 L50,19 L100,21 L150,23 L200,19 L250,22 L300,18 L350,20 L400,16 L450,20 L500,22 L550,18 L600,15 L650,18 L700,16 L750,13 L800,12" fill="none" stroke="#F59E0B" stroke-width="0.8" opacity="0.6"/>
+            <!-- Histogram bars -->
+            <rect x="0" y="18" width="4" height="4" fill="#6EE7B7" opacity="0.5"/>
+            <rect x="51" y="18" width="4" height="3" fill="#6EE7B7" opacity="0.5"/>
+            <rect x="102" y="20" width="4" height="2" fill="#F87171" opacity="0.5"/>
+            <rect x="153" y="22" width="4" height="5" fill="#F87171" opacity="0.5"/>
+            <rect x="204" y="12" width="4" height="8" fill="#6EE7B7" opacity="0.5"/>
+          </svg>
+        </div>
+        <!-- Score Pane -->
+        <div class="px-4 py-2 border-b border-[#162033]">
+          <div class="text-[10px] text-[#64748B] mb-1">Score (RPS/MA50 - 1)</div>
+          <svg viewBox="0 0 800 30" class="w-full" preserveAspectRatio="none" style="height:30px">
+            <line x1="0" y1="15" x2="800" y2="15" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+            <path d="M0,18 L50,17 L100,15 L150,12 L200,10 L250,8 L300,9 L350,6 L400,7 L450,5 L500,4 L550,6 L600,3 L650,2 L700,4 L750,1 L800,2" fill="none" stroke="#34D399" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <!-- RSI Pane -->
+        <div class="px-4 py-2 border-b border-[#162033]">
+          <div class="text-[10px] text-[#64748B] mb-1">RSI(14)</div>
+          <svg viewBox="0 0 800 30" class="w-full" preserveAspectRatio="none" style="height:30px">
+            <line x1="0" y1="3" x2="800" y2="3" stroke="rgba(239,68,68,0.15)" stroke-width="1"/>
+            <line x1="0" y1="27" x2="800" y2="27" stroke="rgba(16,185,129,0.15)" stroke-width="1"/>
+            <path d="M0,18 L50,16 L100,14 L150,12 L200,10 L250,11 L300,9 L350,8 L400,10 L450,7 L500,6 L550,8 L600,5 L650,4 L700,6 L750,3 L800,4" fill="none" stroke="#B9A3FF" stroke-width="1.2"/>
+          </svg>
+        </div>
+        <!-- Time Axis -->
+        <div class="px-4 py-2">
+          <div class="flex justify-between text-[10px] text-[#64748B]">
+            <span>2025-06</span><span>2025-08</span><span>2025-10</span><span>2025-12</span><span>2026-02</span><span>2026-05</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- G. Turnover Table (debordered) -->
+  <section class="overflow-hidden rounded-lg bg-[#0F172A] shadow-md">
+    <div class="border-b border-[#1E293B] px-3 py-3">
+      <div class="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div class="text-[15px] font-semibold tracking-tight text-white">最近250个交易日成交额追踪</div>
+          <div class="mt-0.5 text-xs leading-relaxed text-[#94A3B8]">展示截至最近完整交易日的 交易日、当日成交额、相对前20个交易日均值倍数，高于 1.50x 的交易日高亮。</div>
+        </div>
+        <div class="text-xs text-[#94A3B8]">标的：创业板ETF（159915）</div>
+      </div>
+    </div>
+    <div class="px-3 py-3">
+      <div class="overflow-x-auto rounded-md border border-[#1E293B] bg-[#0B1220]">
+        <table class="min-w-full text-sm">
+          <thead class="bg-white/5 text-[#A9B6CC]">
+            <tr>
+              <th class="px-3 py-2 text-left">日期</th>
+              <th class="px-3 py-2 text-right">成交额</th>
+              <th class="px-3 py-2 text-right">较前20日均值倍数</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-t border-[#162033]"><td class="px-3 py-2 font-mono text-[#E6EDF7]">2026-05-06</td><td class="px-3 py-2 text-right font-mono text-[#E6EDF7]">12.5亿</td><td class="px-3 py-2 text-right font-mono text-[#A9B6CC]">1.35x</td></tr>
+            <tr class="border-t border-[#162033] bg-[rgba(203,184,255,0.10)]"><td class="px-3 py-2 font-mono text-[#E6EDF7]">2026-05-05</td><td class="px-3 py-2 text-right font-mono text-[#E6EDF7]">28.1亿</td><td class="px-3 py-2 text-right font-mono font-semibold text-[#CBB8FF]">2.15x</td></tr>
+            <tr class="border-t border-[#162033]"><td class="px-3 py-2 font-mono text-[#E6EDF7]">2026-04-30</td><td class="px-3 py-2 text-right font-mono text-[#E6EDF7]">10.2亿</td><td class="px-3 py-2 text-right font-mono text-[#A9B6CC]">1.12x</td></tr>
+            <tr class="border-t border-[#162033]"><td class="px-3 py-2 font-mono text-[#E6EDF7]">2026-04-29</td><td class="px-3 py-2 text-right font-mono text-[#E6EDF7]">11.8亿</td><td class="px-3 py-2 text-right font-mono text-[#A9B6CC]">1.28x</td></tr>
+            <tr class="border-t border-[#162033] bg-[rgba(203,184,255,0.10)]"><td class="px-3 py-2 font-mono text-[#E6EDF7]">2026-04-28</td><td class="px-3 py-2 text-right font-mono text-[#E6EDF7]">18.5亿</td><td class="px-3 py-2 text-right font-mono font-semibold text-[#CBB8FF]">1.78x</td></tr>
+            <tr class="border-t border-[#162033]"><td class="px-3 py-2 font-mono text-[#E6EDF7]">2026-04-25</td><td class="px-3 py-2 text-right font-mono text-[#E6EDF7]">9.1亿</td><td class="px-3 py-2 text-right font-mono text-[#A9B6CC]">0.95x</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== DIVIDER ====== -->
+  <div class="my-10 flex items-center gap-3">
+    <div class="flex-1 h-px bg-gradient-to-r from-transparent via-[#64748B]/40 to-transparent"></div>
+    <span class="text-sm font-semibold text-[#94A3B8] tracking-widest">⬇ 旧版风格对比 ⬇</span>
+    <div class="flex-1 h-px bg-gradient-to-r from-transparent via-[#64748B]/40 to-transparent"></div>
+  </div>
+
+  <!-- ====== OLD VERSION ====== -->
+  <div class="text-center mb-2">
+    <h2 class="text-lg font-bold text-[#94A3B8]">旧版 — 10张等权卡片 + 硬边框</h2>
+  </div>
+
+  <!-- Old Title Banner (with border) -->
+  <section class="overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A] px-4 py-3 shadow-lg">
+    <div class="text-xl font-semibold tracking-tight text-white">动量分析</div>
+    <div class="mt-1 text-[13px] leading-relaxed text-[#94A3B8]">输入特定的场内ETF，查询场内基金的分析结果。</div>
+  </section>
+
+  <!-- Old header row -->
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#93C5FD]">查询结果摘要</div>
+    <div class="text-[11px] text-[#64748B]">新增成交额指标统一按最近完整交易日计算</div>
+  </div>
+
+  <!-- Old 10-card grid -->
+  <div class="relative old-section rounded-lg border border-[#1E293B] bg-[#0B1220] p-4">
+    <div class="grid gap-3 grid-cols-2 md:grid-cols-5">
+      <div class="rounded-md border border-white/10 bg-[#0F172A] px-3 py-3 shadow-lg">
+        <div class="text-[11px] uppercase tracking-[0.16em] text-[#93C5FD]">当前标的</div>
+        <div class="mt-1 break-all text-sm font-semibold text-[#F8FAFC]">创业板ETF（159915）</div>
+        <div class="mt-2 text-[11px] leading-relaxed text-[#94A3B8]">输入值：159915</div>
+      </div>
+      <div class="rounded-md border border-white/10 bg-[#0F172A] px-3 py-3 shadow-lg">
+        <div class="text-[11px] text-[#94A3B8]">基准分母</div>
+        <div class="mt-1 break-all text-sm font-medium text-[#CBD5E1]">红利低波全收益指数（H30269）</div>
+      </div>
+      <div class="rounded-md border border-white/10 bg-[#0F172A] px-3 py-3 shadow-lg">
+        <div class="text-[11px] text-[#94A3B8]">统一截止日</div>
+        <div class="mt-1 font-mono text-sm font-semibold text-[#F8FAFC]">2026-05-06</div>
+      </div>
+      <div class="rounded-md border border-white/10 bg-[#0F172A] px-3 py-3 shadow-lg">
+        <div class="text-[11px] text-[#94A3B8]">最新 RPS</div>
+        <div class="mt-1 font-mono text-sm font-semibold text-[#F8FAFC]">1.082450</div>
+      </div>
+      <div class="rounded-md border border-white/10 bg-[#0F172A] px-3 py-3 shadow-lg">
+        <div class="text-[11px] text-[#94A3B8]">最新 MA50</div>
+        <div class="mt-1 font-mono text-sm font-semibold text-[#F8FAFC]">1.047660</div>
+      </div>
+      <div class="rounded-md border border-white/10 bg-[#0F172A] px-3 py-3 shadow-lg">
+        <div class="text-[11px] text-[#94A3B8]">最新 Score</div>
+        <div class="mt-1 flex flex-wrap items-center gap-2">
+          <span class="font-mono text-sm font-semibold text-[#34D399]">+3.25</span>
+          <span class="rounded-full border border-[rgba(16,185,129,0.25)] bg-[rgba(16,185,129,0.12)] px-2 py-0.5 text-[11px] font-semibold text-[#34D399]">强于MA50</span>
+        </div>
+      </div>
+      <div class="rounded-md border border-white/10 bg-[#0F172A] px-3 py-3 shadow-lg">
+        <div class="text-[11px] text-[#94A3B8]">最新交易额</div>
+        <div class="mt-1 font-mono text-sm font-semibold text-[#F8FAFC]">12.5亿</div>
+        <div class="mt-2 text-[11px] leading-relaxed text-[#64748B]">口径日期：2026-05-06</div>
+      </div>
+      <div class="rounded-md border border-white/10 bg-[#0F172A] px-3 py-3 shadow-lg">
+        <div class="text-[11px] text-[#94A3B8]">交易额较昨变化%</div>
+        <div class="mt-1 font-mono text-sm font-semibold text-[#EF4444]">+8.3%</div>
+      </div>
+      <div class="rounded-md border border-white/10 bg-[#0F172A] px-3 py-3 shadow-lg">
+        <div class="text-[11px] text-[#94A3B8]">交易额较前7日均变化%</div>
+        <div class="mt-1 font-mono text-sm font-semibold text-[#EF4444]">+5.1%</div>
+      </div>
+      <div class="rounded-md border border-white/10 bg-[#0F172A] px-3 py-3 shadow-lg">
+        <div class="text-[11px] text-[#94A3B8]">90日成交额 Z值</div>
+        <div class="mt-1"><span class="inline-flex items-center gap-1 rounded-full border border-[rgba(16,185,129,0.22)] bg-[rgba(16,185,129,0.08)] px-1.5 py-0.5 font-mono text-[#6EE7B7]">+1.82</span></div>
+        <div class="mt-2 text-[11px] leading-relaxed text-[#64748B]">放量倍数：2.15x</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="pt-8 pb-4 text-center text-xs text-[#475569]">
+    本页面为纯视觉 Mock，不连接任何后端 API
+  </div>
+</div>
+
+</body>
+</html>
