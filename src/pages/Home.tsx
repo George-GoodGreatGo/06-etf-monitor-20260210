@@ -156,7 +156,7 @@ export default function Home() {
 
   const [lowVolIndexCode, setLowVolIndexCode] = useState<LowVolIndexCode>('H30269')
   const [lowVolBiasBasis, setLowVolBiasBasis] = useState<LowVolBiasBasis>('sma250')
-  const [isCardsExpanded, setIsCardsExpanded] = useState(true)
+  const [isCardsExpanded, setIsCardsExpanded] = useState(false)
   const [lowVolLatestByCode, setLowVolLatestByCode] = useState<
     Record<
       LowVolIndexCode,
