@@ -315,6 +315,7 @@ const LOWVOL_INDEXES: Record<string, LowVolIndexConfig> = {
   '932365': { code: '932365', name: '自由现金流', priCode: '932365', triCode: '932365CNY010' },
   '932315': { code: '932315', name: '中证红利质量', priCode: '932315', triCode: '932315CNY010' },
   '932305': { code: '932305', name: '智选高股息', priCode: '932305', triCode: '932305CNY010' },
+  '932422': { code: '932422', name: 'A500红利低波', priCode: '932422', triCode: '932422CNY010' },
   '980081': { code: '980081', name: '国证价值100', priCode: '980081', triCode: '480081', dataSource: 'cnindex' },
 }
 

@@ -1,0 +1,8 @@
+- [ ] `server/lib/lowVol.ts` 的 `LOWVOL_INDEXES` 中已添加 `932422` 配置项，含 name/priCode/triCode
+- [ ] `src/pages/Home.tsx` 的 `LOWVOL_INDEX_OPTIONS` 中已添加 932422 卡片，code/label/desc 完整
+- [ ] 前端切换到 932422 后，图表和指标区域正常渲染（非空白/非全零）
+- [ ] 股息率、核心利差、利差分位等关键指标有有效数值
+- [ ] BIAS 基准切换（SMA250 ⇄ SMA60）对 932422 生效，图表和数据均响应切换
+- [ ] 低波机会二级导航（建议标签）显示正常
+- [ ] 既有指数（H30269 / 932365 / 932315 / 930955 / 980081 等）切换不受影响
+- [ ] TypeScript 类型检查通过（`npx tsc --noEmit` 或项目现有检查命令）
