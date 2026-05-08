@@ -65,10 +65,10 @@ const RPS_OVERVIEW_NAV_SECTIONS: FloatingNavSection[] = [
   { id: 'rps-trend-section', label: '动量', shortLabel: '动量' },
   { id: 'rps-turnover-section', label: '成交额', shortLabel: '成交额' },
 ] as const
-const TURNOVER_HIGHLIGHT_ROW_CLS = 'bg-[rgba(203,184,255,0.10)]'
-const TURNOVER_HIGHLIGHT_TEXT_CLS = 'font-semibold text-[#CBB8FF]'
+const TURNOVER_HIGHLIGHT_ROW_CLS = 'bg-[#f7f7f7]'
+const TURNOVER_HIGHLIGHT_TEXT_CLS = 'font-semibold text-[#76b900]'
 const TURNOVER_HIGHLIGHT_BADGE_CLS =
-  'rounded-full border border-[rgba(203,184,255,0.28)] bg-[rgba(203,184,255,0.10)] px-1.5 py-0.5 text-[10px] font-semibold leading-4 text-[#E5DBFF]'
+  'rounded-sm border border-[rgba(118,185,0,0.28)] bg-[rgba(118,185,0,0.10)] px-1.5 py-0.5 text-[10px] font-semibold leading-4 text-[#76b900]'
 
 type RpsPage = 'overview' | 'custom-query'
 type RpsViewMode = 'raw' | 'relative' | 'score'
@@ -139,10 +139,10 @@ function fmtTurnoverYi(v: number | null | undefined): string {
 }
 
 function pctToneCls(v: number | null | undefined): string {
-  if (typeof v !== 'number' || !Number.isFinite(v)) return 'text-[#F8FAFC]'
-  if (v > 0) return 'text-[#EF4444]'
-  if (v < 0) return 'text-[#10B981]'
-  return 'text-[#F8FAFC]'
+  if (typeof v !== 'number' || !Number.isFinite(v)) return 'text-[#1a1a1a]'
+  if (v > 0) return 'text-[#e52020]'
+  if (v < 0) return 'text-[#3f8500]'
+  return 'text-[#1a1a1a]'
 }
 
 function fmtTradingDaysAgo(v: number | null | undefined): string {
@@ -152,15 +152,15 @@ function fmtTradingDaysAgo(v: number | null | undefined): string {
 
 function signalLegendToneCls(tone: MomentumSignalLegendTone): string {
   if (tone === 'buy') {
-    return 'rounded-full border border-[rgba(248,113,113,0.28)] bg-[rgba(127,29,29,0.18)] px-2 py-0.5 text-[#FCA5A5]'
+    return 'rounded-sm border border-[rgba(229,32,32,0.28)] bg-[rgba(229,32,32,0.08)] px-2 py-0.5 text-[#e52020]'
   }
   if (tone === 'sell') {
-    return 'rounded-full border border-[rgba(52,211,153,0.24)] bg-[rgba(6,78,59,0.18)] px-2 py-0.5 text-[#6EE7B7]'
+    return 'rounded-sm border border-[rgba(63,133,0,0.24)] bg-[rgba(63,133,0,0.08)] px-2 py-0.5 text-[#3f8500]'
   }
   if (tone === 'risk') {
-    return 'rounded-full border border-[rgba(251,191,36,0.24)] bg-[rgba(120,53,15,0.18)] px-2 py-0.5 text-[#FCD34D]'
+    return 'rounded-sm border border-[rgba(223,101,0,0.24)] bg-[rgba(223,101,0,0.08)] px-2 py-0.5 text-[#df6500]'
   }
-  return 'rounded-full border border-[rgba(203,184,255,0.24)] bg-[rgba(91,33,182,0.14)] px-2 py-0.5 text-[#DDD6FE]'
+  return 'rounded-sm border border-[#cccccc] bg-[#f7f7f7] px-2 py-0.5 text-[#757575]'
 }
 
 function normalizeCustomQueryTicker(value: string | null | undefined): string {
@@ -191,28 +191,28 @@ function resolveScoreState(score: number | null | undefined): { label: string; t
   if (typeof score !== 'number' || !Number.isFinite(score)) {
     return {
       label: '暂无判定',
-      toneCls: 'border-white/10 bg-white/5 text-[#94A3B8]',
-      valueCls: 'text-[#F8FAFC]',
+      toneCls: 'border-[#cccccc] bg-[#f7f7f7] text-[#757575]',
+      valueCls: 'text-[#1a1a1a]',
     }
   }
   if (score > 0) {
     return {
       label: '强于MA50',
-      toneCls: 'border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.12)] text-[#F87171]',
-      valueCls: 'text-[#EF4444]',
+      toneCls: 'border-[rgba(118,185,0,0.25)] bg-[rgba(118,185,0,0.12)] text-[#76b900]',
+      valueCls: 'text-[#76b900]',
     }
   }
   if (score < 0) {
     return {
       label: '弱于MA50',
-      toneCls: 'border-[rgba(16,185,129,0.25)] bg-[rgba(16,185,129,0.12)] text-[#34D399]',
-      valueCls: 'text-[#10B981]',
+      toneCls: 'border-[rgba(229,32,32,0.25)] bg-[rgba(229,32,32,0.12)] text-[#e52020]',
+      valueCls: 'text-[#e52020]',
     }
   }
   return {
     label: '贴近MA50',
-    toneCls: 'border-[rgba(148,163,184,0.25)] bg-[rgba(148,163,184,0.10)] text-[#CBD5E1]',
-    valueCls: 'text-[#F8FAFC]',
+    toneCls: 'border-[#cccccc] bg-[#f7f7f7] text-[#757575]',
+    valueCls: 'text-[#1a1a1a]',
   }
 }
 
@@ -573,7 +573,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
     setSearchParams(nextParams, { replace: true })
   }
   const recentSearchesContent = recentSearchesLoading ? (
-    <div className="text-xs text-[#8EA0B8]">
+    <div className="text-xs text-[#757575]">
       正在加载最近搜索...
     </div>
   ) : recentSearches.length ? (
@@ -596,18 +596,18 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
               setCustomQuerySubmitSeq((value) => value + 1)
             }}
             className={cn(
-              'inline-flex min-h-[32px] max-w-full min-w-0 items-center gap-1.5 rounded-full border px-2 py-1 text-left transition duration-300 ease-out',
+              'inline-flex min-h-[32px] max-w-full min-w-0 items-center gap-1.5 rounded-sm border px-2 py-1 text-left transition duration-300 ease-out',
               'motion-safe:hover:-translate-y-[1px] motion-safe:hover:scale-[1.01]',
               isActive
-                ? 'border-[rgba(96,165,250,0.24)] bg-[rgba(37,99,235,0.12)] text-[#EAF4FF] shadow-[inset_0_0_0_1px_rgba(125,211,252,0.06),0_8px_18px_rgba(37,99,235,0.08)]'
-                : 'border-[rgba(71,85,105,0.22)] bg-[rgba(15,23,42,0.68)] text-[#CBD5E1] hover:border-[rgba(96,165,250,0.22)] hover:bg-[rgba(19,31,52,0.82)] hover:text-[#E2E8F0]',
+                ? 'border-[#76b900] bg-[#f7f7f7] text-[#000000]'
+                : 'border-[#cccccc] bg-white text-[#1a1a1a] hover:border-[#76b900] hover:bg-[#f7f7f7]',
             )}
             title={displayLabel}
           >
             <span
               className={cn(
-                'shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[10px] leading-4 transition-colors duration-300 ease-out',
-                isActive ? 'bg-[rgba(148,197,255,0.12)] text-[#BFDBFE]' : 'bg-white/[0.035] text-[#A9BDD9]',
+                'shrink-0 rounded-sm px-1.5 py-0.5 font-mono text-[10px] leading-4 transition-colors duration-300 ease-out',
+                isActive ? 'bg-[#76b900] text-white' : 'bg-[#f7f7f7] text-[#757575]',
               )}
             >
               {item.code}
@@ -620,7 +620,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
       })}
     </div>
   ) : (
-    <div className="text-xs text-[#8EA0B8]">
+    <div className="text-xs text-[#757575]">
       暂无最近搜索，成功查询后会显示在这里。
     </div>
   )
@@ -658,8 +658,8 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
 
   const customQueryIntro = (
     <div className="pb-1">
-      <div className="text-xl font-semibold tracking-tight text-white">动量分析</div>
-      <div className="mt-1 text-[13px] leading-relaxed text-[#94A3B8]">
+      <div className="text-xl font-semibold tracking-tight text-[#000000]">动量分析</div>
+      <div className="mt-1 text-[13px] leading-relaxed text-[#757575]">
         输入特定的场内ETF，查询场内基金的分析结果。
       </div>
     </div>
@@ -795,7 +795,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   )
 
   const customQuerySection = (
-    <div className="space-y-4">
+    <div className="space-y-4 bg-white py-4 px-5 rounded-sm">
       <form
           className="w-full"
           onSubmit={(e) => {
@@ -807,19 +807,19 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
         >
           <div
             className={cn(
-              'group flex min-h-[56px] w-full items-center gap-3 rounded-full border border-white/[0.07] bg-white/[0.03] px-4 py-2 transition',
-              'hover:border-white/[0.12] hover:bg-white/[0.05]',
-              'focus-within:border-[rgba(125,211,252,0.28)] focus-within:bg-white/[0.05]',
+              'group flex h-[44px] w-full items-center gap-3 rounded-sm border border-[#cccccc] bg-white px-4 py-2 transition',
+              'hover:border-[#5e5e5e]',
+              'focus-within:border-[#76b900]',
               customQueryLoading &&
-                'border-[rgba(125,211,252,0.28)] bg-white/[0.06]',
+                'border-[#76b900]',
             )}
           >
             <span
               className={cn(
-                'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/8 text-[#A8BAD8] transition',
-                'group-hover:bg-[rgba(125,211,252,0.10)] group-hover:text-[#D6E8FF]',
-                'group-focus-within:bg-[rgba(125,211,252,0.14)] group-focus-within:text-[#EFF6FF]',
-                customQueryLoading && 'bg-[rgba(125,211,252,0.14)] text-[#E0F2FE]',
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-[#f7f7f7] text-[#757575] transition',
+                'group-hover:bg-[#f7f7f7] group-hover:text-[#757575]',
+                'group-focus-within:bg-[#f7f7f7] group-focus-within:text-[#757575]',
+                customQueryLoading && 'bg-[#f7f7f7] text-[#757575]',
               )}
             >
               <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="h-4 w-4">
@@ -832,24 +832,24 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
               onChange={(e) => setCustomTickerInput(e.target.value)}
               placeholder="输入 ETF 代码，如 159915、159915.SZ、510300.SH"
               className={cn(
-                'h-11 flex-1 bg-transparent font-mono text-base text-[#F8FAFC] outline-none transition placeholder:text-[#8CA3C7] sm:text-lg',
-                'group-hover:placeholder:text-[#AFC4E4] group-focus-within:placeholder:text-[#C7D8F0]',
-                customQueryLoading && 'placeholder:text-[#BED3EE]',
+                'h-11 flex-1 bg-transparent font-mono text-base text-[#1a1a1a] outline-none transition placeholder:text-[#757575] sm:text-lg',
+                'group-hover:placeholder:text-[#a7a7a7] group-focus-within:placeholder:text-[#a7a7a7]',
+                customQueryLoading && 'placeholder:text-[#a7a7a7]',
               )}
             />
             <button
               type="submit"
               disabled={customQueryLoading}
               className={cn(
-                'inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold tracking-[0.02em] text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(125,211,252,0.34)]',
-                'bg-[rgba(125,211,252,0.18)] hover:bg-[rgba(125,211,252,0.28)]',
+                'inline-flex h-[44px] shrink-0 items-center justify-center gap-2 rounded-sm px-5 text-sm font-semibold text-[#000000] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(118,185,0,0.34)]',
+                'bg-[#76b900] hover:bg-[#5a8d00]',
                 customQueryLoading
-                  ? 'cursor-wait bg-[rgba(125,211,252,0.28)] disabled:text-white'
+                  ? 'cursor-wait bg-[#5a8d00] disabled:text-[#000000]'
                   : 'disabled:cursor-not-allowed disabled:opacity-60',
               )}
             >
               {customQueryLoading ? (
-                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/35 border-t-white" aria-hidden="true" />
+                <span className="h-3.5 w-3.5 animate-spin rounded-sm border-2 border-[#cccccc] border-t-[#76b900]" aria-hidden="true" />
               ) : null}
               {customQueryLoading ? '查询中...' : '查询'}
             </button>
@@ -860,9 +860,9 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-left">
-                  <div className="text-[12px] font-semibold tracking-[0.08em] text-[#D7E2F3]">最近搜索</div>
-                  <div className="h-1 w-1 shrink-0 rounded-full bg-[#3B82F6]/60" />
-                  <div className="min-w-0 text-[11px] leading-4 text-[#7B8BA5]">
+                  <div className="text-[12px] font-semibold tracking-[0.08em] text-[#000000]">最近搜索</div>
+                  <div className="h-1 w-1 shrink-0 rounded-sm bg-[#76b900]" />
+                  <div className="min-w-0 text-[11px] leading-4 text-[#757575]">
                     仅展示当前用户最近成功返回的 ETF，最多 10 条
                   </div>
                 </div>
@@ -873,19 +873,19 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                 aria-controls={recentSearchesRegionId}
                 onClick={() => setRecentSearchesCollapsed((value) => !value)}
                 className={cn(
-                  'group inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(125,211,252,0.22)] motion-safe:hover:-translate-y-[1px] motion-safe:active:scale-[0.98]',
+                  'group inline-flex shrink-0 items-center gap-1.5 rounded-sm border px-2.5 py-1 text-[11px] font-medium transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(118,185,0,0.22)] motion-safe:hover:-translate-y-[1px] motion-safe:active:scale-[0.98]',
                   recentSearchesExpanded
-                    ? 'border-[rgba(125,211,252,0.26)] bg-[rgba(23,37,65,0.82)] text-[#E2E8F0] shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_10px_20px_rgba(8,47,73,0.14)]'
-                    : 'border-[rgba(148,163,184,0.18)] bg-[rgba(15,23,42,0.56)] text-[#B7C5DA] hover:border-[rgba(125,211,252,0.24)] hover:bg-[rgba(21,32,53,0.76)] hover:text-[#E2E8F0]',
+                    ? 'border-[#cccccc] bg-white text-[#000000]'
+                    : 'border-[#cccccc] bg-white text-[#757575] hover:border-[#76b900] hover:text-[#000000]',
                 )}
               >
                 <span
                   className={cn(
-                    'h-1.5 w-1.5 shrink-0 rounded-full transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                    'h-1.5 w-1.5 shrink-0 rounded-sm transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
                     recentSearchesExpanded
-                      ? 'bg-[#7DD3FC] shadow-[0_0_0_4px_rgba(125,211,252,0.12)]'
-                      : 'bg-[#94A3B8]/70 group-hover:bg-[#BFDBFE]',
+                      ? 'bg-[#76b900]'
+                      : 'bg-[#a7a7a7]/70 group-hover:bg-[#76b900]',
                   )}
                   aria-hidden="true"
                 />
@@ -898,7 +898,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                   aria-hidden="true"
                   className={cn(
                     'h-3.5 w-3.5 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
-                    recentSearchesExpanded ? 'rotate-0 scale-100 text-[#E2E8F0]' : '-rotate-90 scale-[0.92] text-[#B7C5DA]',
+                    recentSearchesExpanded ? 'rotate-0 scale-100 text-[#000000]' : '-rotate-90 scale-[0.92] text-[#757575]',
                   )}
                 >
                   <path
@@ -946,22 +946,22 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
 
       {customQueryLatest ? (
         <>
-          <div className="overflow-hidden rounded-lg bg-[#0F172A] p-4 shadow-md">
+          <div className="rounded-sm border border-[#cccccc] bg-white p-6">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <span className="text-sm font-semibold text-[#F8FAFC]">{customQueryDisplayLabel}</span>
-                <span className="ml-3 text-[11px] text-[#64748B]">
+                <span className="text-sm font-semibold text-[#000000]">{customQueryDisplayLabel}</span>
+                <span className="ml-3 text-[11px] text-[#757575]">
                   基准：{customQueryBenchmarkLabel}
                 </span>
               </div>
-              <div className="text-[11px] text-[#64748B]">
+              <div className="text-[11px] text-[#757575]">
                 统一截止日：{customQueryLatest?.date ? formatYmd(customQueryLatest.date) : '—'}
               </div>
             </div>
-            <div className="mt-3 border-t border-white/5 pt-3">
+            <div className="mt-3 border-t border-[#cccccc] pt-3">
               <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-                <div className="border-r border-white/10 last:border-r-0 pr-3 last:pr-0">
-                  <div className="text-[11px] text-[#94A3B8]">Score</div>
+                <div className="border-r border-[#cccccc] last:border-r-0 pr-3 last:pr-0">
+                  <div className="text-[11px] text-[#757575]">Score</div>
                   <div className="mt-0.5 flex items-center gap-1.5">
                     <span className={cn('text-xl font-bold', customQueryScoreState.valueCls)}>
                       {fmt(customQueryLatest?.scorePct, 2)}%
@@ -971,24 +971,24 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                     </span>
                   </div>
                 </div>
-                <div className="border-r border-white/10 last:border-r-0 pr-3 last:pr-0">
-                  <div className="text-[11px] text-[#94A3B8]">成交额</div>
-                  <div className="mt-0.5 font-mono text-base font-semibold text-[#F8FAFC]">{fmtTurnoverYi(customQueryLatestTurnoverSummary?.turnover)}</div>
+                <div className="border-r border-[#cccccc] last:border-r-0 pr-3 last:pr-0">
+                  <div className="text-[11px] text-[#757575]">成交额</div>
+                  <div className="mt-0.5 font-mono text-base font-semibold text-[#1a1a1a]">{fmtTurnoverYi(customQueryLatestTurnoverSummary?.turnover)}</div>
                 </div>
-                <div className="border-r border-white/10 last:border-r-0 pr-3 last:pr-0">
-                  <div className="text-[11px] text-[#94A3B8]">放量倍数</div>
-                  <div className="mt-0.5 font-mono text-base font-semibold text-[#F8FAFC]">{fmtMultiple(customQueryLatestTurnoverSummary?.turnoverMultipleOfPrev20Avg)}</div>
+                <div className="border-r border-[#cccccc] last:border-r-0 pr-3 last:pr-0">
+                  <div className="text-[11px] text-[#757575]">放量倍数</div>
+                  <div className="mt-0.5 font-mono text-base font-semibold text-[#1a1a1a]">{fmtMultiple(customQueryLatestTurnoverSummary?.turnoverMultipleOfPrev20Avg)}</div>
                 </div>
-                <div className="border-r border-white/10 last:border-r-0 pr-3 last:pr-0">
-                  <div className="text-[11px] text-[#94A3B8]">成交额较昨变化</div>
+                <div className="border-r border-[#cccccc] last:border-r-0 pr-3 last:pr-0">
+                  <div className="text-[11px] text-[#757575]">成交额较昨变化</div>
                   <div className={cn('mt-0.5 font-mono text-base font-semibold', pctToneCls(customQueryLatestTurnoverSummary?.turnoverChangePct1d))}>
                     {typeof customQueryLatestTurnoverSummary?.turnoverChangePct1d === 'number'
                       ? formatPct(customQueryLatestTurnoverSummary.turnoverChangePct1d)
                       : '—'}
                   </div>
                 </div>
-                <div className="border-r border-white/10 last:border-r-0 pr-3 last:pr-0">
-                  <div className="text-[11px] text-[#94A3B8]">成交额较前7日变化</div>
+                <div className="border-r border-[#cccccc] last:border-r-0 pr-3 last:pr-0">
+                  <div className="text-[11px] text-[#757575]">成交额较前7日变化</div>
                   <div className={cn('mt-0.5 font-mono text-base font-semibold', pctToneCls(customQueryLatestTurnoverSummary?.turnoverChangePct7dAvg))}>
                     {typeof customQueryLatestTurnoverSummary?.turnoverChangePct7dAvg === 'number'
                       ? formatPct(customQueryLatestTurnoverSummary.turnoverChangePct7dAvg)
@@ -996,7 +996,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                   </div>
                 </div>
                 <div className="last:border-r-0 last:pr-0">
-                  <div className="text-[11px] text-[#94A3B8]">成交额Z值（90日）</div>
+                  <div className="text-[11px] text-[#757575]">成交额Z值（90日）</div>
                   <div className={cn('mt-0.5 font-mono text-base font-semibold', pctToneCls(customQueryLatestTurnoverSummary?.z90 ?? null))}>
                     {typeof customQueryLatestTurnoverSummary?.z90 === 'number'
                       ? fmt(customQueryLatestTurnoverSummary.z90, 2)
@@ -1005,39 +1005,39 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                 </div>
               </div>
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] leading-relaxed text-[#64748B]">
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] leading-relaxed text-[#757575]">
               <span>
-                前复权价格 <span className="font-mono font-medium text-[#94A3B8]">{fmt(customQueryLatest?.targetCloseQfq, 3)}</span>
+                前复权价格 <span className="font-mono font-medium text-[#757575]">{fmt(customQueryLatest?.targetCloseQfq, 3)}</span>
               </span>
-              <span className="select-none text-white/15">·</span>
+              <span className="select-none text-[#cccccc]">·</span>
               <span>
-                RPS <span className="font-mono font-medium text-[#94A3B8]">{fmt(customQueryLatest?.rpsRaw, 6)}</span>
+                RPS <span className="font-mono font-medium text-[#757575]">{fmt(customQueryLatest?.rpsRaw, 6)}</span>
               </span>
-              <span className="select-none text-white/15">·</span>
+              <span className="select-none text-[#cccccc]">·</span>
               <span>
-                MA50 <span className="font-mono font-medium text-[#94A3B8]">{fmt(customQueryLatest?.rpsMa50, 6)}</span>
+                MA50 <span className="font-mono font-medium text-[#757575]">{fmt(customQueryLatest?.rpsMa50, 6)}</span>
               </span>
-              <span className="select-none text-white/15">·</span>
+              <span className="select-none text-[#cccccc]">·</span>
               <span>
-                RSI <span className="font-mono font-medium text-[#94A3B8]">
+                RSI <span className="font-mono font-medium text-[#757575]">
                   {customQueryLatestRsi !== null ? customQueryLatestRsi.toFixed(1) : '—'}
                 </span>
               </span>
             </div>
           </div>
 
-          <section className="rounded-md bg-[rgba(11,18,32,0.82)] px-3 py-2.5 shadow-sm">
+          <section className="rounded-sm border border-[#cccccc] bg-white px-3 py-2.5">
             <div className="flex flex-col gap-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-[13px] font-semibold text-[#F8FAFC]">关键图表指标</div>
+                <div className="text-[13px] font-semibold text-[#000000]">关键图表指标</div>
                 <Link
                   to={buildMomentumMethodPath(selectedStrategy.id)}
-                  className="text-[11px] font-semibold text-[#93C5FD] transition hover:text-white"
+                  className="text-[11px] font-semibold text-[#76b900] transition hover:text-[#5a8d00]"
                 >
                   查看分析方法
                 </Link>
               </div>
-              <div className="inline-flex max-w-full flex-wrap justify-start gap-1 rounded-2xl border border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.82)] p-1">
+              <div className="inline-flex max-w-full flex-wrap justify-start gap-1 rounded-sm border border-[#cccccc] bg-white p-1">
                 {MOMENTUM_STRATEGIES.map((strategy) => {
                   const isActive = strategy.id === selectedStrategy.id
                   const isDefault = strategy.roleLabel === '默认策略'
@@ -1048,21 +1048,21 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                       onClick={() => updateSelectedStrategy(strategy.id)}
                       aria-pressed={isActive}
                       className={cn(
-                        'group inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-left text-[11px] font-semibold transition',
+                        'group inline-flex items-center gap-1.5 rounded-sm border px-3 py-1.5 text-left text-[11px] font-semibold transition',
                         isActive
-                          ? 'border-[rgba(125,211,252,0.42)] bg-[linear-gradient(135deg,rgba(8,47,73,0.46),rgba(14,116,144,0.24))] text-white shadow-[inset_0_0_0_1px_rgba(125,211,252,0.14),0_4px_14px_rgba(8,47,73,0.18)]'
-                          : 'border-transparent bg-[rgba(15,23,42,0.26)] text-[#CBD5E1] hover:border-[rgba(125,211,252,0.18)] hover:bg-[rgba(21,32,53,0.72)] hover:text-white',
+                          ? 'border-[#000000] bg-[#000000] text-white'
+                          : 'border-transparent bg-transparent text-[#1a1a1a] hover:border-[#cccccc] hover:bg-[#f7f7f7]',
                       )}
                       title={strategy.selectorDescription}
                     >
                       <span>{strategy.label}</span>
                       {isDefault ? (
-                        <span className="rounded-full border border-[rgba(125,211,252,0.18)] bg-[rgba(125,211,252,0.10)] px-1.5 py-0.5 text-[9px] font-semibold text-[#93C5FD]">
+                        <span className="rounded-sm border border-[#cccccc] bg-[#f7f7f7] px-1.5 py-0.5 text-[9px] font-semibold text-[#000000]">
                           默认
                         </span>
                       ) : null}
                       {isActive ? (
-                        <span className="rounded-full border border-[rgba(52,211,153,0.20)] bg-[rgba(52,211,153,0.10)] px-1.5 py-0.5 text-[9px] font-semibold text-[#6EE7B7]">
+                        <span className="rounded-sm border border-[#76b900] bg-[#f7f7f7] px-1.5 py-0.5 text-[9px] font-semibold text-[#76b900]">
                           当前
                         </span>
                       ) : null}
@@ -1070,14 +1070,14 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                   )
                 })}
               </div>
-              <div className="text-[11px] leading-relaxed text-[#94A3B8]">
-                <span className="font-medium text-[#CBD5E1]">{selectedStrategy.label}</span>
-                <span className="mx-1 text-[#64748B]">·</span>
+              <div className="text-[11px] leading-relaxed text-[#757575]">
+                <span className="font-medium text-[#000000]">{selectedStrategy.label}</span>
+                <span className="mx-1 text-[#757575]">·</span>
                 {selectedStrategy.shortLabel}
-                <span className="mx-1 text-[#64748B]">·</span>
+                <span className="mx-1 text-[#757575]">·</span>
                 {selectedStrategy.selectorDescription}
               </div>
-              <div className="flex flex-wrap gap-2 text-[11px] leading-5 text-[#CBD5E1]">
+              <div className="flex flex-wrap gap-2 text-[11px] leading-5">
                 {selectedStrategy.signalLegend.map((item) => (
                   <span key={item.key} className={signalLegendToneCls(item.tone)}>
                     {item.text}
@@ -1099,16 +1099,16 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
             resetKey={`${submittedCustomTicker}:${customQuerySubmitSeq}`}
           />
 
-          <section className="overflow-hidden rounded-lg bg-[#0F172A] shadow-md">
-            <div className="border-b border-[#1E293B] px-3 py-3">
+          <section className="rounded-sm border border-[#cccccc] bg-white">
+            <div className="border-b border-[#cccccc] px-3 py-3">
               <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <div className="text-[15px] font-semibold tracking-tight text-white">最近250个交易日成交额追踪</div>
-                  <div className="mt-0.5 text-xs leading-relaxed text-[#94A3B8]">
+                  <div className="text-[15px] font-semibold tracking-tight text-[#000000]">最近250个交易日成交额追踪</div>
+                  <div className="mt-0.5 text-xs leading-relaxed text-[#757575]">
                     展示截至最近完整交易日的 `交易日`、`当日成交额`、`相对前20个交易日均值倍数`，高于 `1.50x` 的交易日高亮。
                   </div>
                 </div>
-                <div className="text-xs text-[#94A3B8]">
+                <div className="text-xs text-[#757575]">
                   标的：
                   {customQueryDisplayLabel}
                 </div>
@@ -1116,9 +1116,9 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
             </div>
 
             <div className="px-3 py-3">
-              <div className="overflow-x-auto rounded-md border border-[#1E293B] bg-[#0B1220]">
+              <div className="overflow-x-auto rounded-sm border border-[#cccccc] bg-white">
                 <table className="min-w-full text-sm">
-                  <thead className="bg-white/5 text-[#A9B6CC]">
+                  <thead className="bg-[#f7f7f7] text-[#000000]">
                     <tr>
                       <th className="px-3 py-2 text-left">日期</th>
                       <th className="px-3 py-2 text-right">成交额</th>
@@ -1130,13 +1130,13 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                       customTurnoverRows.map((row) => {
                         const isHot = typeof row.turnoverMultipleOfPrev20Avg === 'number' && row.turnoverMultipleOfPrev20Avg >= 1.5
                         return (
-                          <tr key={row.date} className={cn('border-t border-[#162033]', isHot && TURNOVER_HIGHLIGHT_ROW_CLS)}>
-                            <td className="px-3 py-2 font-mono text-[#E6EDF7]">{formatYmd(row.date)}</td>
-                            <td className="px-3 py-2 text-right font-mono text-[#E6EDF7]">{fmtTurnover(row.turnover)}</td>
+                          <tr key={row.date} className={cn('border-t border-[#cccccc]', isHot && TURNOVER_HIGHLIGHT_ROW_CLS)}>
+                            <td className="px-3 py-2 font-mono text-[#1a1a1a]">{formatYmd(row.date)}</td>
+                            <td className="px-3 py-2 text-right font-mono text-[#1a1a1a]">{fmtTurnover(row.turnover)}</td>
                             <td
                               className={cn(
                                 'px-3 py-2 text-right font-mono',
-                                isHot ? TURNOVER_HIGHLIGHT_TEXT_CLS : 'text-[#A9B6CC]',
+                                isHot ? TURNOVER_HIGHLIGHT_TEXT_CLS : 'text-[#757575]',
                               )}
                             >
                               {fmtMultiple(row.turnoverMultipleOfPrev20Avg)}

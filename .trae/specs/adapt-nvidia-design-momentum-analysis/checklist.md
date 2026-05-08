@@ -1,0 +1,23 @@
+# Checklist
+
+- [ ] P0: 页面背景为 `#ffffff`（白底）
+- [ ] P0: 所有容器 `rounded-lg` / `rounded-md` / `rounded-xl` 统一为 `rounded-sm` (2px)
+- [ ] P1: Hero 卡片 `bg-white border border-[#cccccc] rounded-sm`，无阴影
+- [ ] P1: Score 正数 `#76b900`，Score 负数 `#e52020`
+- [ ] P1: `pctToneCls`: `v > 0` → `#e52020`（红涨），`v < 0` → `#3f8500`（绿跌）
+- [ ] P1: 搜索栏 `rounded-sm` + `border-[#cccccc]` + `bg-white`，高度 `h-[44px]`
+- [ ] P1: 查询按钮 `bg-[#76b900] text-[#000000] rounded-sm`
+- [ ] P1: 主指标竖线 `border-r border-[#cccccc]`
+- [ ] P1: 标题文字色适配白底（`#000000` / `#757575`）
+- [ ] P2: 策略选择区 `bg-white border border-[#cccccc] rounded-sm`
+- [ ] P2: 策略 pill 激活态 `bg-[#000000] text-white rounded-sm`
+- [ ] P2: 策略 pill 外层 `rounded-sm border-[#cccccc] bg-white`
+- [ ] P2: 成交额表头 `bg-[#f7f7f7]`
+- [ ] P2: 成交额行分割线 `border-[#cccccc]`
+- [ ] P2: 放量高亮行 `bg-[#f7f7f7]` + 文字 `#76b900`
+- [ ] `tsc --noEmit` 零错误
+- [ ] `eslint src/components/RpsStylePanel.tsx` 零错误
+- [ ] 搜索提交、策略切换、图表渲染未受影响
+- [ ] Hero `{customQueryLatest ? ... : null}` null guard 完好
+- [ ] Mock HTML 同步为 NVIDIA 样式
+- [ ] RpsCustomQueryCharts 图表组件完全未触碰
