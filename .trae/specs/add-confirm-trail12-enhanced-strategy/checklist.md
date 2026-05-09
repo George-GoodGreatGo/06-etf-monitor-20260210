@@ -1,0 +1,24 @@
+# Checklist
+
+- [x] 新方法论文件 `confirmTrail12EnhancedMethodology.ts` 七个章节完整（策略定位、指标定义、买入规则、卖出规则、增强风控、边界条件、实现口径）
+- [x] 新方法论文件回测数据与 V6.1 同口径 JSON 一致（5 ETF 逐行 + 汇总统）
+- [x] `momentumStrategies.ts` 中 `MomentumStrategyId` 含 `'confirmTrail12Enhanced'`
+- [x] `momentumStrategies.ts` 中 `DEFAULT_MOMENTUM_STRATEGY_ID` 为 `'confirmTrail12Enhanced'`
+- [x] `momentumStrategies.ts` 中 `MOMENTUM_STRATEGIES` 数组含 3 个策略项
+- [x] `isMomentumStrategyId('confirmTrail12Enhanced')` 返回 `true`
+- [x] `momentumSignalSnapshot.ts` 的 `buildConfirmTrail12EnhancedEvents()` 正确实现硬止损-7% 退出逻辑
+- [x] `momentumSignalSnapshot.ts` 的 `buildConfirmTrail12EnhancedEvents()` 正确实现 ATR-3x 退出逻辑
+- [x] `momentumSignalSnapshot.ts` 的 `buildConfirmTrail12EnhancedEvents()` 正确实现 10 日冷却期逻辑
+- [x] `momentumSignalSnapshot.ts` 的 `buildConfirmTrail12EnhancedEvents()` 正确实现分级追踪（浮盈≥12%时 trail8%）
+- [x] `buildTradeSignalEvents()` 对 `'confirmTrail12Enhanced'` 预设正确分发
+- [x] `RpsCustomQueryCharts.tsx` 中 `buildTradeSignalMarkerDetails()` 对 `'confirmTrail12Enhanced'` 预设正确分发
+- [x] 动量分析页策略选择器默认选中"Baseline增强风控"
+- [x] 动量分析页图表信号标记正确显示买（红）、卖（绿）、风控卖（金）
+- [x] 点击买点标记弹出说明弹窗"价格线由绿转黄 + close >= SMA250"
+- [x] 点击确认卖点标记弹出说明弹窗（包含具体 confirm 触发项）
+- [x] 点击风控卖点标记弹出说明弹窗（包含具体风控原因：硬止损-7%/ATR-3x/12%追踪/8%追踪）
+- [x] 分析方法页 `?strategy=confirmTrail12Enhanced` 展示完整规则和回测数据
+- [x] ETF200 列表页策略筛选器默认选中"Baseline增强风控"
+- [x] ETF200 列表页信号列展示"买"/"卖"/"风控卖"及新鲜度
+- [x] 切换到"Baseline策略"后，所有页面退回到原版逻辑
+- [x] TypeScript 编译无错误（`npx tsc --noEmit`）

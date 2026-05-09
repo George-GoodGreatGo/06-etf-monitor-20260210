@@ -1,5 +1,5 @@
-- [ ] `src/pages/Home.tsx` 中 `isCardsExpanded` 初始值为 `useState(false)`
-- [ ] 进入"低波机会"tab 时，指数卡片默认收起（无描述文字，py-1.5）
-- [ ] 进入"价值择时"tab 时，指数卡片默认收起
-- [ ] 点击"展开说明"后卡片展开（描述显示，py-2.5），再次点击"收起说明"后收起
-- [ ] TypeScript 类型检查通过
+- [x] `src/pages/Home.tsx` 中 `isCardsExpanded` 初始值为 `useState(false)`
+- [x] 进入"低波机会"tab 时，指数卡片默认收起（无描述文字，py-1.5）
+- [x] 进入"价值择时"tab 时，指数卡片默认收起
+- [x] 点击"展开说明"后卡片展开（描述显示，py-2.5），再次点击"收起说明"后收起
+- [x] TypeScript 类型检查通过

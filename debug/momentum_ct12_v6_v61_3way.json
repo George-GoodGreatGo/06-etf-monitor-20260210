@@ -1,0 +1,1787 @@
+{
+  "meta": {
+    "startDate": "2016-01-01",
+    "endDate": "2026-05-09",
+    "benchmark": "H30269",
+    "feeRatePerSide": 0.001
+  },
+  "confirmTrail12": {
+    "aggregate": {
+      "ret": 102.49,
+      "cagr": 12.21,
+      "dd": 17.93
+    },
+    "byTicker": [
+      {
+        "ticker": "159915.SZ",
+        "name": "创业板ETF",
+        "bars": 2509,
+        "startDate": "2016-01-04",
+        "endDate": "2026-05-08",
+        "totalReturnPct": 168.72,
+        "cagrPct": 10.44,
+        "maxDrawdownPct": 17.7,
+        "trades": 27,
+        "winRatePct": 40.74,
+        "avgHoldDays": 24.67,
+        "exposurePct": 26.54,
+        "detailedTrades": [
+          {
+            "entryDate": "2018-05-21",
+            "exitDate": "2018-05-25",
+            "exitReason": "close<SMA250",
+            "holdBars": 4,
+            "returnPct": -3.056630620375622
+          },
+          {
+            "entryDate": "2019-04-12",
+            "exitDate": "2019-04-15",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -1.82241379310345
+          },
+          {
+            "entryDate": "2019-04-22",
+            "exitDate": "2019-04-23",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -0.961206896551714
+          },
+          {
+            "entryDate": "2019-04-24",
+            "exitDate": "2019-04-29",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 3,
+            "returnPct": -5.9871810449574685
+          },
+          {
+            "entryDate": "2019-06-21",
+            "exitDate": "2019-10-09",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 72,
+            "returnPct": 5.8682281059063035
+          },
+          {
+            "entryDate": "2019-10-10",
+            "exitDate": "2019-10-15",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 3,
+            "returnPct": -0.5359725685785688
+          },
+          {
+            "entryDate": "2019-10-18",
+            "exitDate": "2019-10-21",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -0.35147891755822336
+          },
+          {
+            "entryDate": "2019-10-22",
+            "exitDate": "2019-10-24",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 2,
+            "returnPct": -0.9086550435865703
+          },
+          {
+            "entryDate": "2019-10-25",
+            "exitDate": "2019-11-25",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 21,
+            "returnPct": -1.1509282178218005
+          },
+          {
+            "entryDate": "2019-11-28",
+            "exitDate": "2019-11-29",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -0.7821229050279266
+          },
+          {
+            "entryDate": "2019-12-04",
+            "exitDate": "2020-03-16",
+            "exitReason": "trailing12%",
+            "holdBars": 66,
+            "returnPct": 13.533995037220837
+          },
+          {
+            "entryDate": "2020-04-07",
+            "exitDate": "2020-04-10",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 3,
+            "returnPct": -0.9966737064413977
+          },
+          {
+            "entryDate": "2020-04-16",
+            "exitDate": "2020-08-12",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 79,
+            "returnPct": 31.752173913043478
+          },
+          {
+            "entryDate": "2020-09-01",
+            "exitDate": "2020-09-07",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 4,
+            "returnPct": -4.196726862302491
+          },
+          {
+            "entryDate": "2020-09-30",
+            "exitDate": "2020-11-11",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 24,
+            "returnPct": 4.154479710727221
+          },
+          {
+            "entryDate": "2020-12-08",
+            "exitDate": "2021-02-22",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 47,
+            "returnPct": 14.473469387755111
+          },
+          {
+            "entryDate": "2021-04-23",
+            "exitDate": "2021-05-07",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 7,
+            "returnPct": -2.587997232791417
+          },
+          {
+            "entryDate": "2021-05-11",
+            "exitDate": "2021-08-16",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 68,
+            "returnPct": 13.453560042507974
+          },
+          {
+            "entryDate": "2021-10-22",
+            "exitDate": "2021-12-17",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 40,
+            "returnPct": 4.385306122448984
+          },
+          {
+            "entryDate": "2024-12-10",
+            "exitDate": "2025-01-03",
+            "exitReason": "trailing12%",
+            "holdBars": 17,
+            "returnPct": -11.030076542098143
+          },
+          {
+            "entryDate": "2025-02-06",
+            "exitDate": "2025-03-21",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 31,
+            "returnPct": 1.436923076923069
+          },
+          {
+            "entryDate": "2025-06-09",
+            "exitDate": "2025-06-19",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 8,
+            "returnPct": -1.5243362831858343
+          },
+          {
+            "entryDate": "2025-06-24",
+            "exitDate": "2025-11-11",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 94,
+            "returnPct": 52.1471135029354
+          },
+          {
+            "entryDate": "2025-12-05",
+            "exitDate": "2026-02-05",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 42,
+            "returnPct": 4.718743930074476
+          },
+          {
+            "entryDate": "2026-02-09",
+            "exitDate": "2026-02-11",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 2,
+            "returnPct": -1.5439024390244027
+          },
+          {
+            "entryDate": "2026-02-12",
+            "exitDate": "2026-03-02",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 6,
+            "returnPct": -1.2136788189213599
+          },
+          {
+            "entryDate": "2026-04-08",
+            "exitDate": "2026-05-08",
+            "exitReason": "持仓至期末",
+            "holdBars": 19,
+            "returnPct": 13.66798206278026
+          }
+        ]
+      },
+      {
+        "ticker": "588000.SH",
+        "name": "科创50ETF",
+        "bars": 1326,
+        "startDate": "2020-11-16",
+        "endDate": "2026-05-08",
+        "totalReturnPct": 57.77,
+        "cagrPct": 9.05,
+        "maxDrawdownPct": 17.25,
+        "trades": 10,
+        "winRatePct": 60,
+        "avgHoldDays": 21.5,
+        "exposurePct": 16.21,
+        "detailedTrades": [
+          {
+            "entryDate": "2021-12-08",
+            "exitDate": "2021-12-15",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 5,
+            "returnPct": 0.37636239782017356
+          },
+          {
+            "entryDate": "2023-03-23",
+            "exitDate": "2023-04-25",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 22,
+            "returnPct": 1.8089171974522422
+          },
+          {
+            "entryDate": "2023-06-16",
+            "exitDate": "2023-06-21",
+            "exitReason": "close<SMA250",
+            "holdBars": 3,
+            "returnPct": -3.011475409836073
+          },
+          {
+            "entryDate": "2024-12-20",
+            "exitDate": "2025-01-16",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 18,
+            "returnPct": -5.16535211267607
+          },
+          {
+            "entryDate": "2025-01-21",
+            "exitDate": "2025-01-27",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 4,
+            "returnPct": -2.231716779825399
+          },
+          {
+            "entryDate": "2025-02-05",
+            "exitDate": "2025-03-21",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 32,
+            "returnPct": 5.487463837994233
+          },
+          {
+            "entryDate": "2025-07-17",
+            "exitDate": "2025-11-04",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 72,
+            "returnPct": 37.51608325449387
+          },
+          {
+            "entryDate": "2025-11-06",
+            "exitDate": "2025-11-07",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -1.556461232604367
+          },
+          {
+            "entryDate": "2025-12-22",
+            "exitDate": "2026-03-03",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 43,
+            "returnPct": 4.095088967971527
+          },
+          {
+            "entryDate": "2026-04-14",
+            "exitDate": "2026-05-08",
+            "exitReason": "持仓至期末",
+            "holdBars": 15,
+            "returnPct": 16.65131845841783
+          }
+        ]
+      },
+      {
+        "ticker": "159781.SZ",
+        "name": "科创创业ETF",
+        "bars": 1172,
+        "startDate": "2021-07-05",
+        "endDate": "2026-05-08",
+        "totalReturnPct": 132.94,
+        "cagrPct": 19.94,
+        "maxDrawdownPct": 16.9,
+        "trades": 9,
+        "winRatePct": 66.67,
+        "avgHoldDays": 21.56,
+        "exposurePct": 16.55,
+        "detailedTrades": [
+          {
+            "entryDate": "2024-09-27",
+            "exitDate": "2024-10-10",
+            "exitReason": "trailing12%",
+            "holdBars": 4,
+            "returnPct": 22.87278481012658
+          },
+          {
+            "entryDate": "2025-01-21",
+            "exitDate": "2025-01-27",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 4,
+            "returnPct": -2.7806797853309417
+          },
+          {
+            "entryDate": "2025-02-06",
+            "exitDate": "2025-03-19",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 29,
+            "returnPct": 3.1053475935828745
+          },
+          {
+            "entryDate": "2025-06-25",
+            "exitDate": "2025-07-07",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 8,
+            "returnPct": -0.46459854014596624
+          },
+          {
+            "entryDate": "2025-07-08",
+            "exitDate": "2025-11-11",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 84,
+            "returnPct": 60.30465116279067
+          },
+          {
+            "entryDate": "2025-12-05",
+            "exitDate": "2026-02-05",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 42,
+            "returnPct": 2.361142217245238
+          },
+          {
+            "entryDate": "2026-02-10",
+            "exitDate": "2026-02-11",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -2.1085714285714263
+          },
+          {
+            "entryDate": "2026-02-24",
+            "exitDate": "2026-02-27",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 3,
+            "returnPct": 0.11255319148935072
+          },
+          {
+            "entryDate": "2026-04-08",
+            "exitDate": "2026-05-08",
+            "exitReason": "持仓至期末",
+            "holdBars": 19,
+            "returnPct": 19.228706624605675
+          }
+        ]
+      },
+      {
+        "ticker": "512480.SH",
+        "name": "半导体ETF",
+        "bars": 1673,
+        "startDate": "2019-06-12",
+        "endDate": "2026-05-08",
+        "totalReturnPct": 38.11,
+        "cagrPct": 4.98,
+        "maxDrawdownPct": 21.61,
+        "trades": 19,
+        "winRatePct": 42.11,
+        "avgHoldDays": 14.26,
+        "exposurePct": 16.2,
+        "detailedTrades": [
+          {
+            "entryDate": "2020-11-02",
+            "exitDate": "2020-11-16",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 10,
+            "returnPct": 3.9934634146341574
+          },
+          {
+            "entryDate": "2020-12-02",
+            "exitDate": "2020-12-16",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 10,
+            "returnPct": -6.670000000000009
+          },
+          {
+            "entryDate": "2020-12-21",
+            "exitDate": "2020-12-25",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 4,
+            "returnPct": -3.3985849056603956
+          },
+          {
+            "entryDate": "2020-12-29",
+            "exitDate": "2021-02-01",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 23,
+            "returnPct": 1.1719882468168574
+          },
+          {
+            "entryDate": "2021-02-02",
+            "exitDate": "2021-02-03",
+            "exitReason": "close<SMA250",
+            "holdBars": 1,
+            "returnPct": -3.8318965517241566
+          },
+          {
+            "entryDate": "2021-10-28",
+            "exitDate": "2021-12-16",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 35,
+            "returnPct": 8.841415785191199
+          },
+          {
+            "entryDate": "2023-03-17",
+            "exitDate": "2023-04-25",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 26,
+            "returnPct": 5.100867678958787
+          },
+          {
+            "entryDate": "2023-06-19",
+            "exitDate": "2023-06-21",
+            "exitReason": "close<SMA250",
+            "holdBars": 2,
+            "returnPct": -4.328571428571426
+          },
+          {
+            "entryDate": "2023-07-04",
+            "exitDate": "2023-07-05",
+            "exitReason": "close<SMA250",
+            "holdBars": 1,
+            "returnPct": -0.9705882352941231
+          },
+          {
+            "entryDate": "2024-12-19",
+            "exitDate": "2024-12-31",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 8,
+            "returnPct": -0.9832023575638615
+          },
+          {
+            "entryDate": "2025-01-14",
+            "exitDate": "2025-01-16",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 2,
+            "returnPct": -2.2760396039604003
+          },
+          {
+            "entryDate": "2025-01-17",
+            "exitDate": "2025-01-27",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 6,
+            "returnPct": -2.1750741839762555
+          },
+          {
+            "entryDate": "2025-02-05",
+            "exitDate": "2025-03-21",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 32,
+            "returnPct": 4.51681415929206
+          },
+          {
+            "entryDate": "2025-06-30",
+            "exitDate": "2025-09-04",
+            "exitReason": "trailing12%",
+            "holdBars": 48,
+            "returnPct": 17.518207816968534
+          },
+          {
+            "entryDate": "2025-11-06",
+            "exitDate": "2025-11-07",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -1.3824999999999976
+          },
+          {
+            "entryDate": "2025-12-10",
+            "exitDate": "2025-12-15",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 3,
+            "returnPct": -2.2536161335187765
+          },
+          {
+            "entryDate": "2025-12-17",
+            "exitDate": "2025-12-18",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -0.8782577903682753
+          },
+          {
+            "entryDate": "2025-12-22",
+            "exitDate": "2026-03-03",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 43,
+            "returnPct": 8.456894150417838
+          },
+          {
+            "entryDate": "2026-04-14",
+            "exitDate": "2026-05-08",
+            "exitReason": "持仓至期末",
+            "holdBars": 15,
+            "returnPct": 18.16529850746269
+          }
+        ]
+      },
+      {
+        "ticker": "159869.SZ",
+        "name": "游戏ETF",
+        "bars": 1253,
+        "startDate": "2021-03-05",
+        "endDate": "2026-05-08",
+        "totalReturnPct": 114.9,
+        "cagrPct": 16.63,
+        "maxDrawdownPct": 16.18,
+        "trades": 8,
+        "winRatePct": 50,
+        "avgHoldDays": 26.5,
+        "exposurePct": 16.92,
+        "detailedTrades": [
+          {
+            "entryDate": "2023-03-16",
+            "exitDate": "2023-05-10",
+            "exitReason": "trailing12%",
+            "holdBars": 35,
+            "returnPct": 56.42665941240479
+          },
+          {
+            "entryDate": "2023-11-06",
+            "exitDate": "2023-11-16",
+            "exitReason": "close<SMA250",
+            "holdBars": 8,
+            "returnPct": -1.0032549728752227
+          },
+          {
+            "entryDate": "2023-12-01",
+            "exitDate": "2023-12-05",
+            "exitReason": "close<SMA250",
+            "holdBars": 2,
+            "returnPct": -3.2967999999999997
+          },
+          {
+            "entryDate": "2025-02-05",
+            "exitDate": "2025-03-24",
+            "exitReason": "trailing12%",
+            "holdBars": 33,
+            "returnPct": 8.170790697674413
+          },
+          {
+            "entryDate": "2025-06-03",
+            "exitDate": "2025-10-14",
+            "exitReason": "trailing12%",
+            "holdBars": 89,
+            "returnPct": 27.60629921259843
+          },
+          {
+            "entryDate": "2025-12-10",
+            "exitDate": "2025-12-11",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -1.7192389006342457
+          },
+          {
+            "entryDate": "2025-12-12",
+            "exitDate": "2025-12-15",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -0.8110320284697603
+          },
+          {
+            "entryDate": "2025-12-17",
+            "exitDate": "2026-02-26",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 43,
+            "returnPct": 7.502631578947372
+          }
+        ]
+      }
+    ]
+  },
+  "v6": {
+    "aggregate": {
+      "ret": 102.84,
+      "cagr": 12.32,
+      "dd": 17.97
+    },
+    "byTicker": [
+      {
+        "ticker": "159915.SZ",
+        "name": "创业板ETF",
+        "bars": 2509,
+        "startDate": "2016-01-04",
+        "endDate": "2026-05-08",
+        "totalReturnPct": 160.75,
+        "cagrPct": 10.1,
+        "maxDrawdownPct": 14.23,
+        "trades": 27,
+        "winRatePct": 40.74,
+        "avgHoldDays": 22.81,
+        "exposurePct": 24.55,
+        "detailedTrades": [
+          {
+            "entryDate": "2018-05-21",
+            "exitDate": "2018-05-25",
+            "exitReason": "close<SMA250",
+            "holdBars": 4,
+            "returnPct": -3.056630620375622
+          },
+          {
+            "entryDate": "2019-04-12",
+            "exitDate": "2019-04-15",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -1.82241379310345
+          },
+          {
+            "entryDate": "2019-04-22",
+            "exitDate": "2019-04-23",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -0.961206896551714
+          },
+          {
+            "entryDate": "2019-04-24",
+            "exitDate": "2019-04-29",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 3,
+            "returnPct": -5.9871810449574685
+          },
+          {
+            "entryDate": "2019-06-21",
+            "exitDate": "2019-09-26",
+            "exitReason": "ATR-3x",
+            "holdBars": 68,
+            "returnPct": 5.8682281059063035
+          },
+          {
+            "entryDate": "2019-10-10",
+            "exitDate": "2019-10-15",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 3,
+            "returnPct": -0.5359725685785688
+          },
+          {
+            "entryDate": "2019-10-18",
+            "exitDate": "2019-10-21",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -0.35147891755822336
+          },
+          {
+            "entryDate": "2019-10-22",
+            "exitDate": "2019-10-24",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 2,
+            "returnPct": -0.9086550435865703
+          },
+          {
+            "entryDate": "2019-10-25",
+            "exitDate": "2019-11-25",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 21,
+            "returnPct": -1.1509282178218005
+          },
+          {
+            "entryDate": "2019-11-28",
+            "exitDate": "2019-11-29",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -0.7821229050279266
+          },
+          {
+            "entryDate": "2019-12-04",
+            "exitDate": "2020-02-03",
+            "exitReason": "ATR-3x",
+            "holdBars": 36,
+            "returnPct": 5.849379652605458
+          },
+          {
+            "entryDate": "2020-04-07",
+            "exitDate": "2020-04-10",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 3,
+            "returnPct": -0.9966737064413866
+          },
+          {
+            "entryDate": "2020-04-16",
+            "exitDate": "2020-08-12",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 79,
+            "returnPct": 31.752173913043478
+          },
+          {
+            "entryDate": "2020-09-01",
+            "exitDate": "2020-09-07",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 4,
+            "returnPct": -4.196726862302469
+          },
+          {
+            "entryDate": "2020-09-30",
+            "exitDate": "2020-11-11",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 24,
+            "returnPct": 4.154479710727221
+          },
+          {
+            "entryDate": "2020-12-08",
+            "exitDate": "2021-02-22",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 47,
+            "returnPct": 14.473469387755111
+          },
+          {
+            "entryDate": "2021-04-23",
+            "exitDate": "2021-05-07",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 7,
+            "returnPct": -2.587997232791428
+          },
+          {
+            "entryDate": "2021-05-11",
+            "exitDate": "2021-07-27",
+            "exitReason": "ATR-3x",
+            "holdBars": 54,
+            "returnPct": 11.117959617428252
+          },
+          {
+            "entryDate": "2021-10-22",
+            "exitDate": "2021-12-17",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 40,
+            "returnPct": 4.385306122448962
+          },
+          {
+            "entryDate": "2024-12-10",
+            "exitDate": "2024-12-31",
+            "exitReason": "ATR-3x",
+            "holdBars": 15,
+            "returnPct": -5.452588923908152
+          },
+          {
+            "entryDate": "2025-02-06",
+            "exitDate": "2025-03-21",
+            "exitReason": "ATR-3x",
+            "holdBars": 31,
+            "returnPct": 1.4369230769230912
+          },
+          {
+            "entryDate": "2025-06-09",
+            "exitDate": "2025-06-19",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 8,
+            "returnPct": -1.5243362831858231
+          },
+          {
+            "entryDate": "2025-06-24",
+            "exitDate": "2025-11-11",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 94,
+            "returnPct": 52.14711350293542
+          },
+          {
+            "entryDate": "2025-12-05",
+            "exitDate": "2026-02-05",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 42,
+            "returnPct": 4.718743930074454
+          },
+          {
+            "entryDate": "2026-02-09",
+            "exitDate": "2026-02-11",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 2,
+            "returnPct": -1.5439024390243916
+          },
+          {
+            "entryDate": "2026-02-12",
+            "exitDate": "2026-03-02",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 6,
+            "returnPct": -1.2136788189213599
+          },
+          {
+            "entryDate": "2026-04-08",
+            "exitDate": "2026-05-08",
+            "exitReason": "持仓至期末",
+            "holdBars": 19,
+            "returnPct": 13.66798206278026
+          }
+        ]
+      },
+      {
+        "ticker": "588000.SH",
+        "name": "科创50ETF",
+        "bars": 1326,
+        "startDate": "2020-11-16",
+        "endDate": "2026-05-08",
+        "totalReturnPct": 52.33,
+        "cagrPct": 8.33,
+        "maxDrawdownPct": 20.92,
+        "trades": 11,
+        "winRatePct": 54.55,
+        "avgHoldDays": 18.82,
+        "exposurePct": 15.61,
+        "detailedTrades": [
+          {
+            "entryDate": "2021-12-08",
+            "exitDate": "2021-12-15",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 5,
+            "returnPct": 0.37636239782017356
+          },
+          {
+            "entryDate": "2023-03-23",
+            "exitDate": "2023-04-25",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 22,
+            "returnPct": 1.8089171974522422
+          },
+          {
+            "entryDate": "2023-06-16",
+            "exitDate": "2023-06-21",
+            "exitReason": "close<SMA250",
+            "holdBars": 3,
+            "returnPct": -3.011475409836073
+          },
+          {
+            "entryDate": "2024-12-20",
+            "exitDate": "2025-01-03",
+            "exitReason": "ATR-3x",
+            "holdBars": 9,
+            "returnPct": -6.8538028169014105
+          },
+          {
+            "entryDate": "2025-01-14",
+            "exitDate": "2025-01-16",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 2,
+            "returnPct": -2.604725168756017
+          },
+          {
+            "entryDate": "2025-01-21",
+            "exitDate": "2025-01-27",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 4,
+            "returnPct": -2.231716779825421
+          },
+          {
+            "entryDate": "2025-02-05",
+            "exitDate": "2025-03-21",
+            "exitReason": "ATR-3x",
+            "holdBars": 32,
+            "returnPct": 5.487463837994211
+          },
+          {
+            "entryDate": "2025-07-17",
+            "exitDate": "2025-11-03",
+            "exitReason": "ATR-3x",
+            "holdBars": 71,
+            "returnPct": 38.933774834437074
+          },
+          {
+            "entryDate": "2025-11-06",
+            "exitDate": "2025-11-07",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -1.556461232604367
+          },
+          {
+            "entryDate": "2025-12-22",
+            "exitDate": "2026-03-03",
+            "exitReason": "ATR-3x",
+            "holdBars": 43,
+            "returnPct": 4.095088967971527
+          },
+          {
+            "entryDate": "2026-04-14",
+            "exitDate": "2026-05-08",
+            "exitReason": "持仓至期末",
+            "holdBars": 15,
+            "returnPct": 16.65131845841785
+          }
+        ]
+      },
+      {
+        "ticker": "159781.SZ",
+        "name": "科创创业ETF",
+        "bars": 1172,
+        "startDate": "2021-07-05",
+        "endDate": "2026-05-08",
+        "totalReturnPct": 132.94,
+        "cagrPct": 19.94,
+        "maxDrawdownPct": 16.9,
+        "trades": 9,
+        "winRatePct": 66.67,
+        "avgHoldDays": 21.56,
+        "exposurePct": 16.55,
+        "detailedTrades": [
+          {
+            "entryDate": "2024-09-27",
+            "exitDate": "2024-10-10",
+            "exitReason": "trailing12%",
+            "holdBars": 4,
+            "returnPct": 22.87278481012658
+          },
+          {
+            "entryDate": "2025-01-21",
+            "exitDate": "2025-01-27",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 4,
+            "returnPct": -2.7806797853309417
+          },
+          {
+            "entryDate": "2025-02-06",
+            "exitDate": "2025-03-19",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 29,
+            "returnPct": 3.1053475935828745
+          },
+          {
+            "entryDate": "2025-06-25",
+            "exitDate": "2025-07-07",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 8,
+            "returnPct": -0.46459854014596624
+          },
+          {
+            "entryDate": "2025-07-08",
+            "exitDate": "2025-11-11",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 84,
+            "returnPct": 60.30465116279067
+          },
+          {
+            "entryDate": "2025-12-05",
+            "exitDate": "2026-02-05",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 42,
+            "returnPct": 2.361142217245238
+          },
+          {
+            "entryDate": "2026-02-10",
+            "exitDate": "2026-02-11",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -2.1085714285714263
+          },
+          {
+            "entryDate": "2026-02-24",
+            "exitDate": "2026-02-27",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 3,
+            "returnPct": 0.11255319148935072
+          },
+          {
+            "entryDate": "2026-04-08",
+            "exitDate": "2026-05-08",
+            "exitReason": "持仓至期末",
+            "holdBars": 19,
+            "returnPct": 19.228706624605675
+          }
+        ]
+      },
+      {
+        "ticker": "512480.SH",
+        "name": "半导体ETF",
+        "bars": 1673,
+        "startDate": "2019-06-12",
+        "endDate": "2026-05-08",
+        "totalReturnPct": 41.19,
+        "cagrPct": 5.33,
+        "maxDrawdownPct": 21.61,
+        "trades": 19,
+        "winRatePct": 42.11,
+        "avgHoldDays": 13.58,
+        "exposurePct": 15.42,
+        "detailedTrades": [
+          {
+            "entryDate": "2020-11-02",
+            "exitDate": "2020-11-16",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 10,
+            "returnPct": 3.9934634146341574
+          },
+          {
+            "entryDate": "2020-12-02",
+            "exitDate": "2020-12-16",
+            "exitReason": "ATR-3x",
+            "holdBars": 10,
+            "returnPct": -6.670000000000009
+          },
+          {
+            "entryDate": "2020-12-21",
+            "exitDate": "2020-12-25",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 4,
+            "returnPct": -3.3985849056603956
+          },
+          {
+            "entryDate": "2020-12-29",
+            "exitDate": "2021-01-28",
+            "exitReason": "ATR-3x",
+            "holdBars": 21,
+            "returnPct": 2.2482859941234112
+          },
+          {
+            "entryDate": "2021-02-02",
+            "exitDate": "2021-02-03",
+            "exitReason": "close<SMA250",
+            "holdBars": 1,
+            "returnPct": -3.8318965517241454
+          },
+          {
+            "entryDate": "2021-10-28",
+            "exitDate": "2021-12-16",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 35,
+            "returnPct": 8.841415785191199
+          },
+          {
+            "entryDate": "2023-03-17",
+            "exitDate": "2023-04-25",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 26,
+            "returnPct": 5.100867678958787
+          },
+          {
+            "entryDate": "2023-06-19",
+            "exitDate": "2023-06-21",
+            "exitReason": "close<SMA250",
+            "holdBars": 2,
+            "returnPct": -4.328571428571426
+          },
+          {
+            "entryDate": "2023-07-04",
+            "exitDate": "2023-07-05",
+            "exitReason": "close<SMA250",
+            "holdBars": 1,
+            "returnPct": -0.9705882352941231
+          },
+          {
+            "entryDate": "2024-12-19",
+            "exitDate": "2024-12-31",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 8,
+            "returnPct": -0.9832023575638615
+          },
+          {
+            "entryDate": "2025-01-14",
+            "exitDate": "2025-01-16",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 2,
+            "returnPct": -2.276039603960389
+          },
+          {
+            "entryDate": "2025-01-17",
+            "exitDate": "2025-01-27",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 6,
+            "returnPct": -2.1750741839762555
+          },
+          {
+            "entryDate": "2025-02-05",
+            "exitDate": "2025-03-21",
+            "exitReason": "ATR-3x",
+            "holdBars": 32,
+            "returnPct": 4.5168141592920374
+          },
+          {
+            "entryDate": "2025-06-30",
+            "exitDate": "2025-09-04",
+            "exitReason": "trailing12%",
+            "holdBars": 48,
+            "returnPct": 17.518207816968534
+          },
+          {
+            "entryDate": "2025-11-06",
+            "exitDate": "2025-11-07",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -1.3824999999999976
+          },
+          {
+            "entryDate": "2025-12-10",
+            "exitDate": "2025-12-15",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 3,
+            "returnPct": -2.2536161335187765
+          },
+          {
+            "entryDate": "2025-12-17",
+            "exitDate": "2025-12-18",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -0.8782577903682753
+          },
+          {
+            "entryDate": "2025-12-22",
+            "exitDate": "2026-02-06",
+            "exitReason": "ATR-3x",
+            "holdBars": 32,
+            "returnPct": 9.70912256267409
+          },
+          {
+            "entryDate": "2026-04-14",
+            "exitDate": "2026-05-08",
+            "exitReason": "持仓至期末",
+            "holdBars": 15,
+            "returnPct": 18.16529850746267
+          }
+        ]
+      },
+      {
+        "ticker": "159869.SZ",
+        "name": "游戏ETF",
+        "bars": 1253,
+        "startDate": "2021-03-05",
+        "endDate": "2026-05-08",
+        "totalReturnPct": 127,
+        "cagrPct": 17.92,
+        "maxDrawdownPct": 16.18,
+        "trades": 8,
+        "winRatePct": 50,
+        "avgHoldDays": 24.88,
+        "exposurePct": 15.88,
+        "detailedTrades": [
+          {
+            "entryDate": "2023-03-16",
+            "exitDate": "2023-05-10",
+            "exitReason": "trailing12%",
+            "holdBars": 35,
+            "returnPct": 56.42665941240479
+          },
+          {
+            "entryDate": "2023-11-06",
+            "exitDate": "2023-11-16",
+            "exitReason": "close<SMA250",
+            "holdBars": 8,
+            "returnPct": -1.0032549728752227
+          },
+          {
+            "entryDate": "2023-12-01",
+            "exitDate": "2023-12-05",
+            "exitReason": "close<SMA250",
+            "holdBars": 2,
+            "returnPct": -3.2967999999999997
+          },
+          {
+            "entryDate": "2025-02-05",
+            "exitDate": "2025-03-20",
+            "exitReason": "ATR-3x",
+            "holdBars": 31,
+            "returnPct": 11.23748837209304
+          },
+          {
+            "entryDate": "2025-06-03",
+            "exitDate": "2025-10-13",
+            "exitReason": "ATR-3x",
+            "holdBars": 88,
+            "returnPct": 29.791338582677174
+          },
+          {
+            "entryDate": "2025-12-10",
+            "exitDate": "2025-12-11",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -1.7192389006342568
+          },
+          {
+            "entryDate": "2025-12-12",
+            "exitDate": "2025-12-15",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -0.8110320284697492
+          },
+          {
+            "entryDate": "2025-12-17",
+            "exitDate": "2026-02-04",
+            "exitReason": "ATR-3x",
+            "holdBars": 33,
+            "returnPct": 8.568421052631603
+          }
+        ]
+      }
+    ]
+  },
+  "v61": {
+    "aggregate": {
+      "ret": 104.96,
+      "cagr": 12.57,
+      "dd": 17.53
+    },
+    "byTicker": [
+      {
+        "ticker": "159915.SZ",
+        "name": "创业板ETF",
+        "bars": 2509,
+        "startDate": "2016-01-04",
+        "endDate": "2026-05-08",
+        "totalReturnPct": 162.42,
+        "cagrPct": 10.18,
+        "maxDrawdownPct": 14.23,
+        "trades": 26,
+        "winRatePct": 42.31,
+        "avgHoldDays": 23.58,
+        "exposurePct": 24.43,
+        "detailedTrades": [
+          {
+            "entryDate": "2018-05-21",
+            "exitDate": "2018-05-25",
+            "exitReason": "close<SMA250",
+            "holdBars": 4,
+            "returnPct": -3.056630620375622
+          },
+          {
+            "entryDate": "2019-04-12",
+            "exitDate": "2019-04-15",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -1.82241379310345
+          },
+          {
+            "entryDate": "2019-04-22",
+            "exitDate": "2019-04-23",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -0.961206896551714
+          },
+          {
+            "entryDate": "2019-04-24",
+            "exitDate": "2019-04-29",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 3,
+            "returnPct": -5.9871810449574685
+          },
+          {
+            "entryDate": "2019-06-21",
+            "exitDate": "2019-09-26",
+            "exitReason": "ATR-3x",
+            "holdBars": 68,
+            "returnPct": 5.8682281059063035
+          },
+          {
+            "entryDate": "2019-10-18",
+            "exitDate": "2019-10-21",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -0.35147891755822336
+          },
+          {
+            "entryDate": "2019-10-22",
+            "exitDate": "2019-10-24",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 2,
+            "returnPct": -0.9086550435865481
+          },
+          {
+            "entryDate": "2019-10-25",
+            "exitDate": "2019-11-25",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 21,
+            "returnPct": -1.1509282178218116
+          },
+          {
+            "entryDate": "2019-11-28",
+            "exitDate": "2019-11-29",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -0.7821229050279266
+          },
+          {
+            "entryDate": "2019-12-04",
+            "exitDate": "2020-02-03",
+            "exitReason": "ATR-3x",
+            "holdBars": 36,
+            "returnPct": 5.849379652605458
+          },
+          {
+            "entryDate": "2020-04-07",
+            "exitDate": "2020-04-10",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 3,
+            "returnPct": -0.9966737064413755
+          },
+          {
+            "entryDate": "2020-04-16",
+            "exitDate": "2020-08-12",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 79,
+            "returnPct": 31.752173913043478
+          },
+          {
+            "entryDate": "2020-09-01",
+            "exitDate": "2020-09-07",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 4,
+            "returnPct": -4.19672686230248
+          },
+          {
+            "entryDate": "2020-09-30",
+            "exitDate": "2020-11-11",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 24,
+            "returnPct": 4.154479710727199
+          },
+          {
+            "entryDate": "2020-12-08",
+            "exitDate": "2021-02-22",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 47,
+            "returnPct": 14.473469387755111
+          },
+          {
+            "entryDate": "2021-04-23",
+            "exitDate": "2021-05-07",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 7,
+            "returnPct": -2.587997232791417
+          },
+          {
+            "entryDate": "2021-05-11",
+            "exitDate": "2021-07-27",
+            "exitReason": "ATR-3x",
+            "holdBars": 54,
+            "returnPct": 11.117959617428275
+          },
+          {
+            "entryDate": "2021-10-22",
+            "exitDate": "2021-12-17",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 40,
+            "returnPct": 4.385306122448962
+          },
+          {
+            "entryDate": "2024-12-10",
+            "exitDate": "2024-12-31",
+            "exitReason": "ATR-3x",
+            "holdBars": 15,
+            "returnPct": -5.452588923908164
+          },
+          {
+            "entryDate": "2025-02-06",
+            "exitDate": "2025-03-21",
+            "exitReason": "ATR-3x",
+            "holdBars": 31,
+            "returnPct": 1.4369230769230912
+          },
+          {
+            "entryDate": "2025-06-09",
+            "exitDate": "2025-06-19",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 8,
+            "returnPct": -1.5243362831858343
+          },
+          {
+            "entryDate": "2025-06-24",
+            "exitDate": "2025-11-11",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 94,
+            "returnPct": 52.14711350293542
+          },
+          {
+            "entryDate": "2025-12-05",
+            "exitDate": "2026-02-05",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 42,
+            "returnPct": 4.718743930074432
+          },
+          {
+            "entryDate": "2026-02-09",
+            "exitDate": "2026-02-11",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 2,
+            "returnPct": -1.5439024390244027
+          },
+          {
+            "entryDate": "2026-02-12",
+            "exitDate": "2026-03-02",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 6,
+            "returnPct": -1.2136788189213599
+          },
+          {
+            "entryDate": "2026-04-08",
+            "exitDate": "2026-05-08",
+            "exitReason": "持仓至期末",
+            "holdBars": 19,
+            "returnPct": 13.66798206278026
+          }
+        ]
+      },
+      {
+        "ticker": "588000.SH",
+        "name": "科创50ETF",
+        "bars": 1326,
+        "startDate": "2020-11-16",
+        "endDate": "2026-05-08",
+        "totalReturnPct": 59.19,
+        "cagrPct": 9.24,
+        "maxDrawdownPct": 18.72,
+        "trades": 9,
+        "winRatePct": 66.67,
+        "avgHoldDays": 22.67,
+        "exposurePct": 15.38,
+        "detailedTrades": [
+          {
+            "entryDate": "2021-12-08",
+            "exitDate": "2021-12-15",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 5,
+            "returnPct": 0.37636239782017356
+          },
+          {
+            "entryDate": "2023-03-23",
+            "exitDate": "2023-04-25",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 22,
+            "returnPct": 1.8089171974522422
+          },
+          {
+            "entryDate": "2023-06-16",
+            "exitDate": "2023-06-21",
+            "exitReason": "close<SMA250",
+            "holdBars": 3,
+            "returnPct": -3.011475409836073
+          },
+          {
+            "entryDate": "2024-12-20",
+            "exitDate": "2025-01-03",
+            "exitReason": "ATR-3x",
+            "holdBars": 9,
+            "returnPct": -6.8538028169014105
+          },
+          {
+            "entryDate": "2025-01-21",
+            "exitDate": "2025-01-27",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 4,
+            "returnPct": -2.231716779825421
+          },
+          {
+            "entryDate": "2025-02-05",
+            "exitDate": "2025-03-21",
+            "exitReason": "ATR-3x",
+            "holdBars": 32,
+            "returnPct": 5.487463837994233
+          },
+          {
+            "entryDate": "2025-07-17",
+            "exitDate": "2025-11-03",
+            "exitReason": "ATR-3x",
+            "holdBars": 71,
+            "returnPct": 38.933774834437095
+          },
+          {
+            "entryDate": "2025-12-22",
+            "exitDate": "2026-03-03",
+            "exitReason": "ATR-3x",
+            "holdBars": 43,
+            "returnPct": 4.095088967971527
+          },
+          {
+            "entryDate": "2026-04-14",
+            "exitDate": "2026-05-08",
+            "exitReason": "持仓至期末",
+            "holdBars": 15,
+            "returnPct": 16.65131845841785
+          }
+        ]
+      },
+      {
+        "ticker": "159781.SZ",
+        "name": "科创创业ETF",
+        "bars": 1172,
+        "startDate": "2021-07-05",
+        "endDate": "2026-05-08",
+        "totalReturnPct": 132.94,
+        "cagrPct": 19.94,
+        "maxDrawdownPct": 16.9,
+        "trades": 9,
+        "winRatePct": 66.67,
+        "avgHoldDays": 21.56,
+        "exposurePct": 16.55,
+        "detailedTrades": [
+          {
+            "entryDate": "2024-09-27",
+            "exitDate": "2024-10-10",
+            "exitReason": "trailing12%",
+            "holdBars": 4,
+            "returnPct": 22.87278481012658
+          },
+          {
+            "entryDate": "2025-01-21",
+            "exitDate": "2025-01-27",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 4,
+            "returnPct": -2.7806797853309417
+          },
+          {
+            "entryDate": "2025-02-06",
+            "exitDate": "2025-03-19",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 29,
+            "returnPct": 3.1053475935828745
+          },
+          {
+            "entryDate": "2025-06-25",
+            "exitDate": "2025-07-07",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 8,
+            "returnPct": -0.46459854014596624
+          },
+          {
+            "entryDate": "2025-07-08",
+            "exitDate": "2025-11-11",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 84,
+            "returnPct": 60.30465116279067
+          },
+          {
+            "entryDate": "2025-12-05",
+            "exitDate": "2026-02-05",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 42,
+            "returnPct": 2.361142217245238
+          },
+          {
+            "entryDate": "2026-02-10",
+            "exitDate": "2026-02-11",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -2.1085714285714263
+          },
+          {
+            "entryDate": "2026-02-24",
+            "exitDate": "2026-02-27",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 3,
+            "returnPct": 0.11255319148935072
+          },
+          {
+            "entryDate": "2026-04-08",
+            "exitDate": "2026-05-08",
+            "exitReason": "持仓至期末",
+            "holdBars": 19,
+            "returnPct": 19.228706624605675
+          }
+        ]
+      },
+      {
+        "ticker": "512480.SH",
+        "name": "半导体ETF",
+        "bars": 1673,
+        "startDate": "2019-06-12",
+        "endDate": "2026-05-08",
+        "totalReturnPct": 43.23,
+        "cagrPct": 5.56,
+        "maxDrawdownPct": 21.61,
+        "trades": 17,
+        "winRatePct": 41.18,
+        "avgHoldDays": 13.71,
+        "exposurePct": 13.93,
+        "detailedTrades": [
+          {
+            "entryDate": "2020-11-02",
+            "exitDate": "2020-11-16",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 10,
+            "returnPct": 3.9934634146341574
+          },
+          {
+            "entryDate": "2020-12-02",
+            "exitDate": "2020-12-16",
+            "exitReason": "ATR-3x",
+            "holdBars": 10,
+            "returnPct": -6.670000000000009
+          },
+          {
+            "entryDate": "2021-02-02",
+            "exitDate": "2021-02-03",
+            "exitReason": "close<SMA250",
+            "holdBars": 1,
+            "returnPct": -3.8318965517241566
+          },
+          {
+            "entryDate": "2021-10-28",
+            "exitDate": "2021-12-16",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 35,
+            "returnPct": 8.84141578519122
+          },
+          {
+            "entryDate": "2023-03-17",
+            "exitDate": "2023-04-25",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 26,
+            "returnPct": 5.100867678958787
+          },
+          {
+            "entryDate": "2023-06-19",
+            "exitDate": "2023-06-21",
+            "exitReason": "close<SMA250",
+            "holdBars": 2,
+            "returnPct": -4.328571428571415
+          },
+          {
+            "entryDate": "2023-07-04",
+            "exitDate": "2023-07-05",
+            "exitReason": "close<SMA250",
+            "holdBars": 1,
+            "returnPct": -0.9705882352941342
+          },
+          {
+            "entryDate": "2024-12-19",
+            "exitDate": "2024-12-31",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 8,
+            "returnPct": -0.9832023575638615
+          },
+          {
+            "entryDate": "2025-01-14",
+            "exitDate": "2025-01-16",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 2,
+            "returnPct": -2.276039603960389
+          },
+          {
+            "entryDate": "2025-01-17",
+            "exitDate": "2025-01-27",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 6,
+            "returnPct": -2.1750741839762444
+          },
+          {
+            "entryDate": "2025-02-05",
+            "exitDate": "2025-03-21",
+            "exitReason": "ATR-3x",
+            "holdBars": 32,
+            "returnPct": 4.51681415929206
+          },
+          {
+            "entryDate": "2025-06-30",
+            "exitDate": "2025-09-04",
+            "exitReason": "trailing12%",
+            "holdBars": 48,
+            "returnPct": 17.518207816968534
+          },
+          {
+            "entryDate": "2025-11-06",
+            "exitDate": "2025-11-07",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -1.3824999999999754
+          },
+          {
+            "entryDate": "2025-12-10",
+            "exitDate": "2025-12-15",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 3,
+            "returnPct": -2.2536161335187765
+          },
+          {
+            "entryDate": "2025-12-17",
+            "exitDate": "2025-12-18",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -0.8782577903682642
+          },
+          {
+            "entryDate": "2025-12-22",
+            "exitDate": "2026-02-06",
+            "exitReason": "ATR-3x",
+            "holdBars": 32,
+            "returnPct": 9.70912256267411
+          },
+          {
+            "entryDate": "2026-04-14",
+            "exitDate": "2026-05-08",
+            "exitReason": "持仓至期末",
+            "holdBars": 15,
+            "returnPct": 18.16529850746269
+          }
+        ]
+      },
+      {
+        "ticker": "159869.SZ",
+        "name": "游戏ETF",
+        "bars": 1253,
+        "startDate": "2021-03-05",
+        "endDate": "2026-05-08",
+        "totalReturnPct": 127,
+        "cagrPct": 17.92,
+        "maxDrawdownPct": 16.18,
+        "trades": 8,
+        "winRatePct": 50,
+        "avgHoldDays": 24.88,
+        "exposurePct": 15.88,
+        "detailedTrades": [
+          {
+            "entryDate": "2023-03-16",
+            "exitDate": "2023-05-10",
+            "exitReason": "trailing12%",
+            "holdBars": 35,
+            "returnPct": 56.42665941240479
+          },
+          {
+            "entryDate": "2023-11-06",
+            "exitDate": "2023-11-16",
+            "exitReason": "close<SMA250",
+            "holdBars": 8,
+            "returnPct": -1.0032549728752227
+          },
+          {
+            "entryDate": "2023-12-01",
+            "exitDate": "2023-12-05",
+            "exitReason": "close<SMA250",
+            "holdBars": 2,
+            "returnPct": -3.2967999999999997
+          },
+          {
+            "entryDate": "2025-02-05",
+            "exitDate": "2025-03-20",
+            "exitReason": "ATR-3x",
+            "holdBars": 31,
+            "returnPct": 11.23748837209304
+          },
+          {
+            "entryDate": "2025-06-03",
+            "exitDate": "2025-10-13",
+            "exitReason": "ATR-3x",
+            "holdBars": 88,
+            "returnPct": 29.791338582677174
+          },
+          {
+            "entryDate": "2025-12-10",
+            "exitDate": "2025-12-11",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -1.7192389006342568
+          },
+          {
+            "entryDate": "2025-12-12",
+            "exitDate": "2025-12-15",
+            "exitReason": "confirm(黄转绿)",
+            "holdBars": 1,
+            "returnPct": -0.8110320284697492
+          },
+          {
+            "entryDate": "2025-12-17",
+            "exitDate": "2026-02-04",
+            "exitReason": "ATR-3x",
+            "holdBars": 33,
+            "returnPct": 8.568421052631603
+          }
+        ]
+      }
+    ]
+  }
+}

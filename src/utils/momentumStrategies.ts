@@ -7,12 +7,21 @@ import {
   type ConfirmTrail12BacktestRow,
   type ConfirmTrail12MethodSection,
 } from '@/utils/confirmTrail12Methodology'
+import {
+  CONFIRM_TRAIL12_ENHANCED_BACKTEST_AGGREGATE,
+  CONFIRM_TRAIL12_ENHANCED_BACKTEST_ROWS,
+  CONFIRM_TRAIL12_ENHANCED_BACKTEST_SOURCE,
+  CONFIRM_TRAIL12_ENHANCED_METHOD_SECTIONS,
+  CONFIRM_TRAIL12_ENHANCED_SUMMARY_LINES,
+  type ConfirmTrail12EnhancedBacktestRow,
+  type ConfirmTrail12EnhancedMethodSection,
+} from '@/utils/confirmTrail12EnhancedMethodology'
 
-export type MomentumStrategyId = 'confirmTrail12' | 'baseColorFlip'
+export type MomentumStrategyId = 'confirmTrail12Enhanced' | 'confirmTrail12' | 'baseColorFlip'
 export type MomentumStrategySignalPreset = MomentumStrategyId
-export type MomentumMethodSection = ConfirmTrail12MethodSection
-export type MomentumBacktestRow = ConfirmTrail12BacktestRow
-export type MomentumBacktestAggregate = typeof CONFIRM_TRAIL12_BACKTEST_AGGREGATE
+export type MomentumMethodSection = ConfirmTrail12MethodSection | ConfirmTrail12EnhancedMethodSection
+export type MomentumBacktestRow = ConfirmTrail12BacktestRow | ConfirmTrail12EnhancedBacktestRow
+export type MomentumBacktestAggregate = typeof CONFIRM_TRAIL12_BACKTEST_AGGREGATE | typeof CONFIRM_TRAIL12_ENHANCED_BACKTEST_AGGREGATE
 export type MomentumSignalLegendTone = 'buy' | 'sell' | 'risk' | 'turnover'
 export type MomentumSignalLegendItem = {
   key: string
@@ -101,16 +110,41 @@ const BASE_COLOR_FLIP_METHOD_SECTIONS: readonly MomentumMethodSection[] = [
   },
 ] as const
 
-export const DEFAULT_MOMENTUM_STRATEGY_ID: MomentumStrategyId = 'confirmTrail12'
+export const DEFAULT_MOMENTUM_STRATEGY_ID: MomentumStrategyId = 'confirmTrail12Enhanced'
 export const MOMENTUM_ANALYSIS_PATH = '/market/rps/custom-query'
 export const MOMENTUM_METHOD_PATH = '/market/rps/methodology'
 
 export const MOMENTUM_STRATEGIES: readonly MomentumStrategyDefinition[] = [
   {
+    id: 'confirmTrail12Enhanced',
+    label: 'Baseline增强风控',
+    shortLabel: '硬止损+ATR+分级追踪',
+    roleLabel: '默认策略',
+    selectorDescription: '在Baseline策略基础上新增硬止损-7%、ATR-3x自适应止损、10日冷却期和分级追踪止损，提升回撤控制。',
+    signalPreset: 'confirmTrail12Enhanced',
+    summaryLines: CONFIRM_TRAIL12_ENHANCED_SUMMARY_LINES,
+    methodTitle: 'Baseline增强风控 分析方法',
+    methodLeadParagraphs: [
+      '本页归档 `Baseline增强风控` 策略的正式产品口径，说明在 Baseline 基础上新增的硬止损、ATR 自适应止损、冷却期和分级追踪止损的完整规则。',
+      '该策略的入场规则与 Baseline 完全相同（绿转黄 + close≥SMA250），但在卖出端增加了四层递进风控，目标是在不牺牲趋势收益的前提下提升回撤控制能力。',
+    ],
+    methodCtaDescription: '查看 Baseline增强风控 的完整规则、风控机制与样本 ETF 回测结果。',
+    sections: CONFIRM_TRAIL12_ENHANCED_METHOD_SECTIONS,
+    backtestSource: CONFIRM_TRAIL12_ENHANCED_BACKTEST_SOURCE,
+    backtestAggregate: CONFIRM_TRAIL12_ENHANCED_BACKTEST_AGGREGATE,
+    backtestRows: CONFIRM_TRAIL12_ENHANCED_BACKTEST_ROWS,
+    signalLegend: [
+      { key: 'buy', tone: 'buy', text: '红色向上箭头：绿转黄且收盘价不低于 SMA250' },
+      { key: 'confirm-sell', tone: 'sell', text: '绿色向下箭头：黄转绿，且 close<SMA20 / MACD Hist<0 / RSI<50 任一成立' },
+      { key: 'risk-sell', tone: 'risk', text: '金色向下箭头：硬止损-7% / ATR-3x / 12%追踪 / 8%追踪 任一风控触发' },
+      { key: 'turnover', tone: 'turnover', text: '淡紫圆点：成交额 >= 前20日均值 1.50x' },
+    ],
+  },
+  {
     id: 'confirmTrail12',
     label: 'Baseline策略',
     shortLabel: '确认卖出+12%风控',
-    roleLabel: '默认策略',
+    roleLabel: '对照策略',
     selectorDescription: '适合直接作为主图默认口径，结合确认卖出与 12% 风控，平衡信号质量与回撤控制。',
     signalPreset: 'confirmTrail12',
     summaryLines: CONFIRM_TRAIL12_SUMMARY_LINES,
@@ -160,7 +194,7 @@ const MOMENTUM_STRATEGY_MAP = new Map<MomentumStrategyId, MomentumStrategyDefini
 )
 
 export function isMomentumStrategyId(value: string | null | undefined): value is MomentumStrategyId {
-  return value === 'confirmTrail12' || value === 'baseColorFlip'
+  return value === 'confirmTrail12Enhanced' || value === 'confirmTrail12' || value === 'baseColorFlip'
 }
 
 export function resolveMomentumStrategyId(value: string | null | undefined): MomentumStrategyId {

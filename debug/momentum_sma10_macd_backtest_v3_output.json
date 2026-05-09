@@ -1,0 +1,898 @@
+{
+  "strategy": {
+    "name": "SMA10_MACD_Cross_V3.2_HS300_RPS_ExitOnly",
+    "version": "3.2",
+    "design": "大盘过滤 + RPS仅用于出场 + SMA10-MACD技术信号（入场不要求RPS Score）",
+    "marketFilter": "沪深300 close >= SMA250 才允许入场",
+    "entry": [
+      "ETF close >= SMA250",
+      "3增强至少满足2个: SMA10突破 / MACD金叉(8,21,5) / 成交量>1.3x20日均",
+      "注意: 入场不要求RPS Score >= 0"
+    ],
+    "exit": [
+      "close < SMA250",
+      "-5% 硬止损",
+      "RPS Score < 0（动量转负）",
+      "持日>=20 且亏损 → 时间止损",
+      "-12% 追踪回撤止损",
+      "SMA10死叉 + MACD死叉"
+    ],
+    "macdParams": {
+      "short": 8,
+      "long": 21,
+      "signal": 5
+    },
+    "feeRatePerSide": 0.001,
+    "trailingStopPct": 0.12,
+    "hardStopPct": 0.05,
+    "timeStopBars": 20,
+    "volLookback": 20,
+    "volThreshold": 1.3,
+    "benchmark": "H30269",
+    "marketIndex": "000300.SH",
+    "startDate": "2016-01-01",
+    "endDate": "2026-05-09"
+  },
+  "aggregate": {
+    "avgTotalReturnPct": 35.72,
+    "medianTotalReturnPct": 35.96,
+    "avgCagrPct": 5.26,
+    "avgMaxDrawdownPct": 16.46,
+    "avgTrades": 22,
+    "avgWinRatePct": 48.37,
+    "avgHoldDays": 8.12,
+    "avgExposurePct": 11
+  },
+  "byTicker": [
+    {
+      "ticker": "159915.SZ",
+      "name": "创业板ETF",
+      "bars": 2509,
+      "startDate": "2016-01-04",
+      "endDate": "2026-05-08",
+      "totalReturnPct": 40.18,
+      "cagrPct": 3.45,
+      "maxDrawdownPct": 22.27,
+      "trades": 35,
+      "winRatePct": 40,
+      "avgHoldDays": 8.74,
+      "exposurePct": 12.2,
+      "detailedTrades": [
+        {
+          "entryDate": "2018-03-27",
+          "exitDate": "2018-04-17",
+          "exitReason": "close<SMA250",
+          "holdBars": 13,
+          "returnPct": -3.2613924050632903
+        },
+        {
+          "entryDate": "2018-05-21",
+          "exitDate": "2018-05-25",
+          "exitReason": "close<SMA250",
+          "holdBars": 4,
+          "returnPct": -3.0566306203756333
+        },
+        {
+          "entryDate": "2019-05-15",
+          "exitDate": "2019-05-16",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": 0.3099863201094344
+        },
+        {
+          "entryDate": "2019-05-27",
+          "exitDate": "2019-05-28",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": 0.17983193277311127
+        },
+        {
+          "entryDate": "2019-06-11",
+          "exitDate": "2019-06-12",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -1.3574825174825111
+        },
+        {
+          "entryDate": "2019-07-15",
+          "exitDate": "2019-07-18",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 3,
+          "returnPct": -1.3747481531229067
+        },
+        {
+          "entryDate": "2019-09-02",
+          "exitDate": "2019-10-08",
+          "exitReason": "timeStop20d",
+          "holdBars": 20,
+          "returnPct": -2.3590452261306516
+        },
+        {
+          "entryDate": "2019-10-10",
+          "exitDate": "2019-10-15",
+          "exitReason": "rpsScore<0",
+          "holdBars": 3,
+          "returnPct": -0.5359725685785688
+        },
+        {
+          "entryDate": "2019-10-22",
+          "exitDate": "2019-10-23",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 1,
+          "returnPct": -1.1574719800747313
+        },
+        {
+          "entryDate": "2019-11-19",
+          "exitDate": "2019-11-22",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 3,
+          "returnPct": -3.218127250900349
+        },
+        {
+          "entryDate": "2019-12-05",
+          "exitDate": "2019-12-23",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 12,
+          "returnPct": 1.2942354368932207
+        },
+        {
+          "entryDate": "2020-01-20",
+          "exitDate": "2020-01-23",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 3,
+          "returnPct": -2.8269291338582803
+        },
+        {
+          "entryDate": "2020-02-05",
+          "exitDate": "2020-03-16",
+          "exitReason": "timeStop20d",
+          "holdBars": 28,
+          "returnPct": -2.1823623730625408
+        },
+        {
+          "entryDate": "2020-06-01",
+          "exitDate": "2020-07-16",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 31,
+          "returnPct": 22.739769452449575
+        },
+        {
+          "entryDate": "2020-09-18",
+          "exitDate": "2020-09-21",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -1.4118583366494186
+        },
+        {
+          "entryDate": "2020-09-29",
+          "exitDate": "2020-10-21",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 10,
+          "returnPct": 5.2597014925373164
+        },
+        {
+          "entryDate": "2020-11-02",
+          "exitDate": "2020-11-11",
+          "exitReason": "rpsScore<0",
+          "holdBars": 7,
+          "returnPct": -0.939816583874653
+        },
+        {
+          "entryDate": "2020-12-01",
+          "exitDate": "2020-12-02",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -0.44554189085319607
+        },
+        {
+          "entryDate": "2020-12-30",
+          "exitDate": "2021-01-14",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 10,
+          "returnPct": 6.60996784565917
+        },
+        {
+          "entryDate": "2021-02-09",
+          "exitDate": "2021-02-22",
+          "exitReason": "hardStop-5%",
+          "holdBars": 4,
+          "returnPct": -5.991061452513968
+        },
+        {
+          "entryDate": "2021-04-14",
+          "exitDate": "2021-04-15",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -0.4321388991503472
+        },
+        {
+          "entryDate": "2021-04-19",
+          "exitDate": "2021-04-20",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -0.34992852037168953
+        },
+        {
+          "entryDate": "2021-05-17",
+          "exitDate": "2021-06-03",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 13,
+          "returnPct": 2.956468240771537
+        },
+        {
+          "entryDate": "2021-07-07",
+          "exitDate": "2021-07-16",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 7,
+          "returnPct": 0.5952193645990977
+        },
+        {
+          "entryDate": "2021-07-21",
+          "exitDate": "2021-07-23",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 2,
+          "returnPct": -2.644486251808975
+        },
+        {
+          "entryDate": "2025-01-14",
+          "exitDate": "2025-01-15",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -1.9154715127701283
+        },
+        {
+          "entryDate": "2025-03-14",
+          "exitDate": "2025-03-20",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 4,
+          "returnPct": -1.379597438243363
+        },
+        {
+          "entryDate": "2025-06-24",
+          "exitDate": "2025-07-31",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 27,
+          "returnPct": 12.460812133072396
+        },
+        {
+          "entryDate": "2025-08-13",
+          "exitDate": "2025-09-04",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 16,
+          "returnPct": 11.130165790537806
+        },
+        {
+          "entryDate": "2025-09-05",
+          "exitDate": "2025-10-14",
+          "exitReason": "timeStop20d",
+          "holdBars": 21,
+          "returnPct": -0.4393342391304511
+        },
+        {
+          "entryDate": "2025-11-28",
+          "exitDate": "2025-12-01",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": 1.150807248764396
+        },
+        {
+          "entryDate": "2025-12-17",
+          "exitDate": "2026-02-05",
+          "exitReason": "rpsScore<0",
+          "holdBars": 34,
+          "returnPct": 2.236472819216151
+        },
+        {
+          "entryDate": "2026-02-12",
+          "exitDate": "2026-02-13",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 1,
+          "returnPct": -1.725369087074402
+        },
+        {
+          "entryDate": "2026-03-10",
+          "exitDate": "2026-03-11",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": 1.082069174757283
+        },
+        {
+          "entryDate": "2026-04-08",
+          "exitDate": "2026-05-08",
+          "exitReason": "持仓至期末",
+          "holdBars": 19,
+          "returnPct": 13.66798206278026
+        }
+      ]
+    },
+    {
+      "ticker": "588000.SH",
+      "name": "科创50ETF",
+      "bars": 1326,
+      "startDate": "2020-11-16",
+      "endDate": "2026-05-08",
+      "totalReturnPct": 32.41,
+      "cagrPct": 5.48,
+      "maxDrawdownPct": 11.9,
+      "trades": 16,
+      "winRatePct": 43.75,
+      "avgHoldDays": 7.94,
+      "exposurePct": 9.58,
+      "detailedTrades": [
+        {
+          "entryDate": "2024-10-18",
+          "exitDate": "2024-11-15",
+          "exitReason": "timeStop20d",
+          "holdBars": 20,
+          "returnPct": -0.1959654178674275
+        },
+        {
+          "entryDate": "2024-12-20",
+          "exitDate": "2024-12-23",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -1.319436619718295
+        },
+        {
+          "entryDate": "2025-01-14",
+          "exitDate": "2025-01-16",
+          "exitReason": "rpsScore<0",
+          "holdBars": 2,
+          "returnPct": -2.604725168756028
+        },
+        {
+          "entryDate": "2025-02-05",
+          "exitDate": "2025-02-18",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 9,
+          "returnPct": 2.693731918997111
+        },
+        {
+          "entryDate": "2025-02-19",
+          "exitDate": "2025-03-03",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 8,
+          "returnPct": 2.3700549450549557
+        },
+        {
+          "entryDate": "2025-04-11",
+          "exitDate": "2025-04-14",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": 0.18246936852026607
+        },
+        {
+          "entryDate": "2025-05-14",
+          "exitDate": "2025-05-15",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -1.507042253521118
+        },
+        {
+          "entryDate": "2025-06-24",
+          "exitDate": "2025-06-25",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": 1.7446064139941875
+        },
+        {
+          "entryDate": "2025-07-08",
+          "exitDate": "2025-07-09",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -0.86551724137931
+        },
+        {
+          "entryDate": "2025-07-11",
+          "exitDate": "2025-07-14",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -0.1954154727793589
+        },
+        {
+          "entryDate": "2025-08-12",
+          "exitDate": "2025-10-31",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 52,
+          "returnPct": 32.25195729537362
+        },
+        {
+          "entryDate": "2025-11-28",
+          "exitDate": "2025-12-01",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": 0.6888729361091084
+        },
+        {
+          "entryDate": "2025-12-22",
+          "exitDate": "2026-01-20",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 19,
+          "returnPct": 10.920996441281128
+        },
+        {
+          "entryDate": "2026-01-21",
+          "exitDate": "2026-02-02",
+          "exitReason": "hardStop-5%",
+          "holdBars": 8,
+          "returnPct": -5.540099009901001
+        },
+        {
+          "entryDate": "2026-04-01",
+          "exitDate": "2026-04-02",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -2.945945945945938
+        },
+        {
+          "entryDate": "2026-04-08",
+          "exitDate": "2026-04-09",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -0.8010526315789579
+        }
+      ]
+    },
+    {
+      "ticker": "159781.SZ",
+      "name": "科创创业ETF",
+      "bars": 1172,
+      "startDate": "2021-07-05",
+      "endDate": "2026-05-08",
+      "totalReturnPct": 22.92,
+      "cagrPct": 4.54,
+      "maxDrawdownPct": 17.53,
+      "trades": 19,
+      "winRatePct": 42.11,
+      "avgHoldDays": 5.53,
+      "exposurePct": 8.96,
+      "detailedTrades": [
+        {
+          "entryDate": "2024-10-18",
+          "exitDate": "2024-11-15",
+          "exitReason": "timeStop20d",
+          "holdBars": 20,
+          "returnPct": -0.6176165803108757
+        },
+        {
+          "entryDate": "2024-12-02",
+          "exitDate": "2024-12-09",
+          "exitReason": "rpsScore<0",
+          "holdBars": 5,
+          "returnPct": -1.133448275862059
+        },
+        {
+          "entryDate": "2024-12-20",
+          "exitDate": "2024-12-23",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -0.6221254355400774
+        },
+        {
+          "entryDate": "2025-01-14",
+          "exitDate": "2025-01-15",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -1.3622743682310423
+        },
+        {
+          "entryDate": "2025-02-06",
+          "exitDate": "2025-02-28",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 16,
+          "returnPct": 3.2834224598930373
+        },
+        {
+          "entryDate": "2025-06-04",
+          "exitDate": "2025-06-05",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": 1.2194339622641381
+        },
+        {
+          "entryDate": "2025-06-24",
+          "exitDate": "2025-06-26",
+          "exitReason": "rpsScore<0",
+          "holdBars": 2,
+          "returnPct": 1.385501858736049
+        },
+        {
+          "entryDate": "2025-07-08",
+          "exitDate": "2025-07-10",
+          "exitReason": "rpsScore<0",
+          "holdBars": 2,
+          "returnPct": -0.2787119856887177
+        },
+        {
+          "entryDate": "2025-08-12",
+          "exitDate": "2025-09-04",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 17,
+          "returnPct": 21.748177496038057
+        },
+        {
+          "entryDate": "2025-12-17",
+          "exitDate": "2025-12-31",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 10,
+          "returnPct": -0.10000000000000009
+        },
+        {
+          "entryDate": "2026-01-05",
+          "exitDate": "2026-01-13",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 6,
+          "returnPct": -0.8376582278481037
+        },
+        {
+          "entryDate": "2026-02-12",
+          "exitDate": "2026-02-13",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -1.1627659574467875
+        },
+        {
+          "entryDate": "2026-02-24",
+          "exitDate": "2026-02-27",
+          "exitReason": "rpsScore<0",
+          "holdBars": 3,
+          "returnPct": 0.11255319148937293
+        },
+        {
+          "entryDate": "2026-03-10",
+          "exitDate": "2026-03-11",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": 0.006730769230745004
+        },
+        {
+          "entryDate": "2026-03-18",
+          "exitDate": "2026-03-19",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -1.27655246252677
+        },
+        {
+          "entryDate": "2026-03-20",
+          "exitDate": "2026-03-23",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -3.7249733191035306
+        },
+        {
+          "entryDate": "2026-03-25",
+          "exitDate": "2026-03-26",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -1.5990353697749038
+        },
+        {
+          "entryDate": "2026-04-08",
+          "exitDate": "2026-04-28",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 14,
+          "returnPct": 9.879495268138804
+        },
+        {
+          "entryDate": "2026-05-06",
+          "exitDate": "2026-05-08",
+          "exitReason": "持仓至期末",
+          "holdBars": 2,
+          "returnPct": 0.34203539823007834
+        }
+      ]
+    },
+    {
+      "ticker": "512480.SH",
+      "name": "半导体ETF",
+      "bars": 1673,
+      "startDate": "2019-06-12",
+      "endDate": "2026-05-08",
+      "totalReturnPct": 35.96,
+      "cagrPct": 4.74,
+      "maxDrawdownPct": 17.12,
+      "trades": 25,
+      "winRatePct": 56,
+      "avgHoldDays": 7.48,
+      "exposurePct": 11.18,
+      "detailedTrades": [
+        {
+          "entryDate": "2020-09-04",
+          "exitDate": "2020-09-07",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -4.507352941176479
+        },
+        {
+          "entryDate": "2020-10-30",
+          "exitDate": "2020-11-16",
+          "exitReason": "rpsScore<0",
+          "holdBars": 11,
+          "returnPct": 5.95755467196819
+        },
+        {
+          "entryDate": "2020-11-17",
+          "exitDate": "2020-11-18",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -1.1137453874538794
+        },
+        {
+          "entryDate": "2020-11-24",
+          "exitDate": "2020-11-25",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -0.9248623853211124
+        },
+        {
+          "entryDate": "2020-12-02",
+          "exitDate": "2020-12-09",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 5,
+          "returnPct": -2.9799999999999938
+        },
+        {
+          "entryDate": "2020-12-31",
+          "exitDate": "2021-01-22",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 15,
+          "returnPct": 5.413035204567107
+        },
+        {
+          "entryDate": "2021-06-17",
+          "exitDate": "2021-07-13",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 18,
+          "returnPct": 10.597554806070807
+        },
+        {
+          "entryDate": "2021-07-21",
+          "exitDate": "2021-08-03",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 9,
+          "returnPct": 1.9447368421052547
+        },
+        {
+          "entryDate": "2023-04-14",
+          "exitDate": "2023-04-21",
+          "exitReason": "hardStop-5%",
+          "holdBars": 5,
+          "returnPct": -5.99271889400923
+        },
+        {
+          "entryDate": "2024-10-18",
+          "exitDate": "2024-11-18",
+          "exitReason": "trailingStop12%",
+          "holdBars": 21,
+          "returnPct": 1.658074534161491
+        },
+        {
+          "entryDate": "2024-12-10",
+          "exitDate": "2024-12-13",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 3,
+          "returnPct": -0.7951292246520802
+        },
+        {
+          "entryDate": "2024-12-18",
+          "exitDate": "2024-12-31",
+          "exitReason": "rpsScore<0",
+          "holdBars": 9,
+          "returnPct": 0.8999999999999897
+        },
+        {
+          "entryDate": "2025-01-14",
+          "exitDate": "2025-01-16",
+          "exitReason": "rpsScore<0",
+          "holdBars": 2,
+          "returnPct": -2.2760396039604114
+        },
+        {
+          "entryDate": "2025-02-05",
+          "exitDate": "2025-02-18",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 9,
+          "returnPct": 3.534513274336293
+        },
+        {
+          "entryDate": "2025-02-19",
+          "exitDate": "2025-02-28",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 7,
+          "returnPct": 0.4444141689373238
+        },
+        {
+          "entryDate": "2025-04-11",
+          "exitDate": "2025-04-14",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -0.10000000000000009
+        },
+        {
+          "entryDate": "2025-06-04",
+          "exitDate": "2025-06-05",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": 1.7830357142857078
+        },
+        {
+          "entryDate": "2025-06-19",
+          "exitDate": "2025-06-20",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -0.7999999999999896
+        },
+        {
+          "entryDate": "2025-06-23",
+          "exitDate": "2025-06-24",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": 1.5932203389830812
+        },
+        {
+          "entryDate": "2025-07-11",
+          "exitDate": "2025-07-14",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -0.6813773035887483
+        },
+        {
+          "entryDate": "2025-07-16",
+          "exitDate": "2025-07-17",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": 0.5822439024390169
+        },
+        {
+          "entryDate": "2025-08-12",
+          "exitDate": "2025-09-03",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 16,
+          "returnPct": 19.556873315363887
+        },
+        {
+          "entryDate": "2025-10-27",
+          "exitDate": "2025-10-31",
+          "exitReason": "hardStop-5%",
+          "holdBars": 4,
+          "returnPct": -6.48338658146963
+        },
+        {
+          "entryDate": "2025-11-27",
+          "exitDate": "2025-11-28",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": 1.0624727272727341
+        },
+        {
+          "entryDate": "2025-12-22",
+          "exitDate": "2026-03-03",
+          "exitReason": "rpsScore<0",
+          "holdBars": 43,
+          "returnPct": 8.456894150417815
+        }
+      ]
+    },
+    {
+      "ticker": "159869.SZ",
+      "name": "游戏ETF",
+      "bars": 1253,
+      "startDate": "2021-03-05",
+      "endDate": "2026-05-08",
+      "totalReturnPct": 47.13,
+      "cagrPct": 8.08,
+      "maxDrawdownPct": 13.49,
+      "trades": 15,
+      "winRatePct": 60,
+      "avgHoldDays": 10.93,
+      "exposurePct": 13.09,
+      "detailedTrades": [
+        {
+          "entryDate": "2023-01-18",
+          "exitDate": "2023-02-17",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 17,
+          "returnPct": 10.155434782608697
+        },
+        {
+          "entryDate": "2023-02-20",
+          "exitDate": "2023-02-23",
+          "exitReason": "hardStop-5%",
+          "holdBars": 3,
+          "returnPct": -5.61531249999998
+        },
+        {
+          "entryDate": "2023-03-02",
+          "exitDate": "2023-03-07",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 3,
+          "returnPct": -4.678749999999998
+        },
+        {
+          "entryDate": "2023-07-31",
+          "exitDate": "2023-08-01",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -0.10000000000000009
+        },
+        {
+          "entryDate": "2024-10-18",
+          "exitDate": "2024-12-04",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 33,
+          "returnPct": 7.755040322580675
+        },
+        {
+          "entryDate": "2024-12-05",
+          "exitDate": "2024-12-16",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 7,
+          "returnPct": 1.1543497757847465
+        },
+        {
+          "entryDate": "2025-01-14",
+          "exitDate": "2025-01-15",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": 0.20770020533882327
+        },
+        {
+          "entryDate": "2025-04-28",
+          "exitDate": "2025-04-29",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": 0.6434418604650993
+        },
+        {
+          "entryDate": "2025-05-22",
+          "exitDate": "2025-05-23",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -2.521274685816899
+        },
+        {
+          "entryDate": "2025-05-26",
+          "exitDate": "2025-05-27",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": -0.9927613941018709
+        },
+        {
+          "entryDate": "2025-06-24",
+          "exitDate": "2025-07-14",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 14,
+          "returnPct": 5.340099009901
+        },
+        {
+          "entryDate": "2025-07-30",
+          "exitDate": "2025-07-31",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 1,
+          "returnPct": -2.767048054919885
+        },
+        {
+          "entryDate": "2025-08-04",
+          "exitDate": "2025-09-26",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 39,
+          "returnPct": 21.512254160363085
+        },
+        {
+          "entryDate": "2025-11-24",
+          "exitDate": "2025-11-25",
+          "exitReason": "rpsScore<0",
+          "holdBars": 1,
+          "returnPct": 4.005479452054783
+        },
+        {
+          "entryDate": "2025-12-17",
+          "exitDate": "2026-02-24",
+          "exitReason": "SMA10死叉+MACD死叉",
+          "holdBars": 41,
+          "returnPct": 9.847368421052627
+        }
+      ]
+    }
+  ]
+}

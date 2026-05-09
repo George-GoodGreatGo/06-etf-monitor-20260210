@@ -52,6 +52,7 @@ type PreparedPoint = {
   macdHist: number | null
   turnoverMultipleOfPrev20Avg: number | null
   isAmplified: boolean
+  atr14: number | null
 }
 
 type ChartDatum = LineData<Time> | { time: Time }
@@ -269,6 +270,22 @@ function buildMacd(
   return out
 }
 
+function buildAtr(values: number[], period: number): Array<number | null> {
+  const out: Array<number | null> = new Array(values.length).fill(null)
+  if (values.length <= 1) return out
+  const trValues: number[] = []
+  for (let i = 0; i < values.length; i += 1) {
+    trValues.push(i === 0 ? 0 : Math.abs(values[i] - values[i - 1]))
+  }
+  let sum = 0
+  for (let i = 0; i < trValues.length; i += 1) {
+    sum += trValues[i]
+    if (i >= period) sum -= trValues[i - period]
+    if (i >= period - 1) out[i] = sum / period
+  }
+  return out
+}
+
 function computeRsiValue(avgGain: number, avgLoss: number): number {
   if (avgGain === 0 && avgLoss === 0) return 50
   if (avgLoss === 0) return 100
@@ -481,8 +498,101 @@ function buildBaseColorFlipMarkerDetails(points: PreparedPoint[]): SignalMarkerD
   return markers
 }
 
+function buildConfirmTrail12EnhancedMarkerDetails(points: PreparedPoint[]): SignalMarkerDetail[] {
+  if (points.length < 2) return []
+  const markers: SignalMarkerDetail[] = []
+  let inPosition = false
+  let highestCloseSinceEntry = 0
+  let blockUntilIndex = -1
+  for (let i = 1; i < points.length; i += 1) {
+    const prevPoint = points[i - 1]
+    const point = points[i]
+    const prevTone = resolvePriceTone(prevPoint.scorePct)
+    const tone = resolvePriceTone(point.scorePct)
+    const aboveSma250 = isFiniteNumber(point.sma250) && point.targetCloseQfq >= point.sma250
+
+    if (!inPosition && prevTone === 'negative' && tone === 'neutral' && aboveSma250) {
+      if (i <= blockUntilIndex) continue
+      markers.push({
+        id: `${point.date}-buy`,
+        kind: 'buy',
+        time: point.time,
+        date: point.date,
+        price: point.targetCloseQfq,
+        position: 'atPriceBottom',
+        shape: 'arrowUp',
+        color: '#F87171',
+        text: '买',
+        size: 1.6,
+        title: '买点说明',
+        description: '价格线由绿转黄，且当日收盘价不低于 SMA250，满足买入条件。',
+        reasonLines: ['价格线由绿转黄', '当日收盘价 >= SMA250'],
+      })
+      inPosition = true
+      highestCloseSinceEntry = point.targetCloseQfq
+      continue
+    }
+
+    if (!inPosition) continue
+    highestCloseSinceEntry = Math.max(highestCloseSinceEntry, point.targetCloseQfq)
+
+    const entryPt = markers.filter(m => m.kind === 'buy' && m.date < point.date).pop()
+    const entryClose = entryPt?.price ?? 0
+    const currentReturn = entryClose > 0 ? (point.targetCloseQfq / entryClose - 1) : 0
+
+    const hitHard = currentReturn <= -0.07
+    const hitAtr = isFiniteNumber(point.atr14) && point.atr14 > 0 && point.targetCloseQfq <= highestCloseSinceEntry - 3 * point.atr14
+
+    let hitTrail = false; let trailLabel = ''
+    if (!hitHard && !hitAtr && highestCloseSinceEntry > 0) {
+      if (currentReturn >= 0.12) {
+        hitTrail = point.targetCloseQfq <= highestCloseSinceEntry * 0.92; trailLabel = '8%'
+      } else if (currentReturn >= 0.05) {
+        hitTrail = point.targetCloseQfq <= highestCloseSinceEntry * 0.88; trailLabel = '12%'
+      }
+    }
+
+    const confirmSellReasons = prevTone === 'neutral' && tone === 'negative' ? buildConfirmSellReasons(point) : []
+    const hitConfirm = confirmSellReasons.length > 0
+
+    let exitLabel = ''; let exitDesc = ''; let exitLines: string[] = []
+
+    if (hitHard) {
+      exitLabel = '硬止损-7%'; exitDesc = '浮动亏损达到 7%，触发硬止损卖点。'; exitLines = ['持仓浮亏 ≥ 7%']
+    } else if (hitAtr) {
+      exitLabel = 'ATR-3x'; exitDesc = '收盘价 ≤ 持仓最高价 - 3×ATR(14)，触发自适应止损。'; exitLines = ['close ≤ highestClose - 3×ATR(14)']
+    } else if (hitTrail) {
+      exitLabel = '追踪止损'; exitDesc = `持仓相对高点回撤达到 ${trailLabel}，触发追踪止损。`; exitLines = [`持仓后相对高点回撤达到 ${trailLabel}`]
+    } else if (hitConfirm) {
+      exitLabel = '确认卖出'; exitDesc = `价格线由黄转绿，且当日满足 ${confirmSellReasons.join(' / ')}，触发确认卖点。`; exitLines = ['价格线由黄转绿', ...confirmSellReasons]
+    } else continue
+
+    const isRiskExit = hitHard || hitAtr || hitTrail
+    markers.push({
+      id: `${point.date}-${isRiskExit ? 'risk-sell' : 'confirm-sell'}`,
+      kind: isRiskExit ? 'risk-sell' : 'confirm-sell',
+      time: point.time,
+      date: point.date,
+      price: point.targetCloseQfq,
+      position: 'atPriceTop',
+      shape: 'arrowDown',
+      color: isRiskExit ? '#FBBF24' : '#34D399',
+      text: exitLabel,
+      size: isRiskExit ? 1.8 : 1.6,
+      title: isRiskExit ? '风控卖点说明' : '确认卖点说明',
+      description: exitDesc,
+      reasonLines: exitLines,
+    })
+    if (hitHard || hitAtr) blockUntilIndex = i + 10
+    inPosition = false
+    highestCloseSinceEntry = 0
+  }
+  return markers
+}
+
 function buildTradeSignalMarkerDetails(points: PreparedPoint[], signalPreset: MomentumStrategySignalPreset): SignalMarkerDetail[] {
   if (signalPreset === 'baseColorFlip') return buildBaseColorFlipMarkerDetails(points)
+  if (signalPreset === 'confirmTrail12Enhanced') return buildConfirmTrail12EnhancedMarkerDetails(points)
   return buildConfirmTrail12MarkerDetails(points)
 }
 
@@ -1073,7 +1183,7 @@ export default function RpsCustomQueryCharts({
   benchmarkName,
   series,
   turnoverSeries = EMPTY_TURNOVER_SERIES,
-  signalPreset = 'confirmTrail12',
+  signalPreset = 'confirmTrail12Enhanced',
   titleLabel,
   subtitleLabel,
   resetKey,
@@ -1133,6 +1243,7 @@ export default function RpsCustomQueryCharts({
           macdHist: null,
           turnoverMultipleOfPrev20Avg: null,
           isAmplified: false,
+          atr14: null,
         }
       })
       .filter((point): point is PreparedPoint => Boolean(point))
@@ -1142,6 +1253,7 @@ export default function RpsCustomQueryCharts({
     const sma250 = buildSma(priceValues, 250)
     const rsi14 = buildRsi(priceValues, 14)
     const macd = buildMacd(priceValues, 8, 21, 5)
+    const atr14 = buildAtr(priceValues, 14)
     return basePoints.map((point, index) => {
       const turnoverMultipleOfPrev20Avg = turnoverMap.get(point.date) ?? null
       return {
@@ -1156,6 +1268,7 @@ export default function RpsCustomQueryCharts({
         turnoverMultipleOfPrev20Avg,
         isAmplified:
           typeof turnoverMultipleOfPrev20Avg === 'number' && Number.isFinite(turnoverMultipleOfPrev20Avg) && turnoverMultipleOfPrev20Avg >= 1.5,
+        atr14: atr14[index] ?? null,
       }
     })
   }, [series, turnoverSeries])
