@@ -58,7 +58,7 @@ export type MomentumStrategyDefinition = {
 const BASE_COLOR_FLIP_SUMMARY_LINES = [
   '基础颜色切换策略直接使用价格分段颜色变化：绿转黄记为买点，黄转绿记为卖点。',
   '该策略不额外要求 SMA250、SMA20、MACD、RSI 或 trailing stop 等确认条件，信号更敏感。',
-  '它主要用于和默认的 Baseline策略 做图上对照，帮助理解“纯颜色切换”与“带确认过滤”的差别。',
+  '它主要用于和默认的 Baseline策略 做图上对照，帮助理解"纯颜色切换"与"带确认过滤"的差别。',
 ] as const
 
 const BASE_COLOR_FLIP_METHOD_SECTIONS: readonly MomentumMethodSection[] = [
@@ -68,7 +68,7 @@ const BASE_COLOR_FLIP_METHOD_SECTIONS: readonly MomentumMethodSection[] = [
     bullets: [
       '买卖点完全由价格分段颜色变化驱动，不叠加趋势过滤或止损增强。',
       '它更容易出现连续来回切换，适合作为默认策略的对照参考，而不是替代默认产品口径。',
-      '当用户希望快速理解“颜色切换本身意味着什么”时，可以先看这套基础规则。',
+      '当用户希望快速理解"颜色切换本身意味着什么"时，可以先看这套基础规则。',
     ],
   },
   {
@@ -103,7 +103,7 @@ const BASE_COLOR_FLIP_METHOD_SECTIONS: readonly MomentumMethodSection[] = [
     description: '由于该策略不叠加更多过滤，因此边界说明主要聚焦颜色切换是否真实发生。',
     bullets: [
       '若某日缺失 Score 或无法形成价格分段颜色，则该日不生成买卖点。',
-      '同一轮持仓中，系统仍按“买入后等待下一次有效卖点”顺序记录信号，避免重复持仓。',
+      '同一轮持仓中，系统仍按"买入后等待下一次有效卖点"顺序记录信号，避免重复持仓。',
       '该策略不生成单独的增强风控卖点，因此主图不会出现额外的金色卖出箭头。',
     ],
   },
@@ -118,16 +118,41 @@ const BASE_COLOR_FLIP_METHOD_SECTIONS: readonly MomentumMethodSection[] = [
   },
 ] as const
 
-export const DEFAULT_MOMENTUM_STRATEGY_ID: MomentumStrategyId = 'baselineEnhanced'
+export const DEFAULT_MOMENTUM_STRATEGY_ID: MomentumStrategyId = 'confirmTrail12'
 export const MOMENTUM_ANALYSIS_PATH = '/market/rps/custom-query'
 export const MOMENTUM_METHOD_PATH = '/market/rps/methodology'
 
 export const MOMENTUM_STRATEGIES: readonly MomentumStrategyDefinition[] = [
   {
+    id: 'confirmTrail12',
+    label: 'Baseline策略',
+    shortLabel: '确认卖出+12%风控',
+    roleLabel: '默认策略',
+    selectorDescription: '适合直接作为主图默认口径，结合确认卖出与 12% 风控，平衡信号质量与回撤控制。',
+    signalPreset: 'confirmTrail12',
+    summaryLines: CONFIRM_TRAIL12_SUMMARY_LINES,
+    methodTitle: 'Baseline策略 分析方法',
+    methodLeadParagraphs: [
+      '本页用于归档 `Baseline策略` 的正式产品口径，统一回答默认买点怎么触发、确认卖点如何判定、12% trailing stop 为什么存在，以及研究样本回测结果如何。',
+      '页面结构按"总述、规则正文、研究结果"收敛，目标是让产品、研发和研究复用时都能直接把这里当作 PRD 或方法说明的基础版本。',
+    ],
+    methodCtaDescription: '查看 Baseline策略 的完整规则、边界说明与样本 ETF 回测结果。',
+    sections: CONFIRM_TRAIL12_METHOD_SECTIONS,
+    backtestSource: CONFIRM_TRAIL12_BACKTEST_SOURCE,
+    backtestAggregate: CONFIRM_TRAIL12_BACKTEST_AGGREGATE,
+    backtestRows: CONFIRM_TRAIL12_BACKTEST_ROWS,
+    signalLegend: [
+      { key: 'buy', tone: 'buy', text: '红色向上箭头：绿转黄且收盘价不低于 SMA250' },
+      { key: 'confirm-sell', tone: 'sell', text: '绿色向下箭头：黄转绿，且 close<SMA20 / MACD Hist<0 / RSI<50 任一成立' },
+      { key: 'risk-sell', tone: 'risk', text: '金色向下箭头：持仓后相对高点回撤达到 12%' },
+      { key: 'turnover', tone: 'turnover', text: '淡紫圆点：成交额 >= 前20日均值 1.50x' },
+    ],
+  },
+  {
     id: 'baselineEnhanced',
     label: 'Baseline加强风控',
     shortLabel: '硬止损+ATR+分级风控',
-    roleLabel: '默认策略',
+    roleLabel: '',
     selectorDescription: '在 Baseline策略 基础上新增硬止损-7%、ATR-3x自适应止损、10日冷却，回报更优、回撤更小。',
     signalPreset: 'baselineEnhanced',
     summaryLines: BASELINE_ENHANCED_SUMMARY_LINES,
@@ -149,31 +174,6 @@ export const MOMENTUM_STRATEGIES: readonly MomentumStrategyDefinition[] = [
     ],
   },
   {
-    id: 'confirmTrail12',
-    label: 'Baseline策略',
-    shortLabel: '确认卖出+12%风控',
-    roleLabel: '',
-    selectorDescription: '适合直接作为主图默认口径，结合确认卖出与 12% 风控，平衡信号质量与回撤控制。',
-    signalPreset: 'confirmTrail12',
-    summaryLines: CONFIRM_TRAIL12_SUMMARY_LINES,
-    methodTitle: 'Baseline策略 分析方法',
-    methodLeadParagraphs: [
-      '本页用于归档 `Baseline策略` 的正式产品口径，统一回答默认买点怎么触发、确认卖点如何判定、12% trailing stop 为什么存在，以及研究样本回测结果如何。',
-      '页面结构按“总述、规则正文、研究结果”收敛，目标是让产品、研发和研究复用时都能直接把这里当作 PRD 或方法说明的基础版本。',
-    ],
-    methodCtaDescription: '查看 Baseline策略 的完整规则、边界说明与样本 ETF 回测结果。',
-    sections: CONFIRM_TRAIL12_METHOD_SECTIONS,
-    backtestSource: CONFIRM_TRAIL12_BACKTEST_SOURCE,
-    backtestAggregate: CONFIRM_TRAIL12_BACKTEST_AGGREGATE,
-    backtestRows: CONFIRM_TRAIL12_BACKTEST_ROWS,
-    signalLegend: [
-      { key: 'buy', tone: 'buy', text: '红色向上箭头：绿转黄且收盘价不低于 SMA250' },
-      { key: 'confirm-sell', tone: 'sell', text: '绿色向下箭头：黄转绿，且 close<SMA20 / MACD Hist<0 / RSI<50 任一成立' },
-      { key: 'risk-sell', tone: 'risk', text: '金色向下箭头：持仓后相对高点回撤达到 12%' },
-      { key: 'turnover', tone: 'turnover', text: '淡紫圆点：成交额 >= 前20日均值 1.50x' },
-    ],
-  },
-  {
     id: 'baseColorFlip',
     label: '基础颜色切换',
     shortLabel: '绿转黄买 / 黄转绿卖',
@@ -183,7 +183,7 @@ export const MOMENTUM_STRATEGIES: readonly MomentumStrategyDefinition[] = [
     summaryLines: BASE_COLOR_FLIP_SUMMARY_LINES,
     methodTitle: '基础颜色切换 分析方法',
     methodLeadParagraphs: [
-      '本页归档“基础颜色切换”策略的说明口径，用来解释最原始的价格分段切换信号如何映射到主图买卖点，以及它与默认策略相比少了哪些确认与风控过滤。',
+      '本页归档"基础颜色切换"策略的说明口径，用来解释最原始的价格分段切换信号如何映射到主图买卖点，以及它与默认策略相比少了哪些确认与风控过滤。',
       '页面仍沿用统一的方法说明版式，但该策略当前定位为对照口径，因此研究结果部分优先展示实现边界与后续扩展位，而不是强行补齐未完成的回测归档。',
     ],
     methodCtaDescription: '查看颜色切换口径、适用边界与当前实现说明。',
