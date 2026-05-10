@@ -21,6 +21,9 @@ type PreparedMomentumPoint = {
   sma250: number | null
   rsi14: number | null
   macdHist: number | null
+  macdDiff: number | null
+  macdDea: number | null
+  atr14: number | null
 }
 
 type MomentumSignalEvent = {
@@ -153,6 +156,8 @@ function prepareMomentumPoints(series: RpsStyleSeriesPoint[]): PreparedMomentumP
   const sma250 = buildSma(priceValues, 250)
   const rsi14 = buildRsi(priceValues, 14)
   const macd = buildMacd(priceValues, 8, 21, 5)
+  const atrValues = priceValues.map((_, idx) => (idx === 0 ? 0 : Math.abs(priceValues[idx] - priceValues[idx - 1])))
+  const atr14 = buildSma(atrValues, 14)
   return cleaned.map((point, index) => ({
     date: point.date,
     targetCloseQfq: point.targetCloseQfq,
@@ -161,6 +166,9 @@ function prepareMomentumPoints(series: RpsStyleSeriesPoint[]): PreparedMomentumP
     sma250: sma250[index] ?? null,
     rsi14: rsi14[index] ?? null,
     macdHist: macd[index]?.hist ?? null,
+    macdDiff: macd[index]?.diff ?? null,
+    macdDea: macd[index]?.dea ?? null,
+    atr14: atr14[index] ?? null,
   }))
 }
 
@@ -221,11 +229,62 @@ function buildBaseColorFlipEvents(points: PreparedMomentumPoint[]): MomentumSign
   return events
 }
 
+function buildBaselineEnhancedEvents(points: PreparedMomentumPoint[]): MomentumSignalEvent[] {
+  if (points.length < 2) return []
+  const events: MomentumSignalEvent[] = []
+  let inPosition = false
+  let highestCloseSinceEntry = 0
+  let entryPrice = 0
+  let blockUntilIndex = -1
+  for (let i = 1; i < points.length; i += 1) {
+    const prevPoint = points[i - 1]
+    const point = points[i]
+    const prevTone = resolvePriceTone(prevPoint.scorePct)
+    const tone = resolvePriceTone(point.scorePct)
+    const aboveSma250 = isFiniteNumber(point.sma250) && point.targetCloseQfq >= point.sma250
+
+    if (!inPosition && prevTone === 'negative' && tone === 'neutral' && aboveSma250) {
+      if (i <= blockUntilIndex) continue
+      events.push({ date: point.date, signalKey: 'buy', signalLabel: '买' })
+      inPosition = true
+      highestCloseSinceEntry = point.targetCloseQfq
+      entryPrice = point.targetCloseQfq
+      continue
+    }
+
+    if (!inPosition) continue
+    highestCloseSinceEntry = Math.max(highestCloseSinceEntry, point.targetCloseQfq)
+    const currentReturn = entryPrice > 0 ? (point.targetCloseQfq / entryPrice - 1) : 0
+
+    const hitHardStop = currentReturn <= -0.07
+    const hitAtrStop = isFiniteNumber(point.atr14) && point.atr14 > 0
+      && point.targetCloseQfq <= highestCloseSinceEntry - 3 * point.atr14
+    const hitTrailing12 = point.targetCloseQfq <= highestCloseSinceEntry * 0.88
+    const hitSma250 = isFiniteNumber(point.sma250) && point.targetCloseQfq < point.sma250
+    const confirmSellReasons = prevTone === 'neutral' && tone === 'negative' ? buildConfirmSellReasons(point) : []
+    const isRisk = hitHardStop || hitAtrStop || hitTrailing12 || hitSma250
+    const hasConfirm = confirmSellReasons.length > 0
+    if (!isRisk && !hasConfirm) continue
+
+    events.push({
+      date: point.date,
+      signalKey: isRisk ? 'risk_sell' : 'sell',
+      signalLabel: isRisk ? '风控卖' : '卖',
+    })
+    inPosition = false
+    highestCloseSinceEntry = 0
+    entryPrice = 0
+    if (hitHardStop || hitAtrStop) blockUntilIndex = i + 10
+  }
+  return events
+}
+
 function buildTradeSignalEvents(
   points: PreparedMomentumPoint[],
   signalPreset: MomentumStrategySignalPreset,
 ): MomentumSignalEvent[] {
   if (signalPreset === 'baseColorFlip') return buildBaseColorFlipEvents(points)
+  if (signalPreset === 'baselineEnhanced') return buildBaselineEnhancedEvents(points)
   return buildConfirmTrail12Events(points)
 }
 

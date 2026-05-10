@@ -7,12 +7,29 @@ import {
   type ConfirmTrail12BacktestRow,
   type ConfirmTrail12MethodSection,
 } from '@/utils/confirmTrail12Methodology'
+import {
+  BASELINE_ENHANCED_BACKTEST_AGGREGATE,
+  BASELINE_ENHANCED_BACKTEST_ROWS,
+  BASELINE_ENHANCED_BACKTEST_SOURCE,
+  BASELINE_ENHANCED_METHOD_SECTIONS,
+  BASELINE_ENHANCED_SUMMARY_LINES,
+  type BaselineEnhancedBacktestRow,
+  type BaselineEnhancedMethodSection,
+} from '@/utils/baselineEnhancedMethodology'
 
-export type MomentumStrategyId = 'confirmTrail12' | 'baseColorFlip'
+export type MomentumStrategyId = 'confirmTrail12' | 'baseColorFlip' | 'baselineEnhanced'
 export type MomentumStrategySignalPreset = MomentumStrategyId
-export type MomentumMethodSection = ConfirmTrail12MethodSection
-export type MomentumBacktestRow = ConfirmTrail12BacktestRow
-export type MomentumBacktestAggregate = typeof CONFIRM_TRAIL12_BACKTEST_AGGREGATE
+export type MomentumMethodSection = ConfirmTrail12MethodSection | BaselineEnhancedMethodSection
+export type MomentumBacktestRow = ConfirmTrail12BacktestRow | BaselineEnhancedBacktestRow
+export type MomentumBacktestAggregate = {
+  avgTotalReturnPct: number
+  avgCagrPct: number
+  avgMaxDrawdownPct: number
+  avgTrades: number
+  avgWinRatePct: number
+  avgHoldDays: number
+  avgExposurePct: number
+}
 export type MomentumSignalLegendTone = 'buy' | 'sell' | 'risk' | 'turnover'
 export type MomentumSignalLegendItem = {
   key: string
@@ -24,7 +41,7 @@ export type MomentumStrategyDefinition = {
   id: MomentumStrategyId
   label: string
   shortLabel: string
-  roleLabel: '默认策略' | '对照策略'
+  roleLabel: string
   selectorDescription: string
   signalPreset: MomentumStrategySignalPreset
   summaryLines: readonly string[]
@@ -101,16 +118,41 @@ const BASE_COLOR_FLIP_METHOD_SECTIONS: readonly MomentumMethodSection[] = [
   },
 ] as const
 
-export const DEFAULT_MOMENTUM_STRATEGY_ID: MomentumStrategyId = 'confirmTrail12'
+export const DEFAULT_MOMENTUM_STRATEGY_ID: MomentumStrategyId = 'baselineEnhanced'
 export const MOMENTUM_ANALYSIS_PATH = '/market/rps/custom-query'
 export const MOMENTUM_METHOD_PATH = '/market/rps/methodology'
 
 export const MOMENTUM_STRATEGIES: readonly MomentumStrategyDefinition[] = [
   {
+    id: 'baselineEnhanced',
+    label: 'Baseline加强风控',
+    shortLabel: '硬止损+ATR+分级风控',
+    roleLabel: '默认策略',
+    selectorDescription: '在 Baseline策略 基础上新增硬止损-7%、ATR-3x自适应止损、10日冷却，回报更优、回撤更小。',
+    signalPreset: 'baselineEnhanced',
+    summaryLines: BASELINE_ENHANCED_SUMMARY_LINES,
+    methodTitle: 'Baseline加强风控 分析方法',
+    methodLeadParagraphs: [
+      '本页用于归档 `Baseline加强风控` 策略的正式产品口径，统一回答在 Baseline策略 基础上新增了哪些风控机制、为何引入 ATR 自适应止损和 10 日冷却，以及 V6.1 同口径回测结果如何。',
+      '页面结构按"总述、规则正文、研究结果"收敛，目标是让产品、研发和研究复用时都能直接把这里当作 PRD 或方法说明的基础版本。',
+    ],
+    methodCtaDescription: '查看 Baseline加强风控 的完整规则、边界说明与样本 ETF 回测结果。',
+    sections: BASELINE_ENHANCED_METHOD_SECTIONS,
+    backtestSource: BASELINE_ENHANCED_BACKTEST_SOURCE,
+    backtestAggregate: BASELINE_ENHANCED_BACKTEST_AGGREGATE,
+    backtestRows: BASELINE_ENHANCED_BACKTEST_ROWS,
+    signalLegend: [
+      { key: 'buy', tone: 'buy', text: '红色向上箭头：绿转黄且收盘价不低于 SMA250' },
+      { key: 'confirm-sell', tone: 'sell', text: '绿色向下箭头：黄转绿，且 close<SMA20 / MACD Hist<0 / RSI<50 任一成立' },
+      { key: 'risk-sell', tone: 'risk', text: '金色向下箭头：硬止损-7% / ATR-3x / trailing12% / close<SMA250' },
+      { key: 'turnover', tone: 'turnover', text: '淡紫圆点：成交额 >= 前20日均值 1.50x' },
+    ],
+  },
+  {
     id: 'confirmTrail12',
     label: 'Baseline策略',
     shortLabel: '确认卖出+12%风控',
-    roleLabel: '默认策略',
+    roleLabel: '',
     selectorDescription: '适合直接作为主图默认口径，结合确认卖出与 12% 风控，平衡信号质量与回撤控制。',
     signalPreset: 'confirmTrail12',
     summaryLines: CONFIRM_TRAIL12_SUMMARY_LINES,
@@ -160,7 +202,7 @@ const MOMENTUM_STRATEGY_MAP = new Map<MomentumStrategyId, MomentumStrategyDefini
 )
 
 export function isMomentumStrategyId(value: string | null | undefined): value is MomentumStrategyId {
-  return value === 'confirmTrail12' || value === 'baseColorFlip'
+  return value === 'confirmTrail12' || value === 'baseColorFlip' || value === 'baselineEnhanced'
 }
 
 export function resolveMomentumStrategyId(value: string | null | undefined): MomentumStrategyId {

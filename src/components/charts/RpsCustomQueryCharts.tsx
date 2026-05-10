@@ -50,6 +50,7 @@ type PreparedPoint = {
   macdDiff: number | null
   macdDea: number | null
   macdHist: number | null
+  atr14: number | null
   turnoverMultipleOfPrev20Avg: number | null
   isAmplified: boolean
 }
@@ -427,6 +428,88 @@ function buildConfirmTrail12MarkerDetails(points: PreparedPoint[]): SignalMarker
   return markers
 }
 
+function buildV61MarkerDetails(points: PreparedPoint[]): SignalMarkerDetail[] {
+  if (points.length < 2) return []
+  const markers: SignalMarkerDetail[] = []
+  let inPosition = false
+  let highestCloseSinceEntry = 0
+  let entryPrice = 0
+  let blockUntilIndex = -1
+  for (let i = 1; i < points.length; i += 1) {
+    const prevPoint = points[i - 1]
+    const point = points[i]
+    const prevTone = resolvePriceTone(prevPoint.scorePct)
+    const tone = resolvePriceTone(point.scorePct)
+    const aboveSma250 = isFiniteNumber(point.sma250) && point.targetCloseQfq >= point.sma250
+
+    if (!inPosition && prevTone === 'negative' && tone === 'neutral' && aboveSma250) {
+      if (i <= blockUntilIndex) continue
+      markers.push({
+        id: `${point.date}-buy`,
+        kind: 'buy',
+        time: point.time,
+        date: point.date,
+        price: point.targetCloseQfq,
+        position: 'atPriceBottom',
+        shape: 'arrowUp',
+        color: '#F87171',
+        text: '买',
+        size: 1.6,
+        title: '买点说明',
+        description: '价格线由绿转黄，且当日收盘价不低于 SMA250，满足买入条件。',
+        reasonLines: ['价格线由绿转黄', '当日收盘价 >= SMA250'],
+      })
+      inPosition = true
+      highestCloseSinceEntry = point.targetCloseQfq
+      entryPrice = point.targetCloseQfq
+      continue
+    }
+
+    if (!inPosition) continue
+    highestCloseSinceEntry = Math.max(highestCloseSinceEntry, point.targetCloseQfq)
+    const currentReturn = entryPrice > 0 ? (point.targetCloseQfq / entryPrice - 1) : 0
+
+    const hitHardStop = currentReturn <= -0.07
+    const hitAtrStop = isFiniteNumber(point.atr14) && point.atr14 > 0
+      && point.targetCloseQfq <= highestCloseSinceEntry - 3 * point.atr14
+    const hitTrailing12 = point.targetCloseQfq <= highestCloseSinceEntry * 0.88
+    const hitSma250 = isFiniteNumber(point.sma250) && point.targetCloseQfq < point.sma250
+    const confirmSellReasons = prevTone === 'neutral' && tone === 'negative' ? buildConfirmSellReasons(point) : []
+
+    let riskReason = ''
+    if (hitHardStop) riskReason = '硬止损-7%：浮亏达到7%'
+    else if (hitAtrStop) riskReason = 'ATR-3x：跌幅超3倍ATR(14)'
+    else if (hitTrailing12) riskReason = '12%回撤风控'
+    else if (hitSma250) riskReason = '年线破位：close<SMA250'
+
+    const isRisk = hitHardStop || hitAtrStop || hitTrailing12 || hitSma250
+    const hasConfirm = confirmSellReasons.length > 0
+    if (!isRisk && !hasConfirm) continue
+
+    const kind: SignalMarkerKind = isRisk ? 'risk-sell' : 'confirm-sell'
+    markers.push({
+      id: `${point.date}-${kind}`,
+      kind,
+      time: point.time,
+      date: point.date,
+      price: point.targetCloseQfq,
+      position: 'atPriceTop',
+      shape: 'arrowDown',
+      color: isRisk ? '#FBBF24' : '#34D399',
+      text: isRisk ? '风控卖' : '卖',
+      size: isRisk ? 1.8 : 1.6,
+      title: isRisk ? '风控卖点说明' : '确认卖点说明',
+      description: isRisk ? riskReason : `价格线由黄转绿，且当日满足 ${confirmSellReasons.join(' / ')}，触发确认卖点。`,
+      reasonLines: isRisk ? [riskReason!] : ['价格线由黄转绿', ...confirmSellReasons],
+    })
+    inPosition = false
+    highestCloseSinceEntry = 0
+    entryPrice = 0
+    if (hitHardStop || hitAtrStop) blockUntilIndex = i + 10
+  }
+  return markers
+}
+
 function buildBaseColorFlipMarkerDetails(points: PreparedPoint[]): SignalMarkerDetail[] {
   if (points.length < 2) return []
   const markers: SignalMarkerDetail[] = []
@@ -483,6 +566,7 @@ function buildBaseColorFlipMarkerDetails(points: PreparedPoint[]): SignalMarkerD
 
 function buildTradeSignalMarkerDetails(points: PreparedPoint[], signalPreset: MomentumStrategySignalPreset): SignalMarkerDetail[] {
   if (signalPreset === 'baseColorFlip') return buildBaseColorFlipMarkerDetails(points)
+  if (signalPreset === 'baselineEnhanced') return buildV61MarkerDetails(points)
   return buildConfirmTrail12MarkerDetails(points)
 }
 
@@ -1131,6 +1215,7 @@ export default function RpsCustomQueryCharts({
           macdDiff: null,
           macdDea: null,
           macdHist: null,
+          atr14: null,
           turnoverMultipleOfPrev20Avg: null,
           isAmplified: false,
         }
@@ -1142,6 +1227,8 @@ export default function RpsCustomQueryCharts({
     const sma250 = buildSma(priceValues, 250)
     const rsi14 = buildRsi(priceValues, 14)
     const macd = buildMacd(priceValues, 8, 21, 5)
+    const atrValues = priceValues.map((_, idx) => (idx === 0 ? 0 : Math.abs(priceValues[idx] - priceValues[idx - 1])))
+    const atr14 = buildSma(atrValues, 14)
     return basePoints.map((point, index) => {
       const turnoverMultipleOfPrev20Avg = turnoverMap.get(point.date) ?? null
       return {
@@ -1153,6 +1240,7 @@ export default function RpsCustomQueryCharts({
         macdDiff: macd[index]?.diff ?? null,
         macdDea: macd[index]?.dea ?? null,
         macdHist: macd[index]?.hist ?? null,
+        atr14: atr14[index] ?? null,
         turnoverMultipleOfPrev20Avg,
         isAmplified:
           typeof turnoverMultipleOfPrev20Avg === 'number' && Number.isFinite(turnoverMultipleOfPrev20Avg) && turnoverMultipleOfPrev20Avg >= 1.5,

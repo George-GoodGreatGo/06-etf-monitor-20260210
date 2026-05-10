@@ -1,0 +1,24 @@
+# Checklist
+
+- [ ] `baselineEnhancedMethodology.ts` 文件存在，导出 SUMMARY_LINES、METHOD_SECTIONS、BACKTEST_AGGREGATE、BACKTEST_ROWS、BACKTEST_SOURCE
+- [ ] 方法页包含策略定位、指标定义（含 ATR(14) 定义）、买入规则、卖出规则（四类风控 + confirm）、冷却机制、边界条件、实现口径
+- [ ] 回测汇总数据为 avgTotalReturnPct=104.96、avgCagrPct=12.57、avgMaxDrawdownPct=17.53
+- [ ] 回测逐行数据覆盖 5 只 ETF，区间标注 2016-01-04 ~ 2026-05-09
+- [ ] `MomentumStrategyId` 类型包含 `'baselineEnhanced'`
+- [ ] `DEFAULT_MOMENTUM_STRATEGY_ID` 为 `'baselineEnhanced'`
+- [ ] `baselineEnhanced` 策略定义完整（label/shortLabel/roleLabel/signalPreset/summaryLines/sections/backtest/signalLegend）
+- [ ] `confirmTrail12` 的 roleLabel 不再是「默认策略」
+- [ ] `isMomentumStrategyId` 能识别 `'baselineEnhanced'`
+- [ ] `PreparedPoint` 类型包含 `atr14: number | null`
+- [ ] `PreparedMomentumPoint` 类型包含 `atr14: number | null`
+- [ ] ATR(14) 在图表组件 prepared 和信号快照中正确构建（14 日 SMA of |close[i]-close[i-1]|）
+- [ ] `buildV61MarkerDetails` 函数正确实现硬止损-7%、ATR-3x、trailing12%、close<SMA250、confirm 五类卖出
+- [ ] `buildV61MarkerDetails` 函数正确实现 10 日冷却
+- [ ] `buildTradeSignalMarkerDetails` 中 `baselineEnhanced` 分支正确调度到 `buildV61MarkerDetails`
+- [ ] `buildBaselineEnhancedEvents` 函数正确实现 V6.1 逻辑
+- [ ] `buildTradeSignalEvents` 中 `baselineEnhanced` 分支正确调度
+- [ ] 「动量分析」页面选择「Baseline加强风控」时，图表显示买/卖/风控卖标记
+- [ ] 「分析方法」页面选择「Baseline加强风控」时，展示完整方法论和回测表
+- [ ] 「ETF200列表」页面默认策略为「Baseline加强风控」，信号和新鲜度列正常展示
+- [ ] 10 日冷却在图表标记和信号快照中均生效（不误加买入信号）
+- [ ] TypeScript 编译无错误（`npx tsc --noEmit`）
