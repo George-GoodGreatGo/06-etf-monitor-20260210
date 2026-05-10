@@ -92,6 +92,8 @@ function toPointRows(args: {
     date: string
     benchmarkTicker: string
     targetCloseQfq: number
+    targetHighQfq: number
+    targetLowQfq: number
     benchmarkCloseQfq: number
     rpsRaw: number
     rpsMa50: number | null
@@ -108,6 +110,8 @@ function toPointRows(args: {
     notes: args.notes,
     benchmark_ticker: p.benchmarkTicker,
     target_close_qfq: p.targetCloseQfq,
+    target_high_qfq: p.targetHighQfq,
+    target_low_qfq: p.targetLowQfq,
     benchmark_close_qfq: p.benchmarkCloseQfq,
     rps_raw: p.rpsRaw,
     rps_ma50: p.rpsMa50,

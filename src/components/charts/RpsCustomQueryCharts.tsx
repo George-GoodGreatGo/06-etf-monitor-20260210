@@ -36,6 +36,8 @@ type Props = {
   resetKey?: string
 }
 
+const ATR_PERIOD = 14
+
 type PreparedPoint = {
   time: UTCTimestamp
   date: string
@@ -50,6 +52,8 @@ type PreparedPoint = {
   macdDiff: number | null
   macdDea: number | null
   macdHist: number | null
+  targetHighQfq: number
+  targetLowQfq: number
   atr14: number | null
   turnoverMultipleOfPrev20Avg: number | null
   isAmplified: boolean
@@ -1215,6 +1219,8 @@ export default function RpsCustomQueryCharts({
           macdDiff: null,
           macdDea: null,
           macdHist: null,
+          targetHighQfq: point.targetHighQfq,
+          targetLowQfq: point.targetLowQfq,
           atr14: null,
           turnoverMultipleOfPrev20Avg: null,
           isAmplified: false,
@@ -1227,8 +1233,14 @@ export default function RpsCustomQueryCharts({
     const sma250 = buildSma(priceValues, 250)
     const rsi14 = buildRsi(priceValues, 14)
     const macd = buildMacd(priceValues, 8, 21, 5)
-    const atrValues = priceValues.map((_, idx) => (idx === 0 ? 0 : Math.abs(priceValues[idx] - priceValues[idx - 1])))
-    const atr14 = buildSma(atrValues, 14)
+    const atrValues = priceValues.map((_, idx) => {
+      if (idx === 0) return 0
+      const h = basePoints[idx]?.targetHighQfq ?? priceValues[idx]
+      const l = basePoints[idx]?.targetLowQfq ?? priceValues[idx]
+      const prevC = priceValues[idx - 1]
+      return Math.max(h - l, Math.abs(h - prevC), Math.abs(l - prevC))
+    })
+    const atr14 = buildSma(atrValues, ATR_PERIOD)
     return basePoints.map((point, index) => {
       const turnoverMultipleOfPrev20Avg = turnoverMap.get(point.date) ?? null
       return {

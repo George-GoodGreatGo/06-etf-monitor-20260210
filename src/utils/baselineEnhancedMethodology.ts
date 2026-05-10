@@ -43,7 +43,7 @@ export const BASELINE_ENHANCED_METHOD_SECTIONS: BaselineEnhancedMethodSection[] 
       'Score 分区：绿<0、黄=0~10、橙=10~20、红>20（沿用）。',
       'SMA20、SMA250 用于趋势和确认卖出判断。',
       'MACD 采用 (8,21,5)，RSI 采用 14 日窗口。',
-      'ATR(14) 基于收盘价的日间波幅近似计算，用于 ATR-3x 止损阈值。',
+      'ATR(14) 基于 OHLC 的真实波幅计算（True Range = max(H-L, |H-prevC|, |L-prevC|)），取 14 日 SMA，用于 ATR-3x 止损阈值。',
     ],
   },
   {

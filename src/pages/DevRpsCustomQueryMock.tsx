@@ -89,6 +89,8 @@ function buildPreset(
       ticker,
       benchmarkTicker: 'H30269',
       targetCloseQfq: Number((target * 100).toFixed(4)),
+      targetHighQfq: Number((target * 100).toFixed(4)),
+      targetLowQfq: Number((target * 100).toFixed(4)),
       benchmarkCloseQfq: Number((benchmark * 100).toFixed(4)),
       rpsRaw: Number(rpsRaw.toFixed(6)),
       rpsMa50: rpsMa50 ? Number(rpsMa50.toFixed(6)) : null,

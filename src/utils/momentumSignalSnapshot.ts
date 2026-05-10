@@ -24,6 +24,8 @@ type PreparedMomentumPoint = {
   macdDiff: number | null
   macdDea: number | null
   atr14: number | null
+  targetHighQfq: number
+  targetLowQfq: number
 }
 
 type MomentumSignalEvent = {
@@ -152,11 +154,20 @@ function prepareMomentumPoints(series: RpsStyleSeriesPoint[]): PreparedMomentumP
       isFiniteNumber(point.targetCloseQfq),
   )
   const priceValues = cleaned.map((point) => point.targetCloseQfq)
+  const highs = cleaned.map((point) => (point as any).targetHighQfq ?? point.targetCloseQfq)
+  const lows = cleaned.map((point) => (point as any).targetLowQfq ?? point.targetCloseQfq)
   const sma20 = buildSma(priceValues, 20)
   const sma250 = buildSma(priceValues, 250)
   const rsi14 = buildRsi(priceValues, 14)
   const macd = buildMacd(priceValues, 8, 21, 5)
-  const atrValues = priceValues.map((_, idx) => (idx === 0 ? 0 : Math.abs(priceValues[idx] - priceValues[idx - 1])))
+  const atrValues = priceValues.map((_, idx) => {
+    if (idx === 0) return 0
+    return Math.max(
+      highs[idx] - lows[idx],
+      Math.abs(highs[idx] - priceValues[idx - 1]),
+      Math.abs(lows[idx] - priceValues[idx - 1]),
+    )
+  })
   const atr14 = buildSma(atrValues, 14)
   return cleaned.map((point, index) => ({
     date: point.date,
@@ -169,6 +180,8 @@ function prepareMomentumPoints(series: RpsStyleSeriesPoint[]): PreparedMomentumP
     macdDiff: macd[index]?.diff ?? null,
     macdDea: macd[index]?.dea ?? null,
     atr14: atr14[index] ?? null,
+    targetHighQfq: highs[index],
+    targetLowQfq: lows[index],
   }))
 }
 

@@ -125,6 +125,8 @@ export type RpsComputedPoint = {
   ticker: string
   benchmarkTicker: string
   targetCloseQfq: number
+  targetHighQfq: number
+  targetLowQfq: number
   benchmarkCloseQfq: number
   rpsRaw: number
   rpsMa50: number | null
@@ -381,18 +383,35 @@ async function fetchQfqDailyByEastmoney(args: {
   ticker: string
   startDate: string
   endDate: string
-}): Promise<Array<{ date: string; close: number }>> {
+}): Promise<Array<{ date: string; close: number; high: number; low: number }>> {
   const secid = tickerToSecid(args.ticker)
   const beg = ymd8(args.startDate)
   const end = ymd8(args.endDate)
   if (!beg || !end) return []
-  const rows = await fetchEastmoneyDailyKline({ secid, beg, end })
-  const out: Array<{ date: string; close: number }> = []
-  for (const r of rows) {
-    const d = normalizeYmd10(r.date)
-    const c = typeof r.close === 'number' && Number.isFinite(r.close) ? r.close : null
-    if (!d || c == null) continue
-    out.push({ date: d, close: c })
+  const url = new URL('https://push2his.eastmoney.com/api/qt/stock/kline/get')
+  url.searchParams.set('secid', secid)
+  url.searchParams.set('klt', '101')
+  url.searchParams.set('fqt', '1')
+  url.searchParams.set('beg', beg)
+  url.searchParams.set('end', end)
+  url.searchParams.set('fields1', 'f1,f2')
+  url.searchParams.set('fields2', 'f51,f52,f53,f54,f55')
+  url.searchParams.set('ut', 'fa5fd1943c7b386f172d6893dbfba10b')
+  const res = await fetch(url.toString())
+  if (!res.ok) throw new Error(`eastmoney qfq failed: HTTP ${res.status}`)
+  const j = (await res.json().catch(() => null)) as { data?: { klines?: string[] } } | null
+  const klines = Array.isArray(j?.data?.klines) ? j.data.klines : []
+  const out: Array<{ date: string; close: number; high: number; low: number }> = []
+  for (const row of klines) {
+    if (typeof row !== 'string') continue
+    const parts = row.split(',')
+    if (parts.length < 5) continue
+    const d = normalizeYmd10(parts[0]?.trim())
+    const c = Number(parts[2])
+    const h = Number(parts[3])
+    const l = Number(parts[4])
+    if (!d || !Number.isFinite(c) || !Number.isFinite(h) || !Number.isFinite(l)) continue
+    out.push({ date: d, close: c, high: h, low: l })
   }
   out.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
   return out
@@ -402,7 +421,7 @@ async function fetchQfqDailyByAkshare(args: {
   ticker: string
   startDate: string
   endDate: string
-}): Promise<Array<{ date: string; close: number }>> {
+}): Promise<Array<{ date: string; close: number; high: number; low: number }>> {
   const code = tickerToCode(args.ticker)
   const start8 = ymd8(args.startDate)
   const end8 = ymd8(args.endDate)
@@ -414,12 +433,12 @@ async function fetchQfqDailyByAkshare(args: {
   )
   if (out.success !== true) throw new Error(out.message || 'akshare qfq failed')
   const rows = Array.isArray(out.data?.series) ? out.data.series : []
-  const series: Array<{ date: string; close: number }> = []
+  const series: Array<{ date: string; close: number; high: number; low: number }> = []
   for (const r of rows) {
     const d = normalizeYmd10(r?.date)
     const c = typeof r?.close === 'number' && Number.isFinite(r.close) ? r.close : null
     if (!d || c == null) continue
-    series.push({ date: d, close: c })
+    series.push({ date: d, close: c, high: c, low: c })
   }
   series.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
   return series
@@ -431,7 +450,7 @@ async function fetchQfqDailyWithFallback(args: {
   endDate: string
   extraRetries?: number
   noAkShareFallback?: boolean
-}): Promise<{ source: DataSourceName; series: Array<{ date: string; close: number }> }> {
+}): Promise<{ source: DataSourceName; series: Array<{ date: string; close: number; high: number; low: number }> }> {
   const extra = Math.max(0, Number(args.extraRetries || 0))
   let eastErr = ''
   try {
@@ -872,16 +891,20 @@ export function buildRpsComputedSeries(args: {
       benchmarkMap.set(point.date, point.close)
     }
   }
-  const aligned: Array<{ date: string; targetClose: number; benchmarkClose: number; rpsRaw: number }> = []
+  const aligned: Array<{ date: string; targetClose: number; targetHigh: number; targetLow: number; benchmarkClose: number; rpsRaw: number }> = []
   for (const point of args.targetSeries) {
     if (typeof point.close !== 'number' || !Number.isFinite(point.close)) continue
     const benchmarkClose = benchmarkMap.get(point.date)
     if (typeof benchmarkClose !== 'number' || !Number.isFinite(benchmarkClose) || benchmarkClose <= 0) continue
     const rpsRaw = point.close / benchmarkClose
     if (!Number.isFinite(rpsRaw)) continue
+    const targetHigh = typeof (point as any).high === 'number' && Number.isFinite((point as any).high) ? (point as any).high : point.close
+    const targetLow = typeof (point as any).low === 'number' && Number.isFinite((point as any).low) ? (point as any).low : point.close
     aligned.push({
       date: point.date,
       targetClose: point.close,
+      targetHigh,
+      targetLow,
       benchmarkClose,
       rpsRaw,
     })
@@ -900,6 +923,8 @@ export function buildRpsComputedSeries(args: {
       ticker: args.ticker,
       benchmarkTicker: args.benchmarkTicker,
       targetCloseQfq: point.targetClose,
+      targetHighQfq: point.targetHigh,
+      targetLowQfq: point.targetLow,
       benchmarkCloseQfq: point.benchmarkClose,
       rpsRaw: point.rpsRaw,
       rpsMa50: ma,
@@ -981,6 +1006,8 @@ function mapPointRowToComputedPoint(r: RpsStylePointRow): RpsComputedPoint {
     ticker: r.ticker,
     benchmarkTicker: r.benchmark_ticker,
     targetCloseQfq: r.target_close_qfq,
+    targetHighQfq: r.target_high_qfq ?? 0,
+    targetLowQfq: r.target_low_qfq ?? 0,
     benchmarkCloseQfq: r.benchmark_close_qfq,
     rpsRaw: r.rps_raw,
     rpsMa50: r.rps_ma50 ?? null,

@@ -325,6 +325,8 @@ export type RpsStylePointRow = {
   notes: unknown
   benchmark_ticker: string
   target_close_qfq: number
+  target_high_qfq: number | null
+  target_low_qfq: number | null
   benchmark_close_qfq: number
   rps_raw: number
   rps_ma50: number | null

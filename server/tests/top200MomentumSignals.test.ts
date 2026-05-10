@@ -30,6 +30,8 @@ function buildSeries(values: number[], scores: Array<number | null>, start = '20
     ticker: '510300.SH',
     benchmarkTicker: 'H30269',
     targetCloseQfq: value,
+    targetHighQfq: value,
+    targetLowQfq: value,
     benchmarkCloseQfq: 100,
     rpsRaw: value / 100,
     rpsMa50: 1,

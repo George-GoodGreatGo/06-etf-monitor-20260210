@@ -134,6 +134,8 @@ export type RpsStyleSeriesPoint = {
   ticker: string
   benchmarkTicker: string
   targetCloseQfq: number
+  targetHighQfq: number
+  targetLowQfq: number
   benchmarkCloseQfq: number
   rpsRaw: number
   rpsMa50: number | null
