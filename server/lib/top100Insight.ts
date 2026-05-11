@@ -1,9 +1,11 @@
 import { cozeStreamRunToMarkdown } from './coze.js'
+import { sendLarkMarkdownCard } from './larkBot.js'
 import {
   insertTop100InsightIgnoreDuplicates,
   readTop100InsightByDataDate,
   readTop100InsightStatusByDataDate,
   type Top100InsightRow,
+  updateTop100InsightLarkPushed,
   upsertTop100InsightStatus,
 } from './supabaseRest.js'
 
@@ -98,6 +100,10 @@ export async function ensureTop100Insight(
 
   const existing = await readTop100InsightByDataDate(d)
   if (existing) {
+    if (!existing.lark_pushed_at) {
+      const pushed = await sendLarkMarkdownCard(`ETF200 异动解读 — ${d}`, existing.markdown ?? '')
+      if (pushed) updateTop100InsightLarkPushed(d).catch(() => {})
+    }
     await writeInsightStatusSafe({ data_date: d, status: 'ready', last_error: null, finished_at: new Date().toISOString() })
     return existing
   }
@@ -148,6 +154,10 @@ export async function ensureTop100Insight(
   inflightEnsures.set(d, task)
   try {
     const out = await task
+    if (!out.lark_pushed_at) {
+      const pushed = await sendLarkMarkdownCard(`ETF200 异动解读 — ${d}`, out.markdown ?? '')
+      if (pushed) updateTop100InsightLarkPushed(d).catch(() => {})
+    }
     await writeInsightStatusSafe({
       data_date: d,
       status: 'ready',

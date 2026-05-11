@@ -17,6 +17,7 @@ export type Top100InsightRow = {
   markdown: string
   created_at: string
   updated_at: string
+  lark_pushed_at?: string | null
 }
 
 export type Top100InsightStatus = 'idle' | 'generating' | 'ready' | 'failed'
@@ -467,6 +468,25 @@ export async function insertTop100InsightIgnoreDuplicates(payload: {
   const first = j[0]
   if (!first || typeof first !== 'object') return null
   return first as Top100InsightRow
+}
+
+export async function updateTop100InsightLarkPushed(dataDate: string): Promise<void> {
+  const supabaseUrl = mustEnv('SUPABASE_URL').replace(/\/+$/, '')
+  const serviceKey = mustEnv('SUPABASE_SERVICE_ROLE_KEY')
+  const d = String(dataDate || '').trim()
+  if (!d) return
+
+  const url = `${supabaseUrl}/rest/v1/top100_insight?data_date=eq.${encodeURIComponent(d)}`
+  await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify({ lark_pushed_at: new Date().toISOString() }),
+  })
 }
 
 export async function readTop100InsightStatusByDataDate(dataDate: string): Promise<Top100InsightStatusRow | null> {
