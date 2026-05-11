@@ -115,6 +115,7 @@ const CHART_BADGE_CLS =
 const AXIS_BORDER_COLOR = 'rgba(255,255,255,0.05)'
 const DEFAULT_WINDOW_BARS = 252
 const SIGNAL_MARKER_HIT_RADIUS_PX = 18
+const MARKER_VISUAL_OFFSET_FACTOR = 8
 const SIGNAL_MARKER_SELECTED_SIZE_DELTA = 0.35
 const EMPTY_TURNOVER_SERIES: RpsTurnoverHistoryPoint[] = []
 const SELECTED_SIGNAL_MARKER_COLOR: Record<SignalMarkerKind, string> = {
@@ -600,8 +601,12 @@ function resolveSignalMarkerFromClick(
   let bestDistance = Number.POSITIVE_INFINITY
   for (const candidate of candidates) {
     const x = chart.timeScale().timeToCoordinate(candidate.time)
-    const y = series.priceToCoordinate(candidate.price)
-    if (typeof x !== 'number' || !Number.isFinite(x) || typeof y !== 'number' || !Number.isFinite(y)) continue
+    const rawY = series.priceToCoordinate(candidate.price)
+    if (typeof x !== 'number' || !Number.isFinite(x) || typeof rawY !== 'number' || !Number.isFinite(rawY)) continue
+    const offset = candidate.size * MARKER_VISUAL_OFFSET_FACTOR
+    const y = candidate.position === 'atPriceTop' ? rawY - offset
+      : candidate.position === 'atPriceBottom' ? rawY + offset
+      : rawY
     const distance = Math.hypot(clickPoint.x - x, clickPoint.y - y)
     if (distance <= SIGNAL_MARKER_HIT_RADIUS_PX && distance < bestDistance) {
       matched = candidate
