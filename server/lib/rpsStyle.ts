@@ -18,7 +18,7 @@ const SHANGHAI_TRADE_DAY_COMPLETE_CUTOFF_MINUTES = 15 * 60 + 30
 
 export const RPS_BENCHMARK_TICKER = 'H30269'
 export const RPS_BENCHMARK_NAME = '红利低波全收益指数'
-export const RPS_TARGET_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH', '512050.SH', '560010.SH'] as const
+export const RPS_TARGET_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH', '512050.SH', '560010.SH', '159259.SZ', '159967.SZ', '159263.SZ'] as const
 const RPS_RUN_STALE_MAX_DAYS = 14
 const RPS_TURNOVER_LOOKBACK_DAYS = 20
 const RPS_TURNOVER_DISPLAY_DAYS = 90
@@ -91,6 +91,24 @@ const RPS_TICKER_PROFILES: Record<string, RpsTickerProfile> = {
     code: '560010',
     name: '中证1000ETF',
     benchmarkIndex: { code: '000852.SH', name: '中证1000指数' },
+  },
+  '159259.SZ': {
+    ticker: '159259.SZ',
+    code: '159259',
+    name: '国证成长100ETF',
+    benchmarkIndex: { code: '980080', name: '成长100' },
+  },
+  '159967.SZ': {
+    ticker: '159967.SZ',
+    code: '159967',
+    name: '创成长ETF',
+    benchmarkIndex: { code: '399296.SZ', name: '创业板动量成长指数' },
+  },
+  '159263.SZ': {
+    ticker: '159263.SZ',
+    code: '159263',
+    name: '国证价值100ETF',
+    benchmarkIndex: { code: '980081', name: '国证价值100指数' },
   },
 }
 

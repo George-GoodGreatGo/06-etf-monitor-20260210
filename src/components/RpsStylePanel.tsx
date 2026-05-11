@@ -31,7 +31,7 @@ import {
   type MomentumStrategyId,
 } from '@/utils/momentumStrategies'
 
-const DEFAULT_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH', '512050.SH', '560010.SH']
+const DEFAULT_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH', '512050.SH', '560010.SH', '159259.SZ', '159967.SZ', '159263.SZ']
 const DEFAULT_CUSTOM_QUERY_TICKER = '159915'
 const TURNOVER_TICKERS = ['512890.SH', ...DEFAULT_TICKERS]
 const RPS_BENCHMARK_CODE = 'H30269'
@@ -44,6 +44,9 @@ const ETF_NAME_MAP: Record<string, string> = {
   '510300.SH': '沪深300ETF',
   '512050.SH': '中证A500ETF',
   '560010.SH': '中证1000ETF',
+  '159259.SZ': '国证成长100ETF',
+  '159967.SZ': '创成长ETF',
+  '159263.SZ': '国证价值100ETF',
 }
 const RANGE_OPTIONS = [
   { key: '1w', label: '最近1周' },
