@@ -2,9 +2,9 @@ name: Refresh LowVol Snapshots
 
 on:
   schedule:
-    # GitHub cron uses UTC. Beijing 20:00–22:00 = UTC 12:00–14:00
-    # Run every 15 minutes during 20:00–22:00 Beijing time.
-    - cron: "0,15,30,45 12-14 * * *"
+    # GitHub cron uses UTC. Beijing 21:35 on weekdays = UTC 13:35 on weekdays.
+    # Run once at 21:35 Beijing time every Monday through Friday.
+    - cron: "35 13 * * 1-5"
   workflow_dispatch: {}
 
 jobs:

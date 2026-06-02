@@ -1,0 +1,7 @@
+- [x] `Refresh LowVol Snapshots` 已改为仅在 `UTC 13:35 / 北京时间工作日 21:35` 自动执行一次
+- [x] `refresh-lowvol-snapshots.yml` 中的时间注释与实际 cron 保持一致
+- [x] `Refresh LowVol Snapshots` 仍保留 `workflow_dispatch` 手动触发能力
+- [x] `Refresh Top100 Snapshot` 仍通过 `workflow_run` 依赖 `Refresh LowVol Snapshots`
+- [x] `Refresh RPS Style Snapshots` 仍通过 `workflow_run` 依赖 `Refresh LowVol Snapshots`
+- [x] 相关工作流 YAML 语法验证通过
+- [x] 已完成针对本次调度变更的严格回归验证，并记录结果与剩余风险
