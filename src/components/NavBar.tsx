@@ -2,10 +2,12 @@ import { Menu } from 'lucide-react'
 
 export default function NavBar({
   username,
+  role,
   onOpenMenu,
   onLogout,
 }: {
   username?: string | null
+  role?: 'admin' | 'user' | null
   onOpenMenu?: () => void
   onLogout?: () => void
 }) {
@@ -33,6 +35,7 @@ export default function NavBar({
           {username ? (
             <div className="hidden text-xs text-[#A9B6CC] sm:block">
               当前账户： <span className="font-mono text-[#E6EDF7]">{username}</span>
+              {role ? <span className="ml-2 rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-[#94A3B8]">{role}</span> : null}
             </div>
           ) : null}
           {onLogout ? (

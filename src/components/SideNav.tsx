@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { Activity, BookOpen, ChevronLeft, ChevronRight, Home as HomeIcon, LineChart, List, Sparkles, Target } from 'lucide-react'
+import { Activity, BookOpen, ChevronLeft, ChevronRight, Home as HomeIcon, LineChart, List, Shield, Sparkles, Target } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { buildMomentumAnalysisPath, buildMomentumMethodPath } from '@/utils/momentumStrategies'
 
@@ -19,11 +19,13 @@ export default function SideNav({
   onNavigate,
   collapsed,
   onToggleCollapse,
+  role,
 }: {
   className?: string
   onNavigate?: () => void
   collapsed?: boolean
   onToggleCollapse?: () => void
+  role?: 'admin' | 'user' | null
 }) {
   const nav = useNavigate()
   const loc = useLocation()
@@ -36,6 +38,7 @@ export default function SideNav({
   const isRpsMethodology = loc.pathname === '/market/rps/methodology'
   const isRpsRoute = isRpsOverview || isRpsCustomQuery || isRpsMethodology
   const isMethod = loc.pathname === '/methodology'
+  const isAdminUsers = loc.pathname === '/admin/users'
   const rawTab = isMarket ? searchParams.get('tab') : null
   const currentMomentumStrategy = searchParams.get('strategy')
   const tab: HomeTab =
@@ -47,6 +50,8 @@ export default function SideNav({
       ? 'home'
       : isRpsRoute
         ? 'market-rps'
+          : isAdminUsers
+            ? 'admin-users'
         : isMarket
           ? `market:${tab}`
           : ''
@@ -294,6 +299,42 @@ export default function SideNav({
               />
             )}
           </NavLink>
+
+          {role === 'admin' ? (
+            <button
+              type="button"
+              onClick={() => {
+                nav('/admin/users')
+                onNavigate?.()
+              }}
+              ref={(el) => {
+                itemRefs.current['admin-users'] = el
+              }}
+              className={cn(
+                'group mt-2 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-[color,background-color,box-shadow,transform] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35 focus-visible:ring-offset-0',
+                isAdminUsers
+                  ? 'bg-white/8 text-white shadow-[0_10px_26px_rgba(0,0,0,0.22)]'
+                  : 'text-[#A9B6CC] hover:bg-white/5 hover:text-white hover:shadow-[0_10px_26px_rgba(0,0,0,0.22)] active:scale-[0.99]',
+                collapsedValue ? 'justify-start' : 'justify-between',
+              )}
+              title={collapsedValue ? '管理员用户' : undefined}
+              aria-label={collapsedValue ? '管理员用户' : undefined}
+            >
+              <span className={cn('inline-flex items-center gap-3', collapsedValue ? 'justify-center' : 'min-w-0')}>
+                <Shield className={cn('h-4 w-4 shrink-0', isAdminUsers ? 'text-[#FF8A66]' : 'text-[#94A3B8] group-hover:text-[#E6EDF7]')} />
+                {collapsedValue ? null : <span className="truncate">管理员用户</span>}
+              </span>
+              {collapsedValue ? null : (
+                <span
+                  className={cn(
+                    'h-1.5 w-1.5 rounded-full bg-[#FF5722] transition-all duration-200',
+                    isAdminUsers ? 'opacity-100 scale-100' : 'opacity-0 scale-50 group-hover:opacity-60 group-hover:scale-90',
+                  )}
+                  aria-hidden="true"
+                />
+              )}
+            </button>
+          ) : null}
         </div>
 
         {collapseBtn}

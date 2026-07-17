@@ -1,216 +1,120 @@
-import { useEffect, useRef, useState } from 'react'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { apiUrl } from '@/utils/apiBase'
 import { getAuthSession, setCachedAuthSession } from '@/utils/authSession'
 
-type LoginPhase = 'initializing' | 'ready' | 'triggering' | 'callback' | 'redirecting' | 'failed'
-
-type GsiIdApi = {
-  initialize: (opts: {
-    client_id: string
-    callback: (resp: { credential?: string }) => void
-    auto_select?: boolean
-    cancel_on_tap_outside?: boolean
-  }) => void
-  renderButton: (el: HTMLElement, options: Record<string, unknown>) => void
-}
-
-function resolveGsiIdApi(): GsiIdApi | null {
-  type GsiWindow = {
-    google?: {
-      accounts?: {
-        id?: GsiIdApi
-      }
-    }
-  }
-  return (window as unknown as GsiWindow).google?.accounts?.id ?? null
-}
-
-function ensureGsiScript(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (resolveGsiIdApi()) {
-      resolve()
-      return
-    }
-    const onLoad = () => resolve()
-    const onError = () => reject(new Error('加载 Google 登录组件失败'))
-    const existing = document.querySelector('script[data-google-gsi="1"]') as HTMLScriptElement | null
-    if (existing) {
-      existing.addEventListener('load', onLoad, { once: true })
-      existing.addEventListener('error', onError, { once: true })
-      return
-    }
-    const s = document.createElement('script')
-    s.src = 'https://accounts.google.com/gsi/client'
-    s.async = true
-    s.defer = true
-    s.dataset.googleGsi = '1'
-    s.addEventListener('load', onLoad, { once: true })
-    s.addEventListener('error', onError, { once: true })
-    document.head.appendChild(s)
-  })
-}
+type LoginPhase = 'checking' | 'ready' | 'submitting' | 'redirecting'
 
 export default function Login() {
   const nav = useNavigate()
   const [sp] = useSearchParams()
   const next = sp.get('next') || '/'
 
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(true)
-  const [phase, setPhase] = useState<LoginPhase>('initializing')
+  const [showPassword, setShowPassword] = useState(false)
+  const [phase, setPhase] = useState<LoginPhase>('checking')
   const [error, setError] = useState<string | null>(null)
-  const [reloadSeed, setReloadSeed] = useState(0)
-
-  const gsiBtnRef = useRef<HTMLDivElement | null>(null)
-  const rememberRef = useRef(true)
-  const triggerResetTimerRef = useRef<number | null>(null)
-
-  useEffect(() => {
-    rememberRef.current = remember
-  }, [remember])
-
-  useEffect(() => {
-    return () => {
-      if (triggerResetTimerRef.current !== null) {
-        window.clearTimeout(triggerResetTimerRef.current)
-      }
-    }
-  }, [])
 
   useEffect(() => {
     let cancelled = false
 
     void (async () => {
       try {
-        setPhase('initializing')
+        setPhase('checking')
         setError(null)
         const session = await getAuthSession()
         if (cancelled) return
         if (session.authenticated) {
           setPhase('redirecting')
-          nav(next, { replace: true })
+          const target = session.forcePasswordChange
+            ? `/change-password?next=${encodeURIComponent(next)}`
+            : next
+          nav(target, { replace: true })
           return
         }
       } catch {
         void 0
       }
-
-      const clientId = String(import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim()
-      if (!clientId) {
-        setError('缺少 VITE_GOOGLE_CLIENT_ID')
-        setPhase('failed')
-        return
-      }
-
-      setPhase('initializing')
-      try {
-        await ensureGsiScript()
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : String(e))
-          setPhase('failed')
-        }
-        return
-      }
-      if (cancelled) return
-
-      const id = resolveGsiIdApi()
-      if (!id) {
-        setError('Google 登录组件未就绪，请稍后重试')
-        setPhase('failed')
-        return
-      }
-      id.initialize({
-        client_id: clientId,
-        callback: async (resp: { credential?: string }) => {
-          const credential = typeof resp?.credential === 'string' ? resp.credential : ''
-          if (!credential) {
-            setError('未获取到 Google 凭证，请重试')
-            setPhase('failed')
-            return
-          }
-          if (triggerResetTimerRef.current !== null) {
-            window.clearTimeout(triggerResetTimerRef.current)
-            triggerResetTimerRef.current = null
-          }
-          setPhase('callback')
-          setError(null)
-          try {
-            const r = await fetch(apiUrl('/api/auth/google'), {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ credential, remember: rememberRef.current }),
-              credentials: 'include',
-            })
-            const j = (await r.json().catch(() => null)) as unknown
-            if (!r.ok) {
-              const msg =
-                j && typeof j === 'object' && (j as Record<string, unknown>).message
-                  ? String((j as Record<string, unknown>).message)
-                  : `HTTP ${r.status}`
-              throw new Error(msg)
-            }
-            setCachedAuthSession({ authenticated: true, username: null })
-            setPhase('redirecting')
-            nav(next, { replace: true })
-          } catch (e) {
-            setError(e instanceof Error ? e.message : String(e))
-            setPhase('failed')
-          }
-        },
-        auto_select: false,
-        cancel_on_tap_outside: true,
-      })
-      const el = gsiBtnRef.current
-      if (!el) {
-        setError('登录组件挂载失败，请刷新重试')
-        setPhase('failed')
-        return
-      }
-      el.innerHTML = ''
-      id.renderButton(el, {
-        type: 'standard',
-        theme: 'outline',
-        size: 'large',
-        text: 'signin_with',
-        shape: 'rectangular',
-        width: 302,
-      })
       setPhase('ready')
-      setError(null)
     })()
 
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reloadSeed])
+  }, [nav, next])
 
-  const isBusy = phase === 'initializing' || phase === 'callback' || phase === 'redirecting'
+  const isBusy = phase === 'checking' || phase === 'submitting' || phase === 'redirecting'
 
-  const statusText =
-    phase === 'initializing'
-      ? '正在检查登录状态并加载 Google 登录组件...'
-      : phase === 'ready'
-          ? 'Google 登录已就绪'
-          : phase === 'triggering'
-            ? '正在拉起 Google 授权窗口...'
-            : phase === 'callback'
-              ? '验证成功，正在建立会话...'
-              : phase === 'redirecting'
-                ? '正在进入系统...'
-                : error || '登录失败，请重试'
+  const statusText = useMemo(() => {
+    if (phase === 'checking') return '正在检查登录状态...'
+    if (phase === 'submitting') return '正在验证账号密码并建立会话...'
+    if (phase === 'redirecting') return '登录成功，正在进入系统...'
+    return error || '请输入管理员分配的账号和密码登录'
+  }, [error, phase])
 
-  const handleTriggerAttempt = () => {
-    if (phase !== 'ready') return
-    setPhase('triggering')
-    if (triggerResetTimerRef.current !== null) {
-      window.clearTimeout(triggerResetTimerRef.current)
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (isBusy) return
+    const trimmedUsername = username.trim().toLowerCase()
+    if (!trimmedUsername || !password) {
+      setError('请输入账号和密码')
+      return
     }
-    triggerResetTimerRef.current = window.setTimeout(() => {
-      setPhase((prev) => (prev === 'triggering' ? 'ready' : prev))
-      triggerResetTimerRef.current = null
-    }, 1800)
+
+    setPhase('submitting')
+    setError(null)
+    try {
+      const response = await fetch(apiUrl('/api/auth/login'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: trimmedUsername,
+          password,
+          remember,
+        }),
+      })
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            message?: string
+            session?: {
+              authenticated: boolean
+              username: string | null
+              role?: 'admin' | 'user' | null
+              forcePasswordChange?: boolean
+              status?: 'active' | 'disabled' | null
+            }
+          }
+        | null
+      if (!response.ok || !payload?.session?.authenticated) {
+        setPassword('')
+        setPhase('ready')
+        setError(payload?.message || `HTTP ${response.status}`)
+        return
+      }
+      const session = {
+        authenticated: true,
+        username: payload.session.username,
+        role: payload.session.role || null,
+        forcePasswordChange: payload.session.forcePasswordChange === true,
+        status: payload.session.status || 'active',
+      } as const
+      setCachedAuthSession(session)
+      setPhase('redirecting')
+      const target = session.forcePasswordChange
+        ? `/change-password?next=${encodeURIComponent(next)}`
+        : next
+      nav(target, { replace: true })
+    } catch (submitError) {
+      setPassword('')
+      setPhase('ready')
+      setError(submitError instanceof Error ? submitError.message : String(submitError))
+    }
   }
 
   return (
@@ -283,26 +187,52 @@ export default function Login() {
 
               <div className="flex flex-col items-center gap-2">
                 <div className="text-xl font-bold leading-[1.4] text-white">安全登录</div>
-                <div className="text-xs leading-[1.3333] text-[#64748B]">开启您的智能量化分析之旅</div>
+                <div className="text-xs leading-[1.3333] text-[#64748B]">请输入系统账号与密码，开启您的智能量化分析之旅</div>
               </div>
 
-              <div className="mt-8 flex flex-col gap-6">
-                <div className="flex justify-center">
-                  <div
-                    className={`rounded-md border border-[rgba(255,255,255,0.08)] bg-white/95 p-2 ${
-                      phase === 'ready' || phase === 'triggering' ? '' : 'opacity-80'
-                    }`}
-                    onClickCapture={handleTriggerAttempt}
-                  >
-                    <div
-                      ref={gsiBtnRef}
-                      className={`h-[44px] w-[302px] ${isBusy ? 'pointer-events-none opacity-70' : ''}`}
-                      aria-label="Google 标准登录按钮"
+              <form className="mt-8 flex flex-col gap-6" onSubmit={handleSubmit}>
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.08em] text-[#94A3B8]">
+                      账号
+                    </label>
+                    <input
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      autoComplete="username"
+                      className="h-12 w-full rounded-xl border border-white/10 bg-black/20 px-4 text-sm text-white outline-none transition focus:border-[rgba(255,138,80,0.55)] focus:ring-2 focus:ring-[rgba(255,138,80,0.2)]"
+                      placeholder="请输入账号"
+                      disabled={isBusy}
                     />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.08em] text-[#94A3B8]">
+                      密码
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        autoComplete="current-password"
+                        className="h-12 w-full rounded-xl border border-white/10 bg-black/20 px-4 pr-12 text-sm text-white outline-none transition focus:border-[rgba(255,138,80,0.55)] focus:ring-2 focus:ring-[rgba(255,138,80,0.2)]"
+                        placeholder="请输入密码"
+                        disabled={isBusy}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="absolute inset-y-0 right-0 inline-flex w-12 items-center justify-center text-[#94A3B8] transition hover:text-white"
+                        aria-label={showPassword ? '隐藏密码' : '显示密码'}
+                        disabled={isBusy}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex justify-center">
+                <div className="flex items-center justify-between gap-4">
                   <label className="inline-flex items-center gap-2 text-[11px] leading-[1.5] text-[#64748B]">
                     <span className="relative inline-flex h-4 w-4 items-center justify-center rounded border border-[#E65100]">
                       <input
@@ -310,6 +240,7 @@ export default function Login() {
                         checked={remember}
                         onChange={(e) => setRemember(e.target.checked)}
                         className="absolute inset-0 cursor-pointer opacity-0"
+                        disabled={isBusy}
                       />
                       {remember ? (
                         <img
@@ -322,7 +253,17 @@ export default function Login() {
                     </span>
                     保持 7 天内登录状态
                   </label>
+                  <div className="text-[11px] text-[#64748B]">默认管理员首登后需立即改密</div>
                 </div>
+
+                <button
+                  type="submit"
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[linear-gradient(135deg,#FF8A50_0%,#E65100_100%)] px-4 text-sm font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
+                  disabled={isBusy}
+                >
+                  {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {phase === 'submitting' ? '登录中...' : '账号密码登录'}
+                </button>
 
                 <div className="border-t border-[rgba(255,255,255,0.05)] pt-6 text-center text-[10px] uppercase tracking-[0.05em] text-[#475569]">
                   SECURE ACCESS · DATA ENCRYPTED
@@ -330,24 +271,15 @@ export default function Login() {
 
                 <div
                   className={`min-h-[74px] rounded-lg px-3 py-2 text-xs ${
-                    phase === 'failed'
+                    error
                       ? 'border border-[#EF4444]/40 bg-black/10 text-[#A9B6CC]'
                       : 'border border-[rgba(255,255,255,0.08)] bg-black/10 text-[#A9B6CC]'
                   }`}
                 >
-                  <div className={phase === 'failed' ? 'text-[#E6EDF7]' : 'text-[#CBD5E1]'}>{phase === 'failed' ? '登录失败' : '登录状态'}</div>
+                  <div className={error ? 'text-[#E6EDF7]' : 'text-[#CBD5E1]'}>{error ? '登录失败' : '登录状态'}</div>
                   <div className="mt-1">{statusText}</div>
-                  {phase === 'failed' ? (
-                    <button
-                      type="button"
-                      className="mt-2 inline-flex items-center rounded-md border border-[rgba(230,81,0,0.35)] px-2 py-1 text-[11px] text-[#F8BFA2] transition hover:bg-[rgba(230,81,0,0.12)]"
-                      onClick={() => setReloadSeed((v) => v + 1)}
-                    >
-                      重新加载登录组件
-                    </button>
-                  ) : null}
                 </div>
-              </div>
+              </form>
             </div>
           </section>
         </div>

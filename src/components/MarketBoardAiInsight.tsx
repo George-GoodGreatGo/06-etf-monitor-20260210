@@ -3,7 +3,6 @@ import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
 import { apiUrl } from '@/utils/apiBase'
-import { adminAuthHeaders } from '@/utils/adminAccess'
 
 type Status = 'idle' | 'running' | 'done' | 'error'
 
@@ -81,10 +80,7 @@ export default function MarketBoardAiInsight({ className }: { className?: string
         const res = await fetch(apiUrl('/api/ai/market/insight'), {
           method: 'POST',
           credentials: 'include',
-          headers: {
-            ...adminAuthHeaders(),
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...(opts?.continueFrom ? { continueFrom: opts.continueFrom } : {}) }),
           signal: ac.signal,
         })

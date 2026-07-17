@@ -9,6 +9,8 @@ const QuotesHome = lazy(() => import('@/pages/QuotesHome'))
 const EtfDetail = lazy(() => import('@/pages/EtfDetail'))
 const Methodology = lazy(() => import('@/pages/Methodology'))
 const Login = lazy(() => import('@/pages/Login'))
+const ChangePassword = lazy(() => import('@/pages/ChangePassword'))
+const AdminUsers = lazy(() => import('@/pages/AdminUsers'))
 const MarketRpsOverview = lazy(() => import('@/pages/MarketRpsOverview'))
 const MarketRpsCustomQuery = lazy(() => import('@/pages/MarketRpsCustomQuery'))
 const MarketRpsMethodology = lazy(() => import('@/pages/MarketRpsMethodology'))
@@ -38,6 +40,14 @@ export default function App() {
       <Router>
         <Routes>
           <Route path="/login" element={withRouteSuspense(<Login />)} />
+          <Route
+            path="/change-password"
+            element={withRouteSuspense(
+              <RequireAuth allowPasswordChangeRequired>
+                <ChangePassword />
+              </RequireAuth>,
+            )}
+          />
           {import.meta.env.DEV ? (
             <Route path="/dev/rps-custom-query-mock" element={withRouteSuspense(<DevRpsCustomQueryMock />)} />
           ) : null}
@@ -61,6 +71,14 @@ export default function App() {
             <Route path="/market/rps/methodology" element={withRouteSuspense(<MarketRpsMethodology />)} />
             <Route path="/etf/:code" element={withRouteSuspense(<EtfDetail />)} />
             <Route path="/methodology" element={withRouteSuspense(<Methodology />)} />
+            <Route
+              path="/admin/users"
+              element={withRouteSuspense(
+                <RequireAuth adminOnly>
+                  <AdminUsers />
+                </RequireAuth>,
+              )}
+            />
           </Route>
         </Routes>
       </Router>

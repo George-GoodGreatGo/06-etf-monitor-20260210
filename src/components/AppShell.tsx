@@ -3,14 +3,14 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import NavBar from '@/components/NavBar'
 import SideNav from '@/components/SideNav'
 import { apiUrl } from '@/utils/apiBase'
-import { clearCachedAuthSession, getAuthSession } from '@/utils/authSession'
+import { clearCachedAuthSession, getAuthSession, type AuthSession } from '@/utils/authSession'
 
 const SIDEBAR_COLLAPSE_KEY = 'etf_monitor_sidebar_collapsed'
 
 export default function AppShell() {
   const nav = useNavigate()
   const loc = useLocation()
-  const [username, setUsername] = useState<string | null>(null)
+  const [session, setSession] = useState<AuthSession | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const isQuotesHome = loc.pathname === '/'
@@ -19,21 +19,15 @@ export default function AppShell() {
     const ac = new AbortController()
     void (async () => {
       try {
-        const session = await getAuthSession()
+        const currentSession = await getAuthSession({ forceRefresh: true })
         if (ac.signal.aborted) return
-        if (session.authenticated && !session.username) {
-          const refreshed = await getAuthSession({ forceRefresh: true })
-          if (ac.signal.aborted) return
-          setUsername(refreshed.username)
-          return
-        }
-        setUsername(session.username)
+        setSession(currentSession)
       } catch {
-        setUsername(null)
+        setSession(null)
       }
     })()
     return () => ac.abort()
-  }, [])
+  }, [loc.pathname])
 
   useEffect(() => {
     try {
@@ -71,13 +65,12 @@ export default function AppShell() {
       }
     >
       <NavBar
-        username={username}
+        username={session?.username}
+        role={session?.role}
         onOpenMenu={() => setDrawerOpen(true)}
         onLogout={() => {
           void (async () => {
             try {
-              ;(window as unknown as { google?: { accounts?: { id?: { disableAutoSelect?: () => void } } } })
-                .google?.accounts?.id?.disableAutoSelect?.()
               await fetch(apiUrl('/api/auth/logout'), {
                 method: 'POST',
                 credentials: 'include',
@@ -97,6 +90,7 @@ export default function AppShell() {
           className="fixed left-0 top-0 h-screen w-[var(--sidebar-w)] pt-[72px] transition-[width] duration-200 ease-out"
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
+          role={session?.role}
         />
       </div>
 
@@ -112,6 +106,7 @@ export default function AppShell() {
           }`}
           onNavigate={() => setDrawerOpen(false)}
           collapsed={false}
+          role={session?.role}
         />
       </div>
 

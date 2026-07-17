@@ -17,12 +17,12 @@ import { getCookie, verifySessionToken } from '../lib/session.js'
 const router = Router()
 
 function getRpsRecentSearchUserKey(req: Request): string | null {
-  const secret = String(process.env.AUTH_SESSION_SECRET || process.env.ADMIN_ACCESS_TOKEN || process.env.ADMIN_TOKEN || '').trim()
+  const secret = String(process.env.AUTH_SESSION_SECRET || '').trim()
   if (!secret) return null
   const token = getCookie(req, 'etf_session')
   if (!token) return null
   const verified = verifySessionToken(secret, token)
-  return verified.ok ? verified.username : null
+  return verified.ok ? verified.session.username : null
 }
 
 function logRpsRecentSearchError(event: string, error: unknown) {

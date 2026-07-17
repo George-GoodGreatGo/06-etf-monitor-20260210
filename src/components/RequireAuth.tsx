@@ -2,10 +2,21 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { getAuthSession, getCachedAuthSession } from '@/utils/authSession'
 
-export default function RequireAuth({ children }: { children: React.ReactNode }) {
+export default function RequireAuth({
+  children,
+  allowPasswordChangeRequired,
+  adminOnly,
+}: {
+  children: React.ReactNode
+  allowPasswordChangeRequired?: boolean
+  adminOnly?: boolean
+}) {
   const [ok, setOk] = useState<boolean | null>(() => {
     const cached = getCachedAuthSession()
-    return cached?.authenticated === true ? true : null
+    if (cached?.authenticated !== true) return null
+    if (!allowPasswordChangeRequired && cached.forcePasswordChange) return null
+    if (adminOnly && cached.role !== 'admin') return null
+    return true
   })
   const nav = useNavigate()
   const loc = useLocation()
@@ -23,13 +34,22 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
           nav(`/login?next=${encodeURIComponent(next)}`, { replace: true })
           return
         }
+        if (!allowPasswordChangeRequired && session.forcePasswordChange) {
+          const next = loc.pathname + (loc.search || '')
+          nav(`/change-password?next=${encodeURIComponent(next)}`, { replace: true })
+          return
+        }
+        if (adminOnly && session.role !== 'admin') {
+          nav('/', { replace: true })
+          return
+        }
         setOk(true)
       } catch {
         const next = loc.pathname + (loc.search || '')
         nav(`/login?next=${encodeURIComponent(next)}`, { replace: true })
       }
     })()
-  }, [loc.pathname, loc.search, nav])
+  }, [adminOnly, allowPasswordChangeRequired, loc.pathname, loc.search, nav])
 
   if (ok !== true) {
     return (

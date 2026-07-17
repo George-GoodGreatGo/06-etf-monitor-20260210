@@ -82,3 +82,19 @@ assertContainsAll(hardeningSql, [
   'revoke execute on function public.upsert_rps_custom_recent_search(text, text, text, text, integer) from public, anon, authenticated;',
   'grant execute on function public.upsert_rps_custom_recent_search(text, text, text, text, integer) to service_role;',
 ])
+
+const authUsersSql = await readMigration('supabase/migrations/0019_auth_user_accounts.sql')
+assertContainsAll(authUsersSql, [
+  'create table if not exists public.auth_user_account',
+  "role text not null default 'user' check (role in ('admin', 'user'))",
+  "status text not null default 'active' check (status in ('active', 'disabled'))",
+  'password_hash text not null',
+  'must_change_password boolean not null default true',
+  'create index if not exists auth_user_account_role_status_idx',
+  'create trigger set_auth_user_account_updated_at',
+  'alter table public.auth_user_account enable row level security;',
+  'create policy "deny direct access to auth user accounts"',
+  'to anon, authenticated',
+  'using (false)',
+  'with check (false);',
+])

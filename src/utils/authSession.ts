@@ -3,6 +3,9 @@ import { apiUrl } from '@/utils/apiBase'
 export type AuthSession = {
   authenticated: boolean
   username: string | null
+  role: 'admin' | 'user' | null
+  forcePasswordChange: boolean
+  status: 'active' | 'disabled' | null
 }
 
 const AUTH_SESSION_TTL_MS = 2500
@@ -15,7 +18,10 @@ function parseAuthSession(payload: unknown): AuthSession {
   const obj = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : null
   const authenticated = Boolean(obj?.authenticated === true)
   const username = authenticated ? String(obj?.username || '').trim() || null : null
-  return { authenticated, username }
+  const role = authenticated && (obj?.role === 'admin' || obj?.role === 'user') ? obj.role : null
+  const forcePasswordChange = authenticated && obj?.forcePasswordChange === true
+  const status = authenticated && (obj?.status === 'active' || obj?.status === 'disabled') ? obj.status : null
+  return { authenticated, username, role, forcePasswordChange, status }
 }
 
 async function fetchAuthSession(): Promise<AuthSession> {

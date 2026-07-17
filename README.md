@@ -21,9 +21,6 @@ npm run dev
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `AUTH_SESSION_SECRET`
-- `GOOGLE_CLIENT_ID`
-- `AUTH_ALLOWED_EMAILS`
-- `VITE_GOOGLE_CLIENT_ID`
 
 ## Supabase
 
@@ -38,13 +35,14 @@ GitHub Actions 会定时运行 `npm run refresh:supabase:top100` 把最新快照
 
 ## 登录与访问控制
 
-系统不支持注册；使用 Google 登录并通过邮箱白名单控制访问。
+系统不支持自助注册；使用管理员维护的“账号 + 密码”进行登录访问。
 
-- 在 Google Cloud Console 创建 OAuth Client（Web），获取 Client ID
 - Vercel 环境变量：
-  - `GOOGLE_CLIENT_ID`：服务端校验用
-  - `VITE_GOOGLE_CLIENT_ID`：前端渲染 Google 登录按钮用
-  - `AUTH_ALLOWED_EMAILS`：允许访问的邮箱列表（逗号分隔或 JSON 数组）
+  - `AUTH_SESSION_SECRET`：服务端签发和校验登录会话 Cookie 的密钥
+  - `SUPABASE_URL`：认证用户与业务数据的 Supabase 地址
+  - `SUPABASE_SERVICE_ROLE_KEY`：服务端维护认证用户与业务数据时使用
+
+默认管理员账号为 `gzliyuxin`。首次初始化后，系统会以安全哈希形式写入初始密码，并要求该账号首次登录后立即修改密码。
 
 ## GitHub Actions 自动部署到 Vercel
 

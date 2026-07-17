@@ -27,7 +27,6 @@ import {
   type Top100Meta,
 } from '@/utils/etfApi'
 import { formatYmd, formatCompactNumber, formatPct } from '@/utils/format'
-import { adminAuthHeaders } from '@/utils/adminAccess'
 import { apiUrl } from '@/utils/apiBase'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -109,7 +108,7 @@ export default function EtfDetail() {
       try {
         const res = await fetch(apiUrl(`/api/ai/etf/detail/insight?code=${encodeURIComponent(code)}`), {
           signal: ac.signal,
-          headers: adminAuthHeaders(),
+          
         })
         if (res.ok) {
           const j = await res.json()
@@ -219,10 +218,7 @@ export default function EtfDetail() {
         const res = await fetch(apiUrl('/api/ai/etf/detail/insight'), {
           method: 'POST',
           credentials: 'include',
-          headers: {
-            ...adminAuthHeaders(),
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code }),
           signal: ac.signal,
         })

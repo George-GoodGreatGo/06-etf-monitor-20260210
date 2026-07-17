@@ -19,10 +19,12 @@ import marketRoutes from './routes/market.js'
 import valueRoutes from './routes/value.js'
 import rpsStyleRoutes from './routes/rpsStyle.js'
 import { serverBootId, serverStartedAt } from './lib/runtime.js'
-import { requireAdminAccess } from './lib/adminAuth.js'
+import { requireAdminAccess, requireAuthenticatedAccess } from './lib/adminAuth.js'
+import { ensureDefaultAdminUser } from './lib/authUsers.js'
 
 // load env
 dotenv.config()
+void ensureDefaultAdminUser()
 
 const app: express.Application = express()
 
@@ -40,13 +42,13 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }))
  * API Routes
  */
 app.use('/api/auth', authRoutes)
-app.use('/api/etf', requireAdminAccess, etfRoutes)
+app.use('/api/etf', requireAuthenticatedAccess, etfRoutes)
 app.use('/api/admin', requireAdminAccess, adminRoutes)
-app.use('/api/ai', requireAdminAccess, aiRoutes)
-app.use('/api/market', requireAdminAccess, marketRoutes)
-app.use('/api/lowvol', requireAdminAccess, lowVolRoutes)
-app.use('/api/value', requireAdminAccess, valueRoutes)
-app.use('/api/rps', requireAdminAccess, rpsStyleRoutes)
+app.use('/api/ai', requireAuthenticatedAccess, aiRoutes)
+app.use('/api/market', requireAuthenticatedAccess, marketRoutes)
+app.use('/api/lowvol', requireAuthenticatedAccess, lowVolRoutes)
+app.use('/api/value', requireAuthenticatedAccess, valueRoutes)
+app.use('/api/rps', requireAuthenticatedAccess, rpsStyleRoutes)
 
 /**
  * health

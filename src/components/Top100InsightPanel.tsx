@@ -1,7 +1,6 @@
 import { Loader2, Sparkles, AlertTriangle, RefreshCw } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { apiUrl } from '@/utils/apiBase'
-import { adminAuthHeaders } from '@/utils/adminAccess'
 import type { EtfTopRow, Top100Meta } from '@/utils/etfApi'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -147,9 +146,6 @@ export default function Top100InsightPanel({
         const statusRes = await fetch(apiUrl(`/api/ai/top100/insight/status?dataDate=${encodeURIComponent(meta.dataDate)}`), {
           method: 'GET',
           credentials: 'include',
-          headers: {
-            ...adminAuthHeaders(),
-          },
           signal: ac.signal,
         })
 
@@ -183,9 +179,6 @@ export default function Top100InsightPanel({
         const insightRes = await fetch(apiUrl(`/api/ai/top100/insight?dataDate=${encodeURIComponent(meta.dataDate)}`), {
           method: 'GET',
           credentials: 'include',
-          headers: {
-            ...adminAuthHeaders(),
-          },
           signal: ac.signal,
         })
 
@@ -236,9 +229,6 @@ export default function Top100InsightPanel({
         const res = await fetch(apiUrl(`/api/ai/top100/insight/status?dataDate=${encodeURIComponent(meta.dataDate)}`), {
           method: 'GET',
           credentials: 'include',
-          headers: {
-            ...adminAuthHeaders(),
-          },
         })
         if (!res.ok) return
         const j = (await res.json()) as unknown

@@ -1,5 +1,4 @@
 import { apiUrl } from '@/utils/apiBase'
-import { adminAuthHeaders } from '@/utils/adminAccess'
 import type { MomentumSignalsByStrategy } from '@/utils/momentumSignalSnapshot'
 
 export type DataStatus = 'complete' | 'incomplete' | 'api_error'
@@ -93,9 +92,6 @@ export async function fetchEtfTop100(
       ...(signal ? { signal } : {}),
       ...(params.refreshToken ? { keepalive: true } : {}),
       credentials: 'include',
-      headers: {
-        ...adminAuthHeaders(),
-      },
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -181,9 +177,6 @@ export async function fetchEtfDetail(
       signal,
       keepalive: true,
       credentials: 'include',
-      headers: {
-        ...adminAuthHeaders(),
-      },
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -226,9 +219,6 @@ export async function fetchEtfWeeklyChart(
         signal,
         keepalive: true,
         credentials: 'include',
-        headers: {
-          ...adminAuthHeaders(),
-        },
       },
     )
   } catch (e) {

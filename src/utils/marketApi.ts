@@ -1,5 +1,4 @@
 import { apiUrl } from '@/utils/apiBase'
-import { adminAuthHeaders } from '@/utils/adminAccess'
 import type { ApiErr, ApiOk } from '@/utils/etfApi'
 
 export type LiquidityV5Point = {
@@ -285,9 +284,6 @@ export async function fetchLowVolIndex(args: { code: string; signal?: AbortSigna
     res = await fetch(apiUrl(`/api/lowvol/index/${encodeURIComponent(code)}`), {
       ...(args.signal ? { signal: args.signal } : {}),
       credentials: 'include',
-      headers: {
-        ...adminAuthHeaders(),
-      },
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -324,9 +320,6 @@ export async function fetchLowVolSummary(args?: { signal?: AbortSignal }): Promi
     res = await fetch(apiUrl('/api/lowvol/summary'), {
       ...(args?.signal ? { signal: args.signal } : {}),
       credentials: 'include',
-      headers: {
-        ...adminAuthHeaders(),
-      },
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -364,9 +357,6 @@ export async function fetchValueTimingIndex(args: { code: string; signal?: Abort
     res = await fetch(apiUrl(`/api/value/index/${encodeURIComponent(code)}`), {
       ...(args.signal ? { signal: args.signal } : {}),
       credentials: 'include',
-      headers: {
-        ...adminAuthHeaders(),
-      },
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -403,9 +393,6 @@ export async function fetchValueTimingSummary(args?: { signal?: AbortSignal }): 
     res = await fetch(apiUrl('/api/value/summary'), {
       ...(args?.signal ? { signal: args.signal } : {}),
       credentials: 'include',
-      headers: {
-        ...adminAuthHeaders(),
-      },
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -442,9 +429,6 @@ export async function fetchRpsStyleSummary(args?: { signal?: AbortSignal }): Pro
     res = await fetch(apiUrl('/api/rps/summary'), {
       ...(args?.signal ? { signal: args.signal } : {}),
       credentials: 'include',
-      headers: {
-        ...adminAuthHeaders(),
-      },
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -489,9 +473,6 @@ export async function fetchRpsStyleMatrix(args?: {
     res = await fetch(apiUrl(url), {
       ...(args?.signal ? { signal: args.signal } : {}),
       credentials: 'include',
-      headers: {
-        ...adminAuthHeaders(),
-      },
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -538,9 +519,6 @@ export async function fetchRpsStyleSeries(args: {
     res = await fetch(apiUrl(url), {
       ...(args.signal ? { signal: args.signal } : {}),
       credentials: 'include',
-      headers: {
-        ...adminAuthHeaders(),
-      },
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -585,9 +563,6 @@ export async function fetchRpsStylePanel(args?: {
     res = await fetch(apiUrl(url), {
       ...(args?.signal ? { signal: args.signal } : {}),
       credentials: 'include',
-      headers: {
-        ...adminAuthHeaders(),
-      },
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -633,9 +608,6 @@ export async function fetchRpsCustomQuery(args: {
       ...(args.signal ? { signal: args.signal } : {}),
       cache: 'no-store',
       credentials: 'include',
-      headers: {
-        ...adminAuthHeaders(),
-      },
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -670,9 +642,6 @@ export async function fetchRpsCustomRecentSearches(args?: { signal?: AbortSignal
       ...(args?.signal ? { signal: args.signal } : {}),
       cache: 'no-store',
       credentials: 'include',
-      headers: {
-        ...adminAuthHeaders(),
-      },
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -712,9 +681,6 @@ export async function fetchRpsTurnoverHistory(args: {
     res = await fetch(apiUrl(url), {
       ...(args.signal ? { signal: args.signal } : {}),
       credentials: 'include',
-      headers: {
-        ...adminAuthHeaders(),
-      },
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -752,9 +718,6 @@ export async function fetchRpsTurnoverSummary(args?: { signal?: AbortSignal }): 
     res = await fetch(apiUrl(url), {
       ...(args?.signal ? { signal: args.signal } : {}),
       credentials: 'include',
-      headers: {
-        ...adminAuthHeaders(),
-      },
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -791,9 +754,6 @@ export async function fetchMarketLiquidityV5(signal?: AbortSignal): Promise<ApiO
     res = await fetch(apiUrl('/api/market/liquidity/v5'), {
       ...(signal ? { signal } : {}),
       credentials: 'include',
-      headers: {
-        ...adminAuthHeaders(),
-      },
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)

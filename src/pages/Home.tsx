@@ -18,7 +18,6 @@ import {
   type Top100SortKey,
 } from '@/utils/etfApi'
 import { apiUrl } from '@/utils/apiBase'
-import { adminAuthHeaders } from '@/utils/adminAccess'
 import { formatYmd, parseIsoToLocal } from '@/utils/format'
 import { fetchLowVolSummary, fetchValueTimingSummary } from '@/utils/marketApi'
 import { calcLowVolSuggestion, type LowVolSuggestionTone } from '@/utils/lowVolSignal'
@@ -523,7 +522,7 @@ export default function Home() {
       try {
         const res = await fetch(
           apiUrl(`/api/etf/progress?_p=${encodeURIComponent(progressToken)}&_t=${Date.now()}`),
-          { cache: 'no-store', credentials: 'include', headers: { ...adminAuthHeaders() } },
+          { cache: 'no-store', credentials: 'include' },
         )
         const j = (await res.json()) as unknown
         if (cancelled) return

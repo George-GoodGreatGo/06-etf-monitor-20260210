@@ -3,6 +3,9 @@ import type { Request } from 'express'
 
 type SessionPayload = {
   u: string
+  r: 'admin' | 'user'
+  f: boolean
+  rm: boolean
   exp: number
   iat: number
   n: string
@@ -80,10 +83,20 @@ export function getCookie(req: Request, name: string): string | null {
   return typeof v === 'string' && v ? decodeURIComponent(v) : null
 }
 
-export function makeSessionToken(secret: string, username: string, ttlMs: number): string {
+export type SessionIdentity = {
+  username: string
+  role: 'admin' | 'user'
+  forcePasswordChange: boolean
+  remember: boolean
+}
+
+export function makeSessionToken(secret: string, session: SessionIdentity, ttlMs: number): string {
   const now = Date.now()
   const payload: SessionPayload = {
-    u: username,
+    u: session.username,
+    r: session.role,
+    f: session.forcePasswordChange,
+    rm: session.remember,
     iat: now,
     exp: now + ttlMs,
     n: crypto.randomUUID(),
@@ -91,15 +104,32 @@ export function makeSessionToken(secret: string, username: string, ttlMs: number
   return encodeSigned(secret, payload)
 }
 
-export function verifySessionToken(secret: string, token: string): { ok: true; username: string } | { ok: false } {
+export function verifySessionToken(
+  secret: string,
+  token: string,
+): { ok: true; session: SessionIdentity & { issuedAt: number; expiresAt: number } } | { ok: false } {
   const decoded = decodeSigned(secret, token)
   if (!decoded || typeof decoded !== 'object') return { ok: false }
   const o = decoded as Record<string, unknown>
   const u = typeof o.u === 'string' ? o.u : ''
+  const r = o.r === 'admin' ? 'admin' : o.r === 'user' ? 'user' : null
+  const f = o.f === true
+  const rm = o.rm === true
   const exp = typeof o.exp === 'number' ? o.exp : 0
-  if (!u || !exp) return { ok: false }
+  const iat = typeof o.iat === 'number' ? o.iat : 0
+  if (!u || !r || !exp || !iat) return { ok: false }
   if (Date.now() > exp) return { ok: false }
-  return { ok: true, username: u }
+  return {
+    ok: true,
+    session: {
+      username: u,
+      role: r,
+      forcePasswordChange: f,
+      remember: rm,
+      issuedAt: iat,
+      expiresAt: exp,
+    },
+  }
 }
 
 export function makeCaptcha(secret: string): { token: string; question: string; exp: number } {
