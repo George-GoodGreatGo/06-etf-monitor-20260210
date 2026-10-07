@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { computeRpsStyleDataset, getRpsStyleBenchmarkMeta, getRpsStyleComputationNotes, getRpsStyleSupportedTickers } from '../lib/rpsStyle.js'
-import { publishRpsStyleRun, readRpsStyleMeta, type RpsStylePointRow, upsertRpsStylePoints } from '../lib/supabaseRest.js'
+import { publishRpsStyleRun, readLowVolMeta, readRpsStyleMeta, type RpsStylePointRow, upsertRpsStylePoints } from '../lib/supabaseRest.js'
 
 const FULL_BACKFILL_START = '20160101'
 const RUN_HISTORY_KEEP = 2
@@ -8,14 +8,6 @@ const STALE_MAX_DAYS = 14
 const SCORE_COVER_THRESHOLD = 0.9
 const SCORE_COVER_WINDOW = 504
 const SCORE_WARMUP_DAYS = 49
-
-function pad2(n: number): string {
-  return n < 10 ? `0${n}` : String(n)
-}
-
-function ymd8Of(d: Date): string {
-  return `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}`
-}
 
 function ymd8ToYmd10(ymd8: string): string {
   const s = String(ymd8 || '').trim()
@@ -125,9 +117,12 @@ function sleep(ms: number) {
 
 async function main() {
   const startDate8 = FULL_BACKFILL_START
-  const endDate8 = ymd8Of(new Date())
-  const endDate10 = ymd8ToYmd10(endDate8)
-  if (!endDate10) throw new Error('bad endDate')
+  const lowVolMeta = await readLowVolMeta()
+  const endDate10 = String(lowVolMeta?.currentDataDate || '').trim()
+  const endDate8 = endDate10.replace(/-/g, '')
+  if (!endDate10 || !/^\d{4}-\d{2}-\d{2}$/.test(endDate10)) {
+    throw new Error(`lowvol meta missing current_data_date: ${lowVolMeta?.publishStatus || 'unknown'}`)
+  }
 
   const meta0 = await readRpsStyleMeta()
   const prevVisible = meta0?.currentRunId || null
@@ -136,27 +131,21 @@ async function main() {
   const startedAt = Date.now()
   const tickers = getRpsStyleSupportedTickers()
   const benchmarkMeta = getRpsStyleBenchmarkMeta()
-  process.stdout.write(`[rps] start runId=${runId} prevVisible=${prevVisible || 'null'} tickers=${tickers.length}\n`)
+  process.stdout.write(
+    `[rps] start runId=${runId} prevVisible=${prevVisible || 'null'} tickers=${tickers.length} lowvolDataDate=${endDate10}\n`,
+  )
 
   const { getLowVolIndexSnapshotSeries } = await import('../lib/lowVol.js')
-  try {
+  {
     const benchmarkCheck = await getLowVolIndexSnapshotSeries({
       code: 'H30269',
       startDate: endDate10,
       endDate: endDate10,
     })
     const benchmarkLatest = benchmarkCheck.data.series.map((s) => s.date).sort().pop()
-    if (benchmarkLatest && benchmarkLatest < endDate10) {
-      process.stdout.write(
-        `[rps] skip: H30269基准数据滞后（H30269=${benchmarkLatest} < target=${endDate10}），跳过本次运行\n`,
-      )
-      process.exit(0)
+    if (!benchmarkLatest || benchmarkLatest < endDate10) {
+      throw new Error(`H30269基准数据不可用于目标日：H30269=${benchmarkLatest || 'none'} target=${endDate10}`)
     }
-  } catch {
-    process.stdout.write(
-      `[rps] skip: H30269基准数据不可用（无${endDate10}数据），跳过本次运行\n`,
-    )
-    process.exit(0)
   }
 
   try {
