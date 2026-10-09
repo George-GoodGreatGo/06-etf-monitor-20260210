@@ -1,0 +1,36 @@
+name: Refresh US Market Style
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    # 01:35 New York in winter / 02:35 in summer, after the previous US session.
+    - cron: "35 6 * * 2-6"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: refresh-us-market-style
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify US style calculations
+        run: npm run test:us-market-style
+      - name: Publish adjusted-price snapshot
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run refresh:supabase:us-market-style

@@ -14,12 +14,15 @@ import {
 import type { RpsStyleSeriesPoint } from '@/utils/marketApi'
 
 type Props = {
-  seriesByTicker: Record<string, RpsStyleSeriesPoint[]>
-  viewMode: 'raw' | 'relative' | 'score'
+  seriesByTicker: Record<string, Array<RpsStyleSeriesPoint & { percentile?: number | null; historicalCold?: number | null; historicalHot?: number | null }>>
+  viewMode: 'raw' | 'relative' | 'score' | 'percentile'
   baseLabel?: string
   tickerNameMap?: Record<string, string>
   enabledTickers?: Record<string, boolean>
   lockEdges?: boolean
+  scoreBands?: boolean
+  tickerColorMap?: Record<string, string>
+  scoreZones?: { cold: number; hot: number } | null
 }
 
 function ymdToUtcSeconds(ymd: string): UTCTimestamp | null {
@@ -33,6 +36,8 @@ function ymdToUtcSeconds(ymd: string): UTCTimestamp | null {
 }
 
 const COLORS = ['#60A5FA', '#F59E0B', '#34D399', '#F87171'] as const
+const EMPTY_STRING_MAP: Record<string, string> = {}
+const EMPTY_BOOLEAN_MAP: Record<string, boolean> = {}
 const TICKER_COLOR_MAP: Record<string, string> = {
   '159915.SZ': '#60A5FA',
   '588000.SH': '#F59E0B',
@@ -78,15 +83,19 @@ export default function RpsStyleChart({
   seriesByTicker,
   viewMode,
   baseLabel = '红利低波全收益指数（H30269）=1',
-  tickerNameMap = {},
-  enabledTickers = {},
+  tickerNameMap = EMPTY_STRING_MAP,
+  enabledTickers = EMPTY_BOOLEAN_MAP,
   lockEdges = true,
+  scoreBands = true,
+  tickerColorMap = EMPTY_STRING_MAP,
+  scoreZones = null,
 }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const lineRefs = useRef<Array<ISeriesApi<'Line', Time>>>([])
   const bgRefs = useRef<Array<ISeriesApi<'Baseline', Time>>>([])
   const [hover, setHover] = useState<HoverState | null>(null)
+  const [zoneLayout, setZoneLayout] = useState<{ width: number; height: number; hotY: number; coldY: number } | null>(null)
 
   const prepared = useMemo(() => {
     const tickers = Object.keys(seriesByTicker).sort().filter((ticker) => enabledTickers[ticker] !== false)
@@ -101,6 +110,14 @@ export default function RpsStyleChart({
         if (!t) continue
         const hit = byTime.get(Number(t)) || { date: p.date, rows: {} }
         const prev = hit.rows[ticker] || { rps: null, ma50: null }
+        if (viewMode === 'percentile') {
+          if (typeof p.percentile === 'number' && Number.isFinite(p.percentile)) {
+            rps.push({ time: t, value: p.percentile })
+            hit.rows[ticker] = { rps: p.percentile, ma50: null }
+            byTime.set(Number(t), hit)
+          }
+          continue
+        }
         if (viewMode === 'score') {
           if (typeof p.scorePct === 'number' && Number.isFinite(p.scorePct)) {
             rps.push({ time: t, value: p.scorePct })
@@ -139,7 +156,7 @@ export default function RpsStyleChart({
       }
       rps.sort((a, b) => (a.time as number) - (b.time as number))
       ma50.sort((a, b) => (a.time as number) - (b.time as number))
-      return { ticker, color: getTickerColor(ticker), rps, ma50 }
+      return { ticker, color: tickerColorMap[ticker] || getTickerColor(ticker), rps, ma50 }
     })
     let scoreMin = Number.POSITIVE_INFINITY
     let scoreMax = Number.NEGATIVE_INFINITY
@@ -159,7 +176,7 @@ export default function RpsStyleChart({
           ? { min: scoreMin, max: scoreMax }
           : null,
     }
-  }, [enabledTickers, seriesByTicker, viewMode])
+  }, [enabledTickers, seriesByTicker, viewMode, tickerColorMap])
 
   useEffect(() => {
     const el = hostRef.current
@@ -224,7 +241,7 @@ export default function RpsStyleChart({
     lineRefs.current = []
 
     // Score background bands (behind lines)
-    if (viewMode === 'score' && prepared.lines.length > 0) {
+    if (scoreBands && viewMode === 'score' && prepared.lines.length > 0) {
       let minTime = Number.POSITIVE_INFINITY
       let maxTime = Number.NEGATIVE_INFINITY
       for (const item of prepared.lines) {
@@ -267,6 +284,20 @@ export default function RpsStyleChart({
         lineWidth: 2,
         priceLineVisible: false,
         lastValueVisible: true,
+        ...(viewMode === 'percentile' ? {
+          autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }),
+          priceFormat: { type: 'custom' as const, formatter: (v: number) => v.toFixed(1), minMove: 0.1 },
+        } : viewMode === 'score' && scoreZones ? {
+          autoscaleInfoProvider: (original) => {
+            const info = original()
+            if (!info) return info
+            const padding = (scoreZones.hot - scoreZones.cold) * 0.15
+            return { ...info, priceRange: {
+              minValue: Math.min(info.priceRange.minValue, scoreZones.cold - padding),
+              maxValue: Math.max(info.priceRange.maxValue, scoreZones.hot + padding),
+            } }
+          },
+        } : {}),
       })
       rpsSeries.setData(item.rps)
       if (viewMode === 'relative') {
@@ -278,15 +309,23 @@ export default function RpsStyleChart({
           axisLabelVisible: false,
           title: '',
         })
-      } else if (viewMode === 'score') {
+      } else if (viewMode === 'score' || viewMode === 'percentile') {
         rpsSeries.createPriceLine({
-          price: 0,
+          price: viewMode === 'percentile' ? 50 : 0,
           color: 'rgba(169,182,204,0.35)',
           lineWidth: 1,
           lineStyle: 2,
           axisLabelVisible: false,
           title: '',
         })
+        if (scoreZones && lineRefs.current.length === 0) {
+          for (const zone of [
+            { price: scoreZones.hot, color: '#FB923C', title: '过热 P90' },
+            { price: scoreZones.cold, color: '#38BDF8', title: '过冷 P10' },
+          ]) rpsSeries.createPriceLine({
+            ...zone, lineWidth: 1, lineStyle: 2, axisLabelVisible: true,
+          })
+        }
       }
       lineRefs.current.push(rpsSeries)
 
@@ -333,7 +372,32 @@ export default function RpsStyleChart({
     }
     // Lock Y autoscale after initial fit: no automatic Y rescale on X-range changes, but keep manual Y scaling available.
     chart.priceScale('right').applyOptions({ autoScale: false })
-  }, [lockEdges, prepared, viewMode])
+  }, [lockEdges, prepared, viewMode, scoreBands, scoreZones])
+
+  useEffect(() => {
+    if ((viewMode !== 'score' && viewMode !== 'percentile') || !scoreZones) {
+      setZoneLayout(null)
+      return
+    }
+    let frame = 0
+    const update = () => {
+      const chart = chartRef.current
+      const series = lineRefs.current[0]
+      if (chart && series) {
+        const hotY = series.priceToCoordinate(scoreZones.hot)
+        const coldY = series.priceToCoordinate(scoreZones.cold)
+        const pane = chart.paneSize()
+        if (hotY != null && coldY != null) {
+          const next = { width: pane.width, height: pane.height, hotY, coldY }
+          setZoneLayout((prev) => prev && Object.keys(next).every((key) => prev[key] === next[key]) ? prev : next)
+        } else setZoneLayout(null)
+      } else setZoneLayout(null)
+      // Coordinates change on manual Y scaling as well as time zoom and host resize.
+      frame = requestAnimationFrame(update)
+    }
+    update()
+    return () => cancelAnimationFrame(frame)
+  }, [viewMode, scoreZones, prepared])
 
   useEffect(() => {
     const chart = chartRef.current
@@ -371,6 +435,7 @@ export default function RpsStyleChart({
             <span className="text-[#64748B]">
               {viewMode === 'relative'
                 ? '归一化RPS 实线 / 归一化MA50 虚线'
+                : viewMode === 'percentile' ? '自身历史百分位'
                 : viewMode === 'score'
                   ? 'Score 实线 / MA50归一基线(0) 虚线'
                   : 'RPS 实线 / MA50 虚线'}
@@ -379,12 +444,26 @@ export default function RpsStyleChart({
         ))}
         {viewMode === 'relative' ? <div className="text-[#64748B]">基准标签：{baseLabel}</div> : null}
         {viewMode === 'score' ? <div className="text-[#64748B]">参考线：Y=0（MA50归一基线）</div> : null}
-        {viewMode === 'score' ? <div className="text-[#64748B]">阈值：&lt;-20 深绿 | -20~-10 绿 | -10~0 浅绿 | 0~10 黄 | 10~20 橙 | &gt;20 红</div> : null}
+        {viewMode === 'percentile' ? <div className="text-[#64748B]">纵轴 0–100 · 中位参考线 50 · 过冷 ≤10 / 过热 ≥90</div> : null}
+        {viewMode === 'score' && scoreBands ? <div className="text-[#64748B]">阈值：&lt;-20 深绿 | -20~-10 绿 | -10~0 浅绿 | 0~10 黄 | 10~20 橙 | &gt;20 红</div> : null}
       </div>
       <div className="relative">
-        {prepared.lines.length === 0 ? (
+        {zoneLayout && (viewMode === 'score' || viewMode === 'percentile') && scoreZones ? (
+          <div className="pointer-events-none absolute left-0 top-0 z-[5] overflow-hidden rounded-tl-lg"
+            style={{ width: zoneLayout.width, height: zoneLayout.height }} aria-label={viewMode === 'percentile' ? '历史动量百分位过热区和过冷区' : '历史 Score 过热区和过冷区'}>
+            <div className="absolute inset-x-0 top-0 bg-orange-400/[0.12]"
+              style={{ height: Math.max(0, Math.min(zoneLayout.height, zoneLayout.hotY)) }}>
+              <span className="absolute left-3 top-2 text-[11px] font-medium text-orange-300">过热区 · {viewMode === 'percentile' ? '百分位 ≥90' : `Score ≥ ${scoreZones.hot.toFixed(2)}%`}</span>
+            </div>
+            <div className="absolute inset-x-0 bottom-0 bg-sky-400/[0.12]"
+              style={{ height: Math.max(0, zoneLayout.height - Math.max(0, zoneLayout.coldY)) }}>
+              <span className="absolute bottom-2 left-12 text-[11px] font-medium text-sky-300">过冷区 · {viewMode === 'percentile' ? '百分位 ≤10' : `Score ≤ ${scoreZones.cold.toFixed(2)}%`}</span>
+            </div>
+          </div>
+        ) : null}
+        {prepared.lines.length === 0 || prepared.lines.every((line) => !line.rps.length) ? (
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-lg border border-white/10 bg-black/25 text-sm text-[#A9B6CC]">
-            请至少选择一个指数
+            {prepared.lines.length === 0 ? '请至少选择一个标的' : '当前范围没有足够历史样本，请扩大范围或更新历史数据'}
           </div>
         ) : null}
         {hover ? (
@@ -397,8 +476,8 @@ export default function RpsStyleChart({
                     {r.ticker}
                     {tickerNameMap[r.ticker] ? `（${tickerNameMap[r.ticker]}）` : ''}
                   </div>
-                  <div className="text-right font-mono">{viewMode === 'score' ? `Score ${fmt(r.rps, 4)}` : `RPS ${fmt(r.rps, 4)}`}</div>
-                  <div className="text-right font-mono">{viewMode === 'score' ? `基线 ${fmt(r.ma50, 4)}` : `MA50 ${fmt(r.ma50, 4)}`}</div>
+                  <div className="text-right font-mono">{viewMode === 'percentile' ? `百分位 ${fmt(r.rps, 1)}` : viewMode === 'score' ? `Score ${fmt(r.rps, 4)}` : `RPS ${fmt(r.rps, 4)}`}</div>
+                  {viewMode !== 'percentile' && <div className="text-right font-mono">{viewMode === 'score' ? `基线 ${fmt(r.ma50, 4)}` : `MA50 ${fmt(r.ma50, 4)}`}</div>}
                 </div>
               ))}
             </div>

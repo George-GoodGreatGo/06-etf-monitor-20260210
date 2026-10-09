@@ -10,6 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "check": "tsc --noEmit",
+    "test:us-market-style": "tsx server/tests/usMarketStyle.test.ts",
+    "refresh:supabase:us-market-style": "tsx server/scripts/refreshUsMarketStyle.ts",
     "server:dev": "nodemon",
     "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\"",
     "publish:supabase:top100": "tsx server/scripts/publishTop100ToSupabase.ts",

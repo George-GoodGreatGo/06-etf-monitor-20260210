@@ -18,6 +18,7 @@ import lowVolRoutes from './routes/lowVol.js'
 import marketRoutes from './routes/market.js'
 import valueRoutes from './routes/value.js'
 import rpsStyleRoutes from './routes/rpsStyle.js'
+import usMarketStyleRoutes from './routes/usMarketStyle.js'
 import { serverBootId, serverStartedAt } from './lib/runtime.js'
 import { requireAdminAccess, requireAuthenticatedAccess } from './lib/adminAuth.js'
 import { ensureDefaultAdminUser } from './lib/authUsers.js'
@@ -49,6 +50,7 @@ app.use('/api/market', requireAuthenticatedAccess, marketRoutes)
 app.use('/api/lowvol', requireAuthenticatedAccess, lowVolRoutes)
 app.use('/api/value', requireAuthenticatedAccess, valueRoutes)
 app.use('/api/rps', requireAuthenticatedAccess, rpsStyleRoutes)
+app.use('/api/us-market-style', requireAuthenticatedAccess, usMarketStyleRoutes)
 
 /**
  * health

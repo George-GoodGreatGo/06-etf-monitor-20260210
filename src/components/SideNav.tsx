@@ -33,6 +33,7 @@ export default function SideNav({
 
   const isHome = loc.pathname === '/'
   const isMarket = loc.pathname === '/market'
+  const isUsStyle = loc.pathname === '/market/us-style'
   const isRpsOverview = loc.pathname === '/market/rps'
   const isRpsCustomQuery = loc.pathname === '/market/rps/custom-query'
   const isRpsMethodology = loc.pathname === '/market/rps/methodology'
@@ -44,7 +45,7 @@ export default function SideNav({
   const tab: HomeTab =
     rawTab === 'list' || rawTab === 'insight' || rawTab === 'liquidity' || rawTab === 'lowvol' || rawTab === 'value' ? rawTab : 'list'
   const collapsedValue = Boolean(collapsed)
-  const activeKey = isMethod
+  const activeKey = isUsStyle ? 'us-market-style' : isMethod
     ? 'methodology'
     : isHome
       ? 'home'
@@ -266,6 +267,21 @@ export default function SideNav({
               </div>
             )}
           </div>
+
+          <NavLink
+            to="/market/us-style"
+            ref={(el) => { itemRefs.current['us-market-style'] = el }}
+            onClick={() => onNavigate?.()}
+            title={collapsedValue ? '美股市场风格' : undefined}
+            aria-label="美股市场风格"
+            className={({ isActive }) => cn(
+              'group relative mt-1 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A66]/35',
+              isActive ? 'bg-white/8 text-white' : 'text-[#A9B6CC] hover:bg-white/5 hover:text-white',
+            )}
+          >
+            <Activity className={cn('h-4 w-4 shrink-0', isUsStyle ? 'text-[#FF8A66]' : 'text-[#94A3B8]')} />
+            {!collapsedValue && <span className="truncate">美股市场风格</span>}
+          </NavLink>
 
           <NavLink
             to="/methodology"
