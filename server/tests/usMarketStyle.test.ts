@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { buildUsStyleSnapshot, newYorkDate, parseYahooAdjustedCloses, type AdjustedClose } from '../lib/usMarketStyle.js'
-import { buildUsPercentileSeries, computeUsScoreZones, US_STYLE_TARGETS } from '../../src/utils/usMarketStyle.js'
+import { buildUsPercentileSeries, computeUsScoreZones, isCurrentUsStyleSnapshot, US_STYLE_TARGETS } from '../../src/utils/usMarketStyle.js'
 
 const now = new Date('2026-10-09T06:35:00Z')
 const dates: string[] = []
@@ -9,7 +9,7 @@ for (let d = new Date('2025-01-01T00:00:00Z'); d < new Date('2026-10-09T00:00:00
   if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6) dates.push(d.toISOString().slice(0, 10))
 }
 const prices: Record<string, AdjustedClose[]> = {
-  SCHD: dates.map((date) => ({ date, close: 25 })),
+  VOO: dates.map((date) => ({ date, close: 25 })),
 }
 US_STYLE_TARGETS.forEach(({ ticker }, i) => {
   prices[ticker] = dates.map((date, index) => ({ date, close: 50 * Math.exp(index * (i - 2) * 0.001) }))
@@ -17,7 +17,30 @@ US_STYLE_TARGETS.forEach(({ ticker }, i) => {
 const snapshot = buildUsStyleSnapshot(prices, now)
 assert.equal(snapshot.dataDate, '2026-10-08')
 assert.equal(snapshot.items.length, US_STYLE_TARGETS.length)
-assert.deepEqual(snapshot.items.map((x) => x.ticker), ['SMH', 'QQQM', 'VOO', 'VGT', 'VIG', 'VYM'])
+assert.deepEqual(snapshot.items.map((x) => x.ticker), ['SMH', 'QQQM', 'SCHD', 'VGT', 'VIG', 'VYM'])
+assert.equal(snapshot.benchmarkTicker, 'VOO')
+assert.equal(snapshot.seriesByTicker.VOO, undefined)
+assert.equal(snapshot.seriesByTicker.SCHD[0].benchmarkTicker, 'VOO')
+assert.ok(isCurrentUsStyleSnapshot(snapshot))
+const oldBasis = structuredClone(snapshot)
+Object.assign(oldBasis, { benchmarkTicker: 'SCHD' })
+assert.equal(isCurrentUsStyleSnapshot(oldBasis), false)
+const mixedBasis = structuredClone(snapshot)
+mixedBasis.seriesByTicker.SCHD[0].benchmarkTicker = 'SCHD'
+assert.equal(isCurrentUsStyleSnapshot(mixedBasis), false)
+const withoutBenchmark = structuredClone(prices)
+delete withoutBenchmark.VOO
+assert.throws(() => buildUsStyleSnapshot(withoutBenchmark, now), /Missing VOO history/)
+const withoutSchd = structuredClone(prices)
+delete withoutSchd.SCHD
+assert.throws(() => buildUsStyleSnapshot(withoutSchd, now), /mismatch: SCHD/)
+const movingBenchmark = structuredClone(prices)
+movingBenchmark.VOO.forEach((p, i) => { p.close *= Math.exp(i * 0.001) })
+const rebased = buildUsStyleSnapshot(movingBenchmark, now)
+assert.ok(Math.abs(rebased.items.find((x) => x.ticker === 'QQQM')!.relativeReturn20dPct
+  - (Math.exp(20 * 0.001) - 1) * 100) < 1e-10)
+assert.notEqual(rebased.items.find((x) => x.ticker === 'SCHD')!.scorePct,
+  snapshot.items.find((x) => x.ticker === 'SCHD')!.scorePct)
 assert.equal(snapshot.seriesByTicker.VGT[48].scorePct, null)
 assert.equal(snapshot.seriesByTicker.VGT[49].scorePct, 0)
 assert.equal(snapshot.items.find((x) => x.ticker === 'VGT')?.trend, 'flat')
@@ -100,6 +123,12 @@ assert.match(smhSql, /'SMH'/)
 assert.match(smhSql, /cardinality\(v_targets\)/)
 assert.match(smhSql, /count\(distinct item->>'ticker'\)/)
 assert.match(smhSql, /revoke execute .* from public, anon, authenticated/)
+const vooSql = await readFile(new URL('../../supabase/migrations/0022_us_market_style_voo.sql', import.meta.url), 'utf8')
+assert.match(vooSql, /benchmarkTicker' is distinct from 'VOO'/)
+assert.match(vooSql, /array\['VYM', 'VIG', 'VGT', 'SCHD', 'QQQM', 'SMH'\]/)
+assert.match(vooSql, /point->>'benchmarkTicker' is distinct from 'VOO'/)
+assert.match(vooSql, /previous_payload = us_market_style_snapshot.payload/)
+assert.match(vooSql, /revoke execute .* from public, anon, authenticated/)
 const source = snapshot.seriesByTicker.SMH.map((p, i) => ({ ...p, scorePct: i }))
 const percentiles = buildUsPercentileSeries(source)
 assert.equal(percentiles[251].percentile, null)

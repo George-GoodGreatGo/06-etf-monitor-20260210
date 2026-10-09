@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { US_STYLE_TARGETS } from '../../src/utils/usMarketStyle.js'
+import { US_STYLE_BENCHMARK, US_STYLE_TARGETS } from '../../src/utils/usMarketStyle.js'
 import { buildUsStyleSnapshot, fetchUsAdjustedCloses, newYorkDate, parseYahooAdjustedCloses, publishUsStyleSnapshot, type AdjustedClose } from '../lib/usMarketStyle.js'
 
 async function main() {
@@ -13,7 +13,7 @@ async function main() {
     if (!process.argv[inputIndex + 1]) throw new Error('Missing --input file path')
     imported = JSON.parse(await readFile(process.argv[inputIndex + 1], 'utf8'))
   }
-  for (const ticker of ['SCHD', ...US_STYLE_TARGETS.map((x) => x.ticker)]) {
+  for (const ticker of [US_STYLE_BENCHMARK, ...US_STYLE_TARGETS.map((x) => x.ticker)]) {
     let payload = imported?.[ticker]
     if (inputDirIndex >= 0) {
       const { readFile } = await import('node:fs/promises')
@@ -50,7 +50,7 @@ async function main() {
   if (process.env.GITHUB_STEP_SUMMARY) {
     const { appendFile } = await import('node:fs/promises')
     await appendFile(process.env.GITHUB_STEP_SUMMARY,
-      `## US Market Style\n\nPublished ${snapshot.dataDate} (New York session), benchmark SCHD, ${US_STYLE_TARGETS.length} targets.\n`)
+      `## US Market Style\n\nPublished ${snapshot.dataDate} (New York session), benchmark ${US_STYLE_BENCHMARK}, ${US_STYLE_TARGETS.length} targets.\n`)
   }
 }
 

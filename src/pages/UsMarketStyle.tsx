@@ -5,7 +5,7 @@ import PageBreadcrumb from '@/components/PageBreadcrumb'
 import RpsStyleChart from '@/components/charts/RpsStyleChart'
 import { apiUrl } from '@/utils/apiBase'
 import { cn } from '@/lib/utils'
-import { buildUsPercentileSeries, US_STYLE_TARGETS, type UsStyleSnapshot } from '@/utils/usMarketStyle'
+import { buildUsPercentileSeries, isCurrentUsStyleSnapshot, US_STYLE_TARGETS, type UsStyleSnapshot } from '@/utils/usMarketStyle'
 
 const NAMES = Object.fromEntries(US_STYLE_TARGETS.map((x) => [x.ticker, x.name]))
 const COLORS = Object.fromEntries(US_STYLE_TARGETS.map((x) => [x.ticker, x.color]))
@@ -38,6 +38,7 @@ export default function UsMarketStyle() {
     }).then(async (response) => {
       const json = await response.json()
       if (!response.ok || !json.success) throw new Error(json.message || '数据读取失败')
+      if (!isCurrentUsStyleSnapshot(json.data)) throw new Error('数据仍为旧基准或不完整，请刷新 VOO 基准快照。')
       setSnapshot(json.data)
       setStale(json.stale === true)
     }).catch((e) => {
@@ -72,7 +73,7 @@ export default function UsMarketStyle() {
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold text-white">美股市场风格</h1>
-            <p className="mt-2 text-sm text-[#94A3B8]">以 SCHD（美国股息权益 ETF）为基准，观察 {US_STYLE_TARGETS.length} 只美股 ETF 的相对动量及变化方向。</p>
+            <p className="mt-2 text-sm text-[#94A3B8]">以 VOO（标普500 ETF）为唯一基准，观察 {US_STYLE_TARGETS.length} 只美股 ETF 的相对动量及变化方向。</p>
             {snapshot && <p className="mt-2 text-xs text-[#94A3B8]">数据交易日：{snapshot.dataDate}（纽约） · 更新：{new Date(snapshot.fetchedAt).toLocaleString('zh-CN')} · 美元复权收盘价</p>}
           </div>
           <button type="button" disabled={loading} onClick={() => setReload((x) => x + 1)}
@@ -103,7 +104,7 @@ export default function UsMarketStyle() {
             <div className="overflow-x-auto">
               <table className="w-full whitespace-nowrap text-left text-sm">
                 <thead className="text-xs text-[#94A3B8]"><tr>
-                  {['标的 / 风格', 'Score', 'Score 5日变化（百分点）', '20日相对 SCHD 收益', '动量状态'].map((label) => <th key={label} className="px-4 py-3 font-medium">{label}</th>)}
+                  {['标的 / 风格', 'Score', 'Score 5日变化（百分点）', '20日相对 VOO 收益', '动量状态'].map((label) => <th key={label} className="px-4 py-3 font-medium">{label}</th>)}
                 </tr></thead>
                 <tbody>{snapshot.items.map((item) => {
                   const Icon = item.trend === 'up' ? ArrowUpRight : item.trend === 'down' ? ArrowDownRight : Minus
@@ -122,7 +123,7 @@ export default function UsMarketStyle() {
           </section>
           <section className="rounded-lg border border-[#1E293B] bg-[#0F172A] p-4">
             <h2 className="text-lg font-semibold text-white">动量趋势</h2>
-            <p className="mt-1 text-sm text-[#94A3B8]">Score 向上表示相对动量在增强；起点归一曲线上行表示该区间跑赢 SCHD。滚轮缩放、拖动观察，悬停查看数值。</p>
+            <p className="mt-1 text-sm text-[#94A3B8]">Score 向上表示相对动量在增强；起点归一曲线上行表示该区间跑赢 VOO。滚轮缩放、拖动观察，悬停查看数值。</p>
             <div className="my-4 space-y-3">
               <div className="flex flex-wrap gap-2">{[
                 { value: 'percentile' as const, label: '历史动量百分位（多标的比较）' },
@@ -152,15 +153,15 @@ export default function UsMarketStyle() {
               <p>百分位上升只表示相对自身历史的位置变高，不代表 Score 为正或价格上涨，也不是反转信号。</p>
             </div>}
             <RpsStyleChart seriesByTicker={chartSeries} viewMode={view} tickerNameMap={NAMES} tickerColorMap={COLORS}
-              enabledTickers={enabled} baseLabel="各标的相对 SCHD 的 RPS 在区间起点归一为 1" lockEdges={false} scoreBands={false} scoreZones={view === 'percentile' ? PERCENTILE_ZONES : scoreZones} />
+              enabledTickers={enabled} baseLabel="各标的相对 VOO 的 RPS 在区间起点归一为 1" lockEdges={false} scoreBands={false} scoreZones={view === 'percentile' ? PERCENTILE_ZONES : scoreZones} />
           </section>
         </>}
         <section className="rounded-lg border border-white/10 bg-white/[0.025] p-4 text-sm leading-7 text-[#94A3B8]">
           <h2 className="mb-2 font-semibold text-white">计算口径与阅读方法</h2>
-          <p>RPS = 标的复权收盘价 / SCHD 复权收盘价；MA50 = RPS 的 50 交易日简单均线；Score = (RPS / MA50 − 1) × 100%。SCHD 自身的 Score 恒为 0，作为参考基线，不参与排名。</p>
+          <p>RPS = 标的复权收盘价 / VOO 复权收盘价；MA50 = RPS 的 50 交易日简单均线；Score = (RPS / MA50 − 1) × 100%。VOO 自身的 Score 恒为 0，作为参考基线，不参与排名；SCHD 为普通比较标的。</p>
           <p>5 日变化 = 今日 Score − 5 个共同交易日前 Score。变化超过 +0.10 pp 为走强，低于 −0.10 pp 为走弱，其余为平稳；这是过滤微小波动的展示阈值，不是经回测验证的交易信号。20 日相对收益 = (今日 RPS / 20 个交易日前 RPS − 1) × 100%。</p>
           <p>美股调整：使用 Yahoo Finance 含分红、拆股调整的美元收盘价，避免 SCHD/VYM 等分红型 ETF 的除息造成虚假走弱；仅取已完成的纽约交易日，统一共同交易日期，不填补缺失行情。QQQM 历史从其 2020 年上市后开始，不用 QQQ 拼接。</p>
-          <p>Score 是相对均线的偏离度，不是 RPS 百分位排名或绝对收益。领先走弱仍可能为正收益，落后修复也不代表已经跑赢 SCHD。本模块不生成仓位建议，不构成投资建议。</p>
+          <p>Score 是相对均线的偏离度，不是 RPS 百分位排名或绝对收益。领先走弱仍可能为正收益，落后修复也不代表已经跑赢 VOO。本模块不生成仓位建议，不构成投资建议。</p>
         </section>
       </div>
     </PageContentContainer>

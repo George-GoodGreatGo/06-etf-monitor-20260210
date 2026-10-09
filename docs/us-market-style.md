@@ -3,11 +3,11 @@
 ## 模块入口
 
 左侧导航「美股市场风格」，路径 `/market/us-style`。前后端均沿用现有登录权限。
-SCHD 为基准，VYM、VIG、VGT、VOO、QQQM、SMH（半导体）为比较标的。
+VOO（标普500）为唯一基准，VYM、VIG、VGT、SCHD（股息权益）、QQQM、SMH（半导体）为比较标的。
 
 ## 计算口径
 
-- RPS = 标的复权收盘价 / SCHD 复权收盘价。
+- RPS = 标的复权收盘价 / VOO 复权收盘价。
 - MA50 = RPS 的 50 个共同交易日简单均线。
 - Score = (RPS / MA50 - 1) * 100%，不是百分位排名。
 - 5 日变化 = 今日 Score - 5 个共同交易日前 Score，单位为百分点。
@@ -36,15 +36,18 @@ SCHD 为基准，VYM、VIG、VGT、VOO、QQQM、SMH（半导体）为比较标�
 单标的底色使用当前时点阈值，不能解释成历史时点可得的交易信号或用于回测。
 百分位高不意味着 Score 为正，百分位上升不意味着价格上涨；
 进入冷热区不意味着趋势必然反转。本次视图调整不需要新增 SQL。
-新增 SMH 仍需要执行 `0021_us_market_style_smh.sql` 并发布完整六标的快照。
+切换 VOO 基准需要执行 `0022_us_market_style_voo.sql` 并重新发布完整六标的快照。
+历史 RPS、MA50、Score、5日变化、20日相对收益及百分位全部按 VOO 重算，
+不拼接旧 SCHD 基准曲线。读接口与页面拒绝旧口径快照；发布保留 previous_payload。
 
 ## 线上启用步骤
 
 1. 在现有 Supabase 项目的 SQL Editor 中执行 `supabase/migrations/0020_us_market_style.sql`。
    仅新增 `us_market_style_snapshot` 表和 `publish_us_market_style` 函数，不修改现有模块。
    文件可重复执行。Trae 授权按钮不可用时无需反复点击，可直接在控制台执行。
-   接着执行 `supabase/migrations/0021_us_market_style_smh.sql`，将发布函数改为严格校验六只标的。
-   已执行过 0020 的项目仅需执行 0021，不必重复执行 0020；不要在 0021 后再运行 0020。
+   接着执行 `supabase/migrations/0022_us_market_style_voo.sql`，将发布函数改为 VOO 基准及六只标的校验。
+   已执行过 0020（无论是否执行 0021）的项目仅需执行 0022。
+   0022 完整替换发布函数，不必再执行 0021；不要在 0022 后运行旧版 0020/0021。
 2. 将本次代码发布到 GitHub 默认分支及现有前后端部署环境。
 3. GitHub Actions Secrets 复用 `SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY`。
    后端读取需要 `SUPABASE_URL` 和 `SUPABASE_ANON_KEY` 或 service role key。

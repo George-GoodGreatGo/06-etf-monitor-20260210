@@ -1,8 +1,9 @@
+export const US_STYLE_BENCHMARK = 'VOO' as const
 export const US_STYLE_TARGETS = [
   { ticker: 'VYM', name: '高股息', color: '#60A5FA' },
   { ticker: 'VIG', name: '股息成长', color: '#F59E0B' },
   { ticker: 'VGT', name: '信息科技', color: '#34D399' },
-  { ticker: 'VOO', name: '标普500', color: '#F87171' },
+  { ticker: 'SCHD', name: '股息权益', color: '#F87171' },
   { ticker: 'QQQM', name: '纳斯达克100', color: '#A78BFA' },
   { ticker: 'SMH', name: '半导体', color: '#22D3EE' },
 ] as const
@@ -61,13 +62,21 @@ export type UsStyleItem = {
 
 export type UsStyleSnapshot = {
   version: 1
-  benchmarkTicker: 'SCHD'
+  benchmarkTicker: 'VOO'
   dataDate: string
   fetchedAt: string
   source: string
   priceBasis: 'dividend-and-split-adjusted'
   seriesByTicker: Record<string, UsStylePoint[]>
   items: UsStyleItem[]
+}
+
+export function isCurrentUsStyleSnapshot(snapshot: UsStyleSnapshot): boolean {
+  return snapshot.benchmarkTicker === US_STYLE_BENCHMARK
+    && !snapshot.items.some((item) => item.ticker === US_STYLE_BENCHMARK)
+    && US_STYLE_TARGETS.every(({ ticker }) => snapshot.items.some((item) => item.ticker === ticker)
+      && snapshot.seriesByTicker[ticker]?.length > 0
+      && snapshot.seriesByTicker[ticker].every((point) => point.benchmarkTicker === US_STYLE_BENCHMARK))
 }
 
 export type UsScoreZones = {

@@ -1,5 +1,5 @@
 import { buildRpsComputedSeries } from './rpsStyle.js'
-import { US_STYLE_TARGETS, type UsStyleSnapshot, type UsStyleItem } from '../../src/utils/usMarketStyle.js'
+import { US_STYLE_BENCHMARK, US_STYLE_TARGETS, type UsStyleSnapshot, type UsStyleItem } from '../../src/utils/usMarketStyle.js'
 
 export type AdjustedClose = { date: string; close: number }
 type YahooChart = {
@@ -50,7 +50,7 @@ export function parseYahooAdjustedCloses(payload: unknown, todayNy: string): Adj
 }
 
 export async function fetchUsAdjustedCloses(ticker: string, now = new Date()): Promise<AdjustedClose[]> {
-  if (!['SCHD', ...US_STYLE_TARGETS.map((x) => x.ticker)].includes(ticker)) throw new Error('Unsupported US ticker')
+  if (ticker !== US_STYLE_BENCHMARK && !US_STYLE_TARGETS.some((x) => x.ticker === ticker)) throw new Error('Unsupported US ticker')
   const params = new URLSearchParams({
     range: '5y',
     interval: '1d', events: 'div,splits', includeAdjustedClose: 'true',
@@ -72,12 +72,12 @@ export function buildUsStyleSnapshot(
   prices: Record<string, AdjustedClose[]>,
   now = new Date(),
 ): UsStyleSnapshot {
-  const benchmark = prices.SCHD
-  if (!benchmark?.length) throw new Error('Missing SCHD history')
+  const benchmark = prices[US_STYLE_BENCHMARK]
+  if (!benchmark?.length) throw new Error(`Missing ${US_STYLE_BENCHMARK} history`)
   const dataDate = benchmark[benchmark.length - 1].date
   const age = (Date.parse(newYorkDate(now)) - Date.parse(dataDate)) / 86_400_000
-  if (!Number.isFinite(age) || age < 1 || age > 7) throw new Error(`Stale or incomplete SCHD data: ${dataDate}`)
-  const allTickers = ['SCHD', ...US_STYLE_TARGETS.map((x) => x.ticker)]
+  if (!Number.isFinite(age) || age < 1 || age > 7) throw new Error(`Stale or incomplete ${US_STYLE_BENCHMARK} data: ${dataDate}`)
+  const allTickers = [US_STYLE_BENCHMARK, ...US_STYLE_TARGETS.map((x) => x.ticker)]
   const maps = allTickers.map((ticker) => {
     const series = prices[ticker]
     if (!series?.length || series[series.length - 1].date !== dataDate) throw new Error(`Latest session mismatch: ${ticker}`)
@@ -98,7 +98,7 @@ export function buildUsStyleSnapshot(
   const items: UsStyleItem[] = []
   US_STYLE_TARGETS.forEach(({ ticker }, targetIndex) => {
     const series = buildRpsComputedSeries({
-      ticker, benchmarkTicker: 'SCHD',
+      ticker, benchmarkTicker: US_STYLE_BENCHMARK,
       targetSeries: dates.map((date) => ({ date, close: maps[targetIndex + 1].get(date)! })),
       benchmarkSeries: commonBenchmark, maPeriod: 50,
     })
@@ -115,7 +115,7 @@ export function buildUsStyleSnapshot(
   })
   items.sort((a, b) => b.scorePct - a.scorePct)
   return {
-    version: 1, benchmarkTicker: 'SCHD', dataDate, fetchedAt: now.toISOString(),
+    version: 1, benchmarkTicker: US_STYLE_BENCHMARK, dataDate, fetchedAt: now.toISOString(),
     source: 'Yahoo Finance adjusted close', priceBasis: 'dividend-and-split-adjusted',
     seriesByTicker, items,
   }
