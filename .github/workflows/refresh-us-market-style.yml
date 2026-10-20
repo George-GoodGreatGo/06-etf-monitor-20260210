@@ -1,7 +1,13 @@
 name: Refresh US Market Style
+run-name: US market style ${{ inputs.request_id || github.event_name }}
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      request_id:
+        description: Web refresh correlation ID
+        required: false
+        type: string
   schedule:
     # 01:35 New York in winter / 02:35 in summer, after the previous US session.
     - cron: "35 6 * * 2-6"

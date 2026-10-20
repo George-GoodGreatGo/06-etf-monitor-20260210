@@ -4,6 +4,21 @@
 
 左侧导航「美股市场风格」，路径 `/market/us-style`。前后端均沿用现有登录权限。
 VOO（标普500）为唯一基准，VYM、VIG、VGT、SCHD（股息权益）、QQQM、SMH（半导体）为比较标的。
+动量趋势默认勾选 VYM、VGT，其他标的可手动开启。
+
+## 网页更新按钮
+
+「更新市场数据」供已登录用户触发专用 GitHub Actions 工作流，不在网页直接抓行情。
+后端复用 `GITHUB_ACTIONS_TOKEN`、`GITHUB_OWNER`、`GITHUB_REPO`、`GITHUB_REF`；
+令牌需要目标仓库的 Actions 读写权限，仅存于后端部署环境。
+可选 `GITHUB_US_MARKET_STYLE_WORKFLOW` 默认 `refresh-us-market-style.yml`。
+跨站部署时设置 `FRONTEND_ORIGIN` 为前端完整 origin；同站无需设置。
+工作流必须已发布并支持 `request_id` 输入，网页通过签名任务标识跟踪对应运行，
+每 10 秒查询，最多等 20 分钟。任务成功且 Supabase fetchedAt 更新后才替换页面快照。
+失败、超时保留原数据，并提供任务链接。盘中及节假日只更新最近已完成的交易日，
+不能保证交易日期比原来更晚。「刷新读取」只重读 Supabase，不触发工作流。
+服务器实例内 60 秒合并重复请求，工作流 concurrency 串行发布；
+多实例部署不保证全局去重，需要时应增加持久化限流。本次不需要 SQL 迁移。
 
 ## 计算口径
 

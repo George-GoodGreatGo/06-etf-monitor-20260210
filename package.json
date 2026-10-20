@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "check": "tsc --noEmit",
-    "test:us-market-style": "tsx server/tests/usMarketStyle.test.ts",
+    "test:us-market-style": "tsx server/tests/usMarketStyle.test.ts && tsx server/tests/usMarketRefresh.test.ts",
     "test:cn-market-style": "tsx server/tests/cnMarketStyle.test.ts",
     "test:cn-market-style-performance": "tsx server/tests/cnMarketStylePerformance.test.ts",
     "test:server-runtime": "tsx server/tests/serverRuntimeImport.test.ts",

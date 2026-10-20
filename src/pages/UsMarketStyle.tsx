@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDownRight, ArrowUpRight, Minus, RefreshCw } from 'lucide-react'
 import PageContentContainer from '@/components/PageContentContainer'
 import PageBreadcrumb from '@/components/PageBreadcrumb'
@@ -24,11 +24,95 @@ export default function UsMarketStyle() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [reload, setReload] = useState(0)
+  const [refreshTicket, setRefreshTicket] = useState<string | null>(null)
+  const [updating, setUpdating] = useState(false)
+  const [updateMessage, setUpdateMessage] = useState('')
+  const [updateError, setUpdateError] = useState(false)
+  const [runUrl, setRunUrl] = useState<string | null>(null)
+  const submitting = useRef(false)
+  const updateAbort = useRef<AbortController | null>(null)
   const [view, setView] = useState<'score' | 'relative' | 'percentile'>('percentile')
   const [range, setRange] = useState(252)
   const [enabled, setEnabled] = useState<Record<string, boolean>>(
-    Object.fromEntries(US_STYLE_TARGETS.map((x) => [x.ticker, true])),
+    Object.fromEntries(US_STYLE_TARGETS.map((x) => [x.ticker, x.ticker === 'VYM' || x.ticker === 'VGT'])),
   )
+  useEffect(() => () => updateAbort.current?.abort(), [])
+  async function updateMarketData() {
+    if (submitting.current || updating) return
+    submitting.current = true
+    setUpdating(true)
+    setUpdateError(false)
+    setRunUrl(null)
+    setUpdateMessage('正在提交市场数据更新任务...')
+    const controller = new AbortController()
+    updateAbort.current = controller
+    try {
+      const response = await fetch(apiUrl('/api/us-market-style/refresh'), {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: '{}', signal: controller.signal,
+      })
+      const json = await response.json()
+      if (!response.ok || !json.success) throw new Error(json.message || '提交更新失败')
+      setRefreshTicket(json.data.ticket)
+      setUpdateMessage('任务已提交，等待 GitHub Actions 启动...')
+    } catch (e) {
+      if (!controller.signal.aborted) {
+        setUpdateError(true)
+        setUpdateMessage(e instanceof Error ? e.message : '提交更新失败')
+        setUpdating(false)
+      }
+    } finally { submitting.current = false }
+  }
+  useEffect(() => {
+    if (!refreshTicket) return
+    const controller = new AbortController()
+    let timer: ReturnType<typeof setTimeout>
+    const deadline = Date.now() + 20 * 60_000
+    let failures = 0
+    async function poll() {
+      try {
+        if (Date.now() > deadline) throw new Error('等待更新超时，任务可能仍在执行。请查看 GitHub 任务或稍后刷新读取。')
+        const response = await fetch(apiUrl(`/api/us-market-style/refresh/status?ticket=${encodeURIComponent(refreshTicket!)}`), {
+          credentials: 'include', cache: 'no-store', signal: controller.signal,
+        })
+        const json = await response.json()
+        if (!response.ok || !json.success) {
+          if (response.status >= 500 && ++failures < 3) {
+            setUpdateMessage('暂时无法查询进度，正在重试...')
+            timer = setTimeout(poll, 10_000)
+            return
+          }
+          throw new Error(json.message || '查询更新失败')
+        }
+        failures = 0
+        const result = json.data
+        if (result.runUrl) setRunUrl(result.runUrl)
+        if (result.state === 'failed') throw new Error(result.message)
+        if (result.state === 'success') {
+          if (!isCurrentUsStyleSnapshot(result.snapshot)) throw new Error('更新快照口径不正确，请检查任务。')
+          setSnapshot(result.snapshot)
+          setStale(result.stale === true)
+          setError('')
+          setUpdateMessage(`市场数据已更新，最新交易日：${result.snapshot.dataDate}（纽约）。节假日或盘中更新可能仍为最近已完成交易日。`)
+          setUpdating(false)
+          setRefreshTicket(null)
+          return
+        }
+        setUpdateMessage(result.state === 'running' ? 'GitHub Actions 正在获取行情并写入 Supabase...'
+          : result.state === 'publishing' ? '任务已成功，正在确认最新 Supabase 快照...' : '任务排队中，等待 GitHub Actions 启动...')
+        timer = setTimeout(poll, 10_000)
+      } catch (e) {
+        if (!controller.signal.aborted) {
+          setUpdateError(true)
+          setUpdateMessage(e instanceof Error ? e.message : '更新进度查询失败，请稍后刷新读取。')
+          setUpdating(false)
+          setRefreshTicket(null)
+        }
+      }
+    }
+    void poll()
+    return () => { controller.abort(); clearTimeout(timer) }
+  }, [refreshTicket])
   useEffect(() => {
     const controller = new AbortController()
     setLoading(true)
@@ -76,11 +160,21 @@ export default function UsMarketStyle() {
             <p className="mt-2 text-sm text-[#94A3B8]">以 VOO（标普500 ETF）为唯一基准，观察 {US_STYLE_TARGETS.length} 只美股 ETF 的相对动量及变化方向。</p>
             {snapshot && <p className="mt-2 text-xs text-[#94A3B8]">数据交易日：{snapshot.dataDate}（纽约） · 更新：{new Date(snapshot.fetchedAt).toLocaleString('zh-CN')} · 美元复权收盘价</p>}
           </div>
-          <button type="button" disabled={loading} onClick={() => setReload((x) => x + 1)}
+          <div className="flex flex-wrap gap-2">
+          <button type="button" disabled={updating || loading} onClick={() => void updateMarketData()}
+            className="inline-flex items-center gap-2 rounded-lg border border-orange-400/30 bg-orange-400/10 px-3 py-2 text-sm text-orange-200 disabled:opacity-50">
+            <RefreshCw className={cn('h-4 w-4', updating && 'animate-spin')} />{updating ? '更新中...' : '更新市场数据'}
+          </button>
+          <button type="button" disabled={loading || updating} onClick={() => setReload((x) => x + 1)}
             className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-sm disabled:opacity-50">
             <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />刷新读取
           </button>
+          </div>
         </header>
+        {updateMessage && <div role={updateError ? 'alert' : 'status'} aria-live="polite"
+          className={cn('rounded-lg border p-4 text-sm', updateError ? 'border-red-400/25 text-red-200' : 'border-sky-400/25 text-sky-200')}>
+          {updateMessage}{runUrl && <a href={runUrl} target="_blank" rel="noopener noreferrer" className="ml-3 underline">查看 GitHub 任务</a>}
+        </div>}
         {loading && <p role="status" className="rounded-lg border border-white/10 p-4 text-sm text-[#94A3B8]">正在读取美股动量数据...</p>}
         {error && <p role="alert" className="rounded-lg border border-red-400/25 bg-red-400/10 p-4 text-sm text-red-200">{error}{snapshot ? ' 当前保留上次读取的数据。' : ''}</p>}
         {stale && snapshot && <p role="alert" className="rounded-lg border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-200">数据已超过 7 个自然日未更新，以下仅为历史快照，请检查 GitHub Actions。</p>}
