@@ -23,6 +23,7 @@ type Props = {
   scoreBands?: boolean
   tickerColorMap?: Record<string, string>
   scoreZones?: { cold: number; hot: number } | null
+  compactLegend?: boolean
 }
 
 function ymdToUtcSeconds(ymd: string): UTCTimestamp | null {
@@ -89,6 +90,7 @@ export default function RpsStyleChart({
   scoreBands = true,
   tickerColorMap = EMPTY_STRING_MAP,
   scoreZones = null,
+  compactLegend = false,
 }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -432,7 +434,7 @@ export default function RpsStyleChart({
               {x.ticker}
               {tickerNameMap[x.ticker] ? `（${tickerNameMap[x.ticker]}）` : ''}
             </span>
-            <span className="text-[#64748B]">
+            <span className={compactLegend ? 'hidden' : 'text-[#64748B]'}>
               {viewMode === 'relative'
                 ? '归一化RPS 实线 / 归一化MA50 虚线'
                 : viewMode === 'percentile' ? '自身历史百分位'
@@ -442,9 +444,9 @@ export default function RpsStyleChart({
             </span>
           </div>
         ))}
-        {viewMode === 'relative' ? <div className="text-[#64748B]">基准标签：{baseLabel}</div> : null}
-        {viewMode === 'score' ? <div className="text-[#64748B]">参考线：Y=0（MA50归一基线）</div> : null}
-        {viewMode === 'percentile' ? <div className="text-[#64748B]">纵轴 0–100 · 中位参考线 50 · 过冷 ≤10 / 过热 ≥90</div> : null}
+        {!compactLegend && viewMode === 'relative' ? <div className="text-[#64748B]">基准标签：{baseLabel}</div> : null}
+        {!compactLegend && viewMode === 'score' ? <div className="text-[#64748B]">参考线：Y=0（MA50归一基线）</div> : null}
+        {!compactLegend && viewMode === 'percentile' ? <div className="text-[#64748B]">纵轴 0–100 · 中位参考线 50 · 过冷 ≤10 / 过热 ≥90</div> : null}
         {viewMode === 'score' && scoreBands ? <div className="text-[#64748B]">阈值：&lt;-20 深绿 | -20~-10 绿 | -10~0 浅绿 | 0~10 黄 | 10~20 橙 | &gt;20 红</div> : null}
       </div>
       <div className="relative">
@@ -467,11 +469,11 @@ export default function RpsStyleChart({
           </div>
         ) : null}
         {hover ? (
-          <div className="pointer-events-none absolute right-3 top-3 z-10 rounded-lg border border-white/10 bg-black/35 px-3 py-2 text-xs text-[#E6EDF7] backdrop-blur">
+          <div className="pointer-events-none absolute right-3 top-3 z-10 max-w-[calc(100%-24px)] overflow-hidden rounded-lg border border-white/10 bg-black/70 px-3 py-2 text-xs text-[#E6EDF7] backdrop-blur">
             <div className="font-mono text-[11px] text-[#A9B6CC]">{hover.date}</div>
             <div className="mt-1 space-y-1">
               {hover.rows.map((r) => (
-                <div key={r.ticker} className="grid grid-cols-[150px_110px_110px] items-center gap-2">
+                <div key={r.ticker} className={viewMode === 'percentile' ? 'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2' : 'grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2'}>
                   <div className="font-mono text-[#CBD5E1]">
                     {r.ticker}
                     {tickerNameMap[r.ticker] ? `（${tickerNameMap[r.ticker]}）` : ''}
@@ -483,7 +485,7 @@ export default function RpsStyleChart({
             </div>
           </div>
         ) : null}
-        <div ref={hostRef} className="h-[540px] w-full rounded-lg border border-white/10 bg-[#111B2E]" />
+        <div ref={hostRef} className={compactLegend ? 'h-[380px] w-full rounded-lg bg-[#111B2E] sm:h-[500px]' : 'h-[540px] w-full rounded-lg border border-white/10 bg-[#111B2E]'} />
       </div>
     </div>
   )
