@@ -25,7 +25,10 @@ import { ensureDefaultAdminUser } from './lib/authUsers.js'
 
 // load env
 dotenv.config()
-void ensureDefaultAdminUser()
+// Login handlers await initialization themselves; a failed warmup must not crash the server.
+void ensureDefaultAdminUser().catch((error: unknown) => {
+  console.error('[auth] Admin initialization failed:', error instanceof Error ? error.message : String(error))
+})
 
 const app: express.Application = express()
 

@@ -1,5 +1,5 @@
-import type { RpsStyleSeriesPoint } from './marketApi'
-import { buildUsPercentileSeries } from './usMarketStyle'
+import type { RpsStyleSeriesPoint } from './marketApi.js'
+import { buildUsPercentileSeries } from './usMarketStyle.js'
 
 export const CN_STYLE_BENCHMARK = '000300'
 export const CN_STYLE_TARGETS = [
