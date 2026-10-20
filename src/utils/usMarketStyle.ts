@@ -27,13 +27,37 @@ export type UsStylePoint = {
 
 export function buildUsPercentileSeries(series: UsStylePoint[]): UsStylePoint[] {
   const history: Array<{ date: string; score: number }> = []
+  const values: number[] = []
+  let head = 0
+  let previousDate = ''
+  let pending: number[] = []
+  const bound = (value: number, upper = false) => {
+    let lo = 0
+    let hi = values.length
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1
+      if (values[mid] < value || (upper && values[mid] === value)) lo = mid + 1
+      else hi = mid
+    }
+    return lo
+  }
   const sortedSeries = [...series].sort((a, b) => a.date.localeCompare(b.date))
   return sortedSeries.map((point) => {
+    if (point.date !== previousDate) {
+      for (const score of pending) {
+        values.splice(bound(score), 0, score)
+        history.push({ date: previousDate, score })
+      }
+      pending = []
+      previousDate = point.date
+    }
     const cutoff = new Date(`${point.date}T00:00:00Z`)
     cutoff.setUTCFullYear(cutoff.getUTCFullYear() - 5)
     const start = cutoff.toISOString().slice(0, 10)
-    while (history.length && history[0].date < start) history.shift()
-    const values = history.filter((p) => p.date < point.date).map((p) => p.score).sort((a, b) => a - b)
+    while (head < history.length && history[head].date < start) {
+      values.splice(bound(history[head].score), 1)
+      head += 1
+    }
     const valid = typeof point.scorePct === 'number' && Number.isFinite(point.scorePct)
     const ready = valid && values.length >= 252
     const quantile = (p: number) => {
@@ -42,11 +66,12 @@ export function buildUsPercentileSeries(series: UsStylePoint[]): UsStylePoint[] 
       return values[lo] + (values[Math.ceil(index)] - values[lo]) * (index - lo)
     }
     // Midrank handles ties; assess before inserting today's Score to avoid look-ahead.
-    const percentile = ready ? 100 * (values.filter((v) => v < point.scorePct!).length
-      + 0.5 * values.filter((v) => v === point.scorePct).length) / values.length : null
+    const below = ready ? bound(point.scorePct!) : 0
+    const percentile = ready ? 100 * (below + 0.5 * (bound(point.scorePct!, true) - below)) / values.length : null
     const result = { ...point, percentile, historyCount: values.length,
       historicalCold: ready ? quantile(0.1) : null, historicalHot: ready ? quantile(0.9) : null }
-    if (valid) history.push({ date: point.date, score: point.scorePct! })
+    // Insert only on the next date: duplicate-date observations must not see each other.
+    if (valid) pending.push(point.scorePct!)
     return result
   })
 }

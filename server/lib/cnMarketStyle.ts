@@ -1,5 +1,6 @@
 import { buildRpsComputedSeries, getRpsStyleSeries, resolveLatestCompleteTradingDate } from './rpsStyle.js'
 import { readMarketBoardMeta, readMarketBoardPointsRange } from './supabaseRest.js'
+import { createAsyncSnapshotCache } from '../../src/utils/asyncSnapshotCache.js'
 import {
   CN_STYLE_BENCHMARK, CN_STYLE_TARGETS, CN_STYLE_DATA_TARGETS, buildCnPercentileSeries, cnMomentumState,
   type CnStylePanelData, type CnStylePoint,
@@ -61,8 +62,10 @@ export function buildCnStylePanel(
   return { benchmarkTicker: CN_STYLE_BENCHMARK, dataDate, seriesByTicker, items }
 }
 
-export async function getCnStylePanel() {
+async function loadCnStylePanel() {
   const shanghaiToday = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(new Date())
+  // Start independent ETF reads while the benchmark's paginated history loads.
+  const resultsPromise = Promise.allSettled(CN_STYLE_DATA_TARGETS.map(({ ticker }) => getRpsStyleSeries({ ticker })))
   const marketMeta = await readMarketBoardMeta()
   const runIds = [...new Set([marketMeta?.currentRunId, ...(marketMeta?.historyRunIds || [])].filter(Boolean))]
   let benchmarkRows: Awaited<ReturnType<typeof readMarketBoardPointsRange>> = []
@@ -78,7 +81,7 @@ export async function getCnStylePanel() {
     break
   }
   if (!benchmarkRows.length) throw new Error('暂无沪深300指数快照，请检查大盘看板刷新任务及 Supabase 配置。')
-  const results = await Promise.allSettled(CN_STYLE_DATA_TARGETS.map(({ ticker }) => getRpsStyleSeries({ ticker })))
+  const results = await resultsPromise
   const targets: Record<string, Array<Price & { high: number; low: number }>> = {}
   const notes: string[] = []
   const fetchedDates = [benchmarkRows[benchmarkRows.length - 1].fetched_at]
@@ -107,3 +110,21 @@ export async function getCnStylePanel() {
     data,
   }
 }
+
+const panelCache = createAsyncSnapshotCache({
+  ttlMs: 60_000,
+  load: loadCnStylePanel,
+  // Invalidate across the Shanghai close cutoff as well as calendar-day changes.
+  key: () => {
+    const parts = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    }).formatToParts(new Date())
+    const values = Object.fromEntries(parts.map((p) => [p.type, p.value]))
+    return `${process.env.SUPABASE_URL}:${values.year}-${values.month}-${values.day}:${Number(values.hour) * 60 + Number(values.minute) >= 930}`
+  },
+  cacheable: (result) => !result.meta.stale && !result.meta.isFallback && !result.meta.notes.length
+    && result.data.items.every((item) => item.scorePct != null),
+})
+
+export const getCnStylePanel = () => panelCache.get()

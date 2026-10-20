@@ -4,6 +4,7 @@ import RpsStyleChart from './charts/RpsStyleChart'
 import FloatingSectionNav from './FloatingSectionNav'
 import { apiUrl } from '@/utils/apiBase'
 import { cn } from '@/lib/utils'
+import { createAsyncSnapshotCache } from '@/utils/asyncSnapshotCache'
 import { CN_STYLE_BENCHMARK, CN_STYLE_TARGETS, CN_STYLE_CHART_TARGETS, CN_STYLE_DATA_TARGETS, CN_STYLE_NAME_MAP, cnDefaultChartSelection, cnPercentileZone, selectCnChartSeries, type CnStylePanelData } from '@/utils/cnMarketStyle'
 
 const NAMES = CN_STYLE_NAME_MAP
@@ -25,6 +26,21 @@ type ResponseData = {
   meta: { fetchedAt: string; dataDate: string; stale: boolean; isFallback: boolean; notes: string[] }
 }
 
+const responseCache = createAsyncSnapshotCache<ResponseData>({
+  ttlMs: 30_000,
+  cacheable: (value) => !value.meta.stale && !value.meta.isFallback && !value.meta.notes.length,
+  load: async () => {
+    const response = await fetch(apiUrl('/api/rps/cn-panel'), { credentials: 'include', cache: 'no-store' })
+    const json = await response.json()
+    if (!response.ok || !json.success) throw new Error(json.message || '数据读取失败')
+    if (json.data?.benchmarkTicker !== CN_STYLE_BENCHMARK
+      || !Array.isArray(json.data.items) || !json.data.seriesByTicker
+      || Object.values(json.data.seriesByTicker).some((points) => !Array.isArray(points)
+        || points.some((p) => p.benchmarkTicker !== CN_STYLE_BENCHMARK))) throw new Error('沪深300基准数据不完整，拒绝显示旧口径。')
+    return json
+  },
+})
+
 export default function CnMarketStylePanel({ children, previewData }: { children?: ReactNode; previewData?: ResponseData }) {
   const fixture = import.meta.env.DEV ? previewData : undefined
   const [snapshot, setSnapshot] = useState<ResponseData | null>(fixture || null)
@@ -38,22 +54,17 @@ export default function CnMarketStylePanel({ children, previewData }: { children
   )
   useEffect(() => {
     if (fixture) return
-    const controller = new AbortController()
+    let cancelled = false
     setLoading(true)
     setError('')
-    fetch(apiUrl('/api/rps/cn-panel'), { credentials: 'include', cache: 'no-store', signal: controller.signal })
-      .then(async (response) => {
-        const json = await response.json()
-        if (!response.ok || !json.success) throw new Error(json.message || '数据读取失败')
-        if (json.data?.benchmarkTicker !== CN_STYLE_BENCHMARK
-          || !Array.isArray(json.data.items) || !json.data.seriesByTicker
-          || Object.values(json.data.seriesByTicker).some((points) => !Array.isArray(points)
-            || points.some((p) => p.benchmarkTicker !== CN_STYLE_BENCHMARK))) throw new Error('沪深300基准数据不完整，拒绝显示旧口径。')
-        setSnapshot(json)
+    responseCache.get(reload > 0)
+      .then((json) => {
+        if (!cancelled) setSnapshot(json)
       }).catch((e) => {
-        if (!controller.signal.aborted) setError(e instanceof Error ? e.message : '网络异常')
-      }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
-    return () => controller.abort()
+        if (!cancelled) setError(e instanceof Error ? e.message : '网络异常')
+      }).finally(() => { if (!cancelled) setLoading(false) })
+    // Do not abort a shared request when one subscriber unmounts.
+    return () => { cancelled = true }
   }, [reload, fixture])
   const full = snapshot?.data.seriesByTicker
   const chartSeries = useMemo(() => {
