@@ -18,6 +18,7 @@ const MarketRpsMethodology = lazy(() => import('@/pages/MarketRpsMethodology'))
 const DevRpsCustomQueryLive = lazy(() => import('@/pages/DevRpsCustomQueryLive'))
 const DevRpsCustomQueryMock = lazy(() => import('@/pages/DevRpsCustomQueryMock'))
 const DevTop200MomentumSignalsMock = lazy(() => import('@/pages/DevTop200MomentumSignalsMock'))
+const DevCnMarketStyle = lazy(() => import('@/pages/DevCnMarketStyle'))
 
 function RouteLoadingFallback() {
   return (
@@ -49,6 +50,9 @@ export default function App() {
               </RequireAuth>,
             )}
           />
+          {import.meta.env.DEV ? (
+            <Route path="/dev/cn-market-style" element={withRouteSuspense(<DevCnMarketStyle />)} />
+          ) : null}
           {import.meta.env.DEV ? (
             <Route path="/dev/rps-custom-query-mock" element={withRouteSuspense(<DevRpsCustomQueryMock />)} />
           ) : null}

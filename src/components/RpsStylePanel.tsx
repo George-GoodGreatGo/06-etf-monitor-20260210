@@ -73,7 +73,7 @@ const TURNOVER_HIGHLIGHT_TEXT_CLS = 'font-semibold text-[#CBB8FF]'
 const TURNOVER_HIGHLIGHT_BADGE_CLS =
   'rounded-full border border-[rgba(203,184,255,0.28)] bg-[rgba(203,184,255,0.10)] px-1.5 py-0.5 text-[10px] font-semibold leading-4 text-[#E5DBFF]'
 
-type RpsPage = 'overview' | 'custom-query'
+type RpsPage = 'overview' | 'custom-query' | 'turnover'
 type RpsViewMode = 'raw' | 'relative' | 'score'
 type RpsRangeKey = (typeof RANGE_OPTIONS)[number]['key']
 
@@ -248,6 +248,7 @@ function computeRsi(prices: number[], period: number = 14): number | null {
 export default function RpsStylePanel({ page }: { page: RpsPage }) {
   const isOverviewPage = page === 'overview'
   const isCustomQueryPage = page === 'custom-query'
+  const showTurnover = isOverviewPage || page === 'turnover'
   const [searchParams, setSearchParams] = useSearchParams()
   const initialCustomTickerRef = useRef<string>(normalizeCustomQueryTicker(searchParams.get('ticker')))
   const initialCustomTicker = initialCustomTickerRef.current
@@ -405,7 +406,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   }, [chartView, customStartDateApplied, isOverviewPage, rangeKey, resolvedRange.endDate, resolvedRange.startDate])
 
   useEffect(() => {
-    if (!isOverviewPage) return
+    if (!showTurnover) return
     const ac = new AbortController()
     ;(async () => {
       setTurnoverSummaryLoading(true)
@@ -429,10 +430,10 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
       }
     })()
     return () => ac.abort()
-  }, [isOverviewPage])
+  }, [showTurnover])
 
   useEffect(() => {
-    if (!isOverviewPage) return
+    if (!showTurnover) return
     const ac = new AbortController()
     ;(async () => {
       setTurnoverLoading(true)
@@ -457,7 +458,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
       }
     })()
     return () => ac.abort()
-  }, [isOverviewPage, turnoverTicker])
+  }, [showTurnover, turnoverTicker])
 
   useEffect(() => {
     if (!isCustomQueryPage) return
@@ -690,7 +691,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
         </div>
       ) : (
         <div className="mt-3">
-          <div className="grid grid-cols-7 gap-2.5">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
             {turnoverSummaryRows.map((item) => {
               const isSelected = item.ticker === turnoverTicker
               const hasHit = item.status === 'hit'
@@ -1162,6 +1163,16 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
         </>
       ) : null}
     </div>
+  )
+
+  if (page === 'turnover') return (
+    <section id="rps-turnover-section" className="scroll-mt-28 overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A]">
+      <div className="border-b border-white/10 px-4 py-4">
+        <h2 className="text-lg font-semibold text-white">成交金额追踪</h2>
+        <p className="mt-1 text-xs text-[#94A3B8]">保留各ETF独立成交额统计，≥1.50x 放量高亮；放量并不等于上涨或买入信号，日期可能与动量快照不同。</p>
+      </div>
+      <div className="px-4 py-4">{turnoverSection}</div>
+    </section>
   )
 
   return (

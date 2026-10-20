@@ -1,6 +1,7 @@
 import PageBreadcrumb from '@/components/PageBreadcrumb'
 import PageContentContainer from '@/components/PageContentContainer'
 import RpsStylePanel from '@/components/RpsStylePanel'
+import CnMarketStylePanel from '@/components/CnMarketStylePanel'
 
 export default function MarketRpsOverview() {
   return (
@@ -11,7 +12,9 @@ export default function MarketRpsOverview() {
           { label: '总览' },
         ]}
       />
-      <RpsStylePanel page="overview" />
+      <CnMarketStylePanel>
+        <RpsStylePanel page="turnover" />
+      </CnMarketStylePanel>
     </PageContentContainer>
   )
 }

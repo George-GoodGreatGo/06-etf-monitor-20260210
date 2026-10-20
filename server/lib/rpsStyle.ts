@@ -307,7 +307,7 @@ function getShanghaiNowContext(now = new Date()): { date: string; minutesOfDay: 
   }
 }
 
-function resolveLatestCompleteTradingDate(dates: string[], now = new Date()): string | null {
+export function resolveLatestCompleteTradingDate(dates: string[], now = new Date()): string | null {
   const normalized = Array.from(new Set(dates.map(normalizeYmd10).filter(Boolean))).sort()
   if (!normalized.length) return null
   const latest = normalized[normalized.length - 1]

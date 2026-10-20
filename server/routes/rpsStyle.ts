@@ -13,8 +13,18 @@ import {
 } from '../lib/rpsStyle.js'
 import { listRpsCustomRecentSearches, recordRpsCustomRecentSearch } from '../lib/rpsRecentSearches.js'
 import { getCookie, verifySessionToken } from '../lib/session.js'
+import { getCnStylePanel } from '../lib/cnMarketStyle.js'
 
 const router = Router()
+
+router.get('/cn-panel', async (_req: Request, res: Response) => {
+  res.setHeader('Cache-Control', 'no-store')
+  try {
+    res.status(200).json({ success: true, ...await getCnStylePanel() })
+  } catch (e) {
+    res.status(502).json({ success: false, message: e instanceof Error ? e.message : String(e) })
+  }
+})
 
 function getRpsRecentSearchUserKey(req: Request): string | null {
   const secret = String(process.env.AUTH_SESSION_SECRET || '').trim()
