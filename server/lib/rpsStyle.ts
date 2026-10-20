@@ -19,6 +19,8 @@ const SHANGHAI_TRADE_DAY_COMPLETE_CUTOFF_MINUTES = 15 * 60 + 30
 export const RPS_BENCHMARK_TICKER = 'H30269'
 export const RPS_BENCHMARK_NAME = '红利低波全收益指数'
 export const RPS_TARGET_TICKERS = ['159915.SZ', '588000.SH', '513180.SH', '510300.SH', '512050.SH', '560010.SH', '159259.SZ', '159967.SZ', '159263.SZ'] as const
+// Extra snapshot prices support chart-only references without changing the legacy matrix.
+export const RPS_SNAPSHOT_TICKERS = [...RPS_TARGET_TICKERS, '512890.SH'] as const
 const RPS_RUN_STALE_MAX_DAYS = 14
 const RPS_TURNOVER_LOOKBACK_DAYS = 20
 const RPS_TURNOVER_DISPLAY_DAYS = 90
@@ -1113,7 +1115,7 @@ async function getSeriesFromSupabaseRuns(args: {
 }
 
 export function getRpsStyleSupportedTickers(): string[] {
-  return [...RPS_TARGET_TICKERS]
+  return [...RPS_SNAPSHOT_TICKERS]
 }
 
 export function getRpsStyleTurnoverSupportedTickers(): string[] {
@@ -1156,7 +1158,7 @@ export async function computeRpsStyleDataset(args: {
   const tickerSources: Record<string, DataSourceName> = {}
   let globalMaxDate: string | null = null
 
-  for (const ticker of RPS_TARGET_TICKERS) {
+  for (const ticker of RPS_SNAPSHOT_TICKERS) {
     const out = await fetchQfqDailyWithFallback({ ticker, startDate, endDate })
     tickerSources[ticker] = out.source
     const points = buildRpsComputedSeries({
@@ -1187,7 +1189,7 @@ export async function getRpsStyleSeries(args: {
   endDate?: string
 }): Promise<RpsStyleSeriesResult> {
   const ticker = String(args.ticker || '').trim().toUpperCase()
-  if (!RPS_TARGET_TICKERS.includes(ticker as (typeof RPS_TARGET_TICKERS)[number])) {
+  if (!RPS_SNAPSHOT_TICKERS.includes(ticker as (typeof RPS_SNAPSHOT_TICKERS)[number])) {
     throw new Error(`不支持的 ticker：${ticker}`)
   }
   const startYmd = normalizeYmd10(args.startDate)

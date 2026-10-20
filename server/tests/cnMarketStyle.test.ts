@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { buildCnStylePanel } from '../lib/cnMarketStyle.js'
 import { CN_STYLE_TARGETS, CN_STYLE_CHART_TARGETS, CN_STYLE_DATA_TARGETS, selectCnChartSeries, buildCnPercentileSeries, cnMomentumState } from '../../src/utils/cnMarketStyle.js'
-import { RPS_BENCHMARK_TICKER } from '../lib/rpsStyle.js'
+import { RPS_BENCHMARK_TICKER, RPS_TARGET_TICKERS, RPS_SNAPSHOT_TICKERS, getRpsStyleSupportedTickers, getRpsStyleSeries } from '../lib/rpsStyle.js'
 
 const dates: string[] = []
 for (const d = new Date('2024-01-02T00:00:00Z'); d < new Date('2026-10-21T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 1)) {
@@ -12,6 +12,26 @@ const targets = Object.fromEntries(CN_STYLE_DATA_TARGETS.map(({ ticker }, i) => 
   ticker, dates.map((date, j) => ({ date, close: 2 * Math.exp(j * (i - 2) * 0.001) })),
 ]))
 const now = new Date('2026-10-20T08:00:00Z')
+assert.equal(RPS_TARGET_TICKERS.length, 9)
+assert.ok(!RPS_TARGET_TICKERS.some((ticker: string) => ticker === '512890.SH'))
+assert.equal(RPS_SNAPSHOT_TICKERS.length, 10)
+assert.ok(getRpsStyleSupportedTickers().includes('512890.SH'), 'Reference must be collected by the snapshot workflow')
+for (const { ticker } of CN_STYLE_DATA_TARGETS) assert.ok(getRpsStyleSupportedTickers().includes(ticker))
+const originalFetch = globalThis.fetch
+const originalUrl = process.env.SUPABASE_URL
+const originalKey = process.env.SUPABASE_ANON_KEY
+try {
+  process.env.SUPABASE_URL = 'https://example.invalid'
+  process.env.SUPABASE_ANON_KEY = 'test-only'
+  globalThis.fetch = async () => { throw new Error('snapshot-read-reached') }
+  await assert.rejects(getRpsStyleSeries({ ticker: '512890.SH' }), /snapshot-read-reached/)
+} finally {
+  globalThis.fetch = originalFetch
+  if (originalUrl === undefined) delete process.env.SUPABASE_URL
+  else process.env.SUPABASE_URL = originalUrl
+  if (originalKey === undefined) delete process.env.SUPABASE_ANON_KEY
+  else process.env.SUPABASE_ANON_KEY = originalKey
+}
 const result = buildCnStylePanel(benchmark, targets, now)
 assert.equal(RPS_BENCHMARK_TICKER, 'H30269', 'Existing strategy benchmark must remain unchanged')
 assert.equal(result.benchmarkTicker, '000300')

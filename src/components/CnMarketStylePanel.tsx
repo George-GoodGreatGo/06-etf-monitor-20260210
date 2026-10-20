@@ -70,6 +70,7 @@ export default function CnMarketStylePanel({ children, previewData }: { children
     && latest.historicalCold < latest.historicalHot ? { cold: latest.historicalCold, hot: latest.historicalHot } : null
   const items = snapshot?.data.items || []
   const missing = items.filter((x) => x.scorePct == null || x.scoreChange5dPp == null)
+  const chartUnavailable = CN_STYLE_CHART_TARGETS.filter(({ ticker }) => !full?.[ticker]?.length)
   const immature = CN_STYLE_CHART_TARGETS.filter(({ ticker }) =>
     full?.[ticker]?.find((p) => p.date === snapshot?.data.dataDate)?.percentile == null)
   const leaders = items.filter((x) => x.scorePct != null)
@@ -125,12 +126,16 @@ export default function CnMarketStylePanel({ children, previewData }: { children
         <h2 className="text-lg font-semibold text-white">历史动量百分位与趋势</h2>
         <p className="mt-1 text-sm text-slate-400">多标的比较默认看百分位；观察动量方向看 Score；比较区间跑赢幅度看 RPS 起点归一。支持滚轮缩放、拖动和悬停。</p>
         <p className="mt-2 text-xs text-slate-400">512890 红利低波ETF华泰柏瑞作为价值类走势参考，仍相对沪深300指数计算。510300 仅保留在动量截面，不参与本模块图表。</p>
+        {chartUnavailable.length > 0 && <p role="alert" className="mt-2 text-xs leading-6 text-amber-200">
+          暂无历史行情，选项暂不可用：{chartUnavailable.map((x) => x.name).join('、')}。请确认后端已部署最新代码，并运行 GitHub Action「Refresh RPS Style Snapshots」后刷新读取；这不是百分位样本不足。
+        </p>}
         <div className="my-4 space-y-3">
           <div className="flex flex-wrap gap-2">{[{ value: 'percentile' as const, label: '历史动量百分位' }, { value: 'score' as const, label: 'Score 走势（MA50归一）' }, { value: 'relative' as const, label: 'RPS 起点归一' }].map((x) =>
             <button key={x.value} type="button" aria-pressed={view === x.value} onClick={() => setView(x.value)} className={btn(view === x.value)}>{x.label}</button>)}</div>
           <div className="flex flex-wrap items-center gap-2"><span className="text-xs text-slate-400">时间范围</span>{RANGES.map((x) =>
             <button key={x.value} type="button" aria-pressed={range === x.value} onClick={() => setRange(x.value)} className={btn(range === x.value)}>{x.label}</button>)}</div>
           <div className="flex flex-wrap gap-2">{CN_STYLE_CHART_TARGETS.map((x) => <button key={x.ticker} type="button" aria-pressed={enabled[x.ticker]}
+            title={!full?.[x.ticker]?.length ? '缺少历史行情，请更新后端并运行 Refresh RPS Style Snapshots' : x.name}
             disabled={!full?.[x.ticker]?.length} onClick={() => setEnabled((p) => ({ ...p, [x.ticker]: !p[x.ticker] }))} className={cn(btn(enabled[x.ticker]), 'disabled:cursor-not-allowed disabled:opacity-40')}>
             <span className="mr-2 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: x.color }} />{x.ticker.split('.')[0]} {x.name}
           </button>)}</div>
