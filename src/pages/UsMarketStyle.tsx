@@ -154,7 +154,8 @@ export default function UsMarketStyle() {
     <PageContentContainer>
       <PageBreadcrumb items={[{ label: '美股市场风格' }]} />
       <div className="space-y-6">
-        <header className="flex flex-wrap items-start justify-between gap-3">
+        <header aria-label="市场数据工具栏" className="space-y-3 border-b border-white/10 pb-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-white">美股市场风格</h1>
             <p className="mt-1 text-sm text-[#94A3B8]">基准 VOO · {US_STYLE_TARGETS.length} 只 ETF · 美元复权收盘价</p>
@@ -163,7 +164,7 @@ export default function UsMarketStyle() {
               <span className={cn('ml-3', stale ? 'text-amber-300' : 'text-slate-400')}>{stale ? '数据已过期' : '已载入快照'}</span>
             </p>}
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
           <button type="button" disabled={updating || loading} onClick={() => void updateMarketData()}
             className="inline-flex items-center gap-2 rounded-lg bg-[#FF8A66] px-4 py-2.5 text-sm font-medium text-[#111827] transition-colors hover:bg-[#FFA084] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-200 disabled:opacity-50 motion-reduce:transition-none">
             <RefreshCw className={cn('h-4 w-4', updating && 'animate-spin')} />{updating ? '更新中...' : '更新市场数据'}
@@ -173,7 +174,7 @@ export default function UsMarketStyle() {
             <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />刷新读取
           </button>
           </div>
-        </header>
+          </div>
         {updateMessage && <div role={updateError ? 'alert' : 'status'} aria-live="polite"
           className={cn('border-l-2 px-3 py-2 text-sm', updateError ? 'border-red-400 text-red-200' : 'border-sky-400/50 text-slate-300')}>
           {updateMessage}{runUrl && <a href={runUrl} target="_blank" rel="noopener noreferrer" className="ml-3 underline">查看 GitHub 任务</a>}
@@ -182,23 +183,24 @@ export default function UsMarketStyle() {
         {error && <p role="alert" className="rounded-lg border border-red-400/25 bg-red-400/10 p-4 text-sm text-red-200">{error}{snapshot ? ' 当前保留上次读取的数据。' : ''}</p>}
         {stale && snapshot && <p role="alert" className="rounded-lg border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-200">数据已超过 7 个自然日未更新，以下仅为历史快照，请检查 GitHub Actions。</p>}
         {missingTargets.length > 0 && <p role="alert" className="rounded-lg border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-200">当前快照尚未包含 {missingTargets.join('、')}，请更新数据库发布校验并运行刷新任务；其余标的仍可独立比较。</p>}
+        </header>
         {snapshot && <>
-          <div className="grid gap-4 border-y border-white/10 py-3 sm:grid-cols-3" aria-label="动量摘要">
+          <section className="min-w-0 rounded-xl border border-white/10 bg-[#0C141B] p-4 sm:p-5" aria-labelledby="us-cross-section">
+            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+              <h2 id="us-cross-section" className="text-lg font-semibold text-white">动量截面</h2>
+              <p className="text-xs text-[#94A3B8]">Score 降序 · 百分位与自身历史比较</p>
+            </div>
+          <div className="mb-3 grid divide-y divide-white/10 border-y border-white/10 sm:grid-cols-3 sm:divide-x sm:divide-y-0" aria-label="动量摘要">
             {[
               { title: 'Score 最高', text: `${snapshot.items[0].ticker} · ${fmt(snapshot.items[0].scorePct)}` },
               { title: '动量走强 · 5日', text: rising },
               { title: '动量走弱 · 5日', text: falling },
-            ].map((card) => <div key={card.title} className="min-w-0">
+            ].map((card) => <div key={card.title} className="min-w-0 py-3 sm:px-4 sm:first:pl-0 sm:last:pr-0">
               <div className="text-[11px] text-[#94A3B8]">{card.title}</div>
               <div className="mt-1 text-sm font-medium text-slate-200">{card.text}</div>
             </div>)}
           </div>
-          <section aria-labelledby="us-cross-section">
-            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-              <h2 id="us-cross-section" className="text-base font-semibold text-white">动量截面</h2>
-              <p className="text-xs text-[#94A3B8]">Score 降序 · 百分位与自身历史比较</p>
-            </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" role="region" aria-label="动量截面表格" tabIndex={0}>
               <table className="w-full whitespace-nowrap text-left text-sm">
                 <thead className="text-xs text-[#94A3B8]"><tr>
                   {[
@@ -231,13 +233,14 @@ export default function UsMarketStyle() {
                 })}</tbody>
               </table>
             </div>
+            <p className="mt-2 text-[11px] text-slate-400 sm:hidden">左右滑动表格查看全部指标</p>
           </section>
-          <section className="space-y-3" aria-labelledby="us-trend">
+          <section className="min-w-0 space-y-4 rounded-xl border border-white/10 bg-[#0C141B] p-4 sm:p-5" aria-labelledby="us-trend">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h2 id="us-trend" className="text-lg font-semibold text-white">动量趋势</h2>
               <span className="text-[11px] text-slate-400">滚轮缩放 · 拖动 · 悬停查看</span>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 border-y border-white/10 py-3" role="group" aria-label="趋势操作区">
               <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="inline-flex rounded-lg bg-white/5 p-1" role="group" aria-label="趋势视图">{[
                 { value: 'percentile' as const, label: '历史百分位', tip: '比较各标的相对自身历史的冷热程度' },
@@ -252,12 +255,15 @@ export default function UsMarketStyle() {
                     range === x.value ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white')}>{x.label}</button>)}
               </div>
               </div>
-              <div className="flex flex-wrap gap-2">{US_STYLE_TARGETS.map((x) => <button type="button" key={x.ticker} aria-pressed={enabled[x.ticker] && !missingTargets.includes(x.ticker)}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="mr-1 text-xs text-slate-400">比较标的</span>
+                {US_STYLE_TARGETS.map((x) => <button type="button" key={x.ticker} aria-pressed={enabled[x.ticker] && !missingTargets.includes(x.ticker)}
                 disabled={missingTargets.includes(x.ticker)}
                 onClick={() => setEnabled((prev) => ({ ...prev, [x.ticker]: !prev[x.ticker] }))} className={buttonClass(enabled[x.ticker])}>
                 <span className="mr-2 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: x.color }} />{x.ticker} {x.name}
               </button>)}</div>
             </div>
+            <div className="space-y-3">
             {view === 'score' && (scoreZones ? (
               <div className="flex flex-wrap gap-x-4 text-xs leading-6 text-[#94A3B8]">
                 <span className="mr-4 text-orange-300">过热区：Score ≥ {scoreZones.hot.toFixed(2)}%（P90）</span>
@@ -270,6 +276,7 @@ export default function UsMarketStyle() {
             <RpsStyleChart seriesByTicker={chartSeries} viewMode={view} tickerNameMap={NAMES} tickerColorMap={COLORS}
               enabledTickers={enabled} compactLegend baseLabel="各标的相对 VOO 的 RPS 在区间起点归一为 1" lockEdges={false} scoreBands={false} scoreZones={view === 'percentile' ? PERCENTILE_ZONES : scoreZones} />
             <p className="text-[11px] text-slate-400">冷热仅表示历史极端程度，不代表趋势必然反转。</p>
+            </div>
           </section>
         </>}
         <details className="group border-t border-white/10 pt-4 text-sm leading-7 text-[#94A3B8]">
