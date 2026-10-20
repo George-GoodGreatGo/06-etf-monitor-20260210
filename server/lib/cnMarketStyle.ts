@@ -1,7 +1,7 @@
 import { buildRpsComputedSeries, getRpsStyleSeries, resolveLatestCompleteTradingDate } from './rpsStyle.js'
 import { readMarketBoardMeta, readMarketBoardPointsRange } from './supabaseRest.js'
 import {
-  CN_STYLE_BENCHMARK, CN_STYLE_TARGETS, buildCnPercentileSeries, cnMomentumState,
+  CN_STYLE_BENCHMARK, CN_STYLE_TARGETS, CN_STYLE_DATA_TARGETS, buildCnPercentileSeries, cnMomentumState,
   type CnStylePanelData, type CnStylePoint,
 } from '../../src/utils/cnMarketStyle.js'
 
@@ -21,7 +21,7 @@ export function buildCnStylePanel(
   const dataDate = dates[dates.length - 1].date
   const seriesByTicker: Record<string, CnStylePoint[]> = {}
   const items: CnStylePanelData['items'] = []
-  for (const { ticker } of CN_STYLE_TARGETS) {
+  for (const { ticker } of CN_STYLE_DATA_TARGETS) {
     const prices = targets[ticker] || []
     if (new Set(prices.map((p) => p.date)).size !== prices.length) throw new Error(`重复ETF交易日：${ticker}`)
     const targetMap = new Map(prices.filter((p) => Number.isFinite(p.close) && p.close > 0).map((p) => [p.date, p]))
@@ -42,6 +42,7 @@ export function buildCnStylePanel(
     flush()
     const series = buildCnPercentileSeries(computed)
     seriesByTicker[ticker] = series
+    if (!CN_STYLE_TARGETS.some((target) => target.ticker === ticker)) continue
     const byDate = new Map(series.map((p) => [p.date, p]))
     const latest = byDate.get(dataDate)
     const before5 = byDate.get(dates[dates.length - 6]?.date)
@@ -77,13 +78,13 @@ export async function getCnStylePanel() {
     break
   }
   if (!benchmarkRows.length) throw new Error('暂无沪深300指数快照，请检查大盘看板刷新任务及 Supabase 配置。')
-  const results = await Promise.allSettled(CN_STYLE_TARGETS.map(({ ticker }) => getRpsStyleSeries({ ticker })))
+  const results = await Promise.allSettled(CN_STYLE_DATA_TARGETS.map(({ ticker }) => getRpsStyleSeries({ ticker })))
   const targets: Record<string, Array<Price & { high: number; low: number }>> = {}
   const notes: string[] = []
   const fetchedDates = [benchmarkRows[benchmarkRows.length - 1].fetched_at]
   let fallback = usedRun !== marketMeta?.currentRunId || marketMeta?.publishStatus !== 'ready'
   results.forEach((result, i) => {
-    const ticker = CN_STYLE_TARGETS[i].ticker
+    const ticker = CN_STYLE_DATA_TARGETS[i].ticker
     if (result.status === 'rejected') {
       notes.push(`${ticker}：${result.reason instanceof Error ? result.reason.message : '行情读取失败'}`)
       return

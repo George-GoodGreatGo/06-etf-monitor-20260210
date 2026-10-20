@@ -4,10 +4,10 @@ import RpsStyleChart from './charts/RpsStyleChart'
 import FloatingSectionNav from './FloatingSectionNav'
 import { apiUrl } from '@/utils/apiBase'
 import { cn } from '@/lib/utils'
-import { CN_STYLE_BENCHMARK, CN_STYLE_TARGETS, type CnStylePanelData } from '@/utils/cnMarketStyle'
+import { CN_STYLE_BENCHMARK, CN_STYLE_TARGETS, CN_STYLE_CHART_TARGETS, CN_STYLE_DATA_TARGETS, selectCnChartSeries, type CnStylePanelData } from '@/utils/cnMarketStyle'
 
-const NAMES = Object.fromEntries(CN_STYLE_TARGETS.map((x) => [x.ticker, x.name]))
-const COLORS = Object.fromEntries(CN_STYLE_TARGETS.map((x) => [x.ticker, x.color]))
+const NAMES = Object.fromEntries(CN_STYLE_DATA_TARGETS.map((x) => [x.ticker, x.name]))
+const COLORS = Object.fromEntries(CN_STYLE_DATA_TARGETS.map((x) => [x.ticker, x.color]))
 const RANGES = [{ value: 63, label: '3个月' }, { value: 126, label: '6个月' },
   { value: 252, label: '1年' }, { value: 504, label: '2年' }, { value: 0, label: '全部' }]
 const ZONES = { cold: 10, hot: 90 }
@@ -34,7 +34,7 @@ export default function CnMarketStylePanel({ children, previewData }: { children
   const [view, setView] = useState<'percentile' | 'score' | 'relative'>('percentile')
   const [range, setRange] = useState(252)
   const [enabled, setEnabled] = useState<Record<string, boolean>>(
-    Object.fromEntries(CN_STYLE_TARGETS.map((x) => [x.ticker, true])),
+    Object.fromEntries(CN_STYLE_CHART_TARGETS.map((x) => [x.ticker, true])),
   )
   useEffect(() => {
     if (fixture) return
@@ -57,19 +57,21 @@ export default function CnMarketStylePanel({ children, previewData }: { children
   }, [reload, fixture])
   const full = snapshot?.data.seriesByTicker
   const chartSeries = useMemo(() => {
-    const dates = [...new Set(Object.values(full || {}).flatMap((s) => s.map((p) => p.date)))].sort()
+    const chartFull = selectCnChartSeries(full || {})
+    const dates = [...new Set(Object.values(chartFull).flatMap((s) => s.map((p) => p.date)))].sort()
     const start = range ? dates[Math.max(0, dates.length - range)] : ''
-    return Object.fromEntries(Object.entries(full || {}).map(([ticker, points]) =>
+    return Object.fromEntries(Object.entries(chartFull).map(([ticker, points]) =>
       [ticker, points.filter((p) => !start || p.date >= start)]))
   }, [full, range])
-  const selected = Object.keys(full || {}).filter((t) => enabled[t] !== false && full![t].length)
+  const selected = Object.keys(chartSeries).filter((t) => enabled[t] !== false && chartSeries[t].length)
   const single = selected.length === 1 ? selected[0] : null
   const latest = single ? full?.[single].find((p) => p.date === snapshot?.data.dataDate) : null
   const scoreZones = latest?.historicalCold != null && latest?.historicalHot != null
     && latest.historicalCold < latest.historicalHot ? { cold: latest.historicalCold, hot: latest.historicalHot } : null
   const items = snapshot?.data.items || []
   const missing = items.filter((x) => x.scorePct == null || x.scoreChange5dPp == null)
-  const immature = items.filter((x) => x.percentile == null)
+  const immature = CN_STYLE_CHART_TARGETS.filter(({ ticker }) =>
+    full?.[ticker]?.find((p) => p.date === snapshot?.data.dataDate)?.percentile == null)
   const leaders = items.filter((x) => x.scorePct != null)
   const trendNames = (trend: string) => items.filter((x) => x.trend === trend).map((x) => NAMES[x.ticker]).join('、') || '暂无'
 
@@ -122,12 +124,13 @@ export default function CnMarketStylePanel({ children, previewData }: { children
       <section id="cn-history" className="scroll-mt-28 rounded-lg border border-[#1E293B] bg-[#0F172A] p-4">
         <h2 className="text-lg font-semibold text-white">历史动量百分位与趋势</h2>
         <p className="mt-1 text-sm text-slate-400">多标的比较默认看百分位；观察动量方向看 Score；比较区间跑赢幅度看 RPS 起点归一。支持滚轮缩放、拖动和悬停。</p>
+        <p className="mt-2 text-xs text-slate-400">512890 红利低波ETF华泰柏瑞作为价值类走势参考，仍相对沪深300指数计算。510300 仅保留在动量截面，不参与本模块图表。</p>
         <div className="my-4 space-y-3">
           <div className="flex flex-wrap gap-2">{[{ value: 'percentile' as const, label: '历史动量百分位' }, { value: 'score' as const, label: 'Score 走势（MA50归一）' }, { value: 'relative' as const, label: 'RPS 起点归一' }].map((x) =>
             <button key={x.value} type="button" aria-pressed={view === x.value} onClick={() => setView(x.value)} className={btn(view === x.value)}>{x.label}</button>)}</div>
           <div className="flex flex-wrap items-center gap-2"><span className="text-xs text-slate-400">时间范围</span>{RANGES.map((x) =>
             <button key={x.value} type="button" aria-pressed={range === x.value} onClick={() => setRange(x.value)} className={btn(range === x.value)}>{x.label}</button>)}</div>
-          <div className="flex flex-wrap gap-2">{CN_STYLE_TARGETS.map((x) => <button key={x.ticker} type="button" aria-pressed={enabled[x.ticker]}
+          <div className="flex flex-wrap gap-2">{CN_STYLE_CHART_TARGETS.map((x) => <button key={x.ticker} type="button" aria-pressed={enabled[x.ticker]}
             disabled={!full?.[x.ticker]?.length} onClick={() => setEnabled((p) => ({ ...p, [x.ticker]: !p[x.ticker] }))} className={cn(btn(enabled[x.ticker]), 'disabled:cursor-not-allowed disabled:opacity-40')}>
             <span className="mr-2 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: x.color }} />{x.ticker.split('.')[0]} {x.name}
           </button>)}</div>

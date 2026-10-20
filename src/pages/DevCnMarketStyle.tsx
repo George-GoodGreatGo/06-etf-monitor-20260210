@@ -1,5 +1,5 @@
 import CnMarketStylePanel from '@/components/CnMarketStylePanel'
-import { buildCnPercentileSeries, CN_STYLE_TARGETS, cnMomentumState, type CnStylePanelData } from '@/utils/cnMarketStyle'
+import { buildCnPercentileSeries, CN_STYLE_TARGETS, CN_STYLE_DATA_TARGETS, cnMomentumState, type CnStylePanelData } from '@/utils/cnMarketStyle'
 
 const dates: string[] = []
 for (const d = new Date('2022-01-03T00:00:00Z'); d <= new Date('2026-10-19T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 1)) {
@@ -7,7 +7,7 @@ for (const d = new Date('2022-01-03T00:00:00Z'); d <= new Date('2026-10-19T00:00
 }
 const seriesByTicker: CnStylePanelData['seriesByTicker'] = {}
 const items: CnStylePanelData['items'] = []
-CN_STYLE_TARGETS.forEach(({ ticker }, index) => {
+CN_STYLE_DATA_TARGETS.forEach(({ ticker }, index) => {
   const history = index === 6 ? dates.slice(-100) : dates
   const raw = history.map((_, i) => 0.001 * Math.exp(i * (index - 4) * 0.00005 + 0.03 * Math.sin(i / (13 + index))))
   const series = buildCnPercentileSeries(history.map((date, i) => {
@@ -17,6 +17,7 @@ CN_STYLE_TARGETS.forEach(({ ticker }, index) => {
       rpsRaw: raw[i], rpsMa50: ma, scorePct: ma == null ? null : (raw[i] / ma - 1) * 100 }
   }))
   seriesByTicker[ticker] = series
+  if (!CN_STYLE_TARGETS.some((target) => target.ticker === ticker)) return
   const last = series[series.length - 1]
   const change = last.scorePct! - series[series.length - 6].scorePct!
   items.push({ ticker, date: last.date, scorePct: last.scorePct, scoreChange5dPp: change,

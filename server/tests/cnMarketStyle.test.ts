@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { buildCnStylePanel } from '../lib/cnMarketStyle.js'
-import { CN_STYLE_TARGETS, buildCnPercentileSeries, cnMomentumState } from '../../src/utils/cnMarketStyle.js'
+import { CN_STYLE_TARGETS, CN_STYLE_CHART_TARGETS, CN_STYLE_DATA_TARGETS, selectCnChartSeries, buildCnPercentileSeries, cnMomentumState } from '../../src/utils/cnMarketStyle.js'
 import { RPS_BENCHMARK_TICKER } from '../lib/rpsStyle.js'
 
 const dates: string[] = []
@@ -8,7 +8,7 @@ for (const d = new Date('2024-01-02T00:00:00Z'); d < new Date('2026-10-21T00:00:
   if (d.getUTCDay() && d.getUTCDay() !== 6 && !d.toISOString().startsWith('2026-10-0')) dates.push(d.toISOString().slice(0, 10))
 }
 const benchmark = dates.map((date, i) => ({ date, close: 3000 * Math.exp(i * 0.001) }))
-const targets = Object.fromEntries(CN_STYLE_TARGETS.map(({ ticker }, i) => [
+const targets = Object.fromEntries(CN_STYLE_DATA_TARGETS.map(({ ticker }, i) => [
   ticker, dates.map((date, j) => ({ date, close: 2 * Math.exp(j * (i - 2) * 0.001) })),
 ]))
 const now = new Date('2026-10-20T08:00:00Z')
@@ -16,6 +16,18 @@ const result = buildCnStylePanel(benchmark, targets, now)
 assert.equal(RPS_BENCHMARK_TICKER, 'H30269', 'Existing strategy benchmark must remain unchanged')
 assert.equal(result.benchmarkTicker, '000300')
 assert.equal(result.dataDate, '2026-10-20')
+assert.equal(result.items.length, CN_STYLE_TARGETS.length)
+assert.ok(result.items.some((x) => x.ticker === '510300.SH'))
+assert.ok(!result.items.some((x) => x.ticker === '512890.SH'))
+const chart = selectCnChartSeries(result.seriesByTicker)
+assert.equal(Object.keys(chart).length, CN_STYLE_CHART_TARGETS.length)
+assert.ok(!('510300.SH' in chart))
+assert.ok(chart['512890.SH'].at(-1)!.percentile != null)
+assert.equal(chart['512890.SH'].at(-1)!.benchmarkTicker, '000300')
+const noReference = structuredClone(targets)
+delete noReference['512890.SH']
+assert.deepEqual(buildCnStylePanel(benchmark, noReference, now).items, result.items)
+assert.deepEqual(selectCnChartSeries(buildCnStylePanel(benchmark, noReference, now).seriesByTicker)['512890.SH'], [])
 const growth = result.seriesByTicker['159263.SZ']
 const last = growth[growth.length - 1]
 assert.equal(growth[48].scorePct, null)

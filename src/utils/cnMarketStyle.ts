@@ -14,6 +14,20 @@ export const CN_STYLE_TARGETS = [
   { ticker: '159263.SZ', name: '国证价值100ETF', color: '#FB923C' },
 ] as const
 
+export const CN_STYLE_CHART_TARGETS = [
+  ...CN_STYLE_TARGETS.filter((x) => x.ticker !== '510300.SH'),
+  { ticker: '512890.SH', name: '红利低波ETF华泰柏瑞 · 价值参考', color: '#F87171' },
+] as const
+
+export const CN_STYLE_DATA_TARGETS = [
+  ...CN_STYLE_TARGETS,
+  ...CN_STYLE_CHART_TARGETS.filter((x) => !CN_STYLE_TARGETS.some((target) => target.ticker === x.ticker)),
+]
+
+export function selectCnChartSeries(series: Record<string, CnStylePoint[]>): Record<string, CnStylePoint[]> {
+  return Object.fromEntries(CN_STYLE_CHART_TARGETS.map(({ ticker }) => [ticker, series[ticker] || []]))
+}
+
 export type CnStylePoint = RpsStyleSeriesPoint & {
   percentile?: number | null
   historyCount?: number

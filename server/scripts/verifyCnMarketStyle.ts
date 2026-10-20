@@ -4,7 +4,7 @@ import express from 'express'
 import { fileURLToPath } from 'node:url'
 import { getCnStylePanel } from '../lib/cnMarketStyle.js'
 import rpsRoutes from '../routes/rpsStyle.js'
-import { CN_STYLE_TARGETS } from '../../src/utils/cnMarketStyle.js'
+import { CN_STYLE_TARGETS, CN_STYLE_DATA_TARGETS } from '../../src/utils/cnMarketStyle.js'
 
 // Optional Windows transport for local Node TLS failures. Never used by the deployed server.
 const originalFetch = globalThis.fetch
@@ -31,13 +31,16 @@ const panel = await getCnStylePanel()
 assert.equal(panel.data.benchmarkTicker, '000300')
 assert.equal(panel.data.items.length, CN_STYLE_TARGETS.length)
 const summary = []
-for (const { ticker } of CN_STYLE_TARGETS) {
+for (const { ticker } of CN_STYLE_DATA_TARGETS) {
   const series = panel.data.seriesByTicker[ticker]
   assert.ok(series.length > 0, `Missing real history: ${ticker}`)
   assert.equal(new Set(series.map((p) => p.date)).size, series.length)
   assert.ok(series.every((p) => p.benchmarkTicker === '000300' && p.date <= panel.data.dataDate))
   const last = series.find((p) => p.date === panel.data.dataDate)
-  const item = panel.data.items.find((p) => p.ticker === ticker)!
+  const item = panel.data.items.find((p) => p.ticker === ticker) || {
+    ticker, date: panel.data.dataDate, scorePct: last?.scorePct ?? null,
+    percentile: last?.percentile ?? null, historyCount: last?.historyCount ?? 0,
+  }
   if (last?.scorePct != null) {
     assert.ok(Math.abs(last.rpsRaw - last.targetCloseQfq / last.benchmarkCloseQfq) < 1e-12)
     const tail = series.filter((p) => p.date <= last.date).slice(-50)
