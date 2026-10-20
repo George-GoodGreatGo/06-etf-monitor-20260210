@@ -185,21 +185,35 @@ export default function UsMarketStyle() {
         {missingTargets.length > 0 && <p role="alert" className="rounded-lg border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-200">当前快照尚未包含 {missingTargets.join('、')}，请更新数据库发布校验并运行刷新任务；其余标的仍可独立比较。</p>}
         </header>
         {snapshot && <>
-          <section className="min-w-0 rounded-xl border border-white/10 bg-[#0C141B] p-4 sm:p-5" aria-labelledby="us-cross-section">
-            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-              <h2 id="us-cross-section" className="text-lg font-semibold text-white">动量截面</h2>
+          <section className="min-w-0 rounded-lg bg-[#101B24]/80 px-4 py-3 sm:px-5 sm:py-4" aria-labelledby="us-momentum-overview">
+            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+              <h2 id="us-momentum-overview" className="text-xs font-medium text-slate-300">动量概览</h2>
+              <p className="text-xs text-slate-400">当前快照 · 相对 VOO</p>
+            </div>
+            <dl className="grid grid-cols-2 gap-y-4 sm:grid-cols-[1.2fr_1fr_1fr]" aria-label="动量摘要">
+              <div className="col-span-2 min-w-0 border-b border-white/10 pb-4 sm:col-span-1 sm:border-b-0 sm:border-r sm:pb-0 sm:pr-6">
+                <dt className="text-xs text-slate-400">Score 最高</dt>
+                <dd className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <span className="text-xl font-semibold text-white">{snapshot.items[0].ticker}</span>
+                  <span className="font-mono text-3xl font-semibold tracking-tight text-white tabular-nums">{fmt(snapshot.items[0].scorePct)}</span>
+                  <span className="text-xs text-slate-400">{NAMES[snapshot.items[0].ticker]}</span>
+                </dd>
+              </div>
+              {[
+                { title: '动量走强 · 5日', text: rising, Icon: ArrowUpRight, color: 'text-emerald-300' },
+                { title: '动量走弱 · 5日', text: falling, Icon: ArrowDownRight, color: 'text-rose-300' },
+              ].map(({ title, text, Icon, color }, index) => <div key={title}
+                className={cn('min-w-0 sm:px-6', index === 0 ? 'border-r border-white/10 pr-4' : 'pl-4 sm:pr-0')}>
+                <dt className="flex items-center gap-1.5 text-xs text-slate-400"><Icon aria-hidden="true" className={cn('h-4 w-4 shrink-0', color)} />{title}</dt>
+                <dd className="mt-2 text-sm font-semibold leading-6 text-slate-200 sm:text-base">{text}</dd>
+              </div>)}
+            </dl>
+          </section>
+          <section className="min-w-0 rounded-lg border border-white/[0.06] bg-[#0C141B]/70 px-4 py-3 sm:px-5" aria-labelledby="us-cross-section">
+            <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+              <h2 id="us-cross-section" className="text-sm font-semibold text-slate-200">动量截面</h2>
               <p className="text-xs text-[#94A3B8]">Score 降序 · 百分位与自身历史比较</p>
             </div>
-          <div className="mb-3 grid divide-y divide-white/10 border-y border-white/10 sm:grid-cols-3 sm:divide-x sm:divide-y-0" aria-label="动量摘要">
-            {[
-              { title: 'Score 最高', text: `${snapshot.items[0].ticker} · ${fmt(snapshot.items[0].scorePct)}` },
-              { title: '动量走强 · 5日', text: rising },
-              { title: '动量走弱 · 5日', text: falling },
-            ].map((card) => <div key={card.title} className="min-w-0 py-3 sm:px-4 sm:first:pl-0 sm:last:pr-0">
-              <div className="text-[11px] text-[#94A3B8]">{card.title}</div>
-              <div className="mt-1 text-sm font-medium text-slate-200">{card.text}</div>
-            </div>)}
-          </div>
             <div className="overflow-x-auto" role="region" aria-label="动量截面表格" tabIndex={0}>
               <table className="w-full whitespace-nowrap text-left text-sm">
                 <thead className="text-xs text-[#94A3B8]"><tr>
@@ -235,13 +249,11 @@ export default function UsMarketStyle() {
             </div>
             <p className="mt-2 text-[11px] text-slate-400 sm:hidden">左右滑动表格查看全部指标</p>
           </section>
-          <section className="min-w-0 space-y-4 rounded-xl border border-white/10 bg-[#0C141B] p-4 sm:p-5" aria-labelledby="us-trend">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 id="us-trend" className="text-lg font-semibold text-white">动量趋势</h2>
-              <span className="text-[11px] text-slate-400">滚轮缩放 · 拖动 · 悬停查看</span>
-            </div>
-            <div className="space-y-3 border-y border-white/10 py-3" role="group" aria-label="趋势操作区">
+          <section className="min-w-0 space-y-3 rounded-lg border border-white/[0.06] bg-[#0C141B]/70 px-4 py-3 sm:px-5" aria-labelledby="us-trend">
+            <div className="space-y-2 border-b border-white/[0.06] pb-3" role="group" aria-label="趋势操作区">
               <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <h2 id="us-trend" className="text-sm font-semibold text-slate-200">动量趋势</h2>
               <div className="inline-flex rounded-lg bg-white/5 p-1" role="group" aria-label="趋势视图">{[
                 { value: 'percentile' as const, label: '历史百分位', tip: '比较各标的相对自身历史的冷热程度' },
                 { value: 'score' as const, label: 'Score 走势', tip: 'RPS 相对 MA50 归一，观察动量方向' },
@@ -249,6 +261,7 @@ export default function UsMarketStyle() {
               ].map((x) => <button type="button" key={x.value} title={x.tip} aria-pressed={view === x.value} onClick={() => setView(x.value)}
                 className={cn('rounded-md px-3 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 motion-reduce:transition-none',
                   view === x.value ? 'bg-slate-600/50 text-white' : 'text-slate-400 hover:text-white')}>{x.label}</button>)}</div>
+              </div>
               <div className="flex flex-wrap items-center gap-1" role="group" aria-label="时间范围">
                 {RANGES.map((x) => <button type="button" key={x.value} aria-pressed={range === x.value} onClick={() => setRange(x.value)}
                   className={cn('rounded px-2.5 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 motion-reduce:transition-none',
@@ -275,12 +288,15 @@ export default function UsMarketStyle() {
             {view === 'relative' && <p className="text-xs text-[#94A3B8]">各标的相对 VOO 的 RPS 在区间起点归一为 1，上行表示区间跑赢 VOO。</p>}
             <RpsStyleChart seriesByTicker={chartSeries} viewMode={view} tickerNameMap={NAMES} tickerColorMap={COLORS}
               enabledTickers={enabled} compactLegend baseLabel="各标的相对 VOO 的 RPS 在区间起点归一为 1" lockEdges={false} scoreBands={false} scoreZones={view === 'percentile' ? PERCENTILE_ZONES : scoreZones} />
-            <p className="text-[11px] text-slate-400">冷热仅表示历史极端程度，不代表趋势必然反转。</p>
+            <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-[11px] text-slate-400">
+              <p>冷热仅表示历史极端程度，不代表趋势必然反转。</p>
+              <span>滚轮缩放 · 拖动 · 悬停查看</span>
+            </div>
             </div>
           </section>
         </>}
-        <details className="group border-t border-white/10 pt-4 text-sm leading-7 text-[#94A3B8]">
-          <summary className="cursor-pointer text-sm font-medium text-slate-300 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400">计算口径与阅读方法</summary>
+        <details className="group border-t border-white/[0.06] pt-3 text-sm leading-7 text-[#94A3B8]">
+          <summary className="cursor-pointer text-xs font-medium text-slate-400 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400">计算口径与阅读方法</summary>
           <div className="mt-3 space-y-2">
           <p>RPS = 标的复权收盘价 / VOO 复权收盘价；MA50 = RPS 的 50 交易日简单均线；Score = (RPS / MA50 − 1) × 100%。VOO 自身的 Score 恒为 0，作为参考基线，不参与排名；SCHD 为普通比较标的。</p>
           <p>5 日变化 = 今日 Score − 5 个共同交易日前 Score。变化超过 +0.10 pp 为走强，低于 −0.10 pp 为走弱，其余为平稳；这是过滤微小波动的展示阈值，不是经回测验证的交易信号。20 日相对收益 = (今日 RPS / 20 个交易日前 RPS − 1) × 100%。</p>
