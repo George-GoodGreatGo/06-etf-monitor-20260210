@@ -4,9 +4,9 @@ import RpsStyleChart from './charts/RpsStyleChart'
 import FloatingSectionNav from './FloatingSectionNav'
 import { apiUrl } from '@/utils/apiBase'
 import { cn } from '@/lib/utils'
-import { CN_STYLE_BENCHMARK, CN_STYLE_TARGETS, CN_STYLE_CHART_TARGETS, CN_STYLE_DATA_TARGETS, cnDefaultChartSelection, cnPercentileZone, selectCnChartSeries, type CnStylePanelData } from '@/utils/cnMarketStyle'
+import { CN_STYLE_BENCHMARK, CN_STYLE_TARGETS, CN_STYLE_CHART_TARGETS, CN_STYLE_DATA_TARGETS, CN_STYLE_NAME_MAP, cnDefaultChartSelection, cnPercentileZone, selectCnChartSeries, type CnStylePanelData } from '@/utils/cnMarketStyle'
 
-const NAMES = Object.fromEntries(CN_STYLE_DATA_TARGETS.map((x) => [x.ticker, x.name]))
+const NAMES = CN_STYLE_NAME_MAP
 const COLORS = Object.fromEntries(CN_STYLE_DATA_TARGETS.map((x) => [x.ticker, x.color]))
 const RANGES = [{ value: 63, label: '3个月' }, { value: 126, label: '6个月' },
   { value: 252, label: '1年' }, { value: 504, label: '2年' }, { value: 0, label: '全部' }]

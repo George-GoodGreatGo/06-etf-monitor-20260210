@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { buildCnStylePanel } from '../lib/cnMarketStyle.js'
-import { CN_STYLE_TARGETS, CN_STYLE_CHART_TARGETS, CN_STYLE_DATA_TARGETS, CN_STYLE_TURNOVER_TICKERS, cnDefaultChartSelection, cnPercentileZone, selectCnChartSeries, buildCnPercentileSeries, cnMomentumState } from '../../src/utils/cnMarketStyle.js'
+import { CN_STYLE_TARGETS, CN_STYLE_CHART_TARGETS, CN_STYLE_DATA_TARGETS, CN_STYLE_TURNOVER_TICKERS, CN_STYLE_NAME_MAP, cnDefaultChartSelection, cnPercentileZone, selectCnChartSeries, buildCnPercentileSeries, cnMomentumState } from '../../src/utils/cnMarketStyle.js'
 import { RPS_BENCHMARK_TICKER, RPS_TARGET_TICKERS, RPS_SNAPSHOT_TICKERS, getRpsStyleSupportedTickers, getRpsStyleSeries } from '../lib/rpsStyle.js'
 
 const dates: string[] = []
@@ -37,9 +37,18 @@ assert.equal(RPS_BENCHMARK_TICKER, 'H30269', 'Existing strategy benchmark must r
 assert.equal(result.benchmarkTicker, '000300')
 assert.equal(result.dataDate, '2026-10-20')
 assert.equal(result.items.length, CN_STYLE_TARGETS.length)
-assert.equal(result.items.length, 8)
+assert.equal(result.items.length, 9)
 assert.ok(!result.items.some((x) => x.ticker === '510300.SH'))
-assert.ok(!result.items.some((x) => x.ticker === '512890.SH'))
+assert.ok(result.items.some((x) => x.ticker === '512890.SH'))
+const expectedTickers = CN_STYLE_TARGETS.map((x) => x.ticker).sort()
+for (const list of [
+  CN_STYLE_CHART_TARGETS.map((x) => x.ticker), CN_STYLE_DATA_TARGETS.map((x) => x.ticker),
+  CN_STYLE_TURNOVER_TICKERS, result.items.map((x) => x.ticker), Object.keys(result.seriesByTicker),
+]) {
+  assert.equal(new Set(list).size, 9, 'Module ticker lists must not contain duplicates')
+  assert.deepEqual([...list].sort(), expectedTickers, 'All overview modules must cover the same tickers')
+}
+for (const { ticker, name } of CN_STYLE_TARGETS) assert.equal(CN_STYLE_NAME_MAP[ticker], name)
 assert.ok(!CN_STYLE_TURNOVER_TICKERS.includes('510300.SH'))
 assert.ok(CN_STYLE_TURNOVER_TICKERS.includes('512890.SH'))
 assert.deepEqual(Object.entries(cnDefaultChartSelection()).filter(([, enabled]) => enabled).map(([ticker]) => ticker), ['159915.SZ', '512890.SH'])
@@ -57,8 +66,16 @@ assert.ok(chart['512890.SH'].at(-1)!.percentile != null)
 assert.equal(chart['512890.SH'].at(-1)!.benchmarkTicker, '000300')
 const noReference = structuredClone(targets)
 delete noReference['512890.SH']
-assert.deepEqual(buildCnStylePanel(benchmark, noReference, now).items, result.items)
-assert.deepEqual(selectCnChartSeries(buildCnStylePanel(benchmark, noReference, now).seriesByTicker)['512890.SH'], [])
+const withoutReference = buildCnStylePanel(benchmark, noReference, now)
+assert.deepEqual(withoutReference.items.filter((x) => x.ticker !== '512890.SH'), result.items.filter((x) => x.ticker !== '512890.SH'))
+assert.equal(withoutReference.items.find((x) => x.ticker === '512890.SH')?.scorePct, null)
+assert.deepEqual(selectCnChartSeries(withoutReference.seriesByTicker)['512890.SH'], [])
+const reference = result.items.find((x) => x.ticker === '512890.SH')!
+const referenceSeries = result.seriesByTicker['512890.SH']
+assert.equal(reference.percentile, referenceSeries.at(-1)!.percentile)
+assert.equal(reference.scorePct, referenceSeries.at(-1)!.scorePct)
+assert.equal(reference.scoreChange5dPp, referenceSeries.at(-1)!.scorePct! - referenceSeries.at(-6)!.scorePct!)
+assert.equal(reference.relativeReturn20dPct, (referenceSeries.at(-1)!.rpsRaw / referenceSeries.at(-21)!.rpsRaw - 1) * 100)
 const growth = result.seriesByTicker['159263.SZ']
 const last = growth[growth.length - 1]
 assert.equal(growth[48].scorePct, null)

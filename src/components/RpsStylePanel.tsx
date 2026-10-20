@@ -22,7 +22,7 @@ import {
   type RpsTurnoverSummaryItem,
 } from '@/utils/marketApi'
 import type { Top100Meta } from '@/utils/etfApi'
-import { CN_STYLE_TURNOVER_TICKERS } from '@/utils/cnMarketStyle'
+import { CN_STYLE_TURNOVER_TICKERS, CN_STYLE_NAME_MAP } from '@/utils/cnMarketStyle'
 import { formatCompactNumber, formatPct, formatYmd } from '@/utils/format'
 import {
   MOMENTUM_STRATEGIES,
@@ -539,11 +539,11 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
     const tickers = page === 'turnover' ? CN_STYLE_TURNOVER_TICKERS : TURNOVER_TICKERS
     return tickers.map((ticker) => {
       const hit = summaryMap.get(ticker)
-      if (hit) return hit
+      if (hit) return page === 'turnover' ? { ...hit, name: CN_STYLE_NAME_MAP[ticker] || hit.name } : hit
       return {
         ticker,
         code: ticker.split('.')[0] || ticker,
-        name: ETF_NAME_MAP[ticker] || ticker,
+        name: (page === 'turnover' ? CN_STYLE_NAME_MAP[ticker] : ETF_NAME_MAP[ticker]) || ticker,
         latestTradingDate: null,
         latestAmplifiedDate: null,
         tradingDaysAgo: null,

@@ -11,20 +11,15 @@ export const CN_STYLE_TARGETS = [
   { ticker: '159259.SZ', name: '国证成长100ETF', color: '#E879F9' },
   { ticker: '159967.SZ', name: '创成长ETF', color: '#A78BFA' },
   { ticker: '159263.SZ', name: '国证价值100ETF', color: '#FB923C' },
-] as const
-
-export const CN_STYLE_CHART_TARGETS = [
-  ...CN_STYLE_TARGETS,
   { ticker: '512890.SH', name: '红利低波ETF华泰柏瑞 · 价值参考', color: '#F87171' },
 ] as const
 
-export const CN_STYLE_DATA_TARGETS = [
-  ...CN_STYLE_TARGETS,
-  ...CN_STYLE_CHART_TARGETS.filter((x) => !CN_STYLE_TARGETS.some((target) => target.ticker === x.ticker)),
-]
+export const CN_STYLE_CHART_TARGETS = CN_STYLE_TARGETS
+export const CN_STYLE_DATA_TARGETS = CN_STYLE_TARGETS
+export const CN_STYLE_NAME_MAP: Record<string, string> = Object.fromEntries(CN_STYLE_TARGETS.map((x) => [x.ticker, x.name]))
 
 export const CN_STYLE_DEFAULT_CHART_TICKERS = ['159915.SZ', '512890.SH'] as const
-export const CN_STYLE_TURNOVER_TICKERS = ['512890.SH', ...CN_STYLE_TARGETS.map((x) => x.ticker)]
+export const CN_STYLE_TURNOVER_TICKERS = ['512890.SH', ...CN_STYLE_TARGETS.filter((x) => x.ticker !== '512890.SH').map((x) => x.ticker)]
 
 export function cnDefaultChartSelection(): Record<string, boolean> {
   return Object.fromEntries(CN_STYLE_CHART_TARGETS.map(({ ticker }) =>
