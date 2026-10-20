@@ -22,6 +22,7 @@ import {
   type RpsTurnoverSummaryItem,
 } from '@/utils/marketApi'
 import type { Top100Meta } from '@/utils/etfApi'
+import { CN_STYLE_TURNOVER_TICKERS } from '@/utils/cnMarketStyle'
 import { formatCompactNumber, formatPct, formatYmd } from '@/utils/format'
 import {
   MOMENTUM_STRATEGIES,
@@ -535,7 +536,8 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
 
   const turnoverSummaryRows = useMemo(() => {
     const summaryMap = new Map(turnoverSummaryItems.map((item) => [item.ticker, item]))
-    return TURNOVER_TICKERS.map((ticker) => {
+    const tickers = page === 'turnover' ? CN_STYLE_TURNOVER_TICKERS : TURNOVER_TICKERS
+    return tickers.map((ticker) => {
       const hit = summaryMap.get(ticker)
       if (hit) return hit
       return {
@@ -548,7 +550,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
         status: 'no_data' as const,
       }
     })
-  }, [turnoverSummaryItems])
+  }, [turnoverSummaryItems, page])
 
   const customTurnoverRows = useMemo(() => {
     if (!Array.isArray(customQueryData?.turnoverSeries)) return []

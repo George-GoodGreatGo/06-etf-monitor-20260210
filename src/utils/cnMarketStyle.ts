@@ -6,7 +6,6 @@ export const CN_STYLE_TARGETS = [
   { ticker: '159915.SZ', name: '创业板ETF', color: '#60A5FA' },
   { ticker: '588000.SH', name: '科创50ETF', color: '#F59E0B' },
   { ticker: '513180.SH', name: '恒生科技ETF · 跨市场', color: '#34D399' },
-  { ticker: '510300.SH', name: '沪深300ETF', color: '#F87171' },
   { ticker: '512050.SH', name: '中证A500ETF', color: '#22D3EE' },
   { ticker: '560010.SH', name: '中证1000ETF', color: '#FBBF24' },
   { ticker: '159259.SZ', name: '国证成长100ETF', color: '#E879F9' },
@@ -15,7 +14,7 @@ export const CN_STYLE_TARGETS = [
 ] as const
 
 export const CN_STYLE_CHART_TARGETS = [
-  ...CN_STYLE_TARGETS.filter((x) => x.ticker !== '510300.SH'),
+  ...CN_STYLE_TARGETS,
   { ticker: '512890.SH', name: '红利低波ETF华泰柏瑞 · 价值参考', color: '#F87171' },
 ] as const
 
@@ -23,6 +22,19 @@ export const CN_STYLE_DATA_TARGETS = [
   ...CN_STYLE_TARGETS,
   ...CN_STYLE_CHART_TARGETS.filter((x) => !CN_STYLE_TARGETS.some((target) => target.ticker === x.ticker)),
 ]
+
+export const CN_STYLE_DEFAULT_CHART_TICKERS = ['159915.SZ', '512890.SH'] as const
+export const CN_STYLE_TURNOVER_TICKERS = ['512890.SH', ...CN_STYLE_TARGETS.map((x) => x.ticker)]
+
+export function cnDefaultChartSelection(): Record<string, boolean> {
+  return Object.fromEntries(CN_STYLE_CHART_TARGETS.map(({ ticker }) =>
+    [ticker, CN_STYLE_DEFAULT_CHART_TICKERS.some((value: string) => value === ticker)]))
+}
+
+export function cnPercentileZone(percentile: number | null | undefined): '过冷区' | '过热区' | '其它' | '暂无有效百分位' {
+  if (percentile == null || !Number.isFinite(percentile) || percentile < 0 || percentile > 100) return '暂无有效百分位'
+  return percentile <= 10 ? '过冷区' : percentile >= 90 ? '过热区' : '其它'
+}
 
 export function selectCnChartSeries(series: Record<string, CnStylePoint[]>): Record<string, CnStylePoint[]> {
   return Object.fromEntries(CN_STYLE_CHART_TARGETS.map(({ ticker }) => [ticker, series[ticker] || []]))

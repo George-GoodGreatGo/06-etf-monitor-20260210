@@ -8,7 +8,7 @@ for (const d = new Date('2022-01-03T00:00:00Z'); d <= new Date('2026-10-19T00:00
 const seriesByTicker: CnStylePanelData['seriesByTicker'] = {}
 const items: CnStylePanelData['items'] = []
 CN_STYLE_DATA_TARGETS.forEach(({ ticker }, index) => {
-  const history = index === 6 ? dates.slice(-100) : dates
+  const history = ticker === '159259.SZ' ? dates.slice(-100) : dates
   const raw = history.map((_, i) => 0.001 * Math.exp(i * (index - 4) * 0.00005 + 0.03 * Math.sin(i / (13 + index))))
   const series = buildCnPercentileSeries(history.map((date, i) => {
     const ma = i < 49 ? null : raw.slice(i - 49, i + 1).reduce((s, v) => s + v, 0) / 50

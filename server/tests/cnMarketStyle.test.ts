@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { buildCnStylePanel } from '../lib/cnMarketStyle.js'
-import { CN_STYLE_TARGETS, CN_STYLE_CHART_TARGETS, CN_STYLE_DATA_TARGETS, selectCnChartSeries, buildCnPercentileSeries, cnMomentumState } from '../../src/utils/cnMarketStyle.js'
+import { CN_STYLE_TARGETS, CN_STYLE_CHART_TARGETS, CN_STYLE_DATA_TARGETS, CN_STYLE_TURNOVER_TICKERS, cnDefaultChartSelection, cnPercentileZone, selectCnChartSeries, buildCnPercentileSeries, cnMomentumState } from '../../src/utils/cnMarketStyle.js'
 import { RPS_BENCHMARK_TICKER, RPS_TARGET_TICKERS, RPS_SNAPSHOT_TICKERS, getRpsStyleSupportedTickers, getRpsStyleSeries } from '../lib/rpsStyle.js'
 
 const dates: string[] = []
@@ -9,7 +9,7 @@ for (const d = new Date('2024-01-02T00:00:00Z'); d < new Date('2026-10-21T00:00:
 }
 const benchmark = dates.map((date, i) => ({ date, close: 3000 * Math.exp(i * 0.001) }))
 const targets = Object.fromEntries(CN_STYLE_DATA_TARGETS.map(({ ticker }, i) => [
-  ticker, dates.map((date, j) => ({ date, close: 2 * Math.exp(j * (i - 2) * 0.001) })),
+  ticker, dates.map((date, j) => ({ date, close: 2 * Math.exp(j * (ticker === '159263.SZ' ? 0.006 : (i - 2) * 0.001)) })),
 ]))
 const now = new Date('2026-10-20T08:00:00Z')
 assert.equal(RPS_TARGET_TICKERS.length, 9)
@@ -37,8 +37,19 @@ assert.equal(RPS_BENCHMARK_TICKER, 'H30269', 'Existing strategy benchmark must r
 assert.equal(result.benchmarkTicker, '000300')
 assert.equal(result.dataDate, '2026-10-20')
 assert.equal(result.items.length, CN_STYLE_TARGETS.length)
-assert.ok(result.items.some((x) => x.ticker === '510300.SH'))
+assert.equal(result.items.length, 8)
+assert.ok(!result.items.some((x) => x.ticker === '510300.SH'))
 assert.ok(!result.items.some((x) => x.ticker === '512890.SH'))
+assert.ok(!CN_STYLE_TURNOVER_TICKERS.includes('510300.SH'))
+assert.ok(CN_STYLE_TURNOVER_TICKERS.includes('512890.SH'))
+assert.deepEqual(Object.entries(cnDefaultChartSelection()).filter(([, enabled]) => enabled).map(([ticker]) => ticker), ['159915.SZ', '512890.SH'])
+assert.equal(cnPercentileZone(0), '过冷区')
+assert.equal(cnPercentileZone(10), '过冷区')
+assert.equal(cnPercentileZone(10.01), '其它')
+assert.equal(cnPercentileZone(89.99), '其它')
+assert.equal(cnPercentileZone(90), '过热区')
+assert.equal(cnPercentileZone(100), '过热区')
+for (const value of [null, undefined, NaN, Infinity, -1, 101]) assert.equal(cnPercentileZone(value), '暂无有效百分位')
 const chart = selectCnChartSeries(result.seriesByTicker)
 assert.equal(Object.keys(chart).length, CN_STYLE_CHART_TARGETS.length)
 assert.ok(!('510300.SH' in chart))
@@ -55,7 +66,6 @@ assert.ok(Math.abs(last.rpsMa50! - growth.slice(-50).reduce((s, p) => s + p.rpsR
 const item = result.items.find((x) => x.ticker === '159263.SZ')!
 assert.ok(Math.abs(item.relativeReturn20dPct! - (Math.exp(20 * 0.005) - 1) * 100) < 1e-10)
 assert.ok(Math.abs(item.scoreChange5dPp! - (last.scorePct! - growth[growth.length - 6].scorePct!)) < 1e-10)
-assert.ok(Math.abs(result.items.find((x) => x.ticker === '510300.SH')!.scorePct!) < 1e-10)
 assert.equal(buildCnStylePanel(benchmark, targets, new Date('2026-10-20T06:00:00Z')).dataDate, '2026-10-19')
 assert.equal(buildCnStylePanel([...benchmark, { date: '2027-01-01', close: 1 }], targets, now).dataDate, '2026-10-20')
 const changed = buildCnStylePanel(benchmark.map((p) => ({ ...p, close: 3000 })), targets, now)

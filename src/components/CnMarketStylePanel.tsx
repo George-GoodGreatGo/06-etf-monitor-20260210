@@ -4,7 +4,7 @@ import RpsStyleChart from './charts/RpsStyleChart'
 import FloatingSectionNav from './FloatingSectionNav'
 import { apiUrl } from '@/utils/apiBase'
 import { cn } from '@/lib/utils'
-import { CN_STYLE_BENCHMARK, CN_STYLE_TARGETS, CN_STYLE_CHART_TARGETS, CN_STYLE_DATA_TARGETS, selectCnChartSeries, type CnStylePanelData } from '@/utils/cnMarketStyle'
+import { CN_STYLE_BENCHMARK, CN_STYLE_TARGETS, CN_STYLE_CHART_TARGETS, CN_STYLE_DATA_TARGETS, cnDefaultChartSelection, cnPercentileZone, selectCnChartSeries, type CnStylePanelData } from '@/utils/cnMarketStyle'
 
 const NAMES = Object.fromEntries(CN_STYLE_DATA_TARGETS.map((x) => [x.ticker, x.name]))
 const COLORS = Object.fromEntries(CN_STYLE_DATA_TARGETS.map((x) => [x.ticker, x.color]))
@@ -34,7 +34,7 @@ export default function CnMarketStylePanel({ children, previewData }: { children
   const [view, setView] = useState<'percentile' | 'score' | 'relative'>('percentile')
   const [range, setRange] = useState(252)
   const [enabled, setEnabled] = useState<Record<string, boolean>>(
-    Object.fromEntries(CN_STYLE_CHART_TARGETS.map((x) => [x.ticker, true])),
+    cnDefaultChartSelection,
   )
   useEffect(() => {
     if (fixture) return
@@ -68,7 +68,7 @@ export default function CnMarketStylePanel({ children, previewData }: { children
   const latest = single ? full?.[single].find((p) => p.date === snapshot?.data.dataDate) : null
   const scoreZones = latest?.historicalCold != null && latest?.historicalHot != null
     && latest.historicalCold < latest.historicalHot ? { cold: latest.historicalCold, hot: latest.historicalHot } : null
-  const items = snapshot?.data.items || []
+  const items = (snapshot?.data.items || []).filter((item) => CN_STYLE_TARGETS.some((x) => x.ticker === item.ticker))
   const missing = items.filter((x) => x.scorePct == null || x.scoreChange5dPp == null)
   const chartUnavailable = CN_STYLE_CHART_TARGETS.filter(({ ticker }) => !full?.[ticker]?.length)
   const immature = CN_STYLE_CHART_TARGETS.filter(({ ticker }) =>
@@ -106,17 +106,20 @@ export default function CnMarketStylePanel({ children, previewData }: { children
       </div>
       <section id="cn-momentum" className="scroll-mt-28 overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A]">
         <div className="border-b border-white/10 p-4"><h2 className="text-lg font-semibold text-white">动量截面</h2>
-          <p className="mt-1 text-xs text-slate-400">按 Score 降序。正负是相对 MA50 的强弱，5日变化是增强或减弱；历史百分位是自身历史位置，不是标的间排名。</p></div>
+          <p className="mt-1 text-xs text-slate-400">按 Score 降序。正负是相对 MA50 的强弱，5日变化是增强或减弱；历史百分位是自身历史位置，不是标的间排名。冷热区域按百分位判定：≤10 过冷，≥90 过热，其余为其它；无有效百分位不判定。</p></div>
         <div className="overflow-x-auto"><table className="w-full whitespace-nowrap text-left text-sm">
-          <thead className="text-xs text-slate-400"><tr>{['标的 / 风格', 'Score', 'Score 5日变化（百分点）', '20日相对沪深300收益', '历史百分位', '动量状态'].map((x) => <th key={x} className="px-4 py-3 font-medium">{x}</th>)}</tr></thead>
+          <thead className="text-xs text-slate-400"><tr>{['标的 / 风格', 'Score', 'Score 5日变化（百分点）', '20日相对沪深300收益', '历史百分位', '冷热区域', '动量状态'].map((x) => <th key={x} className="px-4 py-3 font-medium">{x}</th>)}</tr></thead>
           <tbody>{items.map((item) => {
             const Icon = item.trend === 'up' ? ArrowUpRight : item.trend === 'down' ? ArrowDownRight : Minus
+            const zone = cnPercentileZone(item.scorePct == null ? null : item.percentile)
             return <tr key={item.ticker} className="border-t border-white/5 hover:bg-white/[0.025]">
               <td className="px-4 py-4"><span className="mr-2 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: COLORS[item.ticker] }} /><strong>{item.ticker.split('.')[0]}</strong><span className="ml-2 text-slate-400">{NAMES[item.ticker]}</span></td>
               <td className={cn('px-4 py-4 font-mono', (item.scorePct ?? 0) > 0 ? 'text-red-300' : (item.scorePct ?? 0) < 0 ? 'text-emerald-300' : 'text-slate-400')}>{fmt(item.scorePct)}</td>
               <td className="px-4 py-4 font-mono">{fmt(item.scoreChange5dPp, ' pp')}</td>
               <td className="px-4 py-4 font-mono">{fmt(item.relativeReturn20dPct)}</td>
               <td className="px-4 py-4 font-mono" title={`此前有效 Score：${item.historyCount} 个`}>{item.scorePct == null ? '行情缺失 / 预热' : item.percentile == null ? `样本不足（${item.historyCount}/252）` : `${item.percentile.toFixed(1)}`}</td>
+              <td className="px-4 py-4"><span className={cn('rounded-md px-2 py-1 text-xs',
+                zone === '过热区' ? 'bg-red-400/10 text-red-300' : zone === '过冷区' ? 'bg-sky-400/10 text-sky-300' : 'bg-white/5 text-slate-400')}>{zone}</span></td>
               <td className="px-4 py-4"><span className={cn('inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs',
                 item.trend === 'up' ? 'bg-red-400/10 text-red-300' : item.trend === 'down' ? 'bg-emerald-400/10 text-emerald-300' : 'bg-white/5 text-slate-400')}><Icon className="h-3.5 w-3.5" />{item.quadrant}</span></td>
             </tr>
@@ -125,7 +128,7 @@ export default function CnMarketStylePanel({ children, previewData }: { children
       <section id="cn-history" className="scroll-mt-28 rounded-lg border border-[#1E293B] bg-[#0F172A] p-4">
         <h2 className="text-lg font-semibold text-white">历史动量百分位与趋势</h2>
         <p className="mt-1 text-sm text-slate-400">多标的比较默认看百分位；观察动量方向看 Score；比较区间跑赢幅度看 RPS 起点归一。支持滚轮缩放、拖动和悬停。</p>
-        <p className="mt-2 text-xs text-slate-400">512890 红利低波ETF华泰柏瑞作为价值类走势参考，仍相对沪深300指数计算。510300 仅保留在动量截面，不参与本模块图表。</p>
+        <p className="mt-2 text-xs text-slate-400">默认选中159915创业板ETF与512890红利低波ETF华泰柏瑞，便于比较成长与价值类走势；可点击其他标的加入比较。基准仍为沪深300指数。</p>
         {chartUnavailable.length > 0 && <p role="alert" className="mt-2 text-xs leading-6 text-amber-200">
           暂无历史行情，选项暂不可用：{chartUnavailable.map((x) => x.name).join('、')}。请确认后端已部署最新代码，并运行 GitHub Action「Refresh RPS Style Snapshots」后刷新读取；这不是百分位样本不足。
         </p>}
@@ -158,7 +161,7 @@ export default function CnMarketStylePanel({ children, previewData }: { children
     </>}
     <section id="cn-method" className="scroll-mt-28 rounded-lg border border-white/10 bg-white/[0.025] p-4 text-sm leading-7 text-slate-400">
       <h2 className="mb-2 font-semibold text-white">A股计算口径与阅读方法</h2>
-      <p>RPS = ETF 人民币前复权收盘价 / 沪深300指数收盘点位；MA50 = RPS 的50个连续有效内地交易日简单均线；Score = (RPS / MA50 − 1) × 100%。沪深300指数自身 Score 恒为0，不参与排名；510300 是可比较的 ETF，其分红、费用与跟踪误差使 Score 不必为0。</p>
+      <p>RPS = ETF 人民币前复权收盘价 / 沪深300指数收盘点位；MA50 = RPS 的50个连续有效内地交易日简单均线；Score = (RPS / MA50 − 1) × 100%。沪深300指数自身 Score 恒为0，不参与排名。冷热区域采用自身历史百分位，不是价格涨跌或交易建议。</p>
       <p>5日变化 = 今日 Score − 5个内地交易日前 Score；超过 +0.20 pp 为走强，低于 −0.20 pp 为走弱，其余平稳。该阈值仅过滤微小展示波动，未经回测验证。20日相对收益 = (今日 RPS / 20个内地交易日前 RPS − 1) × 100%，不是绝对收益或简单收益之差。</p>
       <p>按上海时区15:30后视为当日完整行情；使用指数实际交易日期，不填周末、春节及国庆休市日，不向前填补缺失ETF价格。缺失交易日后 MA50 重新预热50日，各标的独立计算。源行情失败或尚未更新时明确显示缺失，不推测价格。</p>
       <p>前复权处理 ETF 分红和份额调整，避免除权跳变；沪深300（000300）是价格指数，不是全收益指数，因此此处相对收益含 ETF 分红调整与指数不计分红的口径差异，不等同严格的总回报超额收益。</p>
