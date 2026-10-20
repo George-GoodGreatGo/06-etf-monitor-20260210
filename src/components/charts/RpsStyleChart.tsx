@@ -24,6 +24,7 @@ type Props = {
   tickerColorMap?: Record<string, string>
   scoreZones?: { cold: number; hot: number } | null
   compactLegend?: boolean
+  preserveChartHeight?: boolean
 }
 
 function ymdToUtcSeconds(ymd: string): UTCTimestamp | null {
@@ -91,6 +92,7 @@ export default function RpsStyleChart({
   tickerColorMap = EMPTY_STRING_MAP,
   scoreZones = null,
   compactLegend = false,
+  preserveChartHeight = false,
 }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const chartRef = useRef<IChartApi | null>(null)
@@ -485,7 +487,7 @@ export default function RpsStyleChart({
             </div>
           </div>
         ) : null}
-        <div ref={hostRef} className={compactLegend ? 'h-[380px] w-full rounded-lg bg-[#111B2E] sm:h-[500px]' : 'h-[540px] w-full rounded-lg border border-white/10 bg-[#111B2E]'} />
+        <div ref={hostRef} className={compactLegend && !preserveChartHeight ? 'h-[380px] w-full rounded-lg bg-[#111B2E] sm:h-[500px]' : 'h-[540px] w-full rounded-lg border border-white/10 bg-[#111B2E]'} />
       </div>
     </div>
   )

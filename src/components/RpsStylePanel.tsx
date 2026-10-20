@@ -693,7 +693,7 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
         </div>
       ) : (
         <div className="mt-3">
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+          <div className={cn('grid gap-2.5 lg:grid-cols-4 xl:grid-cols-5', page === 'turnover' ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2')}>
             {turnoverSummaryRows.map((item) => {
               const isSelected = item.ticker === turnoverTicker
               const hasHit = item.status === 'hit'
@@ -710,15 +710,18 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                   onClick={() => setTurnoverTicker(item.ticker)}
                   aria-pressed={isSelected}
                   className={cn(
-                    'flex min-h-[112px] min-w-0 flex-col justify-between rounded-md border px-2.5 py-2 text-left transition',
-                    isSelected
+                    'flex min-w-0 flex-col justify-between rounded-md border px-2.5 py-2 text-left',
+                    page === 'turnover'
+                      ? cn('min-h-[96px] transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300',
+                        isSelected ? 'border-white/20 bg-white/[0.08]' : 'border-white/[0.06] bg-transparent hover:bg-white/[0.04]')
+                      : cn('min-h-[112px] transition', isSelected
                       ? 'border-[rgba(196,181,253,0.36)] bg-[rgba(196,181,253,0.10)] shadow-[inset_0_0_0_1px_rgba(196,181,253,0.16)]'
-                      : 'border-white/10 bg-[#0B1220] hover:border-white/20 hover:bg-white/[0.06]',
+                      : 'border-white/10 bg-[#0B1220] hover:border-white/20 hover:bg-white/[0.06]'),
                   )}
                 >
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                      <div className="truncate text-sm font-semibold leading-5 text-[#E6EDF7]">{item.name}</div>
+                      <div className={cn('text-sm font-semibold leading-5 text-[#E6EDF7]', page !== 'turnover' && 'truncate')}>{item.name}</div>
                       <div className="font-mono text-[11px] leading-5 text-[#94A3B8]">{displayCode}</div>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-1">
@@ -733,10 +736,10 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
                     </div>
                   </div>
                   <div className="mt-2 space-y-1 text-[11px] leading-4.5">
-                    <div className={cn('truncate', hasHit ? 'text-[#F8FAFC]' : 'text-[#CBD5E1]')}>
+                    <div className={cn(page !== 'turnover' && 'truncate', hasHit ? 'text-[#F8FAFC]' : 'text-[#CBD5E1]')}>
                       最近放量日：{amplifiedDateText}
                     </div>
-                    <div className="truncate text-[#94A3B8]">
+                    <div className={cn('text-[#94A3B8]', page !== 'turnover' && 'truncate')}>
                       最近交易日：{item.latestTradingDate ? formatYmd(item.latestTradingDate) : '—'}
                     </div>
                   </div>
@@ -747,7 +750,8 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
         </div>
       )}
 
-      <div className="mt-3 overflow-x-auto rounded-lg border border-white/10">
+      <div className={cn('mt-3 overflow-x-auto rounded-lg border', page === 'turnover' ? 'border-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400' : 'border-white/10')}
+        role={page === 'turnover' ? 'region' : undefined} aria-label={page === 'turnover' ? '成交额历史表格' : undefined} tabIndex={page === 'turnover' ? 0 : undefined}>
         <table className="min-w-full text-sm">
           <thead className="bg-white/5 text-[#A9B6CC]">
             <tr>
@@ -1168,12 +1172,12 @@ export default function RpsStylePanel({ page }: { page: RpsPage }) {
   )
 
   if (page === 'turnover') return (
-    <section id="rps-turnover-section" className="scroll-mt-28 overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A]">
-      <div className="border-b border-white/10 px-4 py-4">
-        <h2 className="text-lg font-semibold text-white">成交金额追踪</h2>
+    <section id="rps-turnover-section" aria-labelledby="rps-turnover-title" className="min-w-0 scroll-mt-28 overflow-hidden rounded-lg border border-white/[0.06] bg-[#0C141B]/70 px-4 py-3 sm:px-5">
+      <div className="mb-3">
+        <h2 id="rps-turnover-title" className="text-sm font-semibold text-slate-200">成交金额追踪</h2>
         <p className="mt-1 text-xs text-[#94A3B8]">保留各ETF独立成交额统计，≥1.50x 放量高亮；放量并不等于上涨或买入信号，日期可能与动量快照不同。</p>
       </div>
-      <div className="px-4 py-4">{turnoverSection}</div>
+      {turnoverSection}
     </section>
   )
 
