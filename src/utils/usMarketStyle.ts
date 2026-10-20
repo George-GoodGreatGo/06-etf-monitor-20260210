@@ -104,6 +104,16 @@ export function isCurrentUsStyleSnapshot(snapshot: UsStyleSnapshot): boolean {
       && snapshot.seriesByTicker[ticker].every((point) => point.benchmarkTicker === US_STYLE_BENCHMARK))
 }
 
+export function getUsMomentumCrossSection(series: UsStylePoint[], dataDate: string) {
+  const point = series.find((p) => p.date === dataDate)
+  const value = point?.percentile
+  const percentile = typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100
+    && (point?.historyCount ?? 0) >= 252 ? value : null
+  const zone = percentile == null ? '样本不足'
+    : percentile <= 10 ? '过冷区' : percentile >= 90 ? '过热区' : '其它'
+  return { percentile, zone, sampleCount: point?.historyCount ?? 0 }
+}
+
 export type UsScoreZones = {
   cold: number
   hot: number

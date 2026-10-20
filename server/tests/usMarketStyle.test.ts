@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { buildUsStyleSnapshot, newYorkDate, parseYahooAdjustedCloses, type AdjustedClose } from '../lib/usMarketStyle.js'
-import { buildUsPercentileSeries, computeUsScoreZones, isCurrentUsStyleSnapshot, US_STYLE_TARGETS } from '../../src/utils/usMarketStyle.js'
+import { buildUsPercentileSeries, computeUsScoreZones, getUsMomentumCrossSection, isCurrentUsStyleSnapshot, US_STYLE_TARGETS } from '../../src/utils/usMarketStyle.js'
 
 const now = new Date('2026-10-09T06:35:00Z')
 const dates: string[] = []
@@ -153,4 +153,19 @@ assert.equal(buildUsPercentileSeries([...source].reverse())[252].percentile, 100
 const oldPoint = { ...source[0], date: '2019-01-01', scorePct: -999 }
 assert.deepEqual(buildUsPercentileSeries([oldPoint, ...source]).slice(1), percentiles)
 assert.deepEqual(source[252], snapshot.seriesByTicker.SMH[252] && { ...snapshot.seriesByTicker.SMH[252], scorePct: 252 })
+const crossDate = source[252].date
+const crossPoint = { ...percentiles[252] }
+for (const [value, zone] of [[0, '过冷区'], [10, '过冷区'], [10.001, '其它'],
+  [89.999, '其它'], [90, '过热区'], [100, '过热区']] as const) {
+  assert.equal(getUsMomentumCrossSection([{ ...crossPoint, percentile: value }], crossDate).zone, zone)
+}
+for (const value of [null, Number.NaN, Number.POSITIVE_INFINITY, -1, 101]) {
+  assert.equal(getUsMomentumCrossSection([{ ...crossPoint, percentile: value }], crossDate).percentile, null)
+}
+assert.equal(getUsMomentumCrossSection([{ ...crossPoint, percentile: 95, historyCount: 251 }], crossDate).zone, '样本不足')
+assert.equal(getUsMomentumCrossSection(percentiles, '2099-01-01').zone, '样本不足')
+assert.equal(getUsMomentumCrossSection([], crossDate).percentile, null)
+assert.equal(getUsMomentumCrossSection(percentiles, crossDate).percentile, percentiles[252].percentile)
+assert.deepEqual(getUsMomentumCrossSection(percentiles.slice(200), crossDate),
+  getUsMomentumCrossSection(percentiles, crossDate))
 console.log('usMarketStyle.test.ts: ok')

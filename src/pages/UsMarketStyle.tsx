@@ -5,7 +5,7 @@ import PageBreadcrumb from '@/components/PageBreadcrumb'
 import RpsStyleChart from '@/components/charts/RpsStyleChart'
 import { apiUrl } from '@/utils/apiBase'
 import { cn } from '@/lib/utils'
-import { buildUsPercentileSeries, isCurrentUsStyleSnapshot, US_STYLE_TARGETS, type UsStyleSnapshot } from '@/utils/usMarketStyle'
+import { buildUsPercentileSeries, getUsMomentumCrossSection, isCurrentUsStyleSnapshot, US_STYLE_TARGETS, type UsStyleSnapshot } from '@/utils/usMarketStyle'
 
 const NAMES = Object.fromEntries(US_STYLE_TARGETS.map((x) => [x.ticker, x.name]))
 const COLORS = Object.fromEntries(US_STYLE_TARGETS.map((x) => [x.ticker, x.color]))
@@ -193,20 +193,26 @@ export default function UsMarketStyle() {
           <section className="overflow-hidden rounded-lg border border-[#1E293B] bg-[#0F172A]">
             <div className="border-b border-white/10 p-4">
               <h2 className="text-lg font-semibold text-white">动量截面</h2>
-              <p className="mt-1 text-xs text-[#94A3B8]">按 Score 降序排列。Score 正负表示相对强弱，5 日变化表示增强或减弱，两者需一起看。</p>
+              <p className="mt-1 text-xs text-[#94A3B8]">按 Score 降序排列。Score 正负表示相对强弱，5 日变化表示增强或减弱。历史百分位与自身此前五年可用 Score 比较，不是标的间排名；≤10 过冷、≥90 过热，其余为其它，至少需要 252 个此前有效样本。</p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full whitespace-nowrap text-left text-sm">
                 <thead className="text-xs text-[#94A3B8]"><tr>
-                  {['标的 / 风格', 'Score', 'Score 5日变化（百分点）', '20日相对 VOO 收益', '动量状态'].map((label) => <th key={label} className="px-4 py-3 font-medium">{label}</th>)}
+                  {['标的 / 风格', 'Score', 'Score 5日变化（百分点）', '20日相对 VOO 收益', '历史百分位', '冷热区域', '动量状态'].map((label) => <th key={label} className="px-4 py-3 font-medium">{label}</th>)}
                 </tr></thead>
                 <tbody>{snapshot.items.map((item) => {
                   const Icon = item.trend === 'up' ? ArrowUpRight : item.trend === 'down' ? ArrowDownRight : Minus
+                  const { percentile, zone, sampleCount } = getUsMomentumCrossSection(fullSeries[item.ticker] || [], snapshot.dataDate)
                   return <tr key={item.ticker} className="border-t border-white/5 hover:bg-white/[0.025]">
                     <td className="px-4 py-4"><span className="mr-2 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: COLORS[item.ticker] }} /><strong>{item.ticker}</strong><span className="ml-2 text-[#94A3B8]">{NAMES[item.ticker]}</span></td>
                     <td className="px-4 py-4 font-mono">{fmt(item.scorePct)}</td>
                     <td className="px-4 py-4 font-mono">{fmt(item.scoreChange5dPp, ' pp')}</td>
                     <td className="px-4 py-4 font-mono">{fmt(item.relativeReturn20dPct)}</td>
+                    <td className="px-4 py-4 font-mono" title={`截至 ${snapshot.dataDate}，此前有效 Score 样本：${sampleCount}；与百分位走势图同口径`}>
+                      {percentile == null ? '—' : percentile.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-4"><span className={cn('inline-flex rounded-md px-2 py-1 text-xs',
+                      zone === '过热区' ? 'bg-orange-400/10 text-orange-300' : zone === '过冷区' ? 'bg-sky-400/10 text-sky-300' : 'bg-white/5 text-[#94A3B8]')}>{zone}</span></td>
                     <td className="px-4 py-4"><span className={cn('inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs',
                       item.trend === 'up' ? 'bg-emerald-400/10 text-emerald-300' : item.trend === 'down' ? 'bg-rose-400/10 text-rose-300' : 'bg-white/5 text-[#94A3B8]')}>
                       <Icon className="h-3.5 w-3.5" />{item.quadrant}</span></td>
