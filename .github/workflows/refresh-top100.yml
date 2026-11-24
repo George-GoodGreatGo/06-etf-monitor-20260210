@@ -47,4 +47,7 @@ jobs:
           COZE_SESSION_ID: ${{ secrets.COZE_SESSION_ID }}
           TOP100_LIMIT: '200'
           LARK_BOT_WEBHOOK_URL: ${{ secrets.LARK_BOT_WEBHOOK_URL }}
+          GROK_BOT_WEBHOOK_URL: ${{ secrets.GROK_BOT_WEBHOOK_URL }}
+          GROK_BOT_AUTH_TOKEN: ${{ secrets.GROK_BOT_AUTH_TOKEN }}
+          APP_SITE_URL: ${{ secrets.APP_SITE_URL }}
         run: npm run refresh:supabase:top100

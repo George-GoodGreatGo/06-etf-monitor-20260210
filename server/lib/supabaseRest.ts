@@ -18,6 +18,7 @@ export type Top100InsightRow = {
   created_at: string
   updated_at: string
   lark_pushed_at?: string | null
+  grok_pushed_at?: string | null
 }
 
 export type Top100InsightStatus = 'idle' | 'generating' | 'ready' | 'failed'
@@ -486,6 +487,25 @@ export async function updateTop100InsightLarkPushed(dataDate: string): Promise<v
       Prefer: 'return=minimal',
     },
     body: JSON.stringify({ lark_pushed_at: new Date().toISOString() }),
+  })
+}
+
+export async function updateTop100InsightGrokPushed(dataDate: string): Promise<void> {
+  const supabaseUrl = mustEnv('SUPABASE_URL').replace(/\/+$/, '')
+  const serviceKey = mustEnv('SUPABASE_SERVICE_ROLE_KEY')
+  const d = String(dataDate || '').trim()
+  if (!d) return
+
+  const url = `${supabaseUrl}/rest/v1/top100_insight?data_date=eq.${encodeURIComponent(d)}`
+  await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify({ grok_pushed_at: new Date().toISOString() }),
   })
 }
 
