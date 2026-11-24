@@ -1,13 +1,9 @@
 import { cozeStreamRunToMarkdown } from './coze.js'
-import { sendGrokBotDailyReport } from './grokBot.js'
-import { sendLarkMarkdownCard } from './larkBot.js'
 import {
   insertTop100InsightIgnoreDuplicates,
   readTop100InsightByDataDate,
   readTop100InsightStatusByDataDate,
   type Top100InsightRow,
-  updateTop100InsightGrokPushed,
-  updateTop100InsightLarkPushed,
   upsertTop100InsightStatus,
 } from './supabaseRest.js'
 
@@ -90,29 +86,6 @@ export function buildTop100InsightPromptText(input: {
   ].join('\n')
 }
 
-async function pushInsightToChannels(dataDate: string, row: Top100InsightRow) {
-  const title = `ETF200 异动解读 — ${dataDate}`
-  const markdown = row.markdown ?? ''
-  const jobs: Promise<unknown>[] = []
-
-  if (!row.lark_pushed_at) {
-    jobs.push(
-      sendLarkMarkdownCard(title, markdown).then((ok) => (ok ? updateTop100InsightLarkPushed(dataDate) : null)),
-    )
-  }
-
-  if (!row.grok_pushed_at) {
-    jobs.push(
-      sendGrokBotDailyReport({ title, dataDate, markdown }).then((ok) =>
-        ok ? updateTop100InsightGrokPushed(dataDate) : null,
-      ),
-    )
-  }
-
-  if (jobs.length === 0) return
-  await Promise.allSettled(jobs)
-}
-
 export async function ensureTop100Insight(
   dataDate: string,
   snapshotAt: string | null,
@@ -125,7 +98,6 @@ export async function ensureTop100Insight(
 
   const existing = await readTop100InsightByDataDate(d)
   if (existing) {
-    await pushInsightToChannels(d, existing)
     await writeInsightStatusSafe({ data_date: d, status: 'ready', last_error: null, finished_at: new Date().toISOString() })
     return existing
   }
@@ -176,7 +148,6 @@ export async function ensureTop100Insight(
   inflightEnsures.set(d, task)
   try {
     const out = await task
-    await pushInsightToChannels(d, out)
     await writeInsightStatusSafe({
       data_date: d,
       status: 'ready',
